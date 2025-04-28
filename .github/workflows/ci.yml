@@ -1,0 +1,35 @@
+name: ENG App CI
+
+on: [push, pull_request]
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./eng-app # Set working directory for all steps
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Use Node.js v18.x (match local environment if possible)
+          cache: 'npm'
+          cache-dependency-path: eng-app/package-lock.json # Correct path for cache
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linters
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test run # Use 'run' to execute tests once, not watch mode
+        
+      # Optional: Add build step to check if app builds successfully
+      # - name: Build application
+      #   run: npm run build 
