@@ -46,7 +46,7 @@ const OnboardingWizard: React.FC = () => {
     const dispatch = useDispatch(); // Get dispatch function
 
     const methods = useForm<OnboardingData>({
-        resolver: zodResolver(onboardingSchema),
+        resolver: zodResolver(onboardingSchema) as any,
         mode: 'onBlur',
         defaultValues: { /* TODO: Consider fetching existing profile data if re-onboarding */ }
     });
@@ -94,7 +94,7 @@ const OnboardingWizard: React.FC = () => {
             setFormData(prev => ({ ...prev, ...currentValues }));
             
             // Then manually call handleSubmit with our onSubmit function
-            handleSubmit(onSubmit)();
+            handleSubmit(onSubmit as any)();
         }
     };
 

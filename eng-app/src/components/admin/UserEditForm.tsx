@@ -1,5 +1,5 @@
 import React from 'react';
-import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UserProfileFull } from '../../types/profiles'; // Import shared type
@@ -14,6 +14,7 @@ interface UserEditFormProps {
 const userEditSchema = z.object({
     username: z.string().min(1, 'Username is required'),
     role: z.string(),
+    // Physical details
     age: z.preprocess(
         (val) => (val === '' ? null : Number(val)),
         z.number().min(0, 'Age must be positive').max(120, 'Age cannot exceed 120').nullable().optional()
@@ -30,64 +31,103 @@ const userEditSchema = z.object({
         (val) => (val === '' ? null : Number(val)),
         z.number().min(0, 'Body fat percentage must be positive').max(100, 'Body fat percentage cannot exceed 100%').nullable().optional()
     ),
-    goal_target_weight_kg: z.preprocess(
+    // Goals
+    goal_target_fat_loss_kg: z.preprocess(
         (val) => (val === '' ? null : Number(val)),
-        z.number().min(0, 'Target weight must be positive').nullable().optional()
+        z.number().min(0, 'Target fat loss must be positive').nullable().optional()
     ),
     goal_timeframe_weeks: z.preprocess(
         (val) => (val === '' ? null : Number(val)),
         z.number().min(0, 'Timeframe must be positive').nullable().optional()
     ),
+    goal_target_weight_kg: z.preprocess(
+        (val) => (val === '' ? null : Number(val)),
+        z.number().min(0, 'Target weight must be positive').nullable().optional()
+    ),
     goal_physique_details: z.string().nullable().optional(),
+    // Training
     training_days_per_week: z.preprocess(
         (val) => (val === '' ? null : Number(val)),
         z.number().min(0, 'Training days must be positive').max(7, 'Training days cannot exceed 7').nullable().optional()
     ),
     training_current_program: z.string().nullable().optional(),
     training_equipment: z.string().nullable().optional(),
+    training_session_length_minutes: z.preprocess(
+        (val) => (val === '' ? null : Number(val)),
+        z.number().min(0, 'Session length must be positive').nullable().optional()
+    ),
+    training_intensity: z.string().nullable().optional(),
+    // Nutrition
+    nutrition_meal_patterns: z.string().nullable().optional(),
+    nutrition_tracking_method: z.string().nullable().optional(),
     nutrition_preferences: z.string().nullable().optional(),
     nutrition_allergies: z.string().nullable().optional(),
+    // Lifestyle
     lifestyle_sleep_hours: z.preprocess(
         (val) => (val === '' ? null : Number(val)),
         z.number().min(0, 'Sleep hours must be positive').max(24, 'Sleep hours cannot exceed 24').nullable().optional()
     ),
+    lifestyle_stress_level: z.preprocess(
+        (val) => (val === '' ? null : Number(val)),
+        z.number().min(1, 'Stress level must be between 1-10').max(10, 'Stress level must be between 1-10').nullable().optional()
+    ),
+    lifestyle_water_intake_liters: z.preprocess(
+        (val) => (val === '' ? null : Number(val)),
+        z.number().min(0, 'Water intake must be positive').nullable().optional()
+    ),
+    lifestyle_schedule_notes: z.string().nullable().optional(),
     supplements_meds: z.string().nullable().optional(),
+    motivation_readiness: z.string().nullable().optional(),
 });
 
 type FormData = z.infer<typeof userEditSchema>;
 
 const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) => {
     const methods = useForm<FormData>({
-        resolver: zodResolver(userEditSchema),
+        resolver: zodResolver(userEditSchema) as any,
         defaultValues: {
             username: user.username || '',
             role: user.role || 'athlete',
+            // Physical details
             age: user.age || null,
             weight_kg: user.weight_kg || null,
             height_cm: user.height_cm || null,
             body_fat_percentage: user.body_fat_percentage || null,
-            goal_target_weight_kg: user.goal_target_weight_kg || null,
+            // Goals
+            goal_target_fat_loss_kg: user.goal_target_fat_loss_kg || null,
             goal_timeframe_weeks: user.goal_timeframe_weeks || null,
+            goal_target_weight_kg: user.goal_target_weight_kg || null,
             goal_physique_details: user.goal_physique_details || null,
+            // Training
             training_days_per_week: user.training_days_per_week || null,
             training_current_program: user.training_current_program || null,
             training_equipment: user.training_equipment || null,
+            training_session_length_minutes: user.training_session_length_minutes || null,
+            training_intensity: user.training_intensity || null,
+            // Nutrition
+            nutrition_meal_patterns: user.nutrition_meal_patterns || null,
+            nutrition_tracking_method: user.nutrition_tracking_method || null,
             nutrition_preferences: user.nutrition_preferences || null,
             nutrition_allergies: user.nutrition_allergies || null,
+            // Lifestyle
             lifestyle_sleep_hours: user.lifestyle_sleep_hours || null,
+            lifestyle_stress_level: user.lifestyle_stress_level || null,
+            lifestyle_water_intake_liters: user.lifestyle_water_intake_liters || null,
+            lifestyle_schedule_notes: user.lifestyle_schedule_notes || null,
             supplements_meds: user.supplements_meds || null,
+            motivation_readiness: user.motivation_readiness || null,
         }
     });
 
     const { handleSubmit, register, formState: { errors } } = methods;
 
-    const handleFormSubmit: SubmitHandler<FormData> = (data) => {
+    const handleFormSubmit = (data: FormData) => {
         onSave(data);
     };
 
     return (
         <FormProvider {...methods}>
-            <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(handleFormSubmit as any)} className="space-y-4">
                 <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Athlete Information</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -116,7 +156,7 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                 </div>
                 
                 <h3 className="text-md font-medium text-gray-800 dark:text-white mt-4 mb-2">Physical Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                         <label htmlFor="age" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Age</label>
                         <input 
@@ -148,10 +188,34 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                         />
                         {errors.height_cm && <p className="mt-1 text-sm text-red-600">{errors.height_cm.message}</p>}
                     </div>
+                    <div>
+                        <label htmlFor="body_fat_percentage" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Body Fat (%)</label>
+                        <input 
+                            id="body_fat_percentage"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            {...register('body_fat_percentage')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                        {errors.body_fat_percentage && <p className="mt-1 text-sm text-red-600">{errors.body_fat_percentage.message}</p>}
+                    </div>
                 </div>
                 
                 <h3 className="text-md font-medium text-gray-800 dark:text-white mt-4 mb-2">Goals</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label htmlFor="goal_target_fat_loss_kg" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Fat Loss (kg)</label>
+                        <input 
+                            id="goal_target_fat_loss_kg"
+                            type="number"
+                            step="0.1"
+                            {...register('goal_target_fat_loss_kg')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                        {errors.goal_target_fat_loss_kg && <p className="mt-1 text-sm text-red-600">{errors.goal_target_fat_loss_kg.message}</p>}
+                    </div>
                     <div>
                         <label htmlFor="goal_target_weight_kg" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Weight (kg)</label>
                         <input 
@@ -200,10 +264,32 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                         {errors.training_days_per_week && <p className="mt-1 text-sm text-red-600">{errors.training_days_per_week.message}</p>}
                     </div>
                     <div>
+                        <label htmlFor="training_session_length_minutes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Session Length (minutes)</label>
+                        <input 
+                            id="training_session_length_minutes"
+                            type="number"
+                            min="0"
+                            {...register('training_session_length_minutes')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                        {errors.training_session_length_minutes && <p className="mt-1 text-sm text-red-600">{errors.training_session_length_minutes.message}</p>}
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
                         <label htmlFor="training_current_program" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Program</label>
                         <input 
                             id="training_current_program"
                             {...register('training_current_program')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="training_intensity" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Training Intensity</label>
+                        <input 
+                            id="training_intensity"
+                            {...register('training_intensity')}
                             className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         />
                     </div>
@@ -220,6 +306,27 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                 </div>
                 
                 <h3 className="text-md font-medium text-gray-800 dark:text-white mt-4 mb-2">Nutrition</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="nutrition_meal_patterns" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Meal Patterns</label>
+                        <textarea 
+                            id="nutrition_meal_patterns"
+                            {...register('nutrition_meal_patterns')}
+                            rows={2}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="nutrition_tracking_method" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tracking Method</label>
+                        <textarea 
+                            id="nutrition_tracking_method"
+                            {...register('nutrition_tracking_method')}
+                            rows={2}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                    </div>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label htmlFor="nutrition_preferences" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dietary Preferences</label>
@@ -242,7 +349,7 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                 </div>
                 
                 <h3 className="text-md font-medium text-gray-800 dark:text-white mt-4 mb-2">Lifestyle</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label htmlFor="lifestyle_sleep_hours" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Average Sleep (hours)</label>
                         <input 
@@ -257,6 +364,42 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                         {errors.lifestyle_sleep_hours && <p className="mt-1 text-sm text-red-600">{errors.lifestyle_sleep_hours.message}</p>}
                     </div>
                     <div>
+                        <label htmlFor="lifestyle_stress_level" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stress Level (1-10)</label>
+                        <input 
+                            id="lifestyle_stress_level"
+                            type="number"
+                            min="1"
+                            max="10"
+                            {...register('lifestyle_stress_level')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                        {errors.lifestyle_stress_level && <p className="mt-1 text-sm text-red-600">{errors.lifestyle_stress_level.message}</p>}
+                    </div>
+                    <div>
+                        <label htmlFor="lifestyle_water_intake_liters" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Water Intake (liters)</label>
+                        <input 
+                            id="lifestyle_water_intake_liters"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            {...register('lifestyle_water_intake_liters')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                        {errors.lifestyle_water_intake_liters && <p className="mt-1 text-sm text-red-600">{errors.lifestyle_water_intake_liters.message}</p>}
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="lifestyle_schedule_notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Schedule Notes</label>
+                        <textarea 
+                            id="lifestyle_schedule_notes"
+                            {...register('lifestyle_schedule_notes')}
+                            rows={2}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                    </div>
+                    <div>
                         <label htmlFor="supplements_meds" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Supplements/Medications</label>
                         <textarea 
                             id="supplements_meds"
@@ -265,6 +408,16 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                             className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         />
                     </div>
+                </div>
+                
+                <div>
+                    <label htmlFor="motivation_readiness" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Motivation & Readiness</label>
+                    <textarea 
+                        id="motivation_readiness"
+                        {...register('motivation_readiness')}
+                        rows={2}
+                        className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
                 </div>
                 
                 <div className="flex justify-end gap-3 mt-6">

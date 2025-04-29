@@ -1,16 +1,38 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectProfile, logout } from '../../store/slices/authSlice';
 import { supabase } from '../../services/supabaseClient';
 import Footer from './Footer';
 import ThemeToggle from '../common/ThemeToggle';
+import { FiHome, FiPlusCircle, FiGrid, FiLogOut, FiX } from 'react-icons/fi';
+
+// NavItem component for sidebar navigation
+const NavItem = ({ to, icon, label, active, onClick }: { to: string; icon: React.ReactNode; label: string; active: boolean; onClick?: () => void }) => {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) => 
+        `flex items-center px-4 py-3 text-sm font-medium rounded-lg mb-1 transition-colors ${
+          isActive || active
+            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
+            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800/50'
+        }`
+      }
+      onClick={onClick}
+    >
+      <span className="mr-3">{icon}</span>
+      <span>{label}</span>
+    </NavLink>
+  );
+};
 
 const MainLayout: React.FC = () => {
   const profile = useSelector(selectProfile);
   const dispatch = useDispatch();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
   const handleLogout = async () => {
     try {
@@ -22,105 +44,127 @@ const MainLayout: React.FC = () => {
     }
   };
 
-  const navLinkClass = ({ isActive }: { isActive: boolean }) => 
-    `flex items-center space-x-3 px-4 py-3 rounded-md text-sm font-medium ${isActive 
-      ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' 
-      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'}`;
-
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      {/* Sidebar */}
-      <aside className={`${isMobileMenuOpen ? 'block' : 'hidden'} md:block w-64 bg-white dark:bg-gray-800 shadow-lg fixed h-full md:sticky top-0 overflow-y-auto z-50`}>
-        {/* Logo */}
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <Link to="/dashboard" className="flex items-center">
-            <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">ENG App</span>
-          </Link>
-          <ThemeToggle />
-        </div>
+    <div className="flex flex-col min-h-screen text-gray-900 bg-gray-50 dark:bg-gray-900 dark:text-gray-100">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Mobile sidebar backdrop */}
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 z-20 bg-gray-900/50 md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
+        )}
 
-        {/* Navigation Links */}
-        <nav className="mt-6 px-2 space-y-1">
-          <NavLink to="/dashboard" className={navLinkClass}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-            </svg>
-            <span>Dashboard</span>
-          </NavLink>
-          
-          <NavLink to="/check-in/new" className={navLinkClass}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-            </svg>
-            <span>Check-in</span>
-          </NavLink>
-          
-          <NavLink to="/history" className={navLinkClass}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-            </svg>
-            <span>History</span>
-          </NavLink>
-
-          {/* Conditional Admin Link */}
-          {profile?.role === 'coach' && (
-            <NavLink to="/admin" className={navLinkClass}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
-              </svg>
-              <span>Admin</span>
-            </NavLink>
-          )}
-        </nav>
-
-        {/* Logout at bottom */}
-        <div className="absolute bottom-0 w-full p-4 border-t border-gray-200 dark:border-gray-700">
-          <button 
-            onClick={handleLogout}
-            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 rounded-md dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm5 4a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zm0 4a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zm0 4a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
-            </svg>
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main content container */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header for mobile */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm md:hidden">
-          <div className="flex items-center justify-between px-4 py-3">
-            <Link to="/dashboard" className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-              ENG App
+        {/* Sidebar */}
+        <div 
+          className={`fixed inset-y-0 left-0 z-30 w-74 transform bg-white dark:bg-gray-800 shadow-lg transition-transform md:translate-x-0 md:relative ${
+            isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          {/* Sidebar header */}
+          <div className="flex items-center justify-between h-16 px-6 border-b dark:border-gray-700">
+            <Link to="/dashboard" className="flex items-center">
+              <span className="text-xl font-semibold text-indigo-600 dark:text-indigo-400">ENG App</span>
             </Link>
-            <div className="flex items-center space-x-2">
-              <ThemeToggle />
+            <button 
+              className="p-1 rounded-md md:hidden focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <FiX className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+            </button>
+          </div>
+
+          {/* Sidebar content */}
+          <div className="p-4 h-[calc(100%-4rem)] flex flex-col">
+            <div className="flex-1 overflow-y-auto">
+              <nav className="mb-6 space-y-2">
+                <NavItem 
+                  to="/dashboard" 
+                  icon={<FiHome />} 
+                  label="Dashboard" 
+                  active={location.pathname === '/dashboard'} 
+                />
+                
+                <NavItem 
+                  to="/check-in/new" 
+                  icon={<FiPlusCircle />} 
+                  label="Check-in" 
+                  active={location.pathname.startsWith('/check-in')} 
+                />
+                
+                <NavItem 
+                  to="/history" 
+                  icon={<FiGrid />} 
+                  label="History" 
+                  active={location.pathname.startsWith('/history')} 
+                />
+
+                {/* Conditional Admin Link */}
+                {profile?.role === 'coach' && (
+                  <NavItem 
+                    to="/admin" 
+                    icon={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
+                      </svg>
+                    } 
+                    label="Admin" 
+                    active={location.pathname.startsWith('/admin')} 
+                  />
+                )}
+              </nav>
+            </div>
+            
+            <div className="pt-4 border-t dark:border-gray-700">
+              <div className="flex items-center justify-between px-4">
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center justify-center w-8 h-8 font-medium text-white bg-indigo-600 rounded-full">
+                    {profile?.email?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <div className="text-sm font-medium text-gray-700 truncate dark:text-gray-300">
+                    {profile?.email || 'User'}
+                  </div>
+                </div>
+                <ThemeToggle />
+              </div>
               <button 
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-2 text-gray-400 rounded-md hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 dark:hover:bg-gray-700"
+                onClick={handleLogout}
+                className="flex items-center w-full px-4 py-3 mt-2 text-sm font-medium text-gray-700 rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50"
               >
-                <span className="sr-only">Open menu</span>
-                <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  {isMobileMenuOpen ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  )}
-                </svg>
+                <span className="mr-3"><FiLogOut /></span>
+                <span>Logout</span>
               </button>
             </div>
           </div>
-        </header>
+        </div>
 
-        {/* Main content */}
-        <main className="flex-1 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 md:p-6">
-          <Outlet />
-        </main>
+        {/* Content area */}
+        <div className="flex flex-col flex-1 w-0 overflow-hidden">
+          {/* Mobile header */}
+          <header className="sticky top-0 z-10 bg-white border-b dark:bg-gray-800 dark:border-gray-700 md:hidden">
+            <div className="flex items-center justify-between h-16 px-6">
+              <button 
+                className="p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                onClick={() => setIsMobileMenuOpen(true)}
+              >
+                <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <h1 className="text-lg font-semibold text-gray-800 dark:text-white">ENG App</h1>
+              <div className="w-6"></div> {/* Empty div for flex spacing */}
+            </div>
+          </header>
 
-        <Footer />
+          {/* Main content */}
+          <main className="flex-1 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 md:p-6">
+            <Outlet />
+          </main>
+        </div>
       </div>
+      
+      {/* Footer - positioned below both sidebar and content */}
+      <Footer />
     </div>
   );
 };

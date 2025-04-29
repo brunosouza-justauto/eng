@@ -21,6 +21,7 @@ import StepGoalSetter from './components/admin/StepGoalSetter'; // Import
 import CheckInReview from './components/admin/CheckInReview'; // Import
 import AdminDashboard from './components/admin/AdminDashboard'; // Import AdminDashboard
 import MainLayout from './components/layout/MainLayout'; // Import MainLayout
+import AthleteDetailsPage from './pages/admin/AthleteDetailsPage'; // Import AthleteDetailsPage
 // Placeholder pages - we will create these properly later
 // const LoginPage = () => <div>Login Page Placeholder - <Link to="/dashboard">Go to Dashboard (temp)</Link></div>;
 const NotFoundPage = () => <div>404 Not Found</div>;
@@ -128,6 +129,7 @@ function App() {
           <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="athletes" element={<UserManager />} />
+              <Route path="athletes/:id" element={<AthleteDetailsPage />} />
               <Route path="coaches" element={<CoachManager />} />
               <Route path="programs" element={<ProgramBuilder />} />
               <Route path="mealplans" element={<MealPlanner />} />

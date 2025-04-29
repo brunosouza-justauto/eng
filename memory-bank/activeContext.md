@@ -1,33 +1,51 @@
 # Active Context: ENG App
 
-## Current Focus
+## Current Focus: Layout and Navigation Improvements
 
-*   **Phase 9: UI Polish & Styling:** Implemented modern UI styling similar to Everfit, with a sidebar navigation, improved dashboard widgets, standardized components, and a light/dark mode toggle feature.
+We've been working on enhancing the layout, navigation, and mobile responsiveness of the application. 
 
-## Recent Changes
+### Recent Changes
 
-*   Completed **Phase 7 & 8 Setup**.
-*   Implemented **Phase 9 Layout Basics** (`MainLayout`, `Header`, `Footer`, basic nav).
-*   Improved UI with a modern sidebar navigation pattern.
-*   Created reusable UI components (`FormInput`, `Button`, `Card`, `Modal`).
-*   Added a theme toggle feature to switch between light and dark mode.
-*   Implemented theme persistence through Redux and localStorage.
-*   Enhanced styling of `LoginPage` with a cleaner, modern design.
-*   Improved styling of `DashboardPage` widgets.
-*   Added skeleton loading states for improved UX.
-*   Implemented better loading/error state indicators.
-*   Implemented basic structure and functionality for **Phase 6 Admin CMS** components (`UserManager`, `ProgramBuilder`, `MealPlanner`, `StepGoalSetter`, `CheckInReview`). Pausing further Phase 6 implementation for now.
-*   **Fixed Tailwind CSS processing issues** by downgrading from experimental v4.1.4 to stable v3.3.2 and correcting the PostCSS configuration to use the standard `tailwindcss` plugin instead of `@tailwindcss/postcss`.
+1. **Footer Positioning**
+   - Fixed footer placement in both AdminLayout and MainLayout
+   - Restructured layout to ensure footer spans the full width below content
+   - Implemented proper flex container hierarchy for consistent layout
 
-## Next Steps
+2. **Sidebar Navigation**
+   - Applied consistent styling between Admin and Main layouts
+   - Improved mobile responsiveness with slide-in animation and backdrop
+   - Enhanced visual hierarchy with proper spacing and organization
+   - Added "Back to App" button in Admin sidebar for easy navigation to main app
 
-1.  ~~Diagnose and fix Tailwind CSS processing issues to ensure styles are properly applied.~~ ✓ COMPLETED
-2.  Further refine dashboard widgets to match new design system.
-3.  Implement theming system for consistent colors.
-4.  Improve styling of form components in the Onboarding and Check-in pages.
-5.  Enhance the Admin CMS interface with the new design system.
-6.  Add more detailed loading states and transitions.
-7.  Improve responsive design for different screen sizes.
+3. **Mobile Responsiveness**
+   - Improved athlete management list to avoid horizontal scrolling on mobile
+   - Created card-based layout for mobile view of the athlete list
+   - Implemented responsive detection with window resize listeners
+   - Enhanced button styling for better touch interaction on mobile
+
+### Active Decisions
+
+1. **Layout Structure**
+   - Using a flex column layout with content and footer as separate sections
+   - Sidebar and content area wrapped in flex row container
+   - Footer placed outside both sidebar and content for full-width display
+
+2. **Navigation Pattern**
+   - Consistent NavItem component across admin and main layouts
+   - Mobile-first approach with responsive breakpoints
+   - Clear visual hierarchy with active state indicators
+
+3. **Mobile Design**
+   - Table view on desktop, card view on mobile for data display
+   - Touch-friendly button sizing and spacing
+   - Conditional rendering based on screen size
+
+### Next Steps
+
+- Consider implementing the same card-based mobile view for other data tables
+- Review and improve responsive behavior of forms
+- Enhance accessibility of navigation elements
+- Consider adding loading skeleton states for better loading experience
 
 ## Active Decisions & Considerations
 

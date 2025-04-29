@@ -33,7 +33,7 @@ const AdminDashboard: React.FC = () => {
       
       try {
         // Fetch athlete count (profiles where coach_id = current user and role != coach)
-        const { data: athletesData, error: athletesError } = await supabase
+        const { count: athletesCount, error: athletesError } = await supabase
           .from('profiles')
           .select('id', { count: 'exact', head: true })
           .eq('coach_id', profile.id)
@@ -42,7 +42,7 @@ const AdminDashboard: React.FC = () => {
         if (athletesError) throw athletesError;
         
         // Fetch program count
-        const { data: programsData, error: programsError } = await supabase
+        const { count: programsCount, error: programsError } = await supabase
           .from('program_templates')
           .select('id', { count: 'exact', head: true })
           .eq('coach_id', profile.id);
@@ -50,7 +50,7 @@ const AdminDashboard: React.FC = () => {
         if (programsError) throw programsError;
         
         // Fetch meal plan count
-        const { data: mealPlansData, error: mealPlansError } = await supabase
+        const { count: mealPlansCount, error: mealPlansError } = await supabase
           .from('nutrition_plans')
           .select('id', { count: 'exact', head: true })
           .eq('coach_id', profile.id);
@@ -62,9 +62,9 @@ const AdminDashboard: React.FC = () => {
         const pendingCheckins = Math.floor(Math.random() * 5);
         
         setStats({
-          totalAthletes: athletesData?.count || 0,
-          totalPrograms: programsData?.count || 0,
-          totalMealPlans: mealPlansData?.count || 0,
+          totalAthletes: athletesCount || 0,
+          totalPrograms: programsCount || 0,
+          totalMealPlans: mealPlansCount || 0,
           totalPendingCheckins: pendingCheckins
         });
       } catch (err) {
@@ -161,7 +161,7 @@ const AdminDashboard: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Coach Dashboard</h1>
         <p className="mt-1 text-gray-600 dark:text-gray-400">
-          Welcome back, {profile?.username || profile?.email?.split('@')[0] || 'Coach'}
+          Welcome back, {profile?.email?.split('@')[0] || 'Coach'}
         </p>
       </div>
 

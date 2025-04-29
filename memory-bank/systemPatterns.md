@@ -251,4 +251,89 @@ Key application data schemas:
 5. **Vite** for fast development and optimized builds
 6. **React Router** for declarative routing
 7. **PWA Support** for offline capabilities
-8. **GitHub Actions** for CI/CD automation 
+8. **GitHub Actions** for CI/CD automation
+
+## UI Architecture
+
+### Layout Structure
+- **Flex-based Layout Pattern**
+  - Root container: `flex flex-col min-h-screen`
+  - Main content wrapper: `flex flex-1 overflow-hidden`
+  - Sidebar: Fixed width with responsive behavior
+  - Content area: `flex-1 flex-col w-0 overflow-hidden`
+  - Footer: Outside both sidebar and content for full-width display
+
+- **Responsive Patterns**
+  - Desktop: Sidebar and content side-by-side
+  - Mobile: Hidden sidebar with slide-in behavior
+  - State-based conditional rendering for optimized mobile experiences
+  - Table view (desktop) vs. Card view (mobile) for data display
+
+### Navigation
+- **Sidebar Navigation**
+  - Consistent `NavItem` component shared between layouts
+  - Active state indicators with consistent styling
+  - Context-specific sections with clear visual separation
+  - Cross-navigation between Admin and Main layouts
+
+- **Mobile Navigation**
+  - Slide-in animation with transform and transition
+  - Semi-transparent backdrop for focus
+  - Close button for easy dismissal
+  - Hamburger menu toggle in header
+
+### Component Patterns
+
+- **Card-based Content**
+  - Consistent padding, border-radius, and shadows
+  - White background with dark mode support
+  - Clear section headers
+  - Proper spacing between content blocks
+
+- **Tables and Lists**
+  - Desktop: Full table with all columns
+  - Mobile: Card view with key information prominently displayed
+  - Status indicators with consistent badge styling
+  - Action buttons with appropriate visual hierarchy
+
+- **Form Patterns**
+  - Standardized input styling
+  - Clear labels and error states
+  - Grouped related fields
+  - Responsive form layouts
+
+- **Button Patterns**
+  - Primary actions: Filled background with strong color
+  - Secondary actions: Outlined or lighter background
+  - Destructive actions: Red/warning colors
+  - Touch-friendly sizing on mobile
+
+## State Management
+
+### Responsive State
+- Window resize listener to detect screen size
+- State variable to track mobile vs. desktop view
+- Conditional rendering based on viewport size
+- Responsive behavior without page refresh
+
+### UI State
+- Sidebar open/closed state
+- Modal visibility state
+- Loading and error states
+- Filter and selection states
+
+## Accessibility Patterns
+
+- Semantic HTML structure
+- Keyboard navigation support
+- Screen reader-friendly labeling
+- Color contrast compliance
+- Focus indicators for interactive elements
+
+## CSS Methodology
+
+- Tailwind CSS utility-first approach
+- Dark mode support with `dark:` variant classes
+- Responsive design with breakpoint prefixes
+- Component extraction for reusable patterns
+- Consistent spacing and sizing scale 
