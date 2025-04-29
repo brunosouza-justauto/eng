@@ -4,19 +4,21 @@ import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, 
 import createIdbStorage from 'redux-persist-indexeddb-storage'; 
 
 import authReducer from './slices/authSlice';
+import uiReducer from './slices/uiSlice';
 // Import other reducers here later
 
 // Configure persist
 const persistConfig = {
   key: 'root', // Key for storage
   storage: createIdbStorage({name: "eng-app-db", storeName: "eng-app-store"}), // Use IndexedDB
-  whitelist: ['auth'] // Persist only the 'auth' slice for now
+  whitelist: ['auth', 'ui'] // Persist auth and ui slices
   // blacklist: ['someSliceToIgnore'] // Alternatively, blacklist slices
 };
 
 // Combine reducers if you have more than one
 const rootReducer = combineReducers({
   auth: authReducer,
+  ui: uiReducer,
   // Add other reducers here
 });
 

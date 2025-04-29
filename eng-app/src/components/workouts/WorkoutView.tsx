@@ -115,12 +115,12 @@ const WorkoutView: React.FC = () => {
     };
 
     return (
-        <div className="container mx-auto p-4">
+        <div className="container p-4 mx-auto">
             {isLoading && <p>Loading workout details...</p>}
             {error && <p className="text-red-500">Error: {error}</p>}
             {workout && (
                 <div>
-                    <h1 className="text-2xl font-bold mb-4">{workout.name}</h1>
+                    <h1 className="mb-4 text-2xl font-bold text-gray-800 dark:text-white">{workout.name}</h1>
                     {/* Add more details like description, week/day etc. */} 
                     
                     <div className="space-y-4">
@@ -132,17 +132,17 @@ const WorkoutView: React.FC = () => {
                                 const displayName = ex.exercise_name || wgerData?.name || 'Unnamed Exercise';
                                 
                                 return (
-                                    <div key={ex.exercise_db_id || index} className="p-3 bg-gray-100 dark:bg-gray-700 rounded shadow">
-                                        <h3 className="font-semibold mb-1">{displayName}</h3>
+                                    <div key={ex.exercise_db_id || index} className="p-3 bg-gray-100 rounded shadow dark:bg-gray-700">
+                                        <h3 className="mb-1 font-semibold">{displayName}</h3>
                                         {/* Display basic details */} 
                                         <p className="text-sm">Sets: {ex.sets ?? 'N/A'}, Reps: {ex.reps ?? 'N/A'}</p>
                                         {ex.rest_period_seconds !== null && <p className="text-sm">Rest: {ex.rest_period_seconds}s</p>}
                                         {ex.tempo && <p className="text-sm text-gray-600 dark:text-gray-400">Tempo: {ex.tempo}</p>}
-                                        {ex.notes && <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">Notes: {ex.notes}</p>}
+                                        {ex.notes && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Notes: {ex.notes}</p>}
                                         
                                         {/* Display wger details if found */} 
                                         {wgerData && (
-                                            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                                            <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">
                                                     (Wger ID: {wgerData.id})
                                                     {/* Add link or description later */}

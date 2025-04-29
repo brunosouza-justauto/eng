@@ -77,32 +77,69 @@ const DashboardPage: React.FC = () => {
   const isLoading = !profile || isLoadingData;
 
   if (isLoading) {
-      // TODO: Use a more visually appealing loading indicator/skeleton screen
-      return (
-        <div className="container mx-auto px-4 py-8 text-center">
-          Loading dashboard...
+    return (
+      <div className="w-full">
+        <div className="animate-pulse mb-6">
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
         </div>
-      );
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden animate-pulse">
+              <div className="p-4">
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-4"></div>
+                <div className="space-y-3">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-4/6"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">
-        Welcome back, {user?.email}! 
-      </h1>
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">
+          Welcome, {profile?.email?.split('@')[0] || 'Athlete'}!
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Here's your training overview for today.
+        </p>
+      </div>
 
       {fetchError && (
-         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <strong className="font-bold">Error:</strong>
-            <span className="block sm:inline"> {fetchError}</span>
+        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded shadow-sm">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700 dark:text-red-400">
+                {fetchError}
+              </p>
+            </div>
+          </div>
         </div>
       )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Pass fetched data as props to widgets (or widgets can fetch themselves) */}
+        <div className="col-span-1">
           <NextWorkoutWidget programTemplateId={assignedPlan?.program_template_id} />
+        </div>
+        <div className="col-span-1">
           <NutritionWidget nutritionPlanId={assignedPlan?.nutrition_plan_id} />
+        </div>
+        <div className="col-span-1">
           <StepGoalWidget dailyGoal={stepGoal?.daily_steps} />
+        </div>
       </div>
     </div>
   );

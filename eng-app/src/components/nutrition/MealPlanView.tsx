@@ -121,23 +121,23 @@ const MealPlanView: React.FC = () => {
 
 
     return (
-        <div className="container mx-auto p-4">
+        <div className="container p-4 mx-auto">
             {isLoading && <p>Loading meal plan details...</p>}
             {error && <p className="text-red-500">Error: {error}</p>}
             {plan && (
                 <div>
-                    <h1 className="text-2xl font-bold mb-2">{plan.name}</h1>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Target: {plan.total_calories}kcal, P:{plan.protein_grams}g, C:{plan.carbohydrate_grams}g, F:{plan.fat_grams}g</p>
+                    <h1 className="mb-2 text-2xl font-bold text-gray-800 dark:text-white">{plan.name}</h1>
+                    <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">Target: {plan.total_calories}kcal, P:{plan.protein_grams}g, C:{plan.carbohydrate_grams}g, F:{plan.fat_grams}g</p>
                     {plan.description && <p className="mb-4 italic">{plan.description}</p>}
 
                     <div className="space-y-6">
                         {plan.meals
                             .sort((a, b) => (a.order_in_plan ?? 0) - (b.order_in_plan ?? 0))
                             .map((meal) => (
-                            <div key={meal.name} className="p-3 bg-gray-100 dark:bg-gray-700 rounded">
-                                <h2 className="font-semibold mb-2">{meal.name}</h2>
-                                {meal.notes && <p className="text-xs italic text-gray-500 dark:text-gray-400 mb-2">{meal.notes}</p>}
-                                <ul className="text-sm space-y-1">
+                            <div key={meal.name} className="p-3 bg-gray-100 rounded dark:bg-gray-700">
+                                <h2 className="mb-2 font-semibold">{meal.name}</h2>
+                                {meal.notes && <p className="mb-2 text-xs italic text-gray-500 dark:text-gray-400">{meal.notes}</p>}
+                                <ul className="space-y-1 text-sm">
                                     {meal.meal_food_items.map((item, idx) => (
                                         <li key={idx}> 
                                             {item.quantity}{item.unit} - {item.food_items?.food_name ?? 'Unknown Item'}

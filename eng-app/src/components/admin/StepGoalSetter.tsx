@@ -142,13 +142,13 @@ const StepGoalSetter: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-2xl font-bold mb-4">Step Goal Setter</h1>
+            <h1 className="mb-4 text-2xl font-bold text-gray-800 dark:text-white">Step Goal Setter</h1>
             {isLoadingUsers && <p>Loading users...</p>}
-            {error && <p className="text-red-500 mb-4">Error: {error}</p>}
+            {error && <p className="mb-4 text-red-500">Error: {error}</p>}
             {!isLoadingUsers && (
-                 <form onSubmit={handleSaveGoal} className="space-y-4 max-w-md">
+                 <form onSubmit={handleSaveGoal} className="max-w-md space-y-4">
                     <div>
-                        <label htmlFor="userSelect" className="block text-sm font-medium mb-1">Select Athlete</label>
+                        <label htmlFor="userSelect" className="block mb-1 text-sm font-medium text-gray-800 dark:text-white">Select Athlete</label>
                         <select 
                             id="userSelect"
                             value={selectedUserId}
@@ -167,7 +167,7 @@ const StepGoalSetter: React.FC = () => {
 
                     {selectedUserId && (
                         <div>
-                             <label htmlFor="stepGoalInput" className="block text-sm font-medium mb-1">Daily Step Goal</label>
+                             <label htmlFor="stepGoalInput" className="block mb-1 text-sm font-medium">Daily Step Goal</label>
                              {isLoadingGoal ? <p>Loading current goal...</p> : (
                                 <input 
                                     id="stepGoalInput"
@@ -185,11 +185,11 @@ const StepGoalSetter: React.FC = () => {
                     <button 
                         type="submit"
                         disabled={!selectedUserId || isLoadingGoal || isSaving}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                        className="px-4 py-2 text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50"
                     >
                         {isSaving ? 'Saving...' : 'Save Goal'}
                     </button>
-                     {saveMessage && <p className="text-green-600 text-sm">{saveMessage}</p>}
+                     {saveMessage && <p className="text-sm text-green-600">{saveMessage}</p>}
                 </form>
             )}
         </div>

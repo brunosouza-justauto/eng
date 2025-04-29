@@ -375,7 +375,7 @@ const ProgramBuilder: React.FC = () => {
         <FormProvider {...methods}>
             <div>
                 <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-2xl font-bold">Program Builder</h1>
+                    <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Program Builder</h1>
                     <button 
                         onClick={handleCreateNew}
                         className="px-4 py-2 text-white bg-indigo-600 rounded hover:bg-indigo-700"

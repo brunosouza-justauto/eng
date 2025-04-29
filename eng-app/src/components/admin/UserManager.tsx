@@ -4,6 +4,7 @@ import AddAthleteForm from './AddAthleteForm'; // Import the form
 import { useSelector } from 'react-redux';
 import { selectProfile } from '../../store/slices/authSlice';
 import UserEditForm from './UserEditForm'; // Import the edit form
+import ProgramAssignmentModal from './ProgramAssignmentModal'; // Import the program assignment modal
 
 // Define type for user profile data (subset needed for list)
 interface UserProfileListItem {
@@ -63,6 +64,16 @@ const UserManager: React.FC = () => {
     const [showAddModal, setShowAddModal] = useState<boolean>(false);
     const [isAddingUser, setIsAddingUser] = useState<boolean>(false);
     const [addError, setAddError] = useState<string | null>(null);
+
+    // State for Program Assignment Modal
+    const [showProgramModal, setShowProgramModal] = useState<boolean>(false);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+    // State for delete confirmation
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false);
+    const [userToDelete, setUserToDelete] = useState<UserProfileListItem | null>(null);
+    const [isDeletingUser, setIsDeletingUser] = useState<boolean>(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const profile = useSelector(selectProfile); // Need coach profile for ID
 
@@ -230,10 +241,67 @@ const UserManager: React.FC = () => {
         }
     };
 
+    // Handle successful program assignment
+    const handleProgramAssignSuccess = () => {
+        setSuccessMessage('Program assigned successfully!');
+        setTimeout(() => setSuccessMessage(null), 3000); // Clear message after 3 seconds
+        fetchUsers(); // Refresh the user list
+    };
+
+    // Handle program assignment button click
+    const handleProgramAssign = () => {
+        setShowProgramModal(true);
+    };
+
+    // Handle delete athlete
+    const handleDeleteUser = (user: UserProfileListItem) => {
+        setUserToDelete(user);
+        setShowDeleteConfirmation(true);
+        setDeleteError(null);
+    };
+
+    // Confirm delete athlete
+    const confirmDeleteUser = async () => {
+        if (!userToDelete) return;
+        
+        setIsDeletingUser(true);
+        setDeleteError(null);
+
+        try {
+            // Delete the user's profile
+            const { error: deleteError } = await supabase
+                .from('profiles')
+                .delete()
+                .eq('id', userToDelete.id);
+
+            if (deleteError) throw deleteError;
+
+            // In a real application, you might want to:
+            // 1. Delete related data (assignments, check-ins, etc.)
+            // 2. Send a notification to the user
+            // 3. Possibly deactivate their auth account via an edge function
+            
+            // Update the UI by removing the deleted user
+            setUsers(users.filter(u => u.id !== userToDelete.id));
+            setShowDeleteConfirmation(false);
+            setUserToDelete(null);
+            
+            // Show success message
+            setSuccessMessage(`Athlete "${userToDelete.email}" has been removed.`);
+            setTimeout(() => setSuccessMessage(null), 3000);
+            
+        } catch (err) {
+            console.error("Error deleting user:", err);
+            setDeleteError('Failed to delete athlete. Please try again.');
+        } finally {
+            setIsDeletingUser(false);
+        }
+    };
+
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
-                <h1 className="text-2xl font-bold">User Management</h1>
+                <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Athlete Management</h1>
                 <button 
                     onClick={handleOpenAddModal}
                     className="px-4 py-2 text-white bg-green-600 rounded hover:bg-green-700"
@@ -241,6 +309,12 @@ const UserManager: React.FC = () => {
                     Add Athlete
                 </button>
             </div>
+
+            {successMessage && (
+                <div className="p-3 mb-4 text-green-700 bg-green-100 rounded dark:bg-green-900/20 dark:text-green-400">
+                    {successMessage}
+                </div>
+            )}
 
             {isLoading && <p>Loading users...</p>}
             {error && <p className="text-red-500">Error: {error}</p>}
@@ -282,9 +356,15 @@ const UserManager: React.FC = () => {
                                     <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                                         <button 
                                             onClick={() => handleViewUser(user)} 
-                                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200"
+                                            className="mr-3 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200"
                                         >
                                             View
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteUser(user)} 
+                                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"
+                                        >
+                                            Delete
                                         </button>
                                     </td>
                                 </tr>
@@ -325,7 +405,96 @@ const UserManager: React.FC = () => {
                                              <p className="mb-2 text-sm text-gray-500 dark:text-gray-300">
                                                 Read-only view. Click 'Edit' to modify.
                                             </p>
-                                            <pre className="p-2 overflow-auto text-xs bg-gray-100 rounded dark:bg-gray-700">{JSON.stringify(selectedUserDetails, null, 2)}</pre>
+                                            <div className="mt-4 space-y-6">
+                                                <div>
+                                                    <h4 className="pb-1 mb-2 text-sm font-semibold text-gray-700 border-b border-gray-200 dark:text-gray-300 dark:border-gray-700">Basic Information</h4>
+                                                    <div className="grid grid-cols-2 text-sm gap-y-2">
+                                                        <div className="text-gray-600 dark:text-gray-400">Email:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.email || 'N/A'}</div>
+                                                        
+                                                        <div className="text-gray-600 dark:text-gray-400">Username:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.username || 'N/A'}</div>
+                                                        
+                                                        <div className="text-gray-600 dark:text-gray-400">Role:</div>
+                                                        <div className="font-medium text-gray-900 capitalize dark:text-white">{selectedUserDetails.role || 'N/A'}</div>
+                                                        
+                                                        <div className="text-gray-600 dark:text-gray-400">Onboarding Status:</div>
+                                                        <div>
+                                                            {selectedUserDetails.onboarding_complete ? 
+                                                                <span className="inline-flex px-2 text-xs font-semibold leading-5 text-green-800 bg-green-100 rounded-full dark:bg-green-900 dark:text-green-200">Completed</span> : 
+                                                                <span className="inline-flex px-2 text-xs font-semibold leading-5 text-red-800 bg-red-100 rounded-full dark:bg-red-900 dark:text-red-200">Not Completed</span>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div>
+                                                    <h4 className="pb-1 mb-2 text-sm font-semibold text-gray-700 border-b border-gray-200 dark:text-gray-300 dark:border-gray-700">Physical Details</h4>
+                                                    <div className="grid grid-cols-2 text-sm gap-y-2">
+                                                        <div className="text-gray-600 dark:text-gray-400">Age:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.age || 'N/A'}</div>
+                                                        
+                                                        <div className="text-gray-600 dark:text-gray-400">Weight:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.weight_kg ? `${selectedUserDetails.weight_kg} kg` : 'N/A'}</div>
+                                                        
+                                                        <div className="text-gray-600 dark:text-gray-400">Height:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.height_cm ? `${selectedUserDetails.height_cm} cm` : 'N/A'}</div>
+                                                        
+                                                        <div className="text-gray-600 dark:text-gray-400">Body Fat:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.body_fat_percentage ? `${selectedUserDetails.body_fat_percentage}%` : 'N/A'}</div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div>
+                                                    <h4 className="pb-1 mb-2 text-sm font-semibold text-gray-700 border-b border-gray-200 dark:text-gray-300 dark:border-gray-700">Goals</h4>
+                                                    <div className="grid grid-cols-2 text-sm gap-y-2">
+                                                        <div className="text-gray-600 dark:text-gray-400">Target Weight:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.goal_target_weight_kg ? `${selectedUserDetails.goal_target_weight_kg} kg` : 'N/A'}</div>
+                                                        
+                                                        <div className="text-gray-600 dark:text-gray-400">Timeframe:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.goal_timeframe_weeks ? `${selectedUserDetails.goal_timeframe_weeks} weeks` : 'N/A'}</div>
+                                                        
+                                                        <div className="text-gray-600 dark:text-gray-400">Goal Details:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.goal_physique_details || 'N/A'}</div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div>
+                                                    <h4 className="pb-1 mb-2 text-sm font-semibold text-gray-700 border-b border-gray-200 dark:text-gray-300 dark:border-gray-700">Training</h4>
+                                                    <div className="grid grid-cols-2 text-sm gap-y-2">
+                                                        <div className="text-gray-600 dark:text-gray-400">Days Per Week:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.training_days_per_week || 'N/A'}</div>
+                                                        
+                                                        <div className="text-gray-600 dark:text-gray-400">Current Program:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.training_current_program || 'N/A'}</div>
+                                                        
+                                                        <div className="text-gray-600 dark:text-gray-400">Equipment:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.training_equipment || 'N/A'}</div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div>
+                                                    <h4 className="pb-1 mb-2 text-sm font-semibold text-gray-700 border-b border-gray-200 dark:text-gray-300 dark:border-gray-700">Nutrition</h4>
+                                                    <div className="grid grid-cols-2 text-sm gap-y-2">
+                                                        <div className="text-gray-600 dark:text-gray-400">Preferences:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.nutrition_preferences || 'N/A'}</div>
+                                                        
+                                                        <div className="text-gray-600 dark:text-gray-400">Allergies:</div>
+                                                        <div className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.nutrition_allergies || 'N/A'}</div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div>
+                                                    <h4 className="pb-1 mb-2 text-sm font-semibold text-gray-700 border-b border-gray-200 dark:text-gray-300 dark:border-gray-700">Program Assignment</h4>
+                                                    {/* Add a button to assign program */}
+                                                    <button
+                                                        onClick={handleProgramAssign}
+                                                        className="px-3 py-1 mt-2 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700"
+                                                    >
+                                                        Assign Program
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
                                 </> 
@@ -376,6 +545,51 @@ const UserManager: React.FC = () => {
                                 Cancel
                             </button>
                              {/* Submit button is now inside AddAthleteForm */}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Program Assignment Modal */}
+            {showProgramModal && selectedUserDetails && (
+                <ProgramAssignmentModal
+                    athleteId={selectedUserDetails.id}
+                    onClose={() => setShowProgramModal(false)}
+                    onSuccess={handleProgramAssignSuccess}
+                />
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirmation && userToDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center w-full h-full overflow-y-auto bg-gray-600 bg-opacity-50">
+                    <div className="relative w-full max-w-md p-5 bg-white border rounded-md shadow-lg dark:bg-gray-800">
+                        <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">Delete Athlete</h3>
+                        <div className="mt-4">
+                            <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+                                Are you sure you want to delete the athlete "{userToDelete.email}"?
+                            </p>
+                            
+                            {deleteError && (
+                                <div className="p-2 mb-4 text-sm text-red-700 bg-red-100 rounded dark:bg-red-900/20 dark:text-red-400">
+                                    {deleteError}
+                                </div>
+                            )}
+                            
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={confirmDeleteUser}
+                                    disabled={isDeletingUser}
+                                    className="px-4 py-2 mr-2 text-base font-medium text-white bg-red-500 rounded-md shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-50"
+                                >
+                                    {isDeletingUser ? 'Deleting...' : 'Delete'}
+                                </button>
+                                <button
+                                    onClick={() => setShowDeleteConfirmation(false)}
+                                    className="px-4 py-2 text-base font-medium text-white bg-gray-500 rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

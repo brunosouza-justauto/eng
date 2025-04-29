@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { supabase } from './services/supabaseClient';
 import { setSession, setProfile, setLoading, setError, ProfileData } from './store/slices/authSlice';
+import { selectTheme } from './store/slices/uiSlice';
 import LoginPage from './pages/LoginPage'; // Import the actual LoginPage component
 import ProtectedRoute from './components/ProtectedRoute'; // Import ProtectedRoute
 import OnboardingPage from './pages/OnboardingPage'; // Import the actual OnboardingPage
@@ -18,13 +19,27 @@ import ProgramBuilder from './components/admin/ProgramBuilder'; // Import
 import MealPlanner from './components/admin/MealPlanner'; // Import
 import StepGoalSetter from './components/admin/StepGoalSetter'; // Import
 import CheckInReview from './components/admin/CheckInReview'; // Import
+import AdminDashboard from './components/admin/AdminDashboard'; // Import AdminDashboard
 import MainLayout from './components/layout/MainLayout'; // Import MainLayout
 // Placeholder pages - we will create these properly later
 // const LoginPage = () => <div>Login Page Placeholder - <Link to="/dashboard">Go to Dashboard (temp)</Link></div>;
 const NotFoundPage = () => <div>404 Not Found</div>;
+// Placeholder for Coach Management page
+const CoachManager = () => <div className="p-4"><h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Coach Management</h1><p className="text-gray-600 dark:text-gray-400">This feature is coming soon.</p></div>;
 
 function App() {
   const dispatch = useDispatch();
+  const theme = useSelector(selectTheme);
+
+  // Apply theme class to html element
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [theme]);
 
   useEffect(() => {
     // Function to fetch profile
@@ -111,8 +126,9 @@ function App() {
       {/* Admin Routes (uses AdminLayout, not MainLayout) */}
       <Route element={<AdminRoute />}>
           <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<div>Admin Dashboard Placeholder</div>} />
-              <Route path="users" element={<UserManager />} />
+              <Route index element={<AdminDashboard />} />
+              <Route path="athletes" element={<UserManager />} />
+              <Route path="coaches" element={<CoachManager />} />
               <Route path="programs" element={<ProgramBuilder />} />
               <Route path="mealplans" element={<MealPlanner />} />
               <Route path="stepgoals" element={<StepGoalSetter />} />

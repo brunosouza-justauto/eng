@@ -180,12 +180,12 @@ const CheckInReview: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-2xl font-bold mb-4">Check-in Review</h1>
+            <h1 className="mb-4 text-2xl font-bold text-gray-800 dark:text-white">Check-in Review</h1>
             {isLoadingUsers && <p>Loading users...</p>}
-            {error && <p className="text-red-500 mb-4">Error: {error}</p>}
+            {error && <p className="mb-4 text-red-500">Error: {error}</p>}
             {!isLoadingUsers && (
-                <div className="mb-4 max-w-xs">
-                    <label htmlFor="userSelectReview" className="block text-sm font-medium mb-1">Select Athlete</label>
+                <div className="max-w-xs mb-4">
+                    <label htmlFor="userSelectReview" className="block mb-1 text-sm font-medium text-gray-800 dark:text-white">Select Athlete</label>
                     <select 
                         id="userSelectReview"
                         value={selectedUserId}
@@ -204,18 +204,18 @@ const CheckInReview: React.FC = () => {
 
             {selectedUserId && (
                 <div>
-                    <h2 className="text-xl font-semibold mb-3">Check-ins for Selected Athlete</h2>
+                    <h2 className="mb-3 text-xl font-semibold">Check-ins for Selected Athlete</h2>
                     {isLoadingCheckIns && <p>Loading check-ins...</p>}
                     {!isLoadingCheckIns && checkIns.length === 0 && <p>No check-ins found for this user.</p>}
                     {!isLoadingCheckIns && checkIns.length > 0 && (
                         <div className="space-y-3">
                             {checkIns.map((checkIn) => (
-                                <div key={checkIn.id} className="p-3 bg-white dark:bg-gray-800 rounded shadow">
-                                    <div className="flex justify-between items-center mb-1">
+                                <div key={checkIn.id} className="p-3 bg-white rounded shadow dark:bg-gray-800">
+                                    <div className="flex items-center justify-between mb-1">
                                         <span className="font-semibold">{format(new Date(checkIn.check_in_date), 'PPP')}</span>
                                         <button onClick={() => handleViewDetails(checkIn.id)} className="text-xs text-indigo-600 hover:underline">View Details</button>
                                     </div>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Notes: {checkIn.notes || '-'}</p>
+                                    <p className="text-sm text-gray-600 truncate dark:text-gray-400">Notes: {checkIn.notes || '-'}</p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">Weight: {checkIn.body_metrics?.[0]?.weight_kg ?? 'N/A'} kg</p>
                                     {/* TODO: Add feedback display/input area */}
                                 </div>
@@ -227,11 +227,11 @@ const CheckInReview: React.FC = () => {
 
             {/* Detail Modal */}
             {showDetailModal && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex justify-center items-center p-4 overflow-y-auto">
-                    <div className="relative p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
-                        <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">Check-in Details</h3>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-gray-600 bg-opacity-50">
+                    <div className="relative w-full max-w-2xl p-5 bg-white border rounded-md shadow-lg dark:bg-gray-800">
+                        <h3 className="mb-4 text-lg font-medium leading-6 text-gray-900 dark:text-white">Check-in Details</h3>
                         {isLoadingDetails && <p>Loading details...</p>}
-                        {detailError && <p className="text-red-500 mb-2">Error: {detailError}</p>}
+                        {detailError && <p className="mb-2 text-red-500">Error: {detailError}</p>}
                         {selectedCheckIn && (
                              <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
                                 {/* Display all fetched details: Metrics, Wellness, Adherence, Notes, Media */}
@@ -248,7 +248,7 @@ const CheckInReview: React.FC = () => {
                                 {/* Media Display */}
                                 <div className="flex flex-wrap gap-2">
                                     {selectedCheckIn.photos?.map(p => getPublicUrl(p)).filter(url => !!url).map(url => (
-                                        <a key={url} href={url!} target="_blank" rel="noopener noreferrer"><img src={url!} alt="" className="h-24 w-24 object-cover rounded"/></a>
+                                        <a key={url} href={url!} target="_blank" rel="noopener noreferrer"><img src={url!} alt="" className="object-cover w-24 h-24 rounded"/></a>
                                     ))}
                                     {selectedCheckIn.video_url && getPublicUrl(selectedCheckIn.video_url) && (
                                         <a href={getPublicUrl(selectedCheckIn.video_url)!} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">(View Video)</a>
@@ -256,8 +256,8 @@ const CheckInReview: React.FC = () => {
                                 </div>
 
                                 {/* Feedback Section */}
-                                <div className="mt-4 pt-4 border-t dark:border-gray-600">
-                                    <label htmlFor="coachFeedback" className="block text-sm font-medium mb-1">Coach Feedback</label>
+                                <div className="pt-4 mt-4 border-t dark:border-gray-600">
+                                    <label htmlFor="coachFeedback" className="block mb-1 text-sm font-medium">Coach Feedback</label>
                                     <textarea 
                                         id="coachFeedback"
                                         rows={4}
@@ -268,7 +268,7 @@ const CheckInReview: React.FC = () => {
                                     <button 
                                         onClick={handleSaveFeedback}
                                         disabled={isSavingFeedback}
-                                        className="mt-2 px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                                        className="px-4 py-2 mt-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
                                     >
                                         {isSavingFeedback ? 'Saving...' : 'Save Feedback'}
                                     </button>

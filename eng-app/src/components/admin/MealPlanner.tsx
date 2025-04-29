@@ -5,6 +5,8 @@ import { selectProfile } from '../../store/slices/authSlice';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import FormInput from '../ui/FormInput';
+import Card from '../ui/Card';
+import Button from '../ui/Button';
 
 // Basic type for plan list item
 interface NutritionPlanListItem {
@@ -57,7 +59,7 @@ const MealPlanner: React.FC = () => {
     const methods = useForm<MealPlanFormData>({
         defaultValues: { name: '', total_calories: '', protein_grams: '', carbohydrate_grams: '', fat_grams: '', description: '' }
     });
-    const { handleSubmit, reset, formState: { errors }, setError: setFormError } = methods;
+    const { handleSubmit, reset, setError: setFormError } = methods;
 
     // Fetch existing plans created by the current coach
     const fetchPlans = async () => {
@@ -149,62 +151,167 @@ const MealPlanner: React.FC = () => {
 
     return (
         <FormProvider {...methods}>
-            <div>
-                <div className="flex justify-between items-center mb-4">
-                    <h1 className="text-2xl font-bold">Meal Planner</h1>
-                    <button onClick={handleCreateNew} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Create New Plan</button>
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Meal Planner</h1>
+                        <p className="text-gray-600 dark:text-gray-400 mt-1">Create and manage nutrition plans for your athletes</p>
+                    </div>
+                    <Button 
+                        onClick={handleCreateNew} 
+                        variant="primary" 
+                        color="indigo"
+                        icon={
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                            </svg>
+                        }
+                    >
+                        Create New Plan
+                    </Button>
                 </div>
 
-                {isLoading && <p>Loading plans...</p>}
-                {error && <p className="text-red-500">Error: {error}</p>}
-
-                {(isCreating || selectedPlan) && (
-                    <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded shadow">
-                        <h2 className="text-xl mb-4">{isCreating ? 'Create New Plan' : `Editing: ${selectedPlan?.name}`}</h2>
-                        <form onSubmit={handleSubmit(handleSavePlan)} className="space-y-3">
-                            <FormInput<MealPlanFormData> name="name" label="Plan Name" required />
-                             {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
-
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <FormInput<MealPlanFormData> name="total_calories" label="Calories (kcal)" type="number" />
-                                {errors.total_calories && <p className="text-red-500 text-sm">{errors.total_calories.message}</p>}
-                                
-                                <FormInput<MealPlanFormData> name="protein_grams" label="Protein (g)" type="number" />
-                                 {errors.protein_grams && <p className="text-red-500 text-sm">{errors.protein_grams.message}</p>}
-                                 
-                                <FormInput<MealPlanFormData> name="carbohydrate_grams" label="Carbs (g)" type="number" />
-                                 {errors.carbohydrate_grams && <p className="text-red-500 text-sm">{errors.carbohydrate_grams.message}</p>}
-                                 
-                                <FormInput<MealPlanFormData> name="fat_grams" label="Fat (g)" type="number" />
-                                {errors.fat_grams && <p className="text-red-500 text-sm">{errors.fat_grams.message}</p>}
+                {isLoading && (
+                    <div className="flex justify-center items-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                    </div>
+                )}
+                
+                {error && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
                             </div>
-                             <FormInput<MealPlanFormData> name="description" label="Description (Optional)" type="textarea" rows={2}/>
-
-                            <div className="mt-4 flex justify-end gap-2">
-                               <button type="button" onClick={handleCancel} className="px-3 py-1 border rounded text-sm">Cancel</button>
-                               <button type="submit" disabled={isSaving} className="px-3 py-1 bg-green-600 text-white rounded text-sm disabled:opacity-50">
-                                   {isSaving ? 'Saving...' : 'Save Plan'}
-                               </button>
-                           </div>
-                           {error && <p className="text-red-500 text-sm mt-2">Error: {error}</p>} 
-                        </form>
-                        {selectedPlan && <p className="mt-4">(Meal/Food Item Management Area Placeholder for {selectedPlan.name})</p>}
+                            <div className="ml-3">
+                                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+                            </div>
+                        </div>
                     </div>
                 )}
 
-                {!isLoading && !isCreating && !selectedPlan && (
-                     <div className="space-y-3">
-                         {plans.length === 0 && <p>No nutrition plans created yet.</p>}
-                         {plans.map((plan) => (
-                            <div key={plan.id} className="p-3 bg-white dark:bg-gray-800 rounded shadow flex justify-between items-center">
-                                <div>
-                                    <h3 className="font-semibold">{plan.name}</h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">C: {plan.total_calories ?? 'N/A'}, P: {plan.protein_grams ?? 'N/A'}g, C: {plan.carbohydrate_grams ?? 'N/A'}g, F: {plan.fat_grams ?? 'N/A'}g</p>
-                                </div>
-                                <button onClick={() => handleEdit(plan)} className="px-3 py-1 border rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-700">Edit</button>
+                {(isCreating || selectedPlan) && (
+                    <Card className="overflow-visible">
+                        <div className="mb-4 flex justify-between items-center">
+                            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                                {isCreating ? 'Create New Plan' : `Editing: ${selectedPlan?.name}`}
+                            </h2>
+                            <Button variant="outline" color="gray" size="sm" onClick={handleCancel}>
+                                Cancel
+                            </Button>
+                        </div>
+                        
+                        <form onSubmit={handleSubmit(handleSavePlan)} className="space-y-4">
+                            <FormInput<MealPlanFormData> name="name" label="Plan Name" required />
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <FormInput<MealPlanFormData> name="total_calories" label="Calories (kcal)" type="number" />
+                                <FormInput<MealPlanFormData> name="protein_grams" label="Protein (g)" type="number" />
+                                <FormInput<MealPlanFormData> name="carbohydrate_grams" label="Carbs (g)" type="number" />
+                                <FormInput<MealPlanFormData> name="fat_grams" label="Fat (g)" type="number" />
                             </div>
-                         ))}
-                     </div>
+                            
+                            <FormInput<MealPlanFormData> name="description" label="Description (Optional)" type="textarea" rows={3}/>
+
+                            <div className="flex justify-end space-x-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                <Button 
+                                    type="submit" 
+                                    variant="primary" 
+                                    color="green" 
+                                    loading={isSaving}
+                                    disabled={isSaving}
+                                >
+                                    {isCreating ? 'Create Plan' : 'Update Plan'}
+                                </Button>
+                            </div>
+                        </form>
+                        
+                        {selectedPlan && (
+                            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                                <h3 className="font-medium text-lg mb-4 text-gray-800 dark:text-white">Meals Management</h3>
+                                <div className="p-8 border border-dashed border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800/50 text-center">
+                                    <p className="text-gray-500 dark:text-gray-400">Meal/Food Item Management will be implemented in future updates</p>
+                                </div>
+                            </div>
+                        )}
+                    </Card>
+                )}
+
+                {!isLoading && !isCreating && !selectedPlan && (
+                    <div className="space-y-4">
+                        {plans.length === 0 ? (
+                            <Card>
+                                <div className="text-center py-8">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                                    </svg>
+                                    <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">No Nutrition Plans</h3>
+                                    <p className="text-gray-600 dark:text-gray-400 mb-4">Create your first nutrition plan to get started</p>
+                                    <Button 
+                                        onClick={handleCreateNew} 
+                                        variant="secondary" 
+                                        color="indigo"
+                                        icon={
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                            </svg>
+                                        }
+                                    >
+                                        Create New Plan
+                                    </Button>
+                                </div>
+                            </Card>
+                        ) : (
+                            <div>
+                                <h2 className="text-lg font-medium text-gray-800 dark:text-white mb-3">Your Nutrition Plans</h2>
+                                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                                    {plans.map((plan) => (
+                                        <Card key={plan.id} hoverable>
+                                            <div>
+                                                <div className="flex justify-between items-start">
+                                                    <h3 className="font-medium text-lg text-indigo-600 dark:text-indigo-400">{plan.name}</h3>
+                                                    <Button 
+                                                        onClick={() => handleEdit(plan)} 
+                                                        variant="text" 
+                                                        color="indigo" 
+                                                        size="xs"
+                                                        icon={
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                            </svg>
+                                                        }
+                                                    >
+                                                        Edit
+                                                    </Button>
+                                                </div>
+                                                
+                                                {plan.description && (
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-3">{plan.description}</p>
+                                                )}
+                                                
+                                                <div className="mt-3 grid grid-cols-2 gap-3">
+                                                    <div className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded text-center">
+                                                        <span className="block text-xs text-gray-500 dark:text-gray-400">Calories</span>
+                                                        <span className="font-semibold">{plan.total_calories || 'N/A'}</span>
+                                                    </div>
+                                                    <div className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded text-center">
+                                                        <span className="block text-xs text-gray-500 dark:text-gray-400">Protein</span>
+                                                        <span className="font-semibold">{plan.protein_grams || 'N/A'}g</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+                                                    Created {new Date(plan.created_at).toLocaleDateString()}
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
         </FormProvider>

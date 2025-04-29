@@ -1,0 +1,44 @@
+# ENG App Project Rules
+
+## Critical Implementation Paths
+
+### Authentication
+- Uses Supabase passwordless authentication (magic links)
+- Redux store manages auth state (authSlice.ts)
+- Protected routes check auth status via selectors
+
+### UI/UX
+- Modern sidebar navigation pattern with mobile responsiveness
+- Uses Tailwind CSS v3.3.2 (stable version)
+- Dark/light mode toggle with persistent preference
+
+## Tailwind CSS Configuration
+
+- **Version**: Using stable Tailwind CSS v3.3.2 (NOT v4.x alpha)
+- **PostCSS Config**: Uses standard `tailwindcss` plugin in postcss.config.js
+- **Custom Components**: Defined in index.css using `@layer components`
+- **Dark Mode**: Implemented with Tailwind's class strategy (`darkMode: 'class'`)
+- **Theme**: Uses Tailwind's indigo color palette as primary color
+
+## Project Structure
+
+- React 18 + Vite
+- TypeScript throughout
+- Redux + Redux Toolkit for state management
+- React Router v7 for routing
+- Supabase for backend services
+
+## Common Patterns
+
+- Use React functional components with TypeScript interfaces
+- Redux selectors for accessing store state
+- Consistent styling with Tailwind CSS classes
+- Form handling with React Hook Form
+- Data validation with Zod schema
+
+## Known Challenges
+
+- Responsive design needs attention on smallest screen sizes
+- Admin CMS data integration is pending
+
+This file serves as a learning journal and will be updated as new patterns and decisions emerge. 
