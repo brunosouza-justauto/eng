@@ -1,31 +1,38 @@
 import React from 'react';
-import { Outlet, Link } from 'react-router-dom'; // Use Outlet for nested routes
+import { Outlet, Link, NavLink } from 'react-router-dom'; // Add NavLink
 
 const AdminLayout: React.FC = () => {
+
+  // Helper function for active link styling
+  const navLinkClass = ({ isActive }: { isActive: boolean }) => 
+      `block px-2 py-1 rounded hover:bg-gray-700 ${isActive ? 'bg-gray-700 font-semibold' : ''}`;
+
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar Placeholder */}
+      {/* Sidebar */}
       <aside className="w-64 bg-gray-800 text-white p-4 flex-shrink-0">
         <h2 className="text-xl font-semibold mb-6">Admin Panel</h2>
         <nav>
-          <ul>
-            <li className="mb-2">
-              {/* Use Link for navigation */}
-              <Link to="/admin/users" className="hover:text-indigo-300">User Management</Link>
+          <ul className="space-y-2">
+            <li>
+              <NavLink to="/admin/users" className={navLinkClass}>User Management</NavLink>
             </li>
-            {/* Add links for Program Builder, Meal Planner etc. later */}
-            <li className="mb-2">
-              <span className="text-gray-500">Program Builder (TBD)</span>
+            <li>
+              <NavLink to="/admin/programs" className={navLinkClass}>Program Builder</NavLink>
             </li>
-             <li className="mb-2">
-              <span className="text-gray-500">Meal Planner (TBD)</span>
+             <li>
+              <NavLink to="/admin/mealplans" className={navLinkClass}>Meal Planner</NavLink>
             </li>
-             <li className="mb-2">
-              <span className="text-gray-500">Step Goals (TBD)</span>
+             <li>
+              <NavLink to="/admin/stepgoals" className={navLinkClass}>Step Goals</NavLink>
             </li>
-             <li className="mb-2">
-              <span className="text-gray-500">Check-in Review (TBD)</span>
+             <li>
+              <NavLink to="/admin/checkins" className={navLinkClass}>Check-in Review</NavLink>
             </li>
+            {/* Optional: Link back to main dashboard */}
+             <li className="mt-6 border-t border-gray-700 pt-4">
+                 <Link to="/dashboard" className="text-sm text-gray-400 hover:text-white">Back to Dashboard</Link>
+             </li>
           </ul>
         </nav>
       </aside>

@@ -6,6 +6,7 @@ import type { RootState } from '../store'; // Import RootState type
 export interface ProfileData {
   id: string; // Profile table's primary key (uuid)
   user_id: string; // Foreign key to auth.users
+  email: string | null; // Add email field
   onboarding_complete: boolean;
   role: string; // Add the role field
   // Add other profile fields you might want in Redux state later (username, role, etc.)

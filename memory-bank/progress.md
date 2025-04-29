@@ -2,7 +2,7 @@
 
 ## Current Status
 
-*   **Phase 8 (Testing & CI/CD):** Setting up initial testing configurations and CI workflow.
+*   **Phase 6 (Admin CMS Implementation):** Implementing basic forms/save logic for `MealPlanner` and `StepGoalSetter`.
 
 ## What Works
 
@@ -36,37 +36,52 @@
     *   Submission logic saves data to `check_ins`, `body_metrics`, `wellness_metrics` tables.
     *   History page created.
     *   `CheckInTimeline` component fetches and displays past check-ins with media.
-*   **Phase 6: Admin CMS** (Structure Complete - Implementation Pending)
-    *   Admin routing, role-based access control (`AdminRoute`), and layout (`AdminLayout`) created.
-    *   Placeholder components created for `UserManager`, `ProgramBuilder`, `MealPlanner`, `StepGoalSetter`, `CheckInReview`.
-    *   Basic user list implemented in `UserManager` with detail view modal structure.
+*   **Phase 6: Admin CMS** (Partially Implemented)
+    *   Admin routing, layout, role protection created.
+    *   `UserManager`: List, View (fetch full details), Add Athlete (simulated invite) implemented. Edit/Assign pending.
+    *   `ProgramBuilder`: List, Create/Edit form & save logic for template details implemented. Workout/Exercise management implemented.
+    *   Basic list/fetch logic in `MealPlanner`, `StepGoalSetter`, `CheckInReview`.
 *   **Phase 7: PWA & Offline Caching** (Setup Complete - Testing Pending)
     *   `vite-plugin-pwa` configured with manifest and basic service worker caching.
     *   `redux-persist` configured to save `auth` state to IndexedDB.
     *   `PersistGate` implemented.
+*   **Phase 8: Testing & CI/CD** (Setup Complete - Implementation Pending)
+    *   Vitest configured with RTL setup.
+    *   Basic unit test for `FormInput` created.
+    *   Basic GitHub Actions CI workflow (`ci.yml`) created (lint, test).
+*   **Phase 9: Finalization & Documentation** (Partial - Layout/Nav Done)
+    *   Main application layout (`MainLayout`, `Header`, `Footer`) implemented.
+    *   Basic navigation structure and Logout functionality added.
 
 ## What's Left to Build
 
 *   **Phase 5: Weekly Check-ins & History**
-    *   Progress Charts component and integration (Deferred to Phase 9).
+    *   Progress Charts.
 *   **Phase 6: Admin CMS** (Implementation)
-    *   Full implementation of User Management, Program Builder, Meal Planner, Step Goal Setter, Check-in Review.
+    *   Finish `UserManager` (edit form, assign roles/coach).
+    *   Finish `ProgramBuilder` (wger search/linking, nested saves refinement).
+    *   Full implementation of `MealPlanner` (create/edit plans, meals, food items + AFCD linking).
+    *   Full implementation of `StepGoalSetter` (save/update logic).
+    *   Full implementation of `CheckInReview` (detail view, feedback).
 *   **Phase 7: PWA & Offline Caching**
-    *   Detailed configuration of service worker caching strategies (runtime caching).
-    *   Testing of offline functionality.
-    *   Creation of PWA icons.
+    *   Runtime caching, offline testing, PWA icons.
 *   **Phase 8: Testing & CI/CD** (Implementation)
-    *   Writing unit/integration tests for components, services, reducers.
-    *   Setting up GitHub Actions workflow for CI (lint, test, build).
-    *   Setting up CD pipeline (deployment to Vercel/Netlify).
-*   **Phase 9: Finalization & Documentation** (Including UI polish, Charts)
+    *   Writing comprehensive tests.
+    *   Setting up CD pipeline.
+*   **Phase 9: Finalization & Documentation**
+    *   Overall UI/UX refinement.
+    *   Implement deferred features (Charts).
+    *   Address Known Issues.
+    *   Final documentation review.
 
 ## Known Issues
 
-*   High severity vulnerability reported during `vite-plugin-pwa` install (needs audit/update).
-*   Onboarding form `FormInput` component duplication (can be refactored later).
-*   Basic UI styling - detailed styling deferred to Phase 9.
-*   Check-in form adherence fields use basic text input (consider select/radio).
-*   Error handling for partial failures during check-in submission (e.g., DB insert fails after upload).
-*   Current step progress display/tracking in `StepGoalWidget` is placeholder.
-*   Admin components are placeholders requiring full implementation. 
+*   High severity vulnerability reported during `vite-plugin-pwa` install.
+*   Onboarding form `FormInput` duplication.
+*   Check-in form adherence fields need better input type.
+*   Check-in form error handling for partial failures.
+*   `StepGoalWidget` progress display is placeholder.
+*   Admin components require further implementation (nested data, complex forms, saves).
+*   Admin `UserProfileFull` type needs refinement.
+*   Admin list views lack pagination.
+*   Coach/Athlete linking mechanism in DB/Admin UI needs implementation. 

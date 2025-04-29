@@ -18,6 +18,7 @@ import ProgramBuilder from './components/admin/ProgramBuilder'; // Import
 import MealPlanner from './components/admin/MealPlanner'; // Import
 import StepGoalSetter from './components/admin/StepGoalSetter'; // Import
 import CheckInReview from './components/admin/CheckInReview'; // Import
+import MainLayout from './components/layout/MainLayout'; // Import MainLayout
 // Placeholder pages - we will create these properly later
 // const LoginPage = () => <div>Login Page Placeholder - <Link to="/dashboard">Go to Dashboard (temp)</Link></div>;
 const NotFoundPage = () => <div>404 Not Found</div>;
@@ -31,7 +32,7 @@ function App() {
       try {
         const { data, error, status } = await supabase
           .from('profiles')
-          .select(`id, user_id, onboarding_complete, role`)
+          .select(`id, user_id, onboarding_complete, role, email`)
           .eq('user_id', userId)
           .single();
 
@@ -88,48 +89,41 @@ function App() {
   }, [dispatch]);
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      {/* Add a basic nav later if needed */}
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={<LoginPage />} /> {/* Use the imported component */}
-
-        {/* Protected Routes Wrapper */}
-        <Route element={<ProtectedRoute />}>
-          {/* Default route for authenticated users at root path */}
-          <Route index element={<DashboardPage />} />
-          {/* Other routes requiring authentication */}
+    <Routes>
+      {/* Routes without MainLayout */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<ProtectedRoute />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/check-in/new" element={<CheckInPage />} />
-          <Route path="/history" element={<HistoryPage />} />
-          
-          {/* Detail View Routes */}
-          <Route path="/workout/:workoutId" element={<WorkoutView />} />
-          <Route path="/meal-plan/:planId" element={<MealPlanView />} />
-        </Route>
+      </Route>
 
-        {/* Admin Only Routes */}
-        <Route element={<AdminRoute />}>
-            {/* Use AdminLayout for all /admin routes */}
-            <Route path="/admin" element={<AdminLayout />}> 
-                 {/* Default Admin route (optional dashboard) */}
-                <Route index element={<div>Admin Dashboard Placeholder</div>} /> 
-                {/* Nested Admin Routes */}
-                <Route path="users" element={<UserManager />} /> {/* Render UserManager */}
-                <Route path="programs" element={<ProgramBuilder />} /> 
-                <Route path="mealplans" element={<MealPlanner />} /> 
-                <Route path="stepgoals" element={<StepGoalSetter />} /> 
-                <Route path="checkins" element={<CheckInReview />} /> 
-                {/* Add a fallback for unknown admin routes */}
-                <Route path="*" element={<div>Admin Section Not Found</div>} /> 
-            </Route>
+      {/* Routes WITH MainLayout (Authenticated) */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<MainLayout />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/check-in/new" element={<CheckInPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/workout/:workoutId" element={<WorkoutView />} />
+            <Route path="/meal-plan/:planId" element={<MealPlanView />} />
         </Route>
+      </Route>
 
-        {/* Fallback Route */}
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </div>
+      {/* Admin Routes (uses AdminLayout, not MainLayout) */}
+      <Route element={<AdminRoute />}>
+          <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<div>Admin Dashboard Placeholder</div>} />
+              <Route path="users" element={<UserManager />} />
+              <Route path="programs" element={<ProgramBuilder />} />
+              <Route path="mealplans" element={<MealPlanner />} />
+              <Route path="stepgoals" element={<StepGoalSetter />} />
+              <Route path="checkins" element={<CheckInReview />} />
+              <Route path="*" element={<div>Admin Section Not Found</div>} />
+          </Route>
+      </Route>
+
+      {/* Fallback 404 Route (without MainLayout) */}
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
   );
 }
 
