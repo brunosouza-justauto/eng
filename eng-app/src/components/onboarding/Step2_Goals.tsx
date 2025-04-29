@@ -11,6 +11,7 @@ const Step2_Goals: React.FC = () => {
                 type="number" 
                 placeholder="e.g., 5" 
                 step="0.1"
+                autoFocus
             />
             <FormInput 
                 name="goal_timeframe_weeks"

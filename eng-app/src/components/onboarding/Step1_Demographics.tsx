@@ -41,7 +41,7 @@ import FormInput from '../ui/FormInput'; // Import the shared component
 const Step1_Demographics: React.FC = () => {
     return (
         <div className="space-y-4">
-            <FormInput name="age" label="Age" type="number" placeholder="e.g., 30" />
+            <FormInput name="age" label="Age" type="number" placeholder="e.g., 30" autoFocus />
             <FormInput name="weight_kg" label="Current Weight (kg)" type="number" placeholder="e.g., 75.5" step="0.1"/>
             <FormInput name="height_cm" label="Height (cm)" type="number" placeholder="e.g., 180" step="0.1"/>
             <FormInput name="body_fat_percentage" label="Estimated Body Fat (%)" type="number" placeholder="e.g., 15" step="0.1"/>

@@ -77,12 +77,17 @@ export const onboardingSchema = z.object({
                                .max(24, { message: 'Sleep hours cannot exceed 24' })
                                .optional()
                                .nullable(),
-    lifestyle_stress_level: z.coerce.number({invalid_type_error: 'Stress level must be a number'})
-                               .int({ message: 'Stress level must be a whole number' })
-                               .min(1, { message: 'Stress scale is usually 1-10' })
-                               .max(10, { message: 'Stress scale is usually 1-10' })
-                               .optional()
-                               .nullable(), // Assuming 1-10 scale
+    lifestyle_stress_level: z.preprocess(
+        // Convert empty strings to null
+        (val) => val === '' || val === undefined ? null : val,
+        z.union([
+            z.null(),
+            z.coerce.number({invalid_type_error: 'Stress level must be a number'})
+              .int({ message: 'Stress level must be a whole number' })
+              .min(1, { message: 'Stress scale is usually 1-10' })
+              .max(10, { message: 'Stress scale is usually 1-10' })
+        ])
+    ),
     lifestyle_water_intake_liters: z.coerce.number({invalid_type_error: 'Water intake must be a number'})
                                       .nonnegative({ message: 'Water intake cannot be negative' })
                                       .optional()

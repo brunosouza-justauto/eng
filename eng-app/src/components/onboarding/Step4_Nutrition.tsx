@@ -10,6 +10,7 @@ const Step4_Nutrition: React.FC = () => {
                 label="Typical Meal Patterns / Timing (optional)"
                 type="textarea" 
                 placeholder="e.g., 3 meals + 2 snacks, Intermittent fasting 16/8, Eat every 3 hours..."
+                autoFocus
             />
             <FormInput 
                 name="nutrition_tracking_method"

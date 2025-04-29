@@ -10,6 +10,7 @@ const Step3_Training: React.FC = () => {
                 label="Training Days per Week (0-7, optional)"
                 type="number" 
                 placeholder="e.g., 4"
+                autoFocus
             />
             <FormInput 
                 name="training_current_program"

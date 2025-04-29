@@ -5,50 +5,13 @@ import { useSelector } from 'react-redux';
 import { selectProfile } from '../../store/slices/authSlice';
 import UserEditForm from './UserEditForm'; // Import the edit form
 import ProgramAssignmentModal from './ProgramAssignmentModal'; // Import the program assignment modal
-
-// Define type for user profile data (subset needed for list)
-interface UserProfileListItem {
-    id: string; // profile UUID
-    user_id: string; // auth user UUID
-    email: string | null;
-    username: string | null;
-    role: string;
-    onboarding_complete: boolean;
-    created_at: string;
-}
-
-// Define type for full user profile data (can reuse/refine from onboarding later)
-interface UserProfileFull extends UserProfileListItem {
-    age?: number | null;
-    weight_kg?: number | null;
-    height_cm?: number | null;
-    body_fat_percentage?: number | null;
-    goal_target_fat_loss_kg?: number | null;
-    goal_timeframe_weeks?: number | null;
-    goal_target_weight_kg?: number | null;
-    goal_physique_details?: string | null;
-    training_days_per_week?: number | null;
-    training_current_program?: string | null;
-    training_equipment?: string | null;
-    training_session_length_minutes?: number | null;
-    training_intensity?: string | null;
-    nutrition_meal_patterns?: string | null;
-    nutrition_tracking_method?: string | null;
-    nutrition_preferences?: string | null;
-    nutrition_allergies?: string | null;
-    lifestyle_sleep_hours?: number | null;
-    lifestyle_stress_level?: number | null;
-    lifestyle_water_intake_liters?: number | null;
-    lifestyle_schedule_notes?: string | null;
-    supplements_meds?: string | null;
-    motivation_readiness?: string | null;
-    // Add other profile fields if needed
-}
+import { UserProfileListItem, UserProfileFull } from '../../types/profiles'; // Import shared types
 
 const UserManager: React.FC = () => {
     const [users, setUsers] = useState<UserProfileListItem[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const [filter, setFilter] = useState<'all' | 'active' | 'invited'>('all');
 
     // State for modal
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -75,21 +38,52 @@ const UserManager: React.FC = () => {
     const [isDeletingUser, setIsDeletingUser] = useState<boolean>(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
+    // State for resend invitation
+    const [isResendingInvite, setIsResendingInvite] = useState<boolean>(false);
+    const [resendError, setResendError] = useState<string | null>(null);
+
     const profile = useSelector(selectProfile); // Need coach profile for ID
+
+    // Filter users based on selection
+    const filteredUsers = React.useMemo(() => {
+        if (filter === 'all') return users;
+        if (filter === 'active') return users.filter(user => !!user.user_id);
+        if (filter === 'invited') return users.filter(user => !user.user_id);
+        return users;
+    }, [users, filter]);
 
     // Refactor fetchUsers to be callable
     const fetchUsers = async () => {
-        if (!profile || !profile.id) return;
+        if (!profile || !profile.id) {
+            console.error("Cannot fetch users: no coach profile loaded");
+            return;
+        }
+        
         setIsLoading(true);
         setError(null);
+        
         try {
+            console.log("Fetching users for coach ID:", profile.id);
+            
+            // Get all athletes for this coach, including those with null user_id (invitations)
             const { data, error: fetchError } = await supabase
                 .from('profiles')
-                .select('id, user_id, email, username, role, onboarding_complete, created_at')
-                .eq('coach_id', profile.id) 
-                .neq('role', 'coach')
+                .select('id, user_id, email, username, role, onboarding_complete, created_at, invitation_status, invited_at')
+                .eq('coach_id', profile.id)
                 .order('created_at', { ascending: false });
+            
             if (fetchError) throw fetchError;
+            
+            console.log("Fetched profiles:", data ? data.length : 0, "profiles");
+            if (data && data.length > 0) {
+                console.log("Sample first profile:", {
+                    id: data[0].id,
+                    email: data[0].email,
+                    role: data[0].role,
+                    coach_id: profile.id // This is what we're filtering on
+                });
+            }
+            
             setUsers(data || []);
         } catch (err: unknown) {
             console.error("Error fetching users:", err);
@@ -110,6 +104,19 @@ const UserManager: React.FC = () => {
         setDetailError(null);
         setSelectedUserDetails(null);
         setIsEditingUser(false); // Start in view mode
+
+        // If this is an invited user that hasn't signed up yet,
+        // just show the basic profile info we have
+        if (!user.user_id) {
+            // Create a basic profile object with all the optional fields set to null
+            const basicProfile: UserProfileFull = {
+                ...user,
+                // All optional fields will be null by default
+            };
+            setSelectedUserDetails(basicProfile);
+            setIsLoadingDetails(false);
+            return;
+        }
 
         console.log('Fetching details for user:', user.user_id);
         try {
@@ -160,35 +167,58 @@ const UserManager: React.FC = () => {
             setAddError('Coach profile not loaded. Cannot add athlete.');
             return;
         }
+        
+        console.log("Adding athlete with coach_id:", profile.id);
         setIsAddingUser(true);
         setAddError(null);
         
         try {
-            // --- Simulate Invite Flow --- 
-            console.log(`Simulating sending invite to: ${email}`);
-            // In a real implementation, you would call a Supabase Edge Function here.
-            // The Edge Function would use the service key to call:
-            // await supabase.auth.admin.inviteUserByEmail(email, { 
-            //    redirectTo: window.location.origin, // Or your app URL
-            //    data: { inviter_coach_id: profile.id } // Optional metadata 
-            // });
+            // Step 1: Send a magic link to the athlete's email
+            const { error: inviteError } = await supabase.auth.signInWithOtp({
+                email: email,
+                options: {
+                    emailRedirectTo: `${window.location.origin}/onboarding`,
+                }
+            });
+
+            if (inviteError) throw inviteError;
+
+            // Step 2: Create a placeholder profile for this athlete
+            const newProfileData = {
+                email: email,
+                coach_id: profile.id,
+                role: 'athlete',
+                onboarding_complete: false,
+                username: email.split('@')[0], // Default username from email
+                invitation_status: 'pending',
+                invited_at: new Date().toISOString(),
+            };
             
-            // Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 1000)); 
+            console.log("Creating profile with data:", newProfileData);
 
-            // --- End Simulation ---
+            const { data: insertedProfile, error: profileError } = await supabase
+                .from('profiles')
+                .insert(newProfileData)
+                .select()
+                .single();
 
-            // Success (simulation)
-            console.log('Simulated invite sent successfully for:', email);
+            if (profileError) throw profileError;
+            
+            console.log("Successfully created profile:", insertedProfile);
+
+            // Success message
+            setSuccessMessage(`Invitation sent to ${email} successfully. They'll appear in your list after signing up.`);
+            setTimeout(() => setSuccessMessage(null), 5000);
+            
+            // Close the modal
             handleCloseAddModal();
-            // Note: We don't refetch users here, as the invite doesn't 
-            // immediately create a profile linked to the coach.
-            // The user will appear after they sign up and are linked.
+            
+            // We'll fetch users again to include the new placeholder profile
+            await fetchUsers();
 
         } catch (err: unknown) {
-            // This catch block would handle errors from the Edge Function call
-            console.error("Error simulating invite:", err);
-            let message = 'Failed to send invite (simulation).';
+            console.error("Error inviting athlete:", err);
+            let message = 'Failed to send invite.';
             if (typeof err === 'object' && err !== null && 'message' in err) {
                 message = (err as Error).message;
             }
@@ -298,21 +328,147 @@ const UserManager: React.FC = () => {
         }
     };
 
+    // Resend invitation
+    const handleResendInvitation = async (user: UserProfileListItem) => {
+        if (!user.email) {
+            setResendError('User email not found.');
+            return;
+        }
+        
+        setIsResendingInvite(true);
+        setResendError(null);
+        
+        try {
+            // Re-send the magic link
+            const { error: inviteError } = await supabase.auth.signInWithOtp({
+                email: user.email,
+                options: {
+                    emailRedirectTo: `${window.location.origin}/onboarding`,
+                }
+            });
+
+            if (inviteError) throw inviteError;
+
+            // Update the invitation timestamp
+            const { error: updateError } = await supabase
+                .from('profiles')
+                .update({
+                    invitation_status: 'pending',
+                    invited_at: new Date().toISOString()
+                })
+                .eq('id', user.id);
+
+            if (updateError) throw updateError;
+
+            // Success message
+            setSuccessMessage(`Invitation resent to ${user.email} successfully.`);
+            setTimeout(() => setSuccessMessage(null), 5000);
+            
+            // Refresh users list
+            await fetchUsers();
+
+        } catch (err: unknown) {
+            console.error("Error resending invite:", err);
+            let message = 'Failed to resend invitation.';
+            if (typeof err === 'object' && err !== null && 'message' in err) {
+                message = (err as Error).message;
+            }
+            setResendError(message);
+        } finally {
+            setIsResendingInvite(false);
+        }
+    };
+
+    // Add this function to help debug profile issues
+    const debugProfileInfo = async () => {
+        try {
+            console.log("Current coach profile:", profile);
+            
+            // Check if there are any profiles at all
+            const { data: allProfiles, error: allProfilesError } = await supabase
+                .from('profiles')
+                .select('id, user_id, email, role, coach_id')
+                .limit(10);
+                
+            if (allProfilesError) throw allProfilesError;
+            
+            console.log("Sample of all profiles in the database:", allProfiles);
+            
+            // Check if the coach profile is correctly set
+            if (profile && profile.id) {
+                const { data: myProfile, error: myProfileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', profile.id)
+                    .single();
+                    
+                if (myProfileError) throw myProfileError;
+                
+                console.log("My coach profile details:", myProfile);
+            }
+        } catch (err) {
+            console.error("Debug error:", err);
+            alert("Check console for debug info");
+        }
+    };
+
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Athlete Management</h1>
+                <div className="flex space-x-2">
+                    <button 
+                        onClick={debugProfileInfo}
+                        className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+                    >
+                        Debug
+                    </button>
+                    <button 
+                        onClick={handleOpenAddModal}
+                        className="px-4 py-2 text-white bg-green-600 rounded hover:bg-green-700"
+                    >
+                        Add Athlete
+                    </button>
+                </div>
+            </div>
+
+            {/* Filter Controls */}
+            <div className="flex mb-4 space-x-2">
                 <button 
-                    onClick={handleOpenAddModal}
-                    className="px-4 py-2 text-white bg-green-600 rounded hover:bg-green-700"
+                    onClick={() => setFilter('all')}
+                    className={`px-3 py-1 text-sm rounded ${filter === 'all' 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}
                 >
-                    Add Athlete
+                    All
+                </button>
+                <button 
+                    onClick={() => setFilter('active')}
+                    className={`px-3 py-1 text-sm rounded ${filter === 'active' 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}
+                >
+                    Active
+                </button>
+                <button 
+                    onClick={() => setFilter('invited')}
+                    className={`px-3 py-1 text-sm rounded ${filter === 'invited' 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}
+                >
+                    Invited
                 </button>
             </div>
 
             {successMessage && (
                 <div className="p-3 mb-4 text-green-700 bg-green-100 rounded dark:bg-green-900/20 dark:text-green-400">
                     {successMessage}
+                </div>
+            )}
+
+            {resendError && (
+                <div className="p-3 mb-4 text-red-700 bg-red-100 rounded dark:bg-red-900/20 dark:text-red-400">
+                    {resendError}
                 </div>
             )}
 
@@ -327,6 +483,8 @@ const UserManager: React.FC = () => {
                                 <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Email</th>
                                 <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Username</th>
                                 <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Role</th>
+                                <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Status</th>
+                                <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Invited</th>
                                 <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Onboarded</th>
                                 <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Joined</th>
                                 <th scope="col" className="relative px-6 py-3">
@@ -335,25 +493,42 @@ const UserManager: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
-                            {users.length === 0 && (
+                            {filteredUsers.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-4 text-sm text-center text-gray-500 whitespace-nowrap dark:text-gray-400">No users found.</td>
+                                    <td colSpan={8} className="px-6 py-4 text-sm text-center text-gray-500 whitespace-nowrap dark:text-gray-400">No users found.</td>
                                 </tr>
                             )}
-                            {users.map((user) => (
-                                <tr key={user.user_id}>
+                            {filteredUsers.map((user) => (
+                                <tr key={user.id}>
                                     <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap dark:text-white">{user.email ?? 'N/A'}</td>
                                     <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{user.username ?? '-'}</td>
                                     <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{user.role}</td>
                                     <td className="px-6 py-4 text-sm whitespace-nowrap">
+                                        {!user.user_id ? 
+                                            <span className="inline-flex px-2 text-xs font-semibold leading-5 text-yellow-800 bg-yellow-100 rounded-full dark:bg-yellow-900/30 dark:text-yellow-200">Invited</span> : 
+                                            <span className="inline-flex px-2 text-xs font-semibold leading-5 text-blue-800 bg-blue-100 rounded-full dark:bg-blue-900/30 dark:text-blue-200">Active</span>}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">
+                                        {user.invited_at ? new Date(user.invited_at).toLocaleDateString() : 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm whitespace-nowrap">
                                         {user.onboarding_complete ? 
-                                            <span className="inline-flex px-2 text-xs font-semibold leading-5 text-green-800 bg-green-100 rounded-full dark:bg-green-900 dark:text-green-200">Yes</span> : 
-                                            <span className="inline-flex px-2 text-xs font-semibold leading-5 text-red-800 bg-red-100 rounded-full dark:bg-red-900 dark:text-red-200">No</span>}
+                                            <span className="inline-flex px-2 text-xs font-semibold leading-5 text-green-800 bg-green-100 rounded-full dark:bg-green-900/30 dark:text-green-200">Yes</span> : 
+                                            <span className="inline-flex px-2 text-xs font-semibold leading-5 text-red-800 bg-red-100 rounded-full dark:bg-red-900/30 dark:text-red-200">No</span>}
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">
                                         {new Date(user.created_at).toLocaleDateString()}
                                     </td>
                                     <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
+                                        {!user.user_id && (
+                                            <button 
+                                                onClick={() => handleResendInvitation(user)}
+                                                disabled={isResendingInvite}
+                                                className="mr-3 text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-200 disabled:opacity-50"
+                                            >
+                                                Resend
+                                            </button>
+                                        )}
                                         <button 
                                             onClick={() => handleViewUser(user)} 
                                             className="mr-3 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200"

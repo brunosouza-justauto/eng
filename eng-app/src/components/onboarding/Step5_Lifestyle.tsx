@@ -11,12 +11,16 @@ const Step5_Lifestyle: React.FC = () => {
                 type="number" 
                 placeholder="e.g., 7.5"
                 step="0.1"
+                autoFocus
             />
             <FormInput 
                 name="lifestyle_stress_level"
                 label="Average Stress Level (1-10, optional)"
                 type="number" 
                 placeholder="1=Low, 10=High"
+                step="1"
+                min="1"
+                max="10"
             />
             <FormInput 
                 name="lifestyle_water_intake_liters"
