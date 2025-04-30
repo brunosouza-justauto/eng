@@ -5,7 +5,31 @@ export enum SetType {
     REGULAR = 'regular',
     WARM_UP = 'warm_up',
     DROP_SET = 'drop_set',
-    FAILURE = 'failure'
+    FAILURE = 'failure',
+    BACKDOWN = 'backdown',
+    TEMPO = 'tempo',
+    SUPERSET = 'superset',
+    CONTRAST = 'contrast',
+    COMPLEX = 'complex',
+    CLUSTER = 'cluster',
+    PYRAMID = 'pyramid',
+    PARTIAL = 'partial',
+    BURNS = 'burns',
+    PAUSE = 'pause',
+    PULSE = 'pulse',
+    NEGATIVE = 'negative',
+    FORCED_REP = 'forced_rep',
+    PRE_EXHAUST = 'pre_exhaust',
+    POST_EXHAUST = 'post_exhaust'
+}
+
+// Define exercise grouping types
+export enum ExerciseGroupType {
+    NONE = 'none',
+    SUPERSET = 'superset',     // Two alternating exercises
+    BI_SET = 'bi_set',         // Two exercises performed back-to-back
+    TRI_SET = 'tri_set',       // Three exercises performed back-to-back
+    GIANT_SET = 'giant_set'    // Four or more exercises performed back-to-back
 }
 
 // Define individual set structure
@@ -31,6 +55,10 @@ export interface ExerciseInstanceAdminData {
     notes: string | null;
     order_in_workout: number | null;
     set_type?: SetType | null; // Keeping for backward compatibility
+    each_side?: boolean; // Whether this exercise is performed on each side separately
+    group_id?: string | null; // UUID that links related exercises in a group
+    group_type?: ExerciseGroupType; // The type of group this exercise belongs to
+    group_order?: number; // Order within the group
 }
 
 export interface WorkoutAdminData {

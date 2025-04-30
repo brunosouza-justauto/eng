@@ -5,7 +5,7 @@ import { selectProfile } from '../../store/slices/authSlice';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import FormInput from '../ui/FormInput';
 import { z } from 'zod';
-import { WorkoutAdminData, ExerciseInstanceAdminData, SetType } from '../../types/adminTypes';
+import { WorkoutAdminData, ExerciseInstanceAdminData, SetType, ExerciseGroupType } from '../../types/adminTypes';
 import WorkoutForm from './WorkoutForm';
 import { FiSearch, FiPlus } from 'react-icons/fi';
 import { DndProvider } from 'react-dnd';
@@ -341,13 +341,13 @@ const ProgramBuilder: React.FC = () => {
             if (exercises.length > 0) {
                 // 4.1 Prepare the exercise instance data with the workout_id
                 const exerciseData = exercises.map(exercise => {
-                    // Create a new object without the sets_data property
                     // Create a type that includes workout_id for database operations
                     interface ExerciseInstanceForDb extends Omit<ExerciseInstanceAdminData, 'sets_data'> {
                         workout_id: string;
                     }
                     
-                    const exerciseForDb: ExerciseInstanceForDb = { 
+                    // Create base object without ID
+                    const baseExerciseData = {
                         exercise_db_id: exercise.exercise_db_id,
                         exercise_name: exercise.exercise_name,
                         sets: exercise.sets,
@@ -357,20 +357,35 @@ const ProgramBuilder: React.FC = () => {
                         notes: exercise.notes,
                         order_in_workout: exercise.order_in_workout,
                         set_type: exercise.set_type,
-                        id: exercise.id,
+                        each_side: exercise.each_side || false,
+                        // Add group-related fields
+                        group_id: exercise.group_id || null,
+                        group_type: exercise.group_type || ExerciseGroupType.NONE,
+                        group_order: exercise.group_order || 0,
                         workout_id: savedWorkoutId
                     };
+                    
+                    // Only include ID if it exists and is not null
+                    const exerciseForDb: ExerciseInstanceForDb = exercise.id 
+                        ? { ...baseExerciseData, id: exercise.id } 
+                        : baseExerciseData;
                     
                     return exerciseForDb;
                 });
                 
                 // 4.2 Insert exercise instances and get their IDs
+                console.log('Inserting exercise instances:', exerciseData);
                 const { data: insertedExercises, error: insertError } = await supabase
                     .from('exercise_instances')
                     .insert(exerciseData)
                     .select('id, order_in_workout');
                     
-                if (insertError) throw insertError;
+                if (insertError) {
+                    console.error('Error inserting exercise instances:', insertError);
+                    throw insertError;
+                }
+                
+                console.log('Inserted exercise instances:', insertedExercises);
                 
                 if (insertedExercises) {
                     // Create a map of position to ID for referencing when creating sets
@@ -388,6 +403,11 @@ const ProgramBuilder: React.FC = () => {
                     const exercise = exercises[i];
                     const exerciseId = newExerciseIds.get(exercise.order_in_workout || 0);
                     
+                    console.log(`Processing exercise ${i+1}/${exercises.length}:`, exercise.exercise_name);
+                    console.log(`Exercise ID mapped: ${exerciseId}`);
+                    console.log(`Exercise has ${exercise.sets_data?.length || 0} sets`);
+                    console.log(`Exercise group type: ${exercise.group_type || 'none'}`);
+                    
                     if (exerciseId && exercise.sets_data && exercise.sets_data.length > 0) {
                         // Map each set to include the exercise_instance_id
                         const setData = exercise.sets_data.map(set => ({
@@ -400,17 +420,33 @@ const ProgramBuilder: React.FC = () => {
                             duration: set.duration || null
                         }));
                         
+                        console.log('Sets to insert:', JSON.stringify(setData));
                         allSetsToInsert.push(...setData);
+                    } else {
+                        console.warn(`No sets to insert for exercise ${exercise.exercise_name}:`, {
+                            hasExerciseId: !!exerciseId,
+                            hasSetsData: !!exercise.sets_data,
+                            setsCount: exercise.sets_data?.length || 0
+                        });
                     }
                 }
                 
                 // Insert all sets in a batch if we have any
                 if (allSetsToInsert.length > 0) {
-                    const { error: insertSetsError } = await supabase
+                    console.log(`Inserting ${allSetsToInsert.length} sets...`);
+                    const { data: insertedSets, error: insertSetsError } = await supabase
                         .from('exercise_sets')
-                        .insert(allSetsToInsert);
+                        .insert(allSetsToInsert)
+                        .select();
                         
-                    if (insertSetsError) throw insertSetsError;
+                    if (insertSetsError) {
+                        console.error('Error inserting exercise sets:', insertSetsError);
+                        throw insertSetsError;
+                    }
+                    
+                    console.log(`Successfully inserted ${insertedSets?.length || 0} sets`);
+                } else {
+                    console.warn('No sets to insert for any exercises');
                 }
             }
             
@@ -460,9 +496,16 @@ const ProgramBuilder: React.FC = () => {
                                     weight: set.weight || undefined,
                                     rest_seconds: set.rest_seconds || undefined, 
                                     duration: set.duration || undefined
-                                })) : []
+                                })) : [],
+                                // Ensure group_type is properly cast
+                                group_type: instance.group_type as ExerciseGroupType || ExerciseGroupType.NONE
                             };
                         });
+                        
+                        // Sort exercise instances by order_in_workout for normal display
+                        workout.exercise_instances.sort((a: ExerciseInstanceAdminData, b: ExerciseInstanceAdminData) => 
+                            (a.order_in_workout || 0) - (b.order_in_workout || 0)
+                        );
                     }
                     return workout;
                 });

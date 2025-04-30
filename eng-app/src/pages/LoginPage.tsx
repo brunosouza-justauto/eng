@@ -1,12 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient'; // We'll create this client soon
 import ThemeToggle from '../components/common/ThemeToggle';
+import { useDispatch } from 'react-redux';
+import { logout } from '../store/slices/authSlice';
+import { useNavigate } from 'react-router-dom';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  // Debug: Check URL hash on mount and log for troubleshooting
+  useEffect(() => {
+    const hash = window.location.hash;
+    const query = new URLSearchParams(window.location.search);
+    console.log('LoginPage mounted', { 
+      hash: hash,
+      hasAuthToken: hash.includes('access_token'),
+      query: Object.fromEntries(query.entries()),
+      hasType: query.has('type')
+    });
+  }, []);
+
+  // Check for existing session on mount and redirect if authenticated
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        console.log('User already authenticated, redirecting to dashboard');
+        navigate('/dashboard');
+      }
+    };
+    
+    checkExistingSession();
+  }, [navigate]);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -17,8 +47,8 @@ const LoginPage: React.FC = () => {
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          // Optional: Redirect URL after successful login from email link
-          // emailRedirectTo: window.location.origin + '/dashboard',
+          // Set redirect URL after successful login from email link
+          emailRedirectTo: `${window.location.origin}/dashboard`,
         },
       });
 
@@ -40,6 +70,20 @@ const LoginPage: React.FC = () => {
       setError(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Debug function to clear any existing session
+  const handleClearSession = async () => {
+    try {
+      await supabase.auth.signOut();
+      dispatch(logout()); 
+      localStorage.clear();
+      sessionStorage.clear();
+      setMessage('Session cleared. Please try login again.');
+    } catch (err) {
+      console.error('Error clearing session:', err);
+      setError('Failed to clear session');
     }
   };
 
@@ -161,6 +205,18 @@ const LoginPage: React.FC = () => {
                   Contact your coach for an invitation link to get started
                 </p>
               </div>
+            </div>
+
+            <div className="mt-6 text-center text-sm">
+              <p className="text-gray-600 dark:text-gray-400">
+                Having trouble logging in? 
+                <button 
+                  onClick={handleClearSession}
+                  className="ml-2 text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+                >
+                  Clear Session & Try Again
+                </button>
+              </p>
             </div>
           </div>
         </div>

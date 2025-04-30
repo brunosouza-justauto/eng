@@ -2,17 +2,31 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { WorkoutAdminData, ExerciseInstanceAdminData, SetType } from '../../types/adminTypes';
-import { FiTrash2, FiMove, FiSearch, FiPlus, FiX, FiChevronDown, FiChevronUp, FiFilter } from 'react-icons/fi';
+import { FiTrash2, FiMove, FiSearch, FiPlus, FiX, FiChevronDown, FiChevronUp, FiFilter, FiVideo } from 'react-icons/fi';
 import { useDrop, useDrag } from 'react-dnd';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import ExerciseInstanceForm from './ExerciseInstanceForm';
 import { 
-  fetchExercises, 
-  fetchMuscleGroups, 
-  Exercise,
-  HeyGainzMuscle as Category 
+    fetchExercises, 
+    fetchMuscleGroups, 
+    Exercise,
+    HeyGainzMuscle as Category
 } from '../../utils/exerciseAPI';
+import DraggableExerciseCard, { ItemTypes as ExerciseItemTypes } from './DraggableExerciseCard';
+
+// Make sure DraggableExerciseCard can accept Exercise type
+// This modifies the existing LocalExercise interface to be compatible with Exercise
+interface LocalExercise {
+    id: string;
+    name: string;
+    category: string;
+    primaryMuscle: string;
+    secondaryMuscles: string[];
+    image?: string;
+    // Additional fields from Exercise that may be present
+    muscles?: string[];
+}
 
 // Define Zod schema for workout form
 const workoutSchema = z.object({
@@ -52,68 +66,11 @@ interface WorkoutFormProps {
 
 // We'll use the Exercise type directly from exerciseAPI.ts
 
-// Add new item types for DnD
-const ItemTypes = {
-    SEARCH_EXERCISE: 'SEARCH_EXERCISE',
-    WORKOUT_EXERCISE: 'WORKOUT_EXERCISE'
-};
+// Update the ItemTypes reference to avoid conflict
+const ItemTypes = ExerciseItemTypes;
 
 // Create a draggable exercise item component (search panel exercises)
-const DraggableExerciseItem = ({ exercise, onAddExercise }: { exercise: Exercise, onAddExercise: (exercise: Exercise) => void }) => {
-    const [{ isDragging }, drag] = useDrag(() => ({
-        type: ItemTypes.SEARCH_EXERCISE, // Update this to use the search exercise type
-        item: exercise,
-        collect: (monitor) => ({
-            isDragging: !!monitor.isDragging(),
-        }),
-    }));
-
-    return (
-        <div 
-            ref={(node) => drag(node as HTMLDivElement)}
-            className={`p-2 bg-white rounded shadow cursor-pointer dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 ${
-                isDragging ? 'opacity-50' : 'opacity-100'
-            }`}
-            onClick={() => onAddExercise(exercise)}
-            style={{ opacity: isDragging ? 0.5 : 1 }}
-        >
-            <div className="flex items-center justify-center h-20 mb-2 bg-gray-200 rounded dark:bg-gray-600">
-                {exercise.image ? (
-                    <img 
-                        src={exercise.image} 
-                        alt={exercise.name} 
-                        className="object-cover w-full h-full rounded"
-                        onError={(e) => {
-                            console.error('Image failed to load:', exercise.image);
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            const parent = (e.target as HTMLImageElement).parentElement;
-                            if (parent) {
-                                const fallback = document.createElement('span');
-                                fallback.className = "text-xs text-gray-500 dark:text-gray-400";
-                                fallback.textContent = "No Image";
-                                parent.appendChild(fallback);
-                            }
-                        }}
-                    />
-                ) : (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">No Image</span>
-                )}
-            </div>
-            <p className="text-sm font-medium truncate dark:text-white">
-                {exercise.name || `Exercise #${exercise.id}`}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-                {exercise.category || 'Uncategorized'} 
-                {exercise.muscles && exercise.muscles.length > 0 && (
-                    <span className="ml-1">- {exercise.muscles[0]}</span>
-                )}
-            </p>
-            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                ID: {exercise.id}
-            </p>
-        </div>
-    );
-};
+// Note: We're now using the DraggableExerciseCard component imported from './DraggableExerciseCard'
 
 // Create a component for the drop zone between exercises
 const ExerciseDropZone = ({ 
@@ -121,7 +78,7 @@ const ExerciseDropZone = ({
     index,
     isOver
 }: { 
-    onDrop: (item: any, targetIndex: number) => void, 
+    onDrop: (item: { type: string; exerciseIndex?: number; exercise?: Exercise }, targetIndex: number) => void, 
     index: number,
     isOver: boolean
 }) => {
@@ -138,7 +95,7 @@ const ExerciseDropZone = ({
 
     return (
         <div 
-            ref={(node) => drop(node as HTMLDivElement)}
+            ref={drop}
             className={`h-2 mx-1 transition-all duration-200 rounded-full ${
                 isOverCurrent || isOver ? 'bg-indigo-300 dark:bg-indigo-600 h-6 mb-2 mt-2' : 'bg-transparent'
             }`}
@@ -172,7 +129,7 @@ const DraggableWorkoutExercise = ({
 
     return (
         <div 
-            ref={(node) => drag(node as HTMLDivElement)}
+            ref={drag}
             className={`overflow-hidden bg-white border rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 
                 ${isDragging ? 'opacity-50' : 'opacity-100'}`}
             style={{ cursor: 'move' }}
@@ -309,26 +266,8 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         }
     }, [workout, reset]);
     
-    // Search exercises with debounce
-    useEffect(() => {
-        // Only search if query is provided or a category is selected
-        if (!searchQuery && selectedCategory === null) {
-            // Load initial exercises without specific search
-            const timer = setTimeout(() => {
-                searchExercises();
-            }, 500);
-            return () => clearTimeout(timer);
-        }
-        
-        const timer = setTimeout(() => {
-            searchExercises();
-        }, 500);
-        
-        return () => clearTimeout(timer);
-    }, [searchQuery, selectedCategory, page]);
-    
     // Function to search exercises from API
-    const searchExercises = useCallback(async () => {
+    const searchExercisesFromAPI = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         
@@ -370,6 +309,24 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             setIsLoading(false);
         }
     }, [searchQuery, selectedCategory, page]);
+    
+    // Search exercises with debounce
+    useEffect(() => {
+        // Only search if query is provided or a category is selected
+        if (!searchQuery && selectedCategory === null) {
+            // Load initial exercises without specific search
+            const timer = setTimeout(() => {
+                searchExercisesFromAPI();
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+        
+        const timer = setTimeout(() => {
+            searchExercisesFromAPI();
+        }, 500);
+        
+        return () => clearTimeout(timer);
+    }, [searchQuery, selectedCategory, page, searchExercisesFromAPI]);
     
     // Initial load of exercises
     useEffect(() => {
@@ -480,11 +437,21 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     };
 
     // --- Exercise Management Handlers ---
-    const handleAddExercise = (exercise: Exercise) => {
-        // Create a new exercise instance with NO default sets
+    const handleAddExercise = (exercise: Exercise | LocalExercise) => {
+        // If it's a LocalExercise, use it directly
+        // Otherwise convert Exercise to a format compatible with LocalExercise
+        const exerciseData = 'primaryMuscle' in exercise 
+            ? exercise 
+            : {
+                ...exercise,
+                primaryMuscle: exercise.muscles?.[0] || 'Unknown',
+                secondaryMuscles: exercise.muscles?.slice(1) || []
+            };
+            
+        // Create a new exercise instance
         const newExercise: ExerciseInstanceAdminData = {
-            exercise_db_id: exercise.id,
-            exercise_name: exercise.name,
+            exercise_db_id: exerciseData.id.toString(),
+            exercise_name: exerciseData.name || 'Unnamed Exercise',
             sets: "0", // Changed from 3 to 0 default sets
             reps: "10", // Default rep range
             rest_period_seconds: 60, // Default 60 seconds rest
@@ -537,16 +504,16 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     // Update the drop functionality
     const [{ isOver }, mainDropRef] = useDrop(() => ({
         accept: [ItemTypes.SEARCH_EXERCISE, ItemTypes.WORKOUT_EXERCISE],
-        drop: (item: any, monitor) => {
+        drop: (item: { type: string; exerciseIndex?: number; exercise?: Exercise }, monitor) => {
             // Only process drops directly on the container (not on nested drop targets)
             if (monitor.didDrop()) return;
             
             if (item.type === ItemTypes.WORKOUT_EXERCISE) {
                 // Handle exercise reordering - move to the end
-                handleMoveExercise(item.exerciseIndex, exercises.length);
+                handleMoveExercise(item.exerciseIndex!, exercises.length);
             } else {
                 // This is a new exercise from search
-                handleAddExercise(item);
+                handleAddExercise(item.exercise as Exercise);
             }
             return { dropped: true };
         },
@@ -556,10 +523,10 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     }));
 
     // Handler for dropping items between exercises
-    const handleExerciseDrop = (item: any, targetIndex: number) => {
+    const handleExerciseDrop = (item: { type: string; exerciseIndex?: number; exercise?: Exercise }, targetIndex: number) => {
         if (item.type === ItemTypes.WORKOUT_EXERCISE) {
             // This is an existing exercise being reordered
-            const sourceIndex = item.exerciseIndex;
+            const sourceIndex = item.exerciseIndex!;
             
             // Don't do anything if dropped on its own spot or the spot right after it
             if (sourceIndex === targetIndex || sourceIndex + 1 === targetIndex) {
@@ -570,7 +537,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             handleMoveExercise(sourceIndex, targetIndex);
         } else {
             // This is a new exercise from the search panel
-            handleAddExerciseAt(item, targetIndex);
+            handleAddExerciseAt(item.exercise as Exercise, targetIndex);
         }
         
         // Clear any hover state
@@ -1104,11 +1071,15 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                         
                         <div className="grid grid-cols-2 gap-2">
                             {searchResults.map((exercise) => (
-                                    <DraggableExerciseItem 
+                                <DraggableExerciseCard
                                     key={exercise.id}
-                                        exercise={exercise}
-                                        onAddExercise={handleAddExercise}
-                                    />
+                                    exercise={{
+                                        ...exercise,
+                                        primaryMuscle: exercise.muscles?.[0] || "Unknown",
+                                        secondaryMuscles: exercise.muscles?.slice(1) || []
+                                    } as LocalExercise}
+                                    onClick={() => handleAddExercise(exercise)}
+                                />
                             ))}
                         </div>
                         
@@ -1191,7 +1162,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                     
                         {/* Exercise List with Enhanced Drop Zone and Drag Functionality */}
                         <div 
-                            ref={(node) => mainDropRef(node as HTMLDivElement)}
+                            ref={mainDropRef}
                             className={`${DROP_ZONE_BASE_CLASS} ${isOver ? DROP_ZONE_HOVER_CLASS : DROP_ZONE_ACTIVE_CLASS}`}
                             onMouseLeave={() => setHoveringIndex(null)}
                         >

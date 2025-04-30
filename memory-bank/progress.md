@@ -138,4 +138,113 @@
 - Notifications system
 - Real-time updates for check-ins
 - Enhanced reporting and analytics
-- Export functionality for data 
+- Export functionality for data
+
+## What's Working
+
+### Core Functionality
+- User authentication with Supabase passwordless login
+- Athlete management for coaches
+- Exercise database integration with HeyGainz API
+- Program templates and workout creation
+- Redux state management for application-wide state
+- Light/dark mode theme support
+- Responsive layouts
+
+### Recently Completed Changes
+- **Program Builder Improvements**:
+  - ✅ Layout adjustments with 40/60 split between exercise search and workout form
+  - ✅ Added muscle group search dropdown
+  - ✅ Fixed exercise card layout and added image support
+  - ✅ Improved checkbox UI on selected exercises (moved to left side)
+  - ✅ Made exercises draggable from search panel to workout
+  - ✅ Implemented auto-expand for newly added exercises
+  - ✅ Hid temporary unused fields (Week Number and Order in Program)
+  - ✅ Removed redundant Add Exercise button
+  - ✅ Enhanced Set Types with all options from documentation
+  - ✅ Added tooltips with explanations for all set types
+
+### In Progress
+- **Program Builder Improvements**:
+  - Testing and refinement of the implemented changes
+
+## What Needs to Be Built
+
+### Future Improvements
+- Admin CMS data integration
+- Enhanced reporting for athlete progress
+- Advanced program template features
+- Mobile app optimization
+- Offline support improvements
+
+## Known Issues
+- Some TypeScript linter errors in the code need to be addressed
+- Tooltip positioning might need adjustment for better mobile UI
+
+## What's Left to Build
+
+### Responsive Enhancement
+- Apply card-based mobile view to other data tables
+- Improve form layouts on smaller screens
+- Enhance mobile interaction patterns for complex interfaces
+- Implement better keyboard navigation support
+
+### UI Polish
+- Animation transitions between routes
+- Loading indicators for async operations
+- Error state handling improvements
+- Image optimization for faster loading
+
+### Future Features
+- Notifications system
+- Real-time updates for check-ins
+- Enhanced reporting and analytics
+- Export functionality for data
+
+## What's Working
+
+### Core Functionality
+- User authentication with Supabase passwordless login
+- Athlete management for coaches
+- Exercise database integration with HeyGainz API
+- Program templates and workout creation
+- Redux state management for application-wide state
+- Light/dark mode theme support
+- Responsive layouts
+
+### In Progress
+- **Program Builder Improvements**:
+  - Layout adjustments to exercise search and workout form
+  - Adding exercise images to search panel
+  - Restoring muscle group search functionality
+  - Enhancing drag and drop between exercise search and selected exercises
+  - Improving the set types selection with comprehensive options and tooltips
+  - UI clean-up and usability improvements
+
+## What Needs to Be Built
+
+### Current Focus: Program Builder Enhancements
+- Layout width adjustment (40/60 split)
+- Exercise card image display
+- Muscle group search dropdown
+- Drag-and-drop functionality
+- Auto-expand new exercises
+- Remove redundant UI elements
+- Complete set types implementation with tooltips
+
+### Future Improvements
+- Admin CMS data integration
+- Enhanced reporting for athlete progress
+- Advanced program template features
+- Mobile app optimization
+- Offline support improvements
+
+## Known Issues
+- Exercise search panel width is not optimized for space usage
+- Exercise list in search panel is missing images
+- Muscle group search option is missing
+- Drag and drop functionality is not fully working
+- UI redundancies with Add Exercise button
+- Exercise selection checkbox overlaps with delete button
+- Set Types menu is missing many available options
+- New exercise addition doesn't auto-expand set options 

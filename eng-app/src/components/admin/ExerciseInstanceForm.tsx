@@ -87,7 +87,17 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
     // Handle search when query changes
     useEffect(() => {
         if (showExerciseDropdown) {
-            setSearchResults(searchExercises(searchQuery));
+            const performSearch = async () => {
+                try {
+                    const results = await searchExercises(searchQuery);
+                    setSearchResults(results);
+                } catch (error) {
+                    console.error('Error searching exercises:', error);
+                    setSearchResults([]);
+                }
+            };
+            
+            performSearch();
         }
     }, [searchQuery, showExerciseDropdown]);
 

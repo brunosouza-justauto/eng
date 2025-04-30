@@ -69,14 +69,52 @@ function App() {
       }
     };
 
-    // Check initial session
+    // First, explicitly check for hash parameters from magic link redirect
+    const handleHashRedirect = async () => {
+      try {
+        if (window.location.hash.includes('access_token') || 
+            window.location.hash.includes('refresh_token') ||
+            window.location.hash.includes('type=recovery')) {
+          
+          console.log('Auth redirect detected, getting session');
+          dispatch(setLoading(true));
+          
+          // Process the hash fragment
+          const { data, error } = await supabase.auth.getSession();
+          
+          if (error) throw error;
+          
+          if (data?.session) {
+            console.log('Session retrieved after redirect');
+            dispatch(setSession(data.session));
+            if (data.session.user) {
+              fetchProfile(data.session.user.id);
+            }
+          } else {
+            dispatch(setLoading(false));
+          }
+        }
+      } catch (err) {
+        console.error('Error handling hash redirect:', err);
+        dispatch(setError('Failed to authenticate from redirect'));
+        dispatch(setLoading(false));
+      }
+    };
+
+    // Handle hash redirect first
+    handleHashRedirect();
+
+    // Then proceed with normal session check
     dispatch(setLoading(true)); // Set loading true initially
     supabase.auth.getSession().then(({ data: { session } }) => {
-      dispatch(setSession(session));
-      if (session?.user) {
-        fetchProfile(session.user.id); // Fetch profile if session exists
-      } else {
-         dispatch(setLoading(false)); // Ensure loading stops if no initial session
+      // Don't dispatch if we already have a session from the hash redirect
+      if (!session?.user?.id || !window.location.hash.includes('access_token')) {
+        dispatch(setSession(session));
+        if (session?.user) {
+          fetchProfile(session.user.id); // Fetch profile if session exists
+        } else {
+           dispatch(setLoading(false)); // Ensure loading stops if no initial session
+        }
       }
     }).catch(error => {
         console.error("Error getting initial session:", error);

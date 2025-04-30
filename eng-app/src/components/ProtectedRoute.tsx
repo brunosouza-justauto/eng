@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { selectIsAuthenticated, selectIsLoading, selectProfile } from '../store/slices/authSlice';
@@ -9,9 +9,20 @@ const ProtectedRoute: React.FC = () => {
   const profile = useSelector(selectProfile);
   const location = useLocation();
 
+  // Add debugging for auth state
+  useEffect(() => {
+    console.log('ProtectedRoute - Auth state:', { 
+      isAuthenticated, 
+      isLoading,
+      hasProfile: !!profile,
+      path: location.pathname,
+      hash: window.location.hash
+    });
+  }, [isAuthenticated, isLoading, profile, location]);
+
   if (isLoading) {
     // Show a loading indicator while checking auth status
-    // TODO: Replace with a proper loading spinner/component
+    console.log('ProtectedRoute - Loading auth state...');
     return (
       <div className="flex justify-center items-center min-h-screen">
         Loading authentication...
@@ -22,6 +33,7 @@ const ProtectedRoute: React.FC = () => {
   if (!isAuthenticated) {
     // Redirect unauthenticated users to the login page
     // Pass the current location to redirect back after login
+    console.log('ProtectedRoute - Not authenticated, redirecting to login');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -35,6 +47,7 @@ const ProtectedRoute: React.FC = () => {
   // -----------------------
 
   // If authenticated, render the child route component
+  console.log('ProtectedRoute - Authenticated, rendering content');
   return <Outlet />;
 };
 
