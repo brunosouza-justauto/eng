@@ -5,7 +5,7 @@ import { selectProfile } from '../../store/slices/authSlice';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import FormInput from '../ui/FormInput';
 import { z } from 'zod';
-import { WorkoutAdminData, ExerciseInstanceAdminData } from '../../types/adminTypes';
+import { WorkoutAdminData, ExerciseInstanceAdminData, SetType } from '../../types/adminTypes';
 import WorkoutForm from './WorkoutForm';
 import { FiSearch, FiPlus } from 'react-icons/fi';
 import { DndProvider } from 'react-dnd';
@@ -303,35 +303,127 @@ const ProgramBuilder: React.FC = () => {
             // 2. If we got here, we have a valid workout ID
             if (!savedWorkoutId) throw new Error('Missing workout ID for exercise save');
             
-            // 3. Handle exercises - first delete existing ones if updating
+            // 3. When updating, we need to get existing exercise instance IDs before deleting them
+            // so we can delete related sets
+            let existingExerciseIds: string[] = [];
             if (workoutId) {
-                const { error: deleteError } = await supabase
+                const { data: existingExercises, error: fetchError } = await supabase
+                    .from('exercise_instances')
+                    .select('id')
+                    .eq('workout_id', workoutId);
+                    
+                if (fetchError) throw fetchError;
+                
+                existingExerciseIds = existingExercises?.map(ex => ex.id) || [];
+                
+                // 3.1 Delete all existing exercise sets first
+                if (existingExerciseIds.length > 0) {
+                    const { error: deleteSetsError } = await supabase
+                        .from('exercise_sets')
+                        .delete()
+                        .in('exercise_instance_id', existingExerciseIds);
+                        
+                    if (deleteSetsError) throw deleteSetsError;
+                }
+                
+                // 3.2 Now delete the exercise instances
+                const { error: deleteExercisesError } = await supabase
                     .from('exercise_instances')
                     .delete()
                     .eq('workout_id', workoutId);
                     
-                if (deleteError) throw deleteError;
+                if (deleteExercisesError) throw deleteExercisesError;
             }
             
-            // 4. Insert all current exercises
+            // 4. Insert all current exercises and keep track of their IDs
+            const newExerciseIds: Map<number, string> = new Map();
+            
             if (exercises.length > 0) {
-                // Prepare the data with the workout_id
-                const exerciseData = exercises.map(exercise => ({
-                    ...exercise,
-                    workout_id: savedWorkoutId
-                }));
+                // 4.1 Prepare the exercise instance data with the workout_id
+                const exerciseData = exercises.map(exercise => {
+                    // Create a new object without the sets_data property
+                    // Create a type that includes workout_id for database operations
+                    interface ExerciseInstanceForDb extends Omit<ExerciseInstanceAdminData, 'sets_data'> {
+                        workout_id: string;
+                    }
+                    
+                    const exerciseForDb: ExerciseInstanceForDb = { 
+                        exercise_db_id: exercise.exercise_db_id,
+                        exercise_name: exercise.exercise_name,
+                        sets: exercise.sets,
+                        reps: exercise.reps,
+                        rest_period_seconds: exercise.rest_period_seconds,
+                        tempo: exercise.tempo,
+                        notes: exercise.notes,
+                        order_in_workout: exercise.order_in_workout,
+                        set_type: exercise.set_type,
+                        id: exercise.id,
+                        workout_id: savedWorkoutId
+                    };
+                    
+                    return exerciseForDb;
+                });
                 
-                const { error: insertError } = await supabase
+                // 4.2 Insert exercise instances and get their IDs
+                const { data: insertedExercises, error: insertError } = await supabase
                     .from('exercise_instances')
-                    .insert(exerciseData);
+                    .insert(exerciseData)
+                    .select('id, order_in_workout');
                     
                 if (insertError) throw insertError;
+                
+                if (insertedExercises) {
+                    // Create a map of position to ID for referencing when creating sets
+                    insertedExercises.forEach(ex => {
+                        if (ex.order_in_workout !== null) {
+                            newExerciseIds.set(ex.order_in_workout, ex.id);
+                        }
+                    });
+                }
+                
+                // 5. Now insert all exercise sets
+                const allSetsToInsert = [];
+                
+                for (let i = 0; i < exercises.length; i++) {
+                    const exercise = exercises[i];
+                    const exerciseId = newExerciseIds.get(exercise.order_in_workout || 0);
+                    
+                    if (exerciseId && exercise.sets_data && exercise.sets_data.length > 0) {
+                        // Map each set to include the exercise_instance_id
+                        const setData = exercise.sets_data.map(set => ({
+                            exercise_instance_id: exerciseId,
+                            set_order: set.order,
+                            type: set.type,
+                            reps: set.reps || null,
+                            weight: set.weight || null,
+                            rest_seconds: set.rest_seconds || null,
+                            duration: set.duration || null
+                        }));
+                        
+                        allSetsToInsert.push(...setData);
+                    }
+                }
+                
+                // Insert all sets in a batch if we have any
+                if (allSetsToInsert.length > 0) {
+                    const { error: insertSetsError } = await supabase
+                        .from('exercise_sets')
+                        .insert(allSetsToInsert);
+                        
+                    if (insertSetsError) throw insertSetsError;
+                }
             }
             
-            // 5. Refetch workouts to update the list
+            // 6. Refetch workouts to update the list
             const { data: refreshedWorkouts, error: refreshError } = await supabase
                 .from('workouts')
-                .select('*, exercise_instances(*)')
+                .select(`
+                    *, 
+                    exercise_instances(
+                        *,
+                        exercise_sets(*)
+                    )
+                `)
                 .eq('program_template_id', selectedTemplate.id)
                 .order('order_in_program', { ascending: true })
                 .order('order_in_workout', { foreignTable: 'exercise_instances', ascending: true });
@@ -339,10 +431,46 @@ const ProgramBuilder: React.FC = () => {
             if (refreshError) {
                 setError('Workout saved, but failed to refresh workout list.');
             } else {
-                setCurrentWorkouts(refreshedWorkouts || []);
+                // Define a type for the exercise instance with exercise_sets
+                type ExerciseInstanceWithSets = ExerciseInstanceAdminData & { 
+                    exercise_sets?: Array<{
+                        id: string;
+                        exercise_instance_id: string;
+                        set_order: number;
+                        type: string;
+                        reps?: string | null;
+                        weight?: string | null;
+                        rest_seconds?: number | null;
+                        duration?: string | null;
+                    }> 
+                };
+
+                // Process the data to add sets_data to each exercise_instance
+                const processedWorkouts = refreshedWorkouts?.map(workout => {
+                    if (workout.exercise_instances) {
+                        workout.exercise_instances = workout.exercise_instances.map((instance: ExerciseInstanceWithSets) => {
+                            // Move exercise_sets array to sets_data property with correct mapping of set_order to order
+                            return {
+                                ...instance,
+                                sets_data: instance.exercise_sets ? instance.exercise_sets.map(set => ({
+                                    id: set.id,
+                                    order: set.set_order,
+                                    type: set.type as SetType,
+                                    reps: set.reps || undefined,
+                                    weight: set.weight || undefined,
+                                    rest_seconds: set.rest_seconds || undefined, 
+                                    duration: set.duration || undefined
+                                })) : []
+                            };
+                        });
+                    }
+                    return workout;
+                });
+                
+                setCurrentWorkouts(processedWorkouts || []);
             }
             
-            // 6. Close workout form
+            // 7. Close workout form
             handleCloseWorkoutModal();
             
         } catch (err: unknown) {

@@ -341,7 +341,7 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
                                 type="text"
                                 {...register('reps')}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                placeholder="e.g., 8-12"
+                                placeholder="e.g., 10"
                             />
                         </div>
                     </div>
@@ -463,7 +463,7 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
                                                         value={set.reps || ''}
                                                         onChange={(e) => handleUpdateSet(index, 'reps', e.target.value)}
                                                         className="w-full px-2 py-1 text-sm text-center border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                                        placeholder="e.g., 8-12"
+                                                        placeholder="e.g., 10"
                                                     />
                                                 </td>
                                                 <td className="px-2 py-2">

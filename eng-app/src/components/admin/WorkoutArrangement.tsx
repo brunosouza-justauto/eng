@@ -23,11 +23,11 @@ const WorkoutArrangement: React.FC<WorkoutArrangementProps> = ({
   const [days, setDays] = React.useState<DayOfWeek[]>([
     { value: 1, name: 'MONDAY', expanded: true },
     { value: 2, name: 'TUESDAY', expanded: true },
-    { value: 3, name: 'WEDNESDAY', expanded: false },
+    { value: 3, name: 'WEDNESDAY', expanded: true },
     { value: 4, name: 'THURSDAY', expanded: true },
-    { value: 5, name: 'FRIDAY', expanded: false },
-    { value: 6, name: 'SATURDAY', expanded: false },
-    { value: 7, name: 'SUNDAY', expanded: false },
+    { value: 5, name: 'FRIDAY', expanded: true },
+    { value: 6, name: 'SATURDAY', expanded: true },
+    { value: 7, name: 'SUNDAY', expanded: true },
   ]);
   
   // Group workouts by day of week

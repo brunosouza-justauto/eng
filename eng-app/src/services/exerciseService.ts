@@ -281,11 +281,3 @@ export const searchExercises = async (query: string): Promise<Exercise[]> => {
 // TODO:
 // - Add functions to fetch related data like categories, muscles, equipment (consider caching these too).
 // - Explore more robust caching (IndexedDB, React Query/SWR) if sessionStorage is insufficient.
-
-// Remove or deprecate the paginated version if not needed
-// export const getExercises = async (
-//     limit: number = 20,
-//     offset: number = 0
-// ): Promise<WgerApiResponse<WgerExercise>> => {
-//     return fetchWger<WgerApiResponse<WgerExercise>>('/exercise/', { limit, offset, language: 2 });
-// }; 
