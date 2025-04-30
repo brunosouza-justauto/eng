@@ -198,17 +198,17 @@ const MealPlanner: React.FC = () => {
 
     return (
         <FormProvider {...methods}>
-            <div className="container mx-auto py-6 px-4">
-                <div className="flex justify-between items-center mb-6">
+            <div className="container px-4 py-6 mx-auto">
+                <div className="flex items-center justify-between mb-6">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Meal Planner</h1>
-                        <p className="text-gray-600 dark:text-gray-400 mt-1">Create and manage nutrition plans for your athletes</p>
+                        <p className="mt-1 text-gray-600 dark:text-gray-400">Create and manage nutrition plans for your athletes</p>
                     </div>
                     
                     {!selectedPlan && !isCreating && (
                         <button
                             onClick={handleCreateNew}
-                            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
+                            className="flex items-center px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
                         >
                             <FiPlus className="mr-2" /> New Plan
                         </button>
@@ -216,29 +216,29 @@ const MealPlanner: React.FC = () => {
                 </div>
 
                 {error && (
-                    <div className="bg-red-100 dark:bg-red-900/20 border-l-4 border-red-500 text-red-700 dark:text-red-400 p-4 mb-6 rounded" role="alert">
+                    <div className="p-4 mb-6 text-red-700 bg-red-100 border-l-4 border-red-500 rounded dark:bg-red-900/20 dark:text-red-400" role="alert">
                         <p>{error}</p>
                     </div>
                 )}
 
                 {/* Confirmation Dialog for Delete */}
                 {showDeleteConfirm && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto">
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Confirm Deletion</h3>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                        <div className="max-w-md p-6 mx-auto bg-white rounded-lg dark:bg-gray-800">
+                            <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-white">Confirm Deletion</h3>
                             <p className="mb-6 text-gray-600 dark:text-gray-400">
                                 Are you sure you want to delete this nutrition plan? This action cannot be undone.
                             </p>
                             <div className="flex justify-end space-x-3">
                                 <button 
                                     onClick={() => setShowDeleteConfirm(null)}
-                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+                                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md dark:border-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 >
                                     Cancel
                                 </button>
                                 <button 
                                     onClick={() => showDeleteConfirm && handleDeletePlan(showDeleteConfirm)}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                    className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700"
                                 >
                                     Delete
                                 </button>
@@ -249,8 +249,8 @@ const MealPlanner: React.FC = () => {
 
                 {/* Form for Creating/Editing Plan */}
                 {(isCreating || selectedPlan) && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-                        <div className="mb-4 flex justify-between items-center">
+                    <div className="p-6 mb-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
+                        <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
                                 {isCreating ? 'Create New Nutrition Plan' : `Editing: ${selectedPlan?.name}`}
                             </h2>
@@ -265,7 +265,7 @@ const MealPlanner: React.FC = () => {
                         <form onSubmit={handleSubmit(handleSavePlan)} className="space-y-4">
                             <FormInput<MealPlanFormData> name="name" label="Plan Name" required />
                             
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                 <FormInput<MealPlanFormData> name="total_calories" label="Calories (kcal)" type="number" />
                                 <FormInput<MealPlanFormData> name="protein_grams" label="Protein (g)" type="number" />
                                 <FormInput<MealPlanFormData> name="carbohydrate_grams" label="Carbs (g)" type="number" />
@@ -274,14 +274,14 @@ const MealPlanner: React.FC = () => {
                             
                             <FormInput<MealPlanFormData> name="description" label="Description (Optional)" type="textarea" rows={3}/>
 
-                            <div className="flex justify-end space-x-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <div className="flex justify-end pt-3 space-x-3 border-t border-gray-200 dark:border-gray-700">
                                 <button
                                     type="submit"
                                     className={`px-4 py-2 ${isSaving ? 'bg-green-500' : 'bg-green-600 hover:bg-green-700'} text-white rounded-md flex items-center`}
                                     disabled={isSaving}
                                 >
                                     {isSaving && (
-                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <svg className="w-4 h-4 mr-2 -ml-1 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
@@ -292,9 +292,9 @@ const MealPlanner: React.FC = () => {
                         </form>
                         
                         {selectedPlan && (
-                            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                                <h3 className="font-medium text-lg mb-4 text-gray-800 dark:text-white">Meals Management</h3>
-                                <div className="p-8 border border-dashed border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800/50 text-center">
+                            <div className="pt-6 mt-6 border-t border-gray-200 dark:border-gray-700">
+                                <h3 className="mb-4 text-lg font-medium text-gray-800 dark:text-white">Meals Management</h3>
+                                <div className="p-8 text-center border border-gray-300 border-dashed rounded-md dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                                     <p className="text-gray-500 dark:text-gray-400">Meal/Food Item Management will be implemented in future updates</p>
                                 </div>
                             </div>
@@ -304,8 +304,8 @@ const MealPlanner: React.FC = () => {
 
                 {/* Plans Listing */}
                 {!isLoading && !isCreating && !selectedPlan && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                        <div className="p-4 border-b dark:border-gray-700 flex items-center justify-between">
+                    <div className="overflow-hidden bg-white rounded-lg shadow-md dark:bg-gray-800">
+                        <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
                             <div className="flex items-center">
                                 <div className="relative w-64">
                                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -313,7 +313,7 @@ const MealPlanner: React.FC = () => {
                                     </div>
                                     <input
                                         type="text"
-                                        className="pl-10 pr-4 py-2 w-full border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        className="w-full py-2 pl-10 pr-4 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         placeholder="Search plans..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -329,15 +329,15 @@ const MealPlanner: React.FC = () => {
                         </div>
                         
                         {plans.length === 0 ? (
-                            <div className="text-center py-8">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div className="py-8 text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                                 </svg>
-                                <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">No Nutrition Plans</h3>
-                                <p className="text-gray-600 dark:text-gray-400 mb-4">Create your first nutrition plan to get started</p>
+                                <h3 className="mb-2 text-lg font-medium text-gray-800 dark:text-white">No Nutrition Plans</h3>
+                                <p className="mb-4 text-gray-600 dark:text-gray-400">Create your first nutrition plan to get started</p>
                                 <button 
                                     onClick={handleCreateNew} 
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center mx-auto"
+                                    className="flex items-center px-4 py-2 mx-auto text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
                                 >
                                     <FiPlus className="mr-1" /> Create New Plan
                                 </button>
@@ -347,20 +347,20 @@ const MealPlanner: React.FC = () => {
                                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                     <thead className="bg-gray-50 dark:bg-gray-700">
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Calories</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Macros (P/C/F)</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created</th>
-                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                                            <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Name</th>
+                                            <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Calories</th>
+                                            <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Macros (P/C/F)</th>
+                                            <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Created</th>
+                                            <th className="px-6 py-3 text-xs font-medium tracking-wider text-right text-gray-500 uppercase dark:text-gray-300">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                                         {filteredPlans.map((plan) => (
-                                            <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                                            <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-indigo-900/30">
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm font-medium text-gray-900 dark:text-white">{plan.name}</div>
                                                     {plan.description && (
-                                                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate max-w-xs">{plan.description}</div>
+                                                        <div className="max-w-xs mt-1 text-xs text-gray-500 truncate dark:text-gray-400">{plan.description}</div>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -376,10 +376,10 @@ const MealPlanner: React.FC = () => {
                                                         {new Date(plan.created_at).toLocaleDateString()}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                                                     <button
                                                         onClick={() => handleEdit(plan)}
-                                                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"
+                                                        className="mr-3 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                                                     >
                                                         Edit
                                                     </button>
@@ -400,8 +400,8 @@ const MealPlanner: React.FC = () => {
                 )}
 
                 {isLoading && (
-                    <div className="flex justify-center items-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                    <div className="flex items-center justify-center py-8">
+                        <div className="w-8 h-8 border-b-2 border-indigo-500 rounded-full animate-spin"></div>
                     </div>
                 )}
             </div>

@@ -252,8 +252,8 @@ const CheckInReview: React.FC = () => {
                                     <li key={user.user_id}>
                                         <button 
                                             onClick={() => handleUserSelect(user.user_id)}
-                                            className={`w-full text-left px-4 py-3 flex items-center hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors
-                                                ${selectedUserId === user.user_id ? 'bg-indigo-50 dark:bg-indigo-900/20 border-l-4 border-indigo-500' : ''}`}
+                                            className={`w-full text-left px-4 py-3 flex items-center hover:bg-gray-50 dark:hover:bg-indigo-900/30 transition-colors
+                                                ${selectedUserId === user.user_id ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}
                                         >
                                             <FiUser className="mr-2 text-gray-500 dark:text-gray-400" />
                                             <span className="text-gray-800 dark:text-white font-medium">
@@ -302,7 +302,7 @@ const CheckInReview: React.FC = () => {
                             <div className="overflow-y-auto max-h-[600px]">
                                 <div className="divide-y divide-gray-200 dark:divide-gray-700">
                                     {checkIns.map((checkIn) => (
-                                        <div key={checkIn.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-750">
+                                        <div key={checkIn.id} className="p-4 hover:bg-gray-50 dark:hover:bg-indigo-900/30">
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="flex items-center">
                                                     <FiCalendar className="mr-2 text-gray-500 dark:text-gray-400" />

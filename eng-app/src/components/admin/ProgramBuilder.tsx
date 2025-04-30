@@ -541,7 +541,7 @@ const ProgramBuilder: React.FC = () => {
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                                     {filteredTemplates.map((template) => (
-                                        <tr key={template.id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                                        <tr key={template.id} className="hover:bg-gray-50 dark:hover:bg-indigo-900/30">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm font-medium text-gray-900 dark:text-white">{template.name}</div>
                                             </td>

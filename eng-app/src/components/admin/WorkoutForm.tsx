@@ -278,8 +278,8 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             for (let i = 0; i < exercise.sets_data.length; i++) {
                 const set = exercise.sets_data[i];
                 rows.push(
-                    <tr key={`set-${index}-${i}`} className="border-b dark:border-gray-700">
-                        <td className="px-4 py-2 text-center">{i + 1}</td>
+                    <tr key={`set-${index}-${i}`} className="border-b dark:border-gray-700 dark:text-white">
+                        <td className="px-4 py-2 text-center ">{i + 1}</td>
                         <td className="px-4 py-2 text-center">
                             <select
                                 value={set.type}
@@ -470,7 +470,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                     {/* Exercise List */}
                     <div ref={dropRef} className="flex-grow p-4 space-y-6 overflow-y-auto">
                         {exercises.map((exercise, index) => (
-                            <div key={index} className="overflow-hidden bg-white border rounded-lg shadow dark:bg-gray-750 dark:border-gray-700">
+                            <div key={index} className="overflow-hidden bg-white border rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
                                 {/* Exercise Header */}
                                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-700">
                                     <div className="flex items-center gap-3">
@@ -552,7 +552,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                                         <tr>
                                                             <th className="px-4 py-2 text-xs font-medium tracking-wider text-center text-gray-500 uppercase dark:text-gray-300">Set</th>
                                                             <th className="px-4 py-2 text-xs font-medium tracking-wider text-center text-gray-500 uppercase dark:text-gray-300">Type</th>
-                                                            <th className="px-4 py-2 text-xs font-medium tracking-wider text-center text-gray-500 uppercase dark:text-gray-300">Time</th>
+                                                            <th className="px-4 py-2 text-xs font-medium tracking-wider text-center text-gray-500 uppercase dark:text-gray-300">Time/Sets</th>
                                                             <th className="px-4 py-2 text-xs font-medium tracking-wider text-center text-gray-500 uppercase dark:text-gray-300">Rest</th>
                                                         </tr>
                                                     </thead>

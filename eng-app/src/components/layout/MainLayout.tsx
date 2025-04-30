@@ -17,7 +17,7 @@ const NavItem = ({ to, icon, label, active, onClick }: { to: string; icon: React
         `flex items-center px-4 py-3 text-sm font-medium rounded-lg mb-1 transition-colors ${
           isActive || active
             ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
-            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800/50'
+            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-indigo-800/30'
         }`
       }
       onClick={onClick}
@@ -129,7 +129,7 @@ const MainLayout: React.FC = () => {
               </div>
               <button 
                 onClick={handleLogout}
-                className="flex items-center w-full px-4 py-3 mt-2 text-sm font-medium text-gray-700 rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50"
+                className="flex items-center w-full px-4 py-3 mt-2 text-sm font-medium text-gray-700 rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-indigo-800/30"
               >
                 <span className="mr-3"><FiLogOut /></span>
                 <span>Logout</span>
