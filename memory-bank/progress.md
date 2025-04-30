@@ -94,6 +94,11 @@
 
 ## Recently Completed
 
+### API Integration
+- ✅ Updated Exercise DB API from wger to HeyGainz API
+- ✅ Updated documentation across project to reflect new API
+- ✅ Documented new API endpoints for exercises and muscle groups
+
 ### Layout and Navigation
 - ✅ Fixed footer placement across all layouts
 - ✅ Improved sidebar styling consistency between Admin and Main layouts

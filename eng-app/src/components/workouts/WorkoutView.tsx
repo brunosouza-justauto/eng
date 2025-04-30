@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom'; // Re-enable useParams
 import { supabase } from '../../services/supabaseClient';
-// Import wger service and types
-import { getAllExercisesCached, WgerExercise } from '../../services/exerciseService';
+// Import exercise service and types - with updated interface names
+import { getAllExercisesCached, Exercise } from '../../services/exerciseService';
 import { SetType, ExerciseSet } from '../../types/adminTypes';
 
 // Define types locally for now (consider moving to shared types file later)
@@ -39,7 +39,7 @@ const WorkoutView: React.FC = () => {
     // const workoutId = 'dummy-id'; 
 
     const [workout, setWorkout] = useState<WorkoutData | null>(null);
-    const [wgerExercisesMap, setWgerExercisesMap] = useState<Map<number, WgerExercise>>(new Map());
+    const [exercisesMap, setExercisesMap] = useState<Map<number, Exercise>>(new Map());
     const [isLoading, setIsLoading] = useState<boolean>(true); // Combined loading state
     const [error, setError] = useState<string | null>(null);
 
@@ -48,14 +48,14 @@ const WorkoutView: React.FC = () => {
             setIsLoading(true);
             setError(null);
             setWorkout(null);
-            setWgerExercisesMap(new Map()); // Reset map
+            setExercisesMap(new Map()); // Reset map
 
             try {
-                // Fetch wger exercises first (potentially from cache)
-                console.log('Fetching wger exercise cache...');
+                // Fetch exercises first (potentially from cache)
+                console.log('Fetching exercise cache...');
                 const exercises = await getAllExercisesCached();
                 const exerciseMap = new Map(exercises.map(ex => [ex.id, ex]));
-                setWgerExercisesMap(exerciseMap);
+                setExercisesMap(exerciseMap);
                 console.log(`Loaded ${exerciseMap.size} exercises into map.`);
 
                 // Now fetch the specific workout
@@ -111,12 +111,12 @@ const WorkoutView: React.FC = () => {
         loadData();
     }, [workoutId]); // useEffect depends on workoutId from params
 
-    // Helper to get wger data based on DB ID
-    const getWgerDetails = (dbId: string | null): WgerExercise | undefined => {
+    // Helper to get exercise details based on DB ID
+    const getExerciseDetails = (dbId: string | null): Exercise | undefined => {
         if (!dbId) return undefined;
-        // wger IDs are numbers, ensure conversion if needed (assuming db_id is stored correctly)
+        // IDs are numbers, ensure conversion if needed (assuming db_id is stored correctly)
         const numericId = parseInt(dbId, 10);
-        return isNaN(numericId) ? undefined : wgerExercisesMap.get(numericId);
+        return isNaN(numericId) ? undefined : exercisesMap.get(numericId);
     };
 
     // Helper to get a friendly name for the set type
@@ -146,9 +146,9 @@ const WorkoutView: React.FC = () => {
                         {workout.exercise_instances
                             .sort((a, b) => (a.order_in_workout ?? 0) - (b.order_in_workout ?? 0))
                             .map((ex, index) => {
-                                // Look up wger data
-                                const wgerData = getWgerDetails(ex.exercise_db_id);
-                                const displayName = ex.exercise_name || wgerData?.name || 'Unnamed Exercise';
+                                // Look up exercise data
+                                const exerciseData = getExerciseDetails(ex.exercise_db_id);
+                                const displayName = ex.exercise_name || exerciseData?.name || 'Unnamed Exercise';
                                 
                                 return (
                                     <div key={ex.exercise_db_id || index} className="p-3 bg-gray-100 rounded shadow dark:bg-gray-700">
@@ -161,15 +161,15 @@ const WorkoutView: React.FC = () => {
                                         {/* Display individual sets if available */}
                                         {ex.sets_data && ex.sets_data.length > 0 ? (
                                             <div className="mt-2">
-                                                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Set Details:</p>
+                                                <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">Set Details:</p>
                                                 <div className="overflow-x-auto">
                                                     <table className="w-full text-xs">
                                                         <thead>
                                                             <tr className="border-b dark:border-gray-700">
-                                                                <th className="text-left py-1 pr-2">#</th>
-                                                                <th className="text-left py-1 pr-2">Type</th>
-                                                                <th className="text-left py-1 pr-2">Reps</th>
-                                                                <th className="text-left py-1">Rest</th>
+                                                                <th className="py-1 pr-2 text-left">#</th>
+                                                                <th className="py-1 pr-2 text-left">Type</th>
+                                                                <th className="py-1 pr-2 text-left">Reps</th>
+                                                                <th className="py-1 text-left">Rest</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -212,13 +212,21 @@ const WorkoutView: React.FC = () => {
                                         
                                         {ex.notes && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Notes: {ex.notes}</p>}
                                         
-                                        {/* Display wger details if found */} 
-                                        {wgerData && (
+                                        {/* Display exercise details if found */} 
+                                        {exerciseData && (
                                             <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    (Wger ID: {wgerData.id})
-                                                    {/* Add link or description later */}
-                                                    {/* <a href={`https://wger.de/en/exercise/info/${wgerData.id}/`} target="_blank" rel="noopener noreferrer" className="ml-2 text-indigo-500 hover:underline">View Details</a> */}
+                                                    (Exercise ID: {exerciseData.id})
+                                                    {exerciseData.gif_url && (
+                                                        <a 
+                                                            href={exerciseData.gif_url} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer" 
+                                                            className="ml-2 text-indigo-500 hover:underline"
+                                                        >
+                                                            View Animation
+                                                        </a>
+                                                    )}
                                                 </p>
                                             </div>
                                         )}

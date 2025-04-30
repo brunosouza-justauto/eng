@@ -94,7 +94,7 @@ CheckIn
 
 ## 6 · APIs & Data Sources
 
-- **Exercise DB**: `wger.de/api` (public, >1k exercises) or similar. Cache locally for offline.
+- **Exercise DB**: `https://svc.heygainz.com/api/exercises` (extensive exercise database with detailed data and search capabilities). Cache locally for offline.
 - **AFCD/NUTTAB**: download latest CSV → ingest into backend (table `food_items`).
 - **Image/Video Storage**: Supabase Storage or S3 bucket.
 
