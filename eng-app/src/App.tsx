@@ -15,6 +15,7 @@ import HistoryPage from './pages/HistoryPage'; // Import HistoryPage
 import AdminRoute from './components/AdminRoute'; // Import AdminRoute
 import AdminLayout from './components/admin/AdminLayout'; // Import AdminLayout
 import UserManager from './components/admin/UserManager'; // Import UserManager
+import CoachManager from './components/admin/CoachManager'; // Import CoachManager
 import ProgramBuilder from './components/admin/ProgramBuilder'; // Import
 import MealPlanner from './components/admin/MealPlanner'; // Import
 import StepGoalSetter from './components/admin/StepGoalSetter'; // Import
@@ -22,11 +23,10 @@ import CheckInReview from './components/admin/CheckInReview'; // Import
 import AdminDashboard from './components/admin/AdminDashboard'; // Import AdminDashboard
 import MainLayout from './components/layout/MainLayout'; // Import MainLayout
 import AthleteDetailsPage from './pages/admin/AthleteDetailsPage'; // Import AthleteDetailsPage
+import CoachDetailsPage from './pages/admin/CoachDetailsPage'; // Import CoachDetailsPage
 // Placeholder pages - we will create these properly later
 // const LoginPage = () => <div>Login Page Placeholder - <Link to="/dashboard">Go to Dashboard (temp)</Link></div>;
 const NotFoundPage = () => <div>404 Not Found</div>;
-// Placeholder for Coach Management page
-const CoachManager = () => <div className="p-4"><h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Coach Management</h1><p className="text-gray-600 dark:text-gray-400">This feature is coming soon.</p></div>;
 
 function App() {
   const dispatch = useDispatch();
@@ -131,6 +131,7 @@ function App() {
               <Route path="athletes" element={<UserManager />} />
               <Route path="athletes/:id" element={<AthleteDetailsPage />} />
               <Route path="coaches" element={<CoachManager />} />
+              <Route path="coaches/:id" element={<CoachDetailsPage />} />
               <Route path="programs" element={<ProgramBuilder />} />
               <Route path="mealplans" element={<MealPlanner />} />
               <Route path="stepgoals" element={<StepGoalSetter />} />

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import Card from '../ui/Card';
 import { ButtonLink } from '../ui/Button';
+import { SetType, ExerciseSet } from '../../types/adminTypes';
 
 interface NextWorkoutWidgetProps {
   programTemplateId: string | null | undefined;
@@ -15,6 +16,8 @@ interface ExerciseInstanceData {
     reps: string | null;
     rest_period_seconds: number | null;
     order_in_workout: number | null;
+    set_type?: SetType | null;
+    sets_data?: ExerciseSet[]; // Add support for individual set data
 }
 
 interface WorkoutData {
@@ -33,6 +36,20 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
   const [workoutData, setWorkoutData] = useState<WorkoutDataWithId | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Helper to get a friendly name for the set type
+  const getSetTypeName = (setType: SetType | null | undefined): string => {
+    if (!setType) return '';
+    
+    const setTypeMap: Record<SetType, string> = {
+      [SetType.REGULAR]: 'Regular',
+      [SetType.WARM_UP]: 'Warm-up',
+      [SetType.DROP_SET]: 'Drop Set',
+      [SetType.FAILURE]: 'To Failure'
+    };
+    
+    return setTypeMap[setType] || '';
+  };
 
   useEffect(() => {
     const fetchWorkout = async () => {
@@ -64,7 +81,9 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
                 sets,
                 reps,
                 rest_period_seconds,
-                order_in_workout
+                order_in_workout,
+                set_type,
+                sets_data
               )
             )
           `)
@@ -183,9 +202,37 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
                             </span>
                             <span className="font-medium text-gray-800 dark:text-gray-200">{ex.exercise_name || 'Unnamed Exercise'}</span>
                           </div>
-                          <span className="ml-3 flex-shrink-0 px-2.5 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
-                            {ex.sets} × {ex.reps}
-                          </span>
+                          <div className="flex items-center">
+                            {/* Display badges for set types */}
+                            {ex.sets_data && ex.sets_data.length > 0 ? (
+                              // Group by set type and show a badge for each type
+                              [...new Set(ex.sets_data.map(set => set.type))].map((type, idx) => (
+                                <span key={`type-${idx}`} className={`mr-2 px-2 py-0.5 text-xs rounded ${
+                                  type === SetType.WARM_UP ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' : 
+                                  type === SetType.DROP_SET ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' : 
+                                  type === SetType.FAILURE ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' : 
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                }`}>
+                                  {getSetTypeName(type)}
+                                </span>
+                              ))
+                            ) : (
+                              // If no sets_data, fall back to displaying the overall set_type
+                              ex.set_type && (
+                                <span className={`mr-2 px-2 py-0.5 text-xs rounded ${
+                                  ex.set_type === SetType.WARM_UP ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' : 
+                                  ex.set_type === SetType.DROP_SET ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' : 
+                                  ex.set_type === SetType.FAILURE ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' : 
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                }`}>
+                                  {getSetTypeName(ex.set_type)}
+                                </span>
+                              )
+                            )}
+                            <span className="px-2.5 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
+                              {ex.sets} × {ex.reps}
+                            </span>
+                          </div>
                         </div>
                       ))}
                       

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'; // Re-enable useParams
 import { supabase } from '../../services/supabaseClient';
 // Import wger service and types
 import { getAllExercisesCached, WgerExercise } from '../../services/exerciseService';
+import { SetType, ExerciseSet } from '../../types/adminTypes';
 
 // Define types locally for now (consider moving to shared types file later)
 interface ExerciseInstanceData {
@@ -14,6 +15,8 @@ interface ExerciseInstanceData {
     tempo: string | null;
     notes: string | null;
     order_in_workout: number | null;
+    set_type?: SetType | null;
+    sets_data?: ExerciseSet[]; // Add support for individual set data
 }
 
 interface WorkoutData {
@@ -76,7 +79,9 @@ const WorkoutView: React.FC = () => {
                             rest_period_seconds,
                             tempo,
                             notes,
-                            order_in_workout
+                            order_in_workout,
+                            set_type,
+                            sets_data
                         )
                     `)
                     .eq('id', workoutId)
@@ -114,6 +119,20 @@ const WorkoutView: React.FC = () => {
         return isNaN(numericId) ? undefined : wgerExercisesMap.get(numericId);
     };
 
+    // Helper to get a friendly name for the set type
+    const getSetTypeName = (setType: SetType | null | undefined): string => {
+        if (!setType) return '';
+        
+        const setTypeMap: Record<SetType, string> = {
+            [SetType.REGULAR]: 'Regular',
+            [SetType.WARM_UP]: 'Warm-up',
+            [SetType.DROP_SET]: 'Drop Set',
+            [SetType.FAILURE]: 'To Failure'
+        };
+        
+        return setTypeMap[setType] || '';
+    };
+
     return (
         <div className="container p-4 mx-auto">
             {isLoading && <p>Loading workout details...</p>}
@@ -138,6 +157,59 @@ const WorkoutView: React.FC = () => {
                                         <p className="text-sm">Sets: {ex.sets ?? 'N/A'}, Reps: {ex.reps ?? 'N/A'}</p>
                                         {ex.rest_period_seconds !== null && <p className="text-sm">Rest: {ex.rest_period_seconds}s</p>}
                                         {ex.tempo && <p className="text-sm text-gray-600 dark:text-gray-400">Tempo: {ex.tempo}</p>}
+                                        
+                                        {/* Display individual sets if available */}
+                                        {ex.sets_data && ex.sets_data.length > 0 ? (
+                                            <div className="mt-2">
+                                                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Set Details:</p>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-xs">
+                                                        <thead>
+                                                            <tr className="border-b dark:border-gray-700">
+                                                                <th className="text-left py-1 pr-2">#</th>
+                                                                <th className="text-left py-1 pr-2">Type</th>
+                                                                <th className="text-left py-1 pr-2">Reps</th>
+                                                                <th className="text-left py-1">Rest</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {ex.sets_data.map((set, i) => (
+                                                                <tr key={`set-${i}`} className="border-b border-gray-100 dark:border-gray-800">
+                                                                    <td className="py-1 pr-2">{i + 1}</td>
+                                                                    <td className="py-1 pr-2">
+                                                                        <span className={`inline-block px-1.5 py-0.5 text-xs rounded ${
+                                                                            set.type === SetType.WARM_UP ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' : 
+                                                                            set.type === SetType.DROP_SET ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' : 
+                                                                            set.type === SetType.FAILURE ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' : 
+                                                                            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                                                        }`}>
+                                                                            {getSetTypeName(set.type)}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="py-1 pr-2">{set.reps || '-'}</td>
+                                                                    <td className="py-1">{set.rest_seconds ? `${set.rest_seconds}s` : '-'}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            /* Fall back to showing the overall set type if no individual sets */
+                                            ex.set_type && (
+                                                <p className="text-sm">
+                                                    <span className={`inline-block px-2 py-1 text-xs rounded mr-1 ${
+                                                        ex.set_type === SetType.WARM_UP ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' : 
+                                                        ex.set_type === SetType.DROP_SET ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' : 
+                                                        ex.set_type === SetType.FAILURE ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' : 
+                                                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                                    }`}>
+                                                        Set Type: {getSetTypeName(ex.set_type)}
+                                                    </span>
+                                                </p>
+                                            )
+                                        )}
+                                        
                                         {ex.notes && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Notes: {ex.notes}</p>}
                                         
                                         {/* Display wger details if found */} 

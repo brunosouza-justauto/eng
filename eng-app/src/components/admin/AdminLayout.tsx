@@ -89,6 +89,12 @@ const AdminLayout = () => {
                   active={location.pathname.startsWith('/admin/athletes')} 
                 />
                 <NavItem 
+                  to="/admin/coaches" 
+                  icon={<FiUsers />} 
+                  label="Manage Coaches" 
+                  active={location.pathname.startsWith('/admin/coaches')} 
+                />
+                <NavItem 
                   to="/admin/programs" 
                   icon={<FiClipboard />} 
                   label="Program Builder" 
@@ -107,10 +113,10 @@ const AdminLayout = () => {
                   active={location.pathname.startsWith('/admin/settings')} 
                 />
                 <NavItem 
-                  to="/admin/check-ins" 
+                  to="/admin/checkins" 
                   icon={<FiMessageCircle />} 
                   label="Check-ins" 
-                  active={location.pathname.startsWith('/admin/check-ins')} 
+                  active={location.pathname.startsWith('/admin/checkins')} 
                 />
               </nav>
               

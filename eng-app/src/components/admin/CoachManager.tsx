@@ -4,12 +4,12 @@ import { useSelector } from 'react-redux';
 import { selectProfile } from '../../store/slices/authSlice';
 import { UserProfileListItem } from '../../types/profiles'; // Import shared types
 import InvitationManager from './InvitationManager'; // Import the new InvitationManager
-import { useNavigate } from 'react-router-dom'; // Import for navigation
 import { FiSearch } from 'react-icons/fi'; // Import icons
+import { useNavigate } from 'react-router-dom'; // Import for navigation
 
-const UserManager: React.FC = () => {
+const CoachManager: React.FC = () => {
     const navigate = useNavigate(); // Hook for navigation
-    const [users, setUsers] = useState<UserProfileListItem[]>([]);
+    const [coaches, setCoaches] = useState<UserProfileListItem[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'active' | 'invited'>('all');
@@ -18,15 +18,15 @@ const UserManager: React.FC = () => {
 
     // State for delete confirmation
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false);
-    const [userToDelete, setUserToDelete] = useState<UserProfileListItem | null>(null);
-    const [isDeletingUser, setIsDeletingUser] = useState<boolean>(false);
+    const [coachToDelete, setCoachToDelete] = useState<UserProfileListItem | null>(null);
+    const [isDeletingCoach, setIsDeletingCoach] = useState<boolean>(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
     // State for resend invitation
     const [isResendingInvite, setIsResendingInvite] = useState<boolean>(false);
     const [resendError, setResendError] = useState<string | null>(null);
 
-    const profile = useSelector(selectProfile); // Need coach profile for ID
+    const profile = useSelector(selectProfile); // Need admin profile for ID
 
     // Add resize listener to detect mobile/desktop view
     useEffect(() => {
@@ -38,46 +38,44 @@ const UserManager: React.FC = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Get pending invitations (users with no user_id)
+    // Get pending invitations (coaches with no user_id)
     const pendingInvitations = React.useMemo(() => {
-        return users.filter(user => !user.user_id);
-    }, [users]);
+        return coaches.filter(coach => !coach.user_id);
+    }, [coaches]);
 
-    // Filter users based on selection
-    const filteredUsers = React.useMemo(() => {
-        if (filter === 'all') return users;
-        if (filter === 'active') return users.filter(user => !!user.user_id);
-        if (filter === 'invited') return users.filter(user => !user.user_id);
-        return users;
-    }, [users, filter]);
+    // Filter coaches based on selection
+    const filteredCoaches = React.useMemo(() => {
+        if (filter === 'all') return coaches;
+        if (filter === 'active') return coaches.filter(coach => !!coach.user_id);
+        if (filter === 'invited') return coaches.filter(coach => !coach.user_id);
+        return coaches;
+    }, [coaches, filter]);
 
-    // Fetch users based on coach ID
-    const fetchUsers = async () => {
+    // Fetch coaches
+    const fetchCoaches = async () => {
         if (!profile || !profile.id) {
-            setError('Coach profile not loaded. Cannot fetch athletes.');
+            setError('Admin profile not loaded. Cannot fetch coaches.');
             setIsLoading(false);
             return;
         }
         
         setIsLoading(true);
         setError(null);
-        console.log("Fetching athletes for coach_id:", profile.id);
 
         try {
-            // Get all users where coach_id matches the current coach's profile ID
+            // Get all users with role = coach
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('coach_id', profile.id)
+                .eq('role', 'coach')
                 .order('created_at', { ascending: false });
                 
             if (error) throw error;
             
-            console.log("Fetched users:", data);
-            setUsers(data as UserProfileListItem[]);
+            setCoaches(data as UserProfileListItem[]);
         } catch (err: unknown) {
-            console.error("Error fetching users:", err);
-            let message = 'Failed to load athletes.';
+            console.error("Error fetching coaches:", err);
+            let message = 'Failed to load coaches.';
             if (typeof err === 'object' && err !== null && 'message' in err) {
                 message = (err as Error).message;
             }
@@ -87,65 +85,60 @@ const UserManager: React.FC = () => {
         }
     };
 
-    // Fetch users on component mount or when profile changes
+    // Fetch coaches on component mount or when profile changes
     useEffect(() => {
-        fetchUsers();
+        fetchCoaches();
     }, [profile]);
 
-    // Handle viewing user details - now navigates to the dedicated page
-    const handleViewUser = (user: UserProfileListItem) => {
-        navigate(`/admin/athletes/${user.id}`);
+    // Handle viewing coach details
+    const handleViewCoach = (coach: UserProfileListItem) => {
+        navigate(`/admin/coaches/${coach.id}`);
     };
 
-    // Handle delete athlete
-    const handleDeleteUser = (user: UserProfileListItem) => {
-        setUserToDelete(user);
+    // Handle delete coach
+    const handleDeleteCoach = (coach: UserProfileListItem) => {
+        setCoachToDelete(coach);
         setShowDeleteConfirmation(true);
         setDeleteError(null);
     };
 
-    // Confirm delete athlete
-    const confirmDeleteUser = async () => {
-        if (!userToDelete) return;
+    // Confirm delete coach
+    const confirmDeleteCoach = async () => {
+        if (!coachToDelete) return;
         
-        setIsDeletingUser(true);
+        setIsDeletingCoach(true);
         setDeleteError(null);
 
         try {
-            // Delete the user's profile
+            // Delete the coach's profile
             const { error: deleteError } = await supabase
                 .from('profiles')
                 .delete()
-                .eq('id', userToDelete.id);
+                .eq('id', coachToDelete.id);
 
             if (deleteError) throw deleteError;
-
-            // In a real application, you might want to:
-            // 1. Delete related data (assignments, check-ins, etc.)
-            // 2. Send a notification to the user
-            // 3. Possibly deactivate their auth account via an edge function
             
-            // Update the UI by removing the deleted user
-            setUsers(users.filter(u => u.id !== userToDelete.id));
+            // Update the UI by removing the deleted coach
+            setCoaches(coaches.filter(c => c.id !== coachToDelete.id));
             setShowDeleteConfirmation(false);
-            setUserToDelete(null);
+            setCoachToDelete(null);
             
             // Show success message
-            setSuccessMessage(`Athlete "${userToDelete.email}" has been removed.`);
+            setSuccessMessage(`Coach "${coachToDelete.email}" has been removed.`);
             setTimeout(() => setSuccessMessage(null), 3000);
             
         } catch (err) {
-            console.error("Error deleting user:", err);
-            setDeleteError('Failed to delete athlete. Please try again.');
+            console.error("Error deleting coach:", err);
+            setDeleteError('Failed to delete coach. Please try again.');
         } finally {
-            setIsDeletingUser(false);
+            setIsDeletingCoach(false);
         }
     };
 
     // Resend invitation
-    const handleResendInvitation = async (user: UserProfileListItem) => {
-        if (!user.email) {
-            setResendError('User email not found.');
+    const handleResendInvitation = async (coach: UserProfileListItem) => {
+        if (!coach.email) {
+            setResendError('Coach email not found.');
             return;
         }
         
@@ -155,7 +148,7 @@ const UserManager: React.FC = () => {
         try {
             // Re-send the magic link
             const { error: inviteError } = await supabase.auth.signInWithOtp({
-                email: user.email,
+                email: coach.email,
                 options: {
                     emailRedirectTo: `${window.location.origin}/onboarding`,
                 }
@@ -170,16 +163,16 @@ const UserManager: React.FC = () => {
                     invitation_status: 'pending',
                     invited_at: new Date().toISOString()
                 })
-                .eq('id', user.id);
+                .eq('id', coach.id);
 
             if (updateError) throw updateError;
 
             // Success message
-            setSuccessMessage(`Invitation resent to ${user.email} successfully.`);
+            setSuccessMessage(`Invitation resent to ${coach.email} successfully.`);
             setTimeout(() => setSuccessMessage(null), 5000);
             
-            // Refresh users list
-            await fetchUsers();
+            // Refresh coaches list
+            await fetchCoaches();
 
         } catch (err: unknown) {
             console.error("Error resending invite:", err);
@@ -193,50 +186,17 @@ const UserManager: React.FC = () => {
         }
     };
 
-    // Add this function to help debug profile issues
-    const debugProfileInfo = async () => {
-        try {
-            console.log("Current coach profile:", profile);
-            
-            // Check if there are any profiles at all
-            const { data: allProfiles, error: allProfilesError } = await supabase
-                .from('profiles')
-                .select('id, user_id, email, role, coach_id')
-                .limit(10);
-                
-            if (allProfilesError) throw allProfilesError;
-            
-            console.log("Sample of all profiles in the database:", allProfiles);
-            
-            // Check if the coach profile is correctly set
-            if (profile && profile.id) {
-                const { data: myProfile, error: myProfileError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', profile.id)
-                    .single();
-                    
-                if (myProfileError) throw myProfileError;
-                
-                console.log("My coach profile details:", myProfile);
-            }
-        } catch (err) {
-            console.error("Debug error:", err);
-            alert("Check console for debug info");
-        }
-    };
-
     // Function to render status badge
-    const renderStatusBadge = (user: UserProfileListItem) => {
-        if (!user.user_id) {
+    const renderStatusBadge = (coach: UserProfileListItem) => {
+        if (!coach.user_id) {
             return <span className="inline-flex px-2 text-xs font-semibold leading-5 text-yellow-800 bg-yellow-100 rounded-full dark:bg-yellow-900/30 dark:text-yellow-200">Invited</span>;
         } 
         return <span className="inline-flex px-2 text-xs font-semibold leading-5 text-blue-800 bg-blue-100 rounded-full dark:bg-blue-900/30 dark:text-blue-200">Active</span>;
     };
 
     // Function to render onboarding badge
-    const renderOnboardingBadge = (user: UserProfileListItem) => {
-        if (user.onboarding_complete) {
+    const renderOnboardingBadge = (coach: UserProfileListItem) => {
+        if (coach.onboarding_complete) {
             return <span className="inline-flex px-2 text-xs font-semibold leading-5 text-green-800 bg-green-100 rounded-full dark:bg-green-900/30 dark:text-green-200">Yes</span>;
         }
         return <span className="inline-flex px-2 text-xs font-semibold leading-5 text-red-800 bg-red-100 rounded-full dark:bg-red-900/30 dark:text-red-200">No</span>;
@@ -245,15 +205,7 @@ const UserManager: React.FC = () => {
     return (
         <div className="container mx-auto py-6 px-4">
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Athlete Management</h1>
-                <div className="flex space-x-2">
-                    <button 
-                        onClick={debugProfileInfo}
-                        className="hidden px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
-                    >
-                        Debug
-                    </button>
-                </div>
+                <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Coach Management</h1>
             </div>
 
             {/* Display success message globally */}
@@ -275,15 +227,16 @@ const UserManager: React.FC = () => {
                 </div>
             )}
 
-            {/* Render InvitationManager component */}
+            {/* Render InvitationManager component for coaches */}
             {profile && profile.id && (
                 <InvitationManager 
                     coachId={profile.id}
                     pendingInvitations={pendingInvitations}
+                    userRole="coach"
                     onInviteSent={(email) => {
                         setSuccessMessage(`Invitation sent to ${email} successfully.`);
                         setTimeout(() => setSuccessMessage(null), 5000);
-                        fetchUsers(); // Refresh the user list
+                        fetchCoaches(); // Refresh the coach list
                     }}
                     onResendInvitation={handleResendInvitation}
                     isResendingInvite={isResendingInvite}
@@ -320,7 +273,7 @@ const UserManager: React.FC = () => {
 
             {isLoading ? (
                 <div className="text-center py-10">
-                    <p className="text-gray-500 dark:text-gray-400">Loading athletes...</p>
+                    <p className="text-gray-500 dark:text-gray-400">Loading coaches...</p>
                 </div>
             ) : !isMobileView && (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
@@ -333,7 +286,7 @@ const UserManager: React.FC = () => {
                                 <input
                                     type="text"
                                     className="pl-10 pr-4 py-2 w-full border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                    placeholder="Search athletes..."
+                                    placeholder="Search coaches..."
                                     // Add search functionality if needed
                                 />
                             </div>
@@ -357,32 +310,32 @@ const UserManager: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
-                                {filteredUsers.length === 0 && (
+                                {filteredCoaches.length === 0 && (
                                     <tr>
-                                        <td colSpan={8} className="px-6 py-4 text-sm text-center text-gray-500 whitespace-nowrap dark:text-gray-400">No athletes found.</td>
+                                        <td colSpan={8} className="px-6 py-4 text-sm text-center text-gray-500 whitespace-nowrap dark:text-gray-400">No coaches found.</td>
                                     </tr>
                                 )}
-                                {filteredUsers.map((user) => (
-                                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-indigo-900/30">
-                                        <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap dark:text-white">{user.email ?? 'N/A'}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{user.username ?? '-'}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{user.role}</td>
+                                {filteredCoaches.map((coach) => (
+                                    <tr key={coach.id} className="hover:bg-gray-50 dark:hover:bg-indigo-900/30">
+                                        <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap dark:text-white">{coach.email ?? 'N/A'}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{coach.username ?? '-'}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{coach.role}</td>
                                         <td className="px-6 py-4 text-sm whitespace-nowrap">
-                                            {renderStatusBadge(user)}
+                                            {renderStatusBadge(coach)}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">
-                                            {user.invited_at ? new Date(user.invited_at).toLocaleDateString() : 'N/A'}
+                                            {coach.invited_at ? new Date(coach.invited_at).toLocaleDateString() : 'N/A'}
                                         </td>
                                         <td className="px-6 py-4 text-sm whitespace-nowrap">
-                                            {renderOnboardingBadge(user)}
+                                            {renderOnboardingBadge(coach)}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">
-                                            {new Date(user.created_at).toLocaleDateString()}
+                                            {new Date(coach.created_at).toLocaleDateString()}
                                         </td>
                                         <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
-                                            {!user.user_id && (
+                                            {!coach.user_id && (
                                                 <button 
-                                                    onClick={() => handleResendInvitation(user)}
+                                                    onClick={() => handleResendInvitation(coach)}
                                                     disabled={isResendingInvite}
                                                     className="mr-3 text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-200 disabled:opacity-50"
                                                 >
@@ -390,13 +343,13 @@ const UserManager: React.FC = () => {
                                                 </button>
                                             )}
                                             <button 
-                                                onClick={() => handleViewUser(user)} 
+                                                onClick={() => handleViewCoach(coach)} 
                                                 className="mr-3 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200"
                                             >
                                                 View
                                             </button>
                                             <button 
-                                                onClick={() => handleDeleteUser(user)} 
+                                                onClick={() => handleDeleteCoach(coach)} 
                                                 className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"
                                             >
                                                 Delete
@@ -413,23 +366,23 @@ const UserManager: React.FC = () => {
             {/* Mobile card view */}
             {!isLoading && isMobileView && (
                 <div className="grid grid-cols-1 gap-4">
-                    {filteredUsers.length === 0 && (
+                    {filteredCoaches.length === 0 && (
                         <div className="p-4 text-sm text-center text-gray-500 bg-white rounded-lg shadow dark:bg-gray-800 dark:text-gray-400">
-                            No athletes found.
+                            No coaches found.
                         </div>
                     )}
-                    {filteredUsers.map((user) => (
-                        <div key={user.id} className="overflow-hidden bg-white rounded-lg shadow dark:bg-gray-800">
+                    {filteredCoaches.map((coach) => (
+                        <div key={coach.id} className="overflow-hidden bg-white rounded-lg shadow dark:bg-gray-800">
                             <div className="px-4 py-5 sm:p-6">
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1 min-w-0">
                                         <h3 className="text-lg font-medium leading-6 text-gray-900 truncate dark:text-white">
-                                            {user.email ?? 'N/A'}
+                                            {coach.email ?? 'N/A'}
                                         </h3>
                                         <div className="flex flex-wrap mt-1 gap-x-2">
-                                            {renderStatusBadge(user)}
+                                            {renderStatusBadge(coach)}
                                             <span className="text-sm text-gray-500 dark:text-gray-400">
-                                                {user.username ?? '-'}
+                                                {coach.username ?? '-'}
                                             </span>
                                         </div>
                                     </div>
@@ -438,32 +391,32 @@ const UserManager: React.FC = () => {
                                 <div className="grid grid-cols-2 gap-4 mt-4">
                                     <div>
                                         <p className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Role</p>
-                                        <p className="mt-1 text-sm text-gray-900 dark:text-white">{user.role}</p>
+                                        <p className="mt-1 text-sm text-gray-900 dark:text-white">{coach.role}</p>
                                     </div>
                                     <div>
                                         <p className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Joined</p>
                                         <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                                            {new Date(user.created_at).toLocaleDateString()}
+                                            {new Date(coach.created_at).toLocaleDateString()}
                                         </p>
                                     </div>
                                     <div>
                                         <p className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Invited</p>
                                         <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                                            {user.invited_at ? new Date(user.invited_at).toLocaleDateString() : 'N/A'}
+                                            {coach.invited_at ? new Date(coach.invited_at).toLocaleDateString() : 'N/A'}
                                         </p>
                                     </div>
                                     <div>
                                         <p className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Onboarded</p>
                                         <div className="mt-1">
-                                            {renderOnboardingBadge(user)}
+                                            {renderOnboardingBadge(coach)}
                                         </div>
                                     </div>
                                 </div>
                                 
                                 <div className="flex justify-end mt-4 space-x-3">
-                                    {!user.user_id && (
+                                    {!coach.user_id && (
                                         <button 
-                                            onClick={() => handleResendInvitation(user)}
+                                            onClick={() => handleResendInvitation(coach)}
                                             disabled={isResendingInvite}
                                             className="px-3 py-1 text-sm font-medium text-yellow-700 bg-yellow-100 rounded-md hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-200 dark:hover:bg-yellow-900/50 disabled:opacity-50"
                                         >
@@ -471,13 +424,13 @@ const UserManager: React.FC = () => {
                                         </button>
                                     )}
                                     <button 
-                                        onClick={() => handleViewUser(user)} 
+                                        onClick={() => handleViewCoach(coach)} 
                                         className="px-3 py-1 text-sm font-medium text-indigo-700 bg-indigo-100 rounded-md hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/50"
                                     >
                                         View
                                     </button>
                                     <button 
-                                        onClick={() => handleDeleteUser(user)} 
+                                        onClick={() => handleDeleteCoach(coach)} 
                                         className="px-3 py-1 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 dark:bg-red-900/30 dark:text-red-200 dark:hover:bg-red-900/50"
                                     >
                                         Delete
@@ -490,13 +443,13 @@ const UserManager: React.FC = () => {
             )}
 
             {/* Delete Confirmation Modal */}
-            {showDeleteConfirmation && userToDelete && (
+            {showDeleteConfirmation && coachToDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center w-full h-full overflow-y-auto bg-black bg-opacity-50">
                     <div className="relative w-full max-w-md p-5 bg-white rounded-lg shadow-lg dark:bg-gray-800">
-                        <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">Delete Athlete</h3>
+                        <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">Delete Coach</h3>
                         <div className="mt-4">
                             <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-                                Are you sure you want to delete the athlete "{userToDelete.email}"?
+                                Are you sure you want to delete the coach "{coachToDelete.email}"?
                             </p>
                             
                             {deleteError && (
@@ -507,11 +460,11 @@ const UserManager: React.FC = () => {
                             
                             <div className="flex justify-end">
                                 <button
-                                    onClick={confirmDeleteUser}
-                                    disabled={isDeletingUser}
+                                    onClick={confirmDeleteCoach}
+                                    disabled={isDeletingCoach}
                                     className="px-4 py-2 mr-2 text-base font-medium text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-50"
                                 >
-                                    {isDeletingUser ? 'Deleting...' : 'Delete'}
+                                    {isDeletingCoach ? 'Deleting...' : 'Delete'}
                                 </button>
                                 <button
                                     onClick={() => setShowDeleteConfirmation(false)}
@@ -524,10 +477,8 @@ const UserManager: React.FC = () => {
                     </div>
                 </div>
             )}
-
-            {/* TODO: Add pagination controls */}
         </div>
     );
 };
 
-export default UserManager; 
+export default CoachManager; 

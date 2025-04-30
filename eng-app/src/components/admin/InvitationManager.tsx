@@ -10,6 +10,7 @@ interface InvitationManagerProps {
   pendingInvitations: UserProfileListItem[];
   onResendInvitation: (user: UserProfileListItem) => Promise<void>;
   isResendingInvite: boolean;
+  userRole?: 'athlete' | 'coach'; // Optional parameter with default value of 'athlete'
 }
 
 const InvitationManager: React.FC<InvitationManagerProps> = ({
@@ -17,13 +18,18 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
   coachId,
   pendingInvitations,
   onResendInvitation,
-  isResendingInvite
+  isResendingInvite,
+  userRole = 'athlete' // Default to 'athlete' if not specified
 }) => {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showBulkInvite, setShowBulkInvite] = useState(false);
   const [bulkEmails, setBulkEmails] = useState('');
+
+  // Display text based on userRole
+  const roleText = userRole === 'coach' ? 'Coach' : 'Athlete';
+  const roleTextLower = userRole === 'coach' ? 'coach' : 'athlete';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +39,7 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
     setError(null);
     
     try {
-      // Send the magic link to the athlete's email
+      // Send the magic link to the email
       const { error: inviteError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
@@ -43,11 +49,11 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
 
       if (inviteError) throw inviteError;
 
-      // Create a placeholder profile for this athlete
+      // Create a placeholder profile 
       const newProfileData = {
         email: email.trim(),
         coach_id: coachId,
-        role: 'athlete',
+        role: userRole, // Use the passed userRole
         onboarding_complete: false,
         username: email.split('@')[0], // Default username from email
         invitation_status: 'pending',
@@ -66,7 +72,7 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
       // Clear the form
       setEmail('');
     } catch (err: unknown) {
-      console.error("Error inviting athlete:", err);
+      console.error(`Error inviting ${roleTextLower}:`, err);
       setError(err instanceof Error ? err.message : 'Failed to send invitation');
     } finally {
       setIsSubmitting(false);
@@ -112,7 +118,7 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
           const newProfileData = {
             email: emailAddress,
             coach_id: coachId,
-            role: 'athlete',
+            role: userRole, // Use the passed userRole
             onboarding_complete: false,
             username: emailAddress.split('@')[0],
             invitation_status: 'pending',
@@ -153,9 +159,9 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white">Athlete Invitations</h2>
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white">{roleText} Invitations</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Invite athletes to join your coaching program
+              Invite {roleTextLower}s to join your coaching program
             </p>
           </div>
           <Button 
@@ -178,13 +184,13 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Athlete Email
+                {roleText} Email
               </label>
               <div className="flex mt-1">
                 <input
                   type="email"
                   id="email"
-                  placeholder="athlete@example.com"
+                  placeholder={`${roleTextLower}@example.com`}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full px-4 py-2 border-gray-300 shadow-sm rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -214,7 +220,7 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
               </label>
               <textarea
                 id="bulkEmails"
-                placeholder="athlete1@example.com, athlete2@example.com"
+                placeholder={`${roleTextLower}1@example.com, ${roleTextLower}2@example.com`}
                 value={bulkEmails}
                 onChange={(e) => setBulkEmails(e.target.value)}
                 rows={4}

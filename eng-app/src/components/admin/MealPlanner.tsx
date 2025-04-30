@@ -5,8 +5,7 @@ import { selectProfile } from '../../store/slices/authSlice';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import FormInput from '../ui/FormInput';
-import Card from '../ui/Card';
-import Button from '../ui/Button';
+import { FiSearch, FiPlus } from 'react-icons/fi';
 
 // Basic type for plan list item
 interface NutritionPlanListItem {
@@ -47,11 +46,14 @@ interface MealPlanFormData {
 
 const MealPlanner: React.FC = () => {
     const [plans, setPlans] = useState<NutritionPlanListItem[]>([]);
+    const [filteredPlans, setFilteredPlans] = useState<NutritionPlanListItem[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState<boolean>(false);
     const [selectedPlan, setSelectedPlan] = useState<NutritionPlanListItem | null>(null);
     const [isSaving, setIsSaving] = useState<boolean>(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
     const profile = useSelector(selectProfile);
 
@@ -75,12 +77,28 @@ const MealPlanner: React.FC = () => {
             
             if (fetchError) throw fetchError;
             setPlans(data || []);
+            setFilteredPlans(data || []);
         } catch {
              setError('Failed to load plans.'); 
         }
          finally { setIsLoading(false); }
     };
     useEffect(() => { fetchPlans(); }, [profile]);
+
+    // Filter plans based on search query
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            setFilteredPlans(plans);
+            return;
+        }
+        
+        const query = searchQuery.toLowerCase();
+        const filtered = plans.filter(
+            plan => plan.name.toLowerCase().includes(query) || 
+                   (plan.description && plan.description.toLowerCase().includes(query))
+        );
+        setFilteredPlans(filtered);
+    }, [searchQuery, plans]);
 
     // --- Form Handling --- 
     useEffect(() => { // Populate form on edit
@@ -91,7 +109,7 @@ const MealPlanner: React.FC = () => {
                 protein_grams: selectedPlan.protein_grams?.toString() ?? '',
                 carbohydrate_grams: selectedPlan.carbohydrate_grams?.toString() ?? '',
                 fat_grams: selectedPlan.fat_grams?.toString() ?? '',
-                description: selectedPlan.description ?? '' // Fetch description if added to list item type
+                description: selectedPlan.description ?? ''
             });
         } else {
             reset({ name: '', total_calories: '', protein_grams: '', carbohydrate_grams: '', fat_grams: '', description: '' });
@@ -149,58 +167,99 @@ const MealPlanner: React.FC = () => {
         }
     };
 
+    const handleDeletePlan = async (planId: string) => {
+        if (!profile || !profile.id) return;
+        setError(null);
+        
+        try {
+            const { error } = await supabase
+                .from('nutrition_plans')
+                .delete()
+                .eq('id', planId)
+                .eq('coach_id', profile.id); // Safety check
+            
+            if (error) throw error;
+            
+            // Update local state after successful deletion
+            setPlans(prevPlans => prevPlans.filter(plan => plan.id !== planId));
+            setFilteredPlans(prevFilteredPlans => prevFilteredPlans.filter(plan => plan.id !== planId));
+            
+            if (selectedPlan?.id === planId) {
+                setSelectedPlan(null);
+                setIsCreating(false);
+            }
+        } catch (err) {
+            console.error("Error deleting nutrition plan:", err);
+            setError('Failed to delete plan.');
+        } finally {
+            setShowDeleteConfirm(null);
+        }
+    };
+
     return (
         <FormProvider {...methods}>
-            <div className="space-y-6">
-                <div className="flex justify-between items-center">
+            <div className="container mx-auto py-6 px-4">
+                <div className="flex justify-between items-center mb-6">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Meal Planner</h1>
                         <p className="text-gray-600 dark:text-gray-400 mt-1">Create and manage nutrition plans for your athletes</p>
                     </div>
-                    <Button 
-                        onClick={handleCreateNew} 
-                        variant="primary" 
-                        color="indigo"
-                        icon={
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                            </svg>
-                        }
-                    >
-                        Create New Plan
-                    </Button>
+                    
+                    {!selectedPlan && !isCreating && (
+                        <button
+                            onClick={handleCreateNew}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
+                        >
+                            <FiPlus className="mr-2" /> New Plan
+                        </button>
+                    )}
                 </div>
 
-                {isLoading && (
-                    <div className="flex justify-center items-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                {error && (
+                    <div className="bg-red-100 dark:bg-red-900/20 border-l-4 border-red-500 text-red-700 dark:text-red-400 p-4 mb-6 rounded" role="alert">
+                        <p>{error}</p>
                     </div>
                 )}
-                
-                {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded">
-                        <div className="flex">
-                            <div className="flex-shrink-0">
-                                <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                            <div className="ml-3">
-                                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+
+                {/* Confirmation Dialog for Delete */}
+                {showDeleteConfirm && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto">
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Confirm Deletion</h3>
+                            <p className="mb-6 text-gray-600 dark:text-gray-400">
+                                Are you sure you want to delete this nutrition plan? This action cannot be undone.
+                            </p>
+                            <div className="flex justify-end space-x-3">
+                                <button 
+                                    onClick={() => setShowDeleteConfirm(null)}
+                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={() => showDeleteConfirm && handleDeletePlan(showDeleteConfirm)}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                >
+                                    Delete
+                                </button>
                             </div>
                         </div>
                     </div>
                 )}
 
+                {/* Form for Creating/Editing Plan */}
                 {(isCreating || selectedPlan) && (
-                    <Card className="overflow-visible">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
                         <div className="mb-4 flex justify-between items-center">
                             <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-                                {isCreating ? 'Create New Plan' : `Editing: ${selectedPlan?.name}`}
+                                {isCreating ? 'Create New Nutrition Plan' : `Editing: ${selectedPlan?.name}`}
                             </h2>
-                            <Button variant="outline" color="gray" size="sm" onClick={handleCancel}>
+                            <button
+                                onClick={handleCancel}
+                                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
+                            >
                                 Cancel
-                            </Button>
+                            </button>
                         </div>
                         
                         <form onSubmit={handleSubmit(handleSavePlan)} className="space-y-4">
@@ -216,15 +275,19 @@ const MealPlanner: React.FC = () => {
                             <FormInput<MealPlanFormData> name="description" label="Description (Optional)" type="textarea" rows={3}/>
 
                             <div className="flex justify-end space-x-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                                <Button 
-                                    type="submit" 
-                                    variant="primary" 
-                                    color="green" 
-                                    loading={isSaving}
+                                <button
+                                    type="submit"
+                                    className={`px-4 py-2 ${isSaving ? 'bg-green-500' : 'bg-green-600 hover:bg-green-700'} text-white rounded-md flex items-center`}
                                     disabled={isSaving}
                                 >
+                                    {isSaving && (
+                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    )}
                                     {isCreating ? 'Create Plan' : 'Update Plan'}
-                                </Button>
+                                </button>
                             </div>
                         </form>
                         
@@ -236,81 +299,109 @@ const MealPlanner: React.FC = () => {
                                 </div>
                             </div>
                         )}
-                    </Card>
+                    </div>
                 )}
 
+                {/* Plans Listing */}
                 {!isLoading && !isCreating && !selectedPlan && (
-                    <div className="space-y-4">
-                        {plans.length === 0 ? (
-                            <Card>
-                                <div className="text-center py-8">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                                    </svg>
-                                    <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">No Nutrition Plans</h3>
-                                    <p className="text-gray-600 dark:text-gray-400 mb-4">Create your first nutrition plan to get started</p>
-                                    <Button 
-                                        onClick={handleCreateNew} 
-                                        variant="secondary" 
-                                        color="indigo"
-                                        icon={
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                            </svg>
-                                        }
-                                    >
-                                        Create New Plan
-                                    </Button>
-                                </div>
-                            </Card>
-                        ) : (
-                            <div>
-                                <h2 className="text-lg font-medium text-gray-800 dark:text-white mb-3">Your Nutrition Plans</h2>
-                                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                                    {plans.map((plan) => (
-                                        <Card key={plan.id} hoverable>
-                                            <div>
-                                                <div className="flex justify-between items-start">
-                                                    <h3 className="font-medium text-lg text-indigo-600 dark:text-indigo-400">{plan.name}</h3>
-                                                    <Button 
-                                                        onClick={() => handleEdit(plan)} 
-                                                        variant="text" 
-                                                        color="indigo" 
-                                                        size="xs"
-                                                        icon={
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                            </svg>
-                                                        }
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                </div>
-                                                
-                                                {plan.description && (
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-3">{plan.description}</p>
-                                                )}
-                                                
-                                                <div className="mt-3 grid grid-cols-2 gap-3">
-                                                    <div className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded text-center">
-                                                        <span className="block text-xs text-gray-500 dark:text-gray-400">Calories</span>
-                                                        <span className="font-semibold">{plan.total_calories || 'N/A'}</span>
-                                                    </div>
-                                                    <div className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded text-center">
-                                                        <span className="block text-xs text-gray-500 dark:text-gray-400">Protein</span>
-                                                        <span className="font-semibold">{plan.protein_grams || 'N/A'}g</span>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-4">
-                                                    Created {new Date(plan.created_at).toLocaleDateString()}
-                                                </div>
-                                            </div>
-                                        </Card>
-                                    ))}
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+                        <div className="p-4 border-b dark:border-gray-700 flex items-center justify-between">
+                            <div className="flex items-center">
+                                <div className="relative w-64">
+                                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <FiSearch className="text-gray-400" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        className="pl-10 pr-4 py-2 w-full border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        placeholder="Search plans..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
                                 </div>
                             </div>
+                            <button
+                                onClick={handleCreateNew}
+                                className="px-3 py-1.5 bg-indigo-600 text-sm text-white rounded-md hover:bg-indigo-700 flex items-center"
+                            >
+                                <FiPlus className="mr-1" /> New
+                            </button>
+                        </div>
+                        
+                        {plans.length === 0 ? (
+                            <div className="text-center py-8">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                                </svg>
+                                <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">No Nutrition Plans</h3>
+                                <p className="text-gray-600 dark:text-gray-400 mb-4">Create your first nutrition plan to get started</p>
+                                <button 
+                                    onClick={handleCreateNew} 
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center mx-auto"
+                                >
+                                    <FiPlus className="mr-1" /> Create New Plan
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead className="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Calories</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Macros (P/C/F)</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created</th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                                        {filteredPlans.map((plan) => (
+                                            <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-gray-900 dark:text-white">{plan.name}</div>
+                                                    {plan.description && (
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate max-w-xs">{plan.description}</div>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm text-gray-500 dark:text-gray-400">{plan.total_calories || '-'} kcal</div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                        {plan.protein_grams || '-'}g / {plan.carbohydrate_grams || '-'}g / {plan.fat_grams || '-'}g
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                        {new Date(plan.created_at).toLocaleDateString()}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <button
+                                                        onClick={() => handleEdit(plan)}
+                                                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setShowDeleteConfirm(plan.id)}
+                                                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
+                    </div>
+                )}
+
+                {isLoading && (
+                    <div className="flex justify-center items-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
                     </div>
                 )}
             </div>

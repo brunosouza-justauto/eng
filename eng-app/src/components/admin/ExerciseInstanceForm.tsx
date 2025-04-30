@@ -1,11 +1,22 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
-import { ExerciseInstanceAdminData } from '../../types/adminTypes';
-import { FiX, FiSearch, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { ExerciseInstanceAdminData, SetType, ExerciseSet } from '../../types/adminTypes';
+import { FiX, FiSearch, FiChevronDown, FiChevronUp, FiPlus, FiTrash } from 'react-icons/fi';
 import { searchExercises, Exercise } from '../../utils/exerciseDatabase';
 
 // --- Zod Schema for Exercise Instance --- 
+// Define schema for ExerciseSet
+const exerciseSetSchema = z.object({
+    id: z.string().optional(),
+    order: z.number().int().nonnegative(),
+    type: z.nativeEnum(SetType),
+    reps: z.string().trim().optional(),
+    weight: z.string().trim().optional(),
+    rest_seconds: z.number().int().nonnegative().optional(),
+    duration: z.string().trim().optional()
+});
+
 // Note: exercise_db_id might need specific validation if fetched from wger
 const exerciseInstanceSchema = z.object({
     exercise_name: z.string().min(1, 'Exercise name is required'),
@@ -18,6 +29,8 @@ const exerciseInstanceSchema = z.object({
     notes: z.string().trim().optional().nullable(),
     order_in_workout: z.preprocess((val) => val ? parseInt(String(val), 10) : undefined, 
                               z.number().int().nonnegative().optional().nullable()),
+    set_type: z.nativeEnum(SetType).optional().nullable(), // Keep for backward compatibility
+    sets_data: z.array(exerciseSetSchema).optional().nullable() // New validation for sets_data
 });
 
 // Form data type (numbers as strings)
@@ -30,6 +43,8 @@ interface ExerciseInstanceFormData {
     tempo: string | null;
     notes: string | null;
     order_in_workout: string | null;
+    set_type: SetType | null; // Keep for backward compatibility
+    sets_data: ExerciseSet[] | null; // New field for sets data
 }
 
 // Callback type for saving
@@ -59,12 +74,15 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
             tempo: exercise?.tempo || '',
             notes: exercise?.notes || '',
             order_in_workout: exercise?.order_in_workout?.toString() || '',
+            set_type: exercise?.set_type || null,
+            sets_data: exercise?.sets_data || []
         }
     });
 
     const { handleSubmit, reset, register, setValue, watch, formState: { errors }, setError: setFormError } = methods;
     
     const exerciseName = watch('exercise_name');
+    const setsData = watch('sets_data') || [];
 
     // Handle search when query changes
     useEffect(() => {
@@ -97,8 +115,27 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
             tempo: exercise?.tempo || '',
             notes: exercise?.notes || '',
             order_in_workout: exercise?.order_in_workout?.toString() || '',
+            set_type: exercise?.set_type || null,
+            sets_data: exercise?.sets_data || [],
         });
     }, [exercise, reset]);
+
+    // Initialize sets when the component loads or when exercise or sets count changes
+    useEffect(() => {
+        if (!exercise?.sets_data?.length && exercise?.sets) {
+            // If we have a sets count but no set data, generate the default sets
+            const setCount = parseInt(exercise.sets, 10);
+            if (!isNaN(setCount) && setCount > 0) {
+                const generatedSets: ExerciseSet[] = Array.from({ length: setCount }, (_, i) => ({
+                    order: i + 1,
+                    type: exercise.set_type || SetType.REGULAR,
+                    reps: exercise.reps || undefined,
+                    rest_seconds: exercise.rest_period_seconds || undefined
+                }));
+                setValue('sets_data', generatedSets);
+            }
+        }
+    }, [exercise, setValue]);
 
     const handleFormSubmit: SubmitHandler<ExerciseInstanceFormData> = (formData) => {
          // Clear previous errors
@@ -110,6 +147,10 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
             // Convert numeric strings back
             rest_period_seconds: formData.rest_period_seconds || undefined,
             order_in_workout: formData.order_in_workout || undefined,
+            // Ensure sets_data is properly formatted
+            sets_data: formData.sets_data && formData.sets_data.length > 0 
+                ? formData.sets_data 
+                : undefined
         });
 
         if (!validationResult.success) {
@@ -134,6 +175,8 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
             tempo: validationResult.data.tempo ?? null,
             notes: validationResult.data.notes ?? null,
             order_in_workout: validationResult.data.order_in_workout ?? null,
+            set_type: validationResult.data.set_type ?? null,
+            sets_data: validationResult.data.sets_data ?? []
          };
 
         // Call onSave with the correctly typed data
@@ -145,6 +188,51 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
         setValue('exercise_db_id', selectedExercise.id);
         setSearchQuery('');
         setShowExerciseDropdown(false);
+    };
+
+    // Function to add a new set
+    const handleAddSet = () => {
+        const currentSets = [...setsData]; // Create a copy
+        const newSet: ExerciseSet = {
+            order: currentSets.length + 1,
+            type: SetType.REGULAR,
+            reps: watch('reps') || '',
+            rest_seconds: watch('rest_period_seconds') 
+                ? parseInt(watch('rest_period_seconds') || '0', 10) 
+                : undefined
+        };
+        
+        setValue('sets_data', [...currentSets, newSet]);
+        // Update the sets count as well for backward compatibility
+        setValue('sets', (currentSets.length + 1).toString());
+    };
+
+    // Function to remove a set
+    const handleRemoveSet = (index: number) => {
+        const currentSets = [...setsData]; // Create a copy
+        currentSets.splice(index, 1);
+        
+        // Reorder the remaining sets
+        const reorderedSets = currentSets.map((set, idx) => ({
+            ...set,
+            order: idx + 1
+        }));
+        
+        setValue('sets_data', reorderedSets);
+        // Update the sets count for backward compatibility
+        setValue('sets', reorderedSets.length.toString());
+    };
+
+    // Function to update a set property
+    const handleUpdateSet = (index: number, field: keyof ExerciseSet, value: string | number | SetType) => {
+        const currentSets = [...setsData]; // Create a copy
+        if (currentSets[index]) {
+            currentSets[index] = {
+                ...currentSets[index],
+                [field]: value
+            };
+            setValue('sets_data', currentSets);
+        }
     };
 
     return (
@@ -258,6 +346,25 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
                         </div>
                     </div>
                     
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Default Set Type
+                        </label>
+                        <select
+                            {...register('set_type')}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="">Select a set type</option>
+                            <option value={SetType.REGULAR}>Regular</option>
+                            <option value={SetType.WARM_UP}>Warm-up</option>
+                            <option value={SetType.DROP_SET}>Drop Set</option>
+                            <option value={SetType.FAILURE}>To Failure</option>
+                        </select>
+                        {errors.set_type && (
+                            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.set_type.message}</p>
+                        )}
+                    </div>
+                    
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -300,6 +407,101 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
                         ></textarea>
                     </div>
 
+                    {/* Individual Sets Manager */}
+                    <div className="mt-6">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                Configure Individual Sets
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={handleAddSet}
+                                className="flex items-center text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                            >
+                                <FiPlus className="mr-1" /> Add Set
+                            </button>
+                        </div>
+                        
+                        {setsData.length === 0 ? (
+                            <div className="bg-gray-50 dark:bg-gray-800 p-4 text-center rounded border border-gray-200 dark:border-gray-700">
+                                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                                    No sets defined. Click "Add Set" to create individual sets with specific types.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="border dark:border-gray-700 rounded-md overflow-hidden">
+                                <table className="min-w-full">
+                                    <thead className="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th className="py-2 px-2 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider text-center">#</th>
+                                            <th className="py-2 px-2 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider text-center">Type</th>
+                                            <th className="py-2 px-2 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider text-center">Reps</th>
+                                            <th className="py-2 px-2 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider text-center">Weight</th>
+                                            <th className="py-2 px-2 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider text-center">Rest</th>
+                                            <th className="py-2 px-2 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                        {setsData.map((set, index) => (
+                                            <tr key={`set-${index}`} className="bg-white dark:bg-gray-800">
+                                                <td className="py-2 px-2 text-sm text-gray-700 dark:text-gray-300 text-center">{index + 1}</td>
+                                                <td className="py-2 px-2">
+                                                    <select
+                                                        value={set.type}
+                                                        onChange={(e) => handleUpdateSet(index, 'type', e.target.value as SetType)}
+                                                        className="w-full px-2 py-1 text-sm border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                    >
+                                                        <option value={SetType.REGULAR}>Regular</option>
+                                                        <option value={SetType.WARM_UP}>Warm-up</option>
+                                                        <option value={SetType.DROP_SET}>Drop Set</option>
+                                                        <option value={SetType.FAILURE}>To Failure</option>
+                                                    </select>
+                                                </td>
+                                                <td className="py-2 px-2">
+                                                    <input
+                                                        type="text"
+                                                        value={set.reps || ''}
+                                                        onChange={(e) => handleUpdateSet(index, 'reps', e.target.value)}
+                                                        className="w-full px-2 py-1 text-sm text-center border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                        placeholder="e.g., 8-12"
+                                                    />
+                                                </td>
+                                                <td className="py-2 px-2">
+                                                    <input
+                                                        type="text"
+                                                        value={set.weight || ''}
+                                                        onChange={(e) => handleUpdateSet(index, 'weight', e.target.value)}
+                                                        className="w-full px-2 py-1 text-sm text-center border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                        placeholder="e.g., 60kg"
+                                                    />
+                                                </td>
+                                                <td className="py-2 px-2">
+                                                    <input
+                                                        type="number"
+                                                        value={set.rest_seconds || ''}
+                                                        onChange={(e) => handleUpdateSet(index, 'rest_seconds', parseInt(e.target.value, 10) || 0)}
+                                                        className="w-full px-2 py-1 text-sm text-center border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                        placeholder="60"
+                                                    />
+                                                </td>
+                                                <td className="py-2 px-2 text-center">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveSet(index)}
+                                                        className="text-red-500 hover:text-red-700"
+                                                        title="Remove Set"
+                                                    >
+                                                        <FiTrash size={16} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                    
                     <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
                         <button 
                             type="button" 

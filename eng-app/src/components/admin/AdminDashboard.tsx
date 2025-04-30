@@ -127,7 +127,7 @@ const AdminDashboard: React.FC = () => {
 
   const StatCard = ({ title, value, icon, linkTo }: { title: string; value: number; icon: React.ReactNode; linkTo: string }) => (
     <Link to={linkTo} className="block transition-all hover:translate-y-[-2px]">
-      <Card className="h-full">
+      <Card className="h-full p-4 shadow-md dark:bg-gray-800 hover:shadow-lg">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">{title}</h2>
@@ -141,7 +141,7 @@ const AdminDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="p-4 my-4 border-l-4 border-red-500 rounded bg-red-50 dark:bg-red-900/20">
+      <div className="p-4 my-4 border-l-4 border-red-500 rounded bg-red-100 dark:bg-red-900/20 dark:border-red-500 dark:text-red-400">
         <div className="flex">
           <div className="flex-shrink-0">
             <svg className="w-5 h-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -157,74 +157,86 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Coach Dashboard</h1>
-        <p className="mt-1 text-gray-600 dark:text-gray-400">
-          Welcome back, {profile?.email?.split('@')[0] || 'Coach'}
-        </p>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard 
-          title="Athletes" 
-          value={stats.totalAthletes} 
-          icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-indigo-200" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-          </svg>}
-          linkTo="/admin/athletes" 
-        />
-        <StatCard 
-          title="Programs" 
-          value={stats.totalPrograms} 
-          icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-green-200" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clipRule="evenodd" />
-          </svg>}
-          linkTo="/admin/programs" 
-        />
-        <StatCard 
-          title="Meal Plans" 
-          value={stats.totalMealPlans} 
-          icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-yellow-200" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h7a1 1 0 100-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" />
-          </svg>}
-          linkTo="/admin/mealplans" 
-        />
-        <StatCard 
-          title="Pending Check-ins" 
-          value={stats.totalPendingCheckins} 
-          icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-red-200" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>}
-          linkTo="/admin/checkins" 
-        />
-      </div>
-
-      {/* Quick Access */}
-      <div className="mt-8">
-        <h2 className="mb-4 text-lg font-medium text-gray-800 dark:text-white">Quick Access</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {quickAccessItems.map((item, index) => (
-            <Card key={index} className="h-full">
-              <div className="flex flex-col items-center p-4 text-center">
-                <div className="mb-4">{item.icon}</div>
-                <h3 className="mb-2 text-lg font-medium text-gray-800 dark:text-white">{item.title}</h3>
-                <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">{item.description}</p>
-                <ButtonLink 
-                  to={item.linkTo} 
-                  variant="outline" 
-                  color={item.color === 'indigo' ? 'indigo' : item.color === 'green' ? 'green' : item.color === 'red' ? 'red' : 'gray'}
-                  size="sm"
-                  className="mt-auto"
-                >
-                  Go to {item.title}
-                </ButtonLink>
-              </div>
-            </Card>
-          ))}
+    <div className="container mx-auto py-6 px-4">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Coach Dashboard</h1>
+          <p className="mt-1 text-gray-600 dark:text-gray-400">
+            Welcome back, {profile?.email?.split('@')[0] || 'Coach'}
+          </p>
         </div>
       </div>
+
+      {isLoading ? (
+        <div className="text-center py-10">
+          <p className="text-gray-500 dark:text-gray-400">Loading dashboard statistics...</p>
+        </div>
+      ) : (
+        <>
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard 
+              title="Athletes" 
+              value={stats.totalAthletes} 
+              icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-indigo-200 dark:text-indigo-900" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+              </svg>}
+              linkTo="/admin/athletes" 
+            />
+            <StatCard 
+              title="Programs" 
+              value={stats.totalPrograms} 
+              icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-green-200 dark:text-green-900" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clipRule="evenodd" />
+              </svg>}
+              linkTo="/admin/programs" 
+            />
+            <StatCard 
+              title="Meal Plans" 
+              value={stats.totalMealPlans} 
+              icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-yellow-200 dark:text-yellow-900" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h7a1 1 0 100-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" />
+              </svg>}
+              linkTo="/admin/mealplans" 
+            />
+            <StatCard 
+              title="Pending Check-ins" 
+              value={stats.totalPendingCheckins} 
+              icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-red-200 dark:text-red-900" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>}
+              linkTo="/admin/checkins" 
+            />
+          </div>
+
+          {/* Quick Access */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Quick Access</h2>
+            </div>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {quickAccessItems.map((item, index) => (
+                <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg hover:translate-y-[-2px]">
+                  <div className="flex flex-col items-center p-6 text-center">
+                    <div className="mb-4">{item.icon}</div>
+                    <h3 className="mb-2 text-lg font-medium text-gray-800 dark:text-white">{item.title}</h3>
+                    <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">{item.description}</p>
+                    <ButtonLink 
+                      to={item.linkTo} 
+                      variant="primary" 
+                      color={item.color === 'indigo' ? 'indigo' : item.color === 'green' ? 'green' : item.color === 'red' ? 'red' : 'gray'}
+                      size="sm"
+                      className="mt-auto"
+                    >
+                      Go to {item.title}
+                    </ButtonLink>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
