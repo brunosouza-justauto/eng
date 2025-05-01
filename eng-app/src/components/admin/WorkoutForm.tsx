@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { WorkoutAdminData, ExerciseInstanceAdminData, SetType } from '../../types/adminTypes';
-import { FiTrash2, FiMove, FiSearch, FiPlus, FiX, FiChevronDown, FiChevronUp, FiFilter, FiVideo } from 'react-icons/fi';
+import { FiTrash2, FiMove, FiSearch, FiPlus, FiX, FiChevronDown, FiChevronUp, FiFilter, FiVideo, FiLink } from 'react-icons/fi';
 import { useDrop, useDrag } from 'react-dnd';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -94,7 +94,7 @@ const ExerciseDropZone = ({
     }));
 
     return (
-        <div 
+        <div
             ref={drop}
             className={`h-2 mx-1 transition-all duration-200 rounded-full ${
                 isOverCurrent || isOver ? 'bg-indigo-300 dark:bg-indigo-600 h-6 mb-2 mt-2' : 'bg-transparent'
@@ -110,14 +110,28 @@ const DraggableWorkoutExercise = ({
     activeExerciseIndex,
     setActiveExerciseIndex,
     handleRemoveExercise,
-    renderExerciseDetails
+    renderExerciseDetails,
+    isSelected,
+    onSelect,
+    supersetInfo,
+    onRemoveFromSuperset
 }: { 
     exercise: ExerciseInstanceAdminData, 
     index: number,
     activeExerciseIndex: number | null,
     setActiveExerciseIndex: (index: number | null) => void,
     handleRemoveExercise: (index: number) => void,
-    renderExerciseDetails: (exercise: ExerciseInstanceAdminData, index: number) => React.ReactNode
+    renderExerciseDetails: (exercise: ExerciseInstanceAdminData, index: number) => React.ReactNode,
+    isSelected: boolean,
+    onSelect: () => void,
+    supersetInfo: { 
+        groupId: string,
+        order: number,
+        totalInGroup: number,
+        isFirst: boolean,
+        isLast: boolean
+    } | null,
+    onRemoveFromSuperset: (index: number) => void
 }) => {
     const [{ isDragging }, drag] = useDrag(() => ({
         type: ItemTypes.WORKOUT_EXERCISE,
@@ -127,19 +141,73 @@ const DraggableWorkoutExercise = ({
         }),
     }));
 
+    // Determine if this is in a superset
+    const isSupersetExercise = supersetInfo !== null;
+
     return (
         <div 
             ref={drag}
-            className={`overflow-hidden bg-white border rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 
-                ${isDragging ? 'opacity-50' : 'opacity-100'}`}
+            className={`overflow-hidden border rounded-lg shadow 
+                ${isDragging ? 'opacity-50' : 'opacity-100'}
+                ${isSupersetExercise ? 'border-indigo-500 dark:border-indigo-600' : 'bg-white dark:bg-gray-800 dark:border-gray-700'}
+                ${isSelected ? 'ring-2 ring-indigo-500 ring-opacity-70' : ''}
+                ${supersetInfo?.isFirst ? 'rounded-b-none' : ''}
+                ${supersetInfo?.isLast ? 'rounded-t-none' : ''}
+                ${supersetInfo && !supersetInfo.isFirst && !supersetInfo.isLast ? 'rounded-none' : ''}
+                ${supersetInfo && !supersetInfo.isFirst ? '-mt-1' : ''}
+            `}
             style={{ cursor: 'move' }}
         >
+            {/* Superset Label - only shown on first exercise in the superset */}
+            {supersetInfo?.isFirst && (
+                <div className="px-4 py-1 text-sm font-medium text-white bg-indigo-500 dark:bg-indigo-600">
+                    {supersetInfo.totalInGroup === 2 ? 'Bi-Set' : 
+                     supersetInfo.totalInGroup === 3 ? 'Tri-Set' : 
+                     `Superset (${supersetInfo.totalInGroup} exercises)`}
+                </div>
+            )}
+            
             {/* Exercise Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-700">
+            <div className={`flex items-center justify-between px-4 py-3 
+                ${isSupersetExercise 
+                    ? (supersetInfo?.isFirst 
+                        ? 'bg-indigo-50 dark:bg-indigo-900 dark:bg-opacity-20' 
+                        : 'bg-indigo-50 dark:bg-indigo-900 dark:bg-opacity-10')
+                    : 'bg-gray-50 dark:bg-gray-700'}`}>
                 <div className="flex items-center gap-3">
-                    <h3 className="font-medium dark:text-white">{exercise.exercise_name}</h3>
+                <div className="flex items-center">
+                    <button
+                            type="button"
+                            onClick={onSelect}
+                            className={`flex items-center justify-center w-8 h-8 p-1 mr-2 text-sm rounded-full focus:outline-none 
+                                ${isSelected 
+                                    ? 'text-white bg-indigo-500 hover:bg-indigo-600' 
+                                    : 'text-gray-500 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'}`}
+                            title={isSelected ? "Selected for superset - click to unselect" : "Click to select for superset group"}
+                            aria-label="Select exercise for superset"
+                        >
+                            <FiLink />
+                        </button>
+                        
+                        {isSupersetExercise && (
+                            <span className="flex items-center justify-center w-6 h-6 mr-2 text-xs font-bold text-white bg-indigo-500 rounded-full">
+                                {supersetInfo?.order}
+                            </span>
+                        )}
+                        <h3 className="font-medium dark:text-white">{exercise.exercise_name}</h3>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {isSupersetExercise && (
+                        <button
+                            type="button"
+                            onClick={() => onRemoveFromSuperset(index)}
+                            className="p-1 text-indigo-500 hover:text-indigo-700"
+                            title="Remove from superset"
+                        >
+                            <span className="text-xs">Unsuperset</span>
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => setActiveExerciseIndex(activeExerciseIndex === index ? null : index)}
@@ -183,6 +251,10 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     const [hasMore, setHasMore] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [highlightSearchPanel, setHighlightSearchPanel] = useState(false);
+    
+    // Add state for supersets
+    const [selectedExerciseIndices, setSelectedExerciseIndices] = useState<number[]>([]);
+    const [supersetGroups, setSupersetGroups] = useState<Record<string, number[]>>({});
     
     // Constants for pagination
     const RESULTS_PER_PAGE = 20;
@@ -335,7 +407,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             try {
                 // Load first page of exercises without filters on component mount
                 const response = await fetchExercises(
-                    1, // First page 
+                    1, // First page
                     "", // No search term
                     null, // No category filter
                     RESULTS_PER_PAGE
@@ -376,14 +448,58 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     const getSetTypeName = (setType: SetType | null | undefined): string => {
         if (!setType) return '';
         
-        const setTypeMap: Record<SetType, string> = {
+        const setTypeMap: Record<string, string> = {
             [SetType.REGULAR]: 'Regular',
             [SetType.WARM_UP]: 'Warm-up',
             [SetType.DROP_SET]: 'Drop Set',
-            [SetType.FAILURE]: 'To Failure'
+            [SetType.FAILURE]: 'To Failure',
+            [SetType.SUPERSET]: 'Superset',
+            [SetType.BACKDOWN]: 'Backdown',
+            [SetType.TEMPO]: 'Tempo',
+            [SetType.CONTRAST]: 'Contrast',
+            [SetType.COMPLEX]: 'Complex',
+            [SetType.CLUSTER]: 'Cluster',
+            [SetType.PYRAMID]: 'Pyramid',
+            [SetType.PARTIAL]: 'Partial',
+            [SetType.BURNS]: 'Burns',
+            [SetType.PAUSE]: 'Pause',
+            [SetType.PULSE]: 'Pulse',
+            [SetType.NEGATIVE]: 'Negative',
+            [SetType.FORCED_REP]: 'Forced Rep',
+            [SetType.PRE_EXHAUST]: 'Pre-Exhaust',
+            [SetType.POST_EXHAUST]: 'Post-Exhaust'
         };
         
-        return setTypeMap[setType] || '';
+        return setTypeMap[setType] || setType;
+    };
+
+    // Add descriptions for each set type
+    const getSetTypeDescription = (setType: SetType | null | undefined): string => {
+        if (!setType) return '';
+        
+        const setTypeDescMap: Record<string, string> = {
+            [SetType.REGULAR]: 'Standard set with consistent weight and reps.',
+            [SetType.WARM_UP]: 'Lighter weight to prepare muscles for heavier loads.',
+            [SetType.DROP_SET]: 'Complete a set, then immediately reduce weight and continue.',
+            [SetType.FAILURE]: 'Perform reps until unable to complete another with proper form.',
+            [SetType.SUPERSET]: 'Perform two exercises back-to-back with no rest between.',
+            [SetType.BACKDOWN]: 'After heavy sets, reduce weight for volume work.',
+            [SetType.TEMPO]: 'Control speed of movement with specific timing (eccentric/concentric).',
+            [SetType.CONTRAST]: 'Alternate between heavy and light loads for power development.',
+            [SetType.COMPLEX]: 'Series of exercises performed sequentially with same weight.',
+            [SetType.CLUSTER]: 'Brief rest periods within a set to achieve more total reps.',
+            [SetType.PYRAMID]: 'Progressively increase or decrease weight with each set.',
+            [SetType.PARTIAL]: 'Limited range of motion to target specific portions of an exercise.',
+            [SetType.BURNS]: 'Short, quick partial reps at the end of a set to increase intensity.',
+            [SetType.PAUSE]: 'Hold position during exercise to increase time under tension.',
+            [SetType.PULSE]: 'Small, rapid movements at a challenging point in the range of motion.',
+            [SetType.NEGATIVE]: 'Focus on slow, controlled lowering (eccentric) portion of an exercise.',
+            [SetType.FORCED_REP]: 'Partner assists to complete additional reps after reaching failure.',
+            [SetType.PRE_EXHAUST]: 'Perform isolation exercise before compound movement for same muscle.',
+            [SetType.POST_EXHAUST]: 'Perform isolation exercise after compound movement for same muscle.'
+        };
+        
+        return setTypeDescMap[setType] || '';
     };
 
     const handleWorkoutFormSubmit: SubmitHandler<WorkoutFormData> = (formData) => {
@@ -438,20 +554,10 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
 
     // --- Exercise Management Handlers ---
     const handleAddExercise = (exercise: Exercise | LocalExercise) => {
-        // If it's a LocalExercise, use it directly
-        // Otherwise convert Exercise to a format compatible with LocalExercise
-        const exerciseData = 'primaryMuscle' in exercise 
-            ? exercise 
-            : {
-                ...exercise,
-                primaryMuscle: exercise.muscles?.[0] || 'Unknown',
-                secondaryMuscles: exercise.muscles?.slice(1) || []
-            };
-            
-        // Create a new exercise instance
+        // Create a new exercise instance with proper information
         const newExercise: ExerciseInstanceAdminData = {
-            exercise_db_id: exerciseData.id.toString(),
-            exercise_name: exerciseData.name || 'Unnamed Exercise',
+            exercise_db_id: 'id' in exercise ? exercise.id.toString() : '',
+            exercise_name: exercise.name || 'Unnamed Exercise',
             sets: "0", // Changed from 3 to 0 default sets
             reps: "10", // Default rep range
             rest_period_seconds: 60, // Default 60 seconds rest
@@ -467,6 +573,76 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         
         // Automatically set this new exercise as active (expanded)
         setActiveExerciseIndex(exercises.length);
+    };
+
+    // Helper function to extract muscle information from API exercise
+    const createLocalExerciseFromAPI = (exercise: Exercise): LocalExercise => {
+        let primaryMuscle = 'Unknown';
+        let secondaryMuscles: string[] = [];
+        
+        // First check if the exercise already has a category
+        if (exercise.category) {
+            primaryMuscle = exercise.category;
+        }
+        // Check if muscles array is populated
+        else if (exercise.muscles && exercise.muscles.length > 0) {
+            primaryMuscle = exercise.muscles[0];
+            secondaryMuscles = exercise.muscles.slice(1) || [];
+        } 
+        // Extract muscle info from description field if it exists and appears to be JSON
+        else {
+            try {
+                if (exercise.description && typeof exercise.description === 'string') {
+                    // Check if it starts with a curly brace (potential JSON)
+                    if (exercise.description.trim().startsWith('{')) {
+                        // Parse the JSON string in the description field
+                        const descObj = JSON.parse(exercise.description);
+                        // Use body_part as primaryMuscle if available
+                        if (descObj.body_part) {
+                            primaryMuscle = descObj.body_part;
+                        }
+                        // Use target as a secondary muscle if available
+                        if (descObj.target) {
+                            const targets = descObj.target.split(',').map((t: string) => t.trim()).filter((t: string) => t);
+                            if (targets.length > 0) {
+                                secondaryMuscles = targets;
+                            }
+                        }
+                    } 
+                }
+            } catch (e) {
+                console.error("Error parsing exercise description:", e);
+                // Keep default "Unknown" if parsing fails
+            }
+        }
+        
+        // Handle image URL safely - checking both properties
+        const exerciseAny = exercise as any;
+        const imageUrl = exerciseAny.gif_url || exercise.image || '';
+        
+        // Debug log to see what's happening with categories
+        console.log('Exercise category info:', {
+            name: exercise.name,
+            primaryMuscle,
+            hasCategory: !!exercise.category,
+            hasDescription: !!exercise.description,
+            descriptionStart: exercise.description ? exercise.description.substring(0, 30) + '...' : 'none',
+            hasGifUrl: !!(exerciseAny.gif_url),
+            hasImage: !!exercise.image,
+            category: exercise.category || 'none',
+            muscles: exercise.muscles || []
+        });
+        
+        return {
+            id: exercise.id,
+            name: exercise.name,
+            category: primaryMuscle,
+            primaryMuscle,
+            secondaryMuscles,
+            // Use image if available as a fallback
+            image: imageUrl,
+            muscles: exercise.muscles || []
+        };
     };
 
     const handleRemoveExercise = (index: number) => {
@@ -614,14 +790,28 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                 <span className="text-sm text-gray-700 dark:text-gray-300">Set Type</span>
                                 <select
                                     className="px-2 py-1 text-sm border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                    value={exercise.set_type || ''}
+                                    value={exercise.set_type || SetType.REGULAR}
                                     onChange={(e) => handleExerciseDetailChange(index, 'set_type', e.target.value)}
                                 >
-                                    <option value="">Default</option>
-                                    <option value={SetType.REGULAR}>Regular</option>
-                                    <option value={SetType.WARM_UP}>Warm-up</option>
-                                    <option value={SetType.DROP_SET}>Drop Set</option>
-                                    <option value={SetType.FAILURE}>To Failure</option>
+                                    <option value={SetType.REGULAR} title={getSetTypeDescription(SetType.REGULAR)}>Regular</option>
+                                    <option value={SetType.WARM_UP} title={getSetTypeDescription(SetType.WARM_UP)}>Warm-up</option>
+                                    <option value={SetType.DROP_SET} title={getSetTypeDescription(SetType.DROP_SET)}>Drop Set</option>
+                                    <option value={SetType.FAILURE} title={getSetTypeDescription(SetType.FAILURE)}>To Failure</option>
+                                    <option value={SetType.SUPERSET} title={getSetTypeDescription(SetType.SUPERSET)}>Superset</option>
+                                    <option value={SetType.BACKDOWN} title={getSetTypeDescription(SetType.BACKDOWN)}>Backdown</option>
+                                    <option value={SetType.TEMPO} title={getSetTypeDescription(SetType.TEMPO)}>Tempo</option>
+                                    <option value={SetType.CONTRAST} title={getSetTypeDescription(SetType.CONTRAST)}>Contrast</option>
+                                    <option value={SetType.COMPLEX} title={getSetTypeDescription(SetType.COMPLEX)}>Complex</option>
+                                    <option value={SetType.CLUSTER} title={getSetTypeDescription(SetType.CLUSTER)}>Cluster</option>
+                                    <option value={SetType.PYRAMID} title={getSetTypeDescription(SetType.PYRAMID)}>Pyramid</option>
+                                    <option value={SetType.PARTIAL} title={getSetTypeDescription(SetType.PARTIAL)}>Partial</option>
+                                    <option value={SetType.BURNS} title={getSetTypeDescription(SetType.BURNS)}>Burns</option>
+                                    <option value={SetType.PAUSE} title={getSetTypeDescription(SetType.PAUSE)}>Pause</option>
+                                    <option value={SetType.PULSE} title={getSetTypeDescription(SetType.PULSE)}>Pulse</option>
+                                    <option value={SetType.NEGATIVE} title={getSetTypeDescription(SetType.NEGATIVE)}>Negative</option>
+                                    <option value={SetType.FORCED_REP} title={getSetTypeDescription(SetType.FORCED_REP)}>Forced Rep</option>
+                                    <option value={SetType.PRE_EXHAUST} title={getSetTypeDescription(SetType.PRE_EXHAUST)}>Pre-Exhaust</option>
+                                    <option value={SetType.POST_EXHAUST} title={getSetTypeDescription(SetType.POST_EXHAUST)}>Post-Exhaust</option>
                                 </select>
                             </div>
                             <div className="flex items-center gap-2">
@@ -851,11 +1041,27 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                 value={set.type}
                                 onChange={(e) => handleSetTypeChange(index, i, e.target.value as SetType)}
                                 className="w-full px-2 py-1 text-sm border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                title={getSetTypeDescription(set.type)}
                             >
-                                <option value={SetType.REGULAR}>Regular</option>
-                                <option value={SetType.WARM_UP}>Warm-up</option>
-                                <option value={SetType.DROP_SET}>Drop Set</option>
-                                <option value={SetType.FAILURE}>To Failure</option>
+                                <option value={SetType.REGULAR} title={getSetTypeDescription(SetType.REGULAR)}>Regular</option>
+                                <option value={SetType.WARM_UP} title={getSetTypeDescription(SetType.WARM_UP)}>Warm-up</option>
+                                <option value={SetType.DROP_SET} title={getSetTypeDescription(SetType.DROP_SET)}>Drop Set</option>
+                                <option value={SetType.FAILURE} title={getSetTypeDescription(SetType.FAILURE)}>To Failure</option>
+                                <option value={SetType.SUPERSET} title={getSetTypeDescription(SetType.SUPERSET)}>Superset</option>
+                                <option value={SetType.BACKDOWN} title={getSetTypeDescription(SetType.BACKDOWN)}>Backdown</option>
+                                <option value={SetType.TEMPO} title={getSetTypeDescription(SetType.TEMPO)}>Tempo</option>
+                                <option value={SetType.CONTRAST} title={getSetTypeDescription(SetType.CONTRAST)}>Contrast</option>
+                                <option value={SetType.COMPLEX} title={getSetTypeDescription(SetType.COMPLEX)}>Complex</option>
+                                <option value={SetType.CLUSTER} title={getSetTypeDescription(SetType.CLUSTER)}>Cluster</option>
+                                <option value={SetType.PYRAMID} title={getSetTypeDescription(SetType.PYRAMID)}>Pyramid</option>
+                                <option value={SetType.PARTIAL} title={getSetTypeDescription(SetType.PARTIAL)}>Partial</option>
+                                <option value={SetType.BURNS} title={getSetTypeDescription(SetType.BURNS)}>Burns</option>
+                                <option value={SetType.PAUSE} title={getSetTypeDescription(SetType.PAUSE)}>Pause</option>
+                                <option value={SetType.PULSE} title={getSetTypeDescription(SetType.PULSE)}>Pulse</option>
+                                <option value={SetType.NEGATIVE} title={getSetTypeDescription(SetType.NEGATIVE)}>Negative</option>
+                                <option value={SetType.FORCED_REP} title={getSetTypeDescription(SetType.FORCED_REP)}>Forced Rep</option>
+                                <option value={SetType.PRE_EXHAUST} title={getSetTypeDescription(SetType.PRE_EXHAUST)}>Pre-Exhaust</option>
+                                <option value={SetType.POST_EXHAUST} title={getSetTypeDescription(SetType.POST_EXHAUST)}>Post-Exhaust</option>
                             </select>
                         </td>
                         <td className="px-4 py-2 text-center">
@@ -927,16 +1133,19 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                         <td className="px-4 py-2 text-center">{i + 1}</td>
                         <td className="px-4 py-2 text-center">
                             {exercise.set_type ? (
-                                <span className={`inline-block px-2 py-1 text-xs rounded ${
+                                <span 
+                                    className={`inline-block px-2 py-1 text-xs rounded ${
                                     exercise.set_type === SetType.WARM_UP ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' : 
                                     exercise.set_type === SetType.DROP_SET ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' : 
                                     exercise.set_type === SetType.FAILURE ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' : 
                                     'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                                }`}>
+                                    }`}
+                                    title={getSetTypeDescription(exercise.set_type)}
+                                >
                                     {getSetTypeName(exercise.set_type)}
                                 </span>
                             ) : (
-                                <span className="text-xs text-gray-400">Default</span>
+                                <span className="text-xs text-gray-400" title={getSetTypeDescription(SetType.REGULAR)}>Regular</span>
                             )}
                         </td>
                         <td className="px-4 py-2 text-center">
@@ -961,7 +1170,154 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         return rows;
     };
 
-    return (
+    // Function to handle exercise selection for supersets
+    const handleExerciseSelection = (index: number) => {
+        setSelectedExerciseIndices(prev => {
+            if (prev.includes(index)) {
+                return prev.filter(i => i !== index);
+            } else {
+            return [...prev, index];
+            }
+        });
+    };
+
+    // Function to create a superset from selected exercises
+    const handleCreateSuperset = () => {
+        if (selectedExerciseIndices.length < 2) {
+            // Show error or alert that at least 2 exercises are needed
+            alert("Please select at least 2 exercises to create a superset");
+            return;
+        }
+
+        // Generate a unique ID for this superset group
+        const supersetId = `superset-${Date.now()}`;
+        
+        // Add the superset group
+        setSupersetGroups(prev => ({
+            ...prev,
+            [supersetId]: [...selectedExerciseIndices].sort((a, b) => a - b)
+        }));
+        
+        // Update exercise instances with superset info
+        setExercises(prev => {
+            const updated = [...prev];
+            
+            // Sort indices to maintain proper order
+            const orderedIndices = [...selectedExerciseIndices].sort((a, b) => a - b);
+            
+            // Update each selected exercise
+            orderedIndices.forEach((exerciseIndex, position) => {
+                // Use type assertion to allow adding superset properties
+                (updated[exerciseIndex] as any) = {
+                    ...updated[exerciseIndex],
+                    superset_group_id: supersetId,
+                    superset_order: position + 1,
+                    set_type: SetType.SUPERSET
+                };
+            });
+            
+            return updated;
+        });
+        
+        // Clear selection after creating the superset
+        setSelectedExerciseIndices([]);
+    };
+
+    // Function to remove an exercise from a superset
+    const handleRemoveFromSuperset = (exerciseIndex: number) => {
+        // Find which superset group this exercise belongs to
+        const groupId = Object.entries(supersetGroups).find(([, indices]) => 
+            indices.includes(exerciseIndex)
+        )?.[0];
+        
+        if (!groupId) return;
+        
+        // Update the supersetGroups state
+        setSupersetGroups(prev => {
+            const updatedGroup = prev[groupId].filter(idx => idx !== exerciseIndex);
+            
+            // If only one exercise remains, dissolve the superset
+            if (updatedGroup.length < 2) {
+                const { [groupId]: removed, ...rest } = prev;
+                
+                // Also update the remaining exercise to remove superset info
+                if (updatedGroup.length === 1) {
+                    setExercises(exercises => {
+                        const updated = [...exercises];
+                        // Use type assertion to allow adding superset properties
+                        (updated[updatedGroup[0]] as any) = {
+                            ...updated[updatedGroup[0]],
+                            superset_group_id: undefined,
+                            superset_order: undefined,
+                            set_type: SetType.REGULAR
+                        };
+                        return updated;
+                    });
+                }
+                
+                return rest;
+            }
+            
+            // Otherwise update the order of remaining exercises
+            setExercises(exercises => {
+                const updated = [...exercises];
+                updatedGroup.forEach((idx, i) => {
+                    // Use type assertion to allow adding superset properties
+                    (updated[idx] as any) = {
+                        ...updated[idx],
+                        superset_order: i + 1
+                    };
+                });
+                return updated;
+            });
+            
+            return {
+                ...prev,
+                [groupId]: updatedGroup
+            };
+        });
+        
+        // Update the exercise to remove superset info
+        setExercises(prev => {
+            const updated = [...prev];
+            // Use type assertion to allow adding superset properties
+            (updated[exerciseIndex] as any) = {
+                ...updated[exerciseIndex],
+                superset_group_id: undefined,
+                superset_order: undefined,
+                set_type: SetType.REGULAR
+            };
+            return updated;
+        });
+    };
+
+    // Function to check if an exercise is part of a superset
+    const isInSuperset = (exerciseIndex: number) => {
+        return Object.values(supersetGroups).some(indices => indices.includes(exerciseIndex));
+    };
+
+    // Function to get superset group ID and info
+    const getSupersetInfo = (exerciseIndex: number) => {
+        const entry = Object.entries(supersetGroups).find(([_, indices]) => 
+            indices.includes(exerciseIndex)
+        );
+        
+        if (!entry) return null;
+        
+        const [groupId, indices] = entry;
+        const order = indices.indexOf(exerciseIndex) + 1;
+        const totalInGroup = indices.length;
+        
+        return {
+            groupId,
+            order,
+            totalInGroup,
+            isFirst: order === 1,
+            isLast: order === totalInGroup
+        };
+    };
+        
+        return (
         <DndProvider backend={HTML5Backend}>
         <div className="flex flex-col h-full bg-white rounded-lg shadow dark:bg-gray-800">
             {/* Workout Header */}
@@ -973,25 +1329,25 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                             {getDayName(dayOfWeek)} {watch('week_number') ? `- Week ${watch('week_number')}` : ''}
                         </span>
                     </h2>
-                </div>
+                    </div>
                 <div className="flex space-x-2">
-                    <button 
-                        type="button"
+                        <button
+                            type="button"
                         onClick={onCancel}
                         className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
+                        >
                         Cancel
-                    </button>
-                    <button 
-                        type="button"
+                        </button>
+                        <button
+                            type="button"
                         onClick={handleSubmit(handleWorkoutFormSubmit)}
                         className="px-3 py-1.5 text-sm bg-indigo-600 rounded-md text-white hover:bg-indigo-700"
                     >
                         Save & Close
-                    </button>
+                        </button>
+                    </div>
                 </div>
-            </div>
-            
+                
             <div className="flex flex-grow overflow-hidden">
                 {/* Left side - Exercises Panel */}
                     <div className={`flex flex-col w-1/4 overflow-hidden border-r dark:border-gray-700 exercise-search-panel ${highlightSearchPanel ? 'ring-2 ring-indigo-500 ring-opacity-50' : ''}`}>
@@ -1029,7 +1385,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                             className="mr-2"
                                         />
                                         <label htmlFor="all-categories" className="text-sm dark:text-white">All Categories</label>
-                                    </div>
+                        </div>
                                     
                                     {categories.map((category) => (
                                         <div key={category.id} className="flex items-center mb-2">
@@ -1045,9 +1401,9 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                             </label>
                                         </div>
                                     ))}
-                                </div>
-                            )}
-                        </div>
+                    </div>
+                )}
+            </div>
                     </div>
                     
                     <div className="flex-grow p-2 overflow-y-auto">
@@ -1060,27 +1416,26 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                         {error && (
                             <div className="p-4 text-center text-red-600 dark:text-red-400">
                                 {error}
-                            </div>
+                                    </div>
                         )}
                         
                         {!isLoading && !error && searchResults.length === 0 && (
                             <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                                 No exercises found. Try a different search term or category.
-                            </div>
+                                            </div>
                         )}
                         
                         <div className="grid grid-cols-2 gap-2">
-                            {searchResults.map((exercise) => (
-                                <DraggableExerciseCard
-                                    key={exercise.id}
-                                    exercise={{
-                                        ...exercise,
-                                        primaryMuscle: exercise.muscles?.[0] || "Unknown",
-                                        secondaryMuscles: exercise.muscles?.slice(1) || []
-                                    } as LocalExercise}
-                                    onClick={() => handleAddExercise(exercise)}
-                                />
-                            ))}
+                            {searchResults.map((exercise) => {
+                                const localExercise = createLocalExerciseFromAPI(exercise);
+                                return (
+                                    <DraggableExerciseCard
+                                        key={exercise.id}
+                                        exercise={localExercise}
+                                        onClick={() => handleAddExercise(exercise)}
+                                    />
+                                );
+                            })}
                         </div>
                         
                         {(page > 1 || hasMore) && (
@@ -1112,54 +1467,54 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                 >
                                     Next
                                 </button>
+                                            </div>
+                                        )}
+                                </div>
                             </div>
-                        )}
-                    </div>
-                </div>
-                
+                            
                 {/* Right side - Workout Form */}
                 <div className="flex flex-col flex-grow overflow-hidden">
                     <div className="flex-shrink-0 p-4 border-b dark:border-gray-700">
                         <div className="grid grid-cols-2 gap-4">
-                            <div>
+                                    <div>
                                 <label htmlFor="name" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Workout Name *
-                                </label>
-                                <input
-                                    id="name"
-                                    type="text"
-                                    {...register('name')}
+                                            Workout Name *
+                                        </label>
+                                        <input
+                                            id="name"
+                                            type="text"
+                                            {...register('name')}
                                     className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                     placeholder="e.g., Full Body - Post Comp"
-                                />
-                            </div>
-                            <div>
+                                        />
+                                    </div>
+                                    <div>
                                 <label htmlFor="day_of_week" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Day of Week *
-                                </label>
-                                <select
-                                    id="day_of_week"
-                                    {...register('day_of_week')}
+                                            Day of Week *
+                                        </label>
+                                        <select
+                                            id="day_of_week"
+                                            {...register('day_of_week')}
                                     className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                >
+                                        >
                                     <option value="">Select day</option>
-                                    <option value="1">Monday</option>
-                                    <option value="2">Tuesday</option>
-                                    <option value="3">Wednesday</option>
-                                    <option value="4">Thursday</option>
-                                    <option value="5">Friday</option>
-                                    <option value="6">Saturday</option>
-                                    <option value="7">Sunday</option>
-                                </select>
+                                            <option value="1">Monday</option>
+                                            <option value="2">Tuesday</option>
+                                            <option value="3">Wednesday</option>
+                                            <option value="4">Thursday</option>
+                                            <option value="5">Friday</option>
+                                            <option value="6">Saturday</option>
+                                            <option value="7">Sunday</option>
+                                        </select>
                                     {methods.formState.errors.day_of_week && (
                                         <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                                             {methods.formState.errors.day_of_week.message}
                                         </p>
                                     )}
-                            </div>
-                        </div>
-                    </div>
-                    
+                                    </div>
+                                        </div>
+                                    </div>
+                                    
                         {/* Exercise List with Enhanced Drop Zone and Drag Functionality */}
                         <div 
                             ref={mainDropRef}
@@ -1174,23 +1529,29 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                             />
 
                             {exercises.map((exercise, index) => (
-                                <React.Fragment key={index}>
-                                    <DraggableWorkoutExercise
-                                        exercise={exercise}
-                                        index={index}
+                                                <React.Fragment key={index}>
+                                                    <DraggableWorkoutExercise
+                                                        exercise={exercise}
+                                                        index={index}
                                         activeExerciseIndex={activeExerciseIndex}
                                         setActiveExerciseIndex={setActiveExerciseIndex}
-                                        handleRemoveExercise={handleRemoveExercise}
-                                        renderExerciseDetails={renderExerciseDetails}
+                                                        handleRemoveExercise={handleRemoveExercise}
+                                                        renderExerciseDetails={renderExerciseDetails}
+                                        isSelected={selectedExerciseIndices.includes(index)}
+                                        onSelect={() => handleExerciseSelection(index)}
+                                        supersetInfo={getSupersetInfo(index)}
+                                        onRemoveFromSuperset={handleRemoveFromSuperset}
                                     />
                                     
-                                    {/* Add drop zone after each exercise */}
-                                    <ExerciseDropZone 
-                                        onDrop={handleExerciseDrop} 
-                                        index={index + 1}
-                                        isOver={hoveringIndex === index + 1}
-                                    />
-                                </React.Fragment>
+                                    {/* Only add drop zone if this isn't part of a superset, or it's the last in a superset */}
+                                    {(!isInSuperset(index) || getSupersetInfo(index)?.isLast) && (
+                                                        <ExerciseDropZone
+                                            onDrop={handleExerciseDrop} 
+                                                            index={index + 1}
+                                            isOver={hoveringIndex === index + 1}
+                                                        />
+                                                    )}
+                                                </React.Fragment>
                         ))}
                         
                         {exercises.length === 0 && (
@@ -1204,53 +1565,69 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                     <p className="max-w-md text-gray-500 dark:text-gray-400">
                                         Drag exercises from the left panel and drop them here, or click on an exercise to add it.
                                 </p>
-                            </div>
-                        )}
-                    </div>
-                    
+                                        </div>
+                                    )}
+                </div>
+                
                     {/* Add Exercise Button */}
                     <div className="p-4 border-t dark:border-gray-700">
-                        <button 
-                            type="button"
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                        type="button"
                                 onClick={handleAddExerciseClick}
-                            className="flex items-center justify-center w-full py-2 font-medium text-gray-700 bg-gray-100 rounded-md dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 dark:text-gray-300"
-                        >
-                            <FiPlus className="mr-2" /> Add Exercise
-                        </button>
+                                className="flex items-center justify-center flex-1 py-2 font-medium text-gray-700 bg-gray-100 rounded-md dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 dark:text-gray-300"
+                    >
+                                <FiPlus className="mr-2" /> Add Exercise
+                    </button>
+                            
+                    <button
+                                type="button"
+                                onClick={handleCreateSuperset}
+                                disabled={selectedExerciseIndices.length < 2}
+                                className={`flex items-center justify-center flex-1 py-2 font-medium rounded-md 
+                                    ${selectedExerciseIndices.length < 2 
+                                        ? 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed' 
+                                        : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-800'}`}
+                            >
+                                Create {selectedExerciseIndices.length === 2 ? 'Bi-Set' : 
+                                       selectedExerciseIndices.length === 3 ? 'Tri-Set' : 
+                                       'Superset'} ({selectedExerciseIndices.length})
+                    </button>
+                </div>
                     </div>
                 </div>
             </div>
                 
                 {/* Add the custom confirmation dialog */}
-                {showDeleteConfirm && (
+            {showDeleteConfirm && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                         <div className="w-full max-w-md p-6 bg-gray-800 rounded-lg shadow-xl">
                             <h2 className="mb-4 text-xl font-semibold text-white">Confirm Deletion</h2>
                             <p className="mb-6 text-gray-300">
-                                {deletingSetIndex !== null 
+                            {deletingSetIndex !== null 
                                     ? 'Are you sure you want to delete this set? This action cannot be undone.'
                                     : 'Are you sure you want to delete this exercise from the workout? This action cannot be undone.'}
-                            </p>
-                            <div className="flex justify-end space-x-3">
-                                <button
+                        </p>
+                        <div className="flex justify-end space-x-3">
+                            <button
                                     type="button"
-                                    onClick={cancelDeletion}
+                                onClick={cancelDeletion}
                                     className="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-700 rounded-md hover:bg-gray-600"
-                                >
-                                    Cancel
-                                </button>
-                                <button
+                            >
+                                Cancel
+                            </button>
+                            <button
                                     type="button"
-                                    onClick={handleConfirmDeletion}
+                                onClick={handleConfirmDeletion}
                                     className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-                                >
-                                    Delete
-                                </button>
-        </div>
+                            >
+                                Delete
+                            </button>
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
+        </div>
         </DndProvider>
     );
 };
