@@ -28,22 +28,36 @@ const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      if (!user) return; // Don't fetch if user is not available
+      if (!user || !profile) return; // Don't fetch if user is not available
 
       setIsLoadingData(true);
       setFetchError(null);
 
       try {
-        // Fetch assigned plan (program & nutrition)
+        // Fetch most recent assigned program from assigned_plans table
+        console.log("Fetching program for athlete profile ID:", profile.id);
         const { data: planData, error: planError } = await supabase
           .from('assigned_plans')
-          .select('program_template_id, nutrition_plan_id')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
-          .maybeSingle(); // Use maybeSingle to handle no active plan gracefully
+          .select(`
+            program_template_id,
+            nutrition_plan_id,
+            start_date
+          `)
+          .eq('athlete_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
         
         if (planError) throw planError;
-        setAssignedPlan(planData); // Will be null if no active plan
+        console.log("Program data from assigned_plans:", planData);
+        
+        // Set the combined plan data directly
+        const combinedPlan = {
+          program_template_id: planData?.program_template_id || null,
+          nutrition_plan_id: planData?.nutrition_plan_id || null
+        };
+        console.log("Setting assigned plan:", combinedPlan);
+        setAssignedPlan(combinedPlan);
 
         // Fetch active step goal
         const { data: goalData, error: goalError } = await supabase
@@ -70,8 +84,8 @@ const DashboardPage: React.FC = () => {
 
     fetchDashboardData();
 
-    // Dependency array: Refetch if user changes
-  }, [user]); 
+    // Dependency array: Refetch if user or profile changes
+  }, [user, profile]);
 
   // Combine loading states
   const isLoading = !profile || isLoadingData;
@@ -79,20 +93,20 @@ const DashboardPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="w-full">
-        <div className="animate-pulse mb-6">
-          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-4"></div>
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+        <div className="mb-6 animate-pulse">
+          <div className="w-2/3 h-12 mb-4 bg-gray-200 rounded dark:bg-gray-700"></div>
+          <div className="w-1/3 h-4 bg-gray-200 rounded dark:bg-gray-700"></div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden animate-pulse">
+            <div key={i} className="overflow-hidden bg-white rounded-lg shadow-md dark:bg-gray-800 animate-pulse">
               <div className="p-4">
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-4"></div>
+                <div className="w-3/4 h-6 mb-4 bg-gray-200 rounded dark:bg-gray-700"></div>
                 <div className="space-y-3">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-4/6"></div>
+                  <div className="h-4 bg-gray-200 rounded dark:bg-gray-700"></div>
+                  <div className="w-5/6 h-4 bg-gray-200 rounded dark:bg-gray-700"></div>
+                  <div className="w-4/6 h-4 bg-gray-200 rounded dark:bg-gray-700"></div>
                 </div>
               </div>
             </div>
@@ -105,7 +119,7 @@ const DashboardPage: React.FC = () => {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">
+        <h1 className="mb-1 text-2xl font-bold text-gray-800 dark:text-white">
           Welcome, {profile?.email?.split('@')[0] || 'Athlete'}!
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
@@ -114,10 +128,10 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {fetchError && (
-        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded shadow-sm">
+        <div className="p-4 mb-6 border-l-4 border-red-500 rounded shadow-sm bg-red-50 dark:bg-red-900/20">
           <div className="flex">
             <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <svg className="w-5 h-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
             </div>
@@ -130,7 +144,7 @@ const DashboardPage: React.FC = () => {
         </div>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         <div className="col-span-1">
           <NextWorkoutWidget programTemplateId={assignedPlan?.program_template_id} />
         </div>

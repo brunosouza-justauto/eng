@@ -19,6 +19,7 @@ interface ProgramTemplateListItem {
     phase: string | null;
     weeks: number;
     created_at: string;
+    description: string | null; // This is the field for template notes
 }
 
 // Define simple form data type (matching input values)
@@ -26,6 +27,7 @@ interface TemplateFormData {
     name: string;
     phase: string | null; // Keep nullable if needed
     weeks: string; // Store as string from input
+    description: string | null; // This field serves as template notes
 }
 
 // Define Zod schema separately for manual validation
@@ -37,6 +39,7 @@ const templateSchema = z.object({
             .regex(/^\d+$/, 'Weeks must be a positive whole number')
             .transform(Number)
             .refine(val => val > 0, { message: 'Weeks must be greater than 0' }),
+    description: z.string().trim().optional().nullable(), // Template notes field (existing)
 });
 
 const ProgramBuilder: React.FC = () => {
@@ -60,9 +63,9 @@ const ProgramBuilder: React.FC = () => {
     // React Hook Form methods - remove resolver
     const methods = useForm<TemplateFormData>({
         // resolver: zodResolver(templateSchema),
-        defaultValues: { name: '', phase: '', weeks: '' } 
+        defaultValues: { name: '', phase: '', weeks: '', description: '' } 
     });
-    const { handleSubmit, reset, setError: setFormError } = methods; // Add setFormError
+    const { handleSubmit, reset, setError: setFormError, register } = methods; // Add setFormError and register
 
     // Fetch existing templates created by the current coach
     useEffect(() => {
@@ -77,7 +80,7 @@ const ProgramBuilder: React.FC = () => {
             try {
                 const { data, error: fetchError } = await supabase
                     .from('program_templates')
-                    .select('id, name, phase, weeks, created_at')
+                    .select('id, name, phase, weeks, created_at, description')
                     .eq('coach_id', profile.id)
                     .order('created_at', { ascending: false });
                 
@@ -101,10 +104,11 @@ const ProgramBuilder: React.FC = () => {
             reset({
                 name: selectedTemplate.name,
                 phase: selectedTemplate.phase || '',
-                weeks: selectedTemplate.weeks.toString()
+                weeks: selectedTemplate.weeks.toString(),
+                description: selectedTemplate.description || ''
             });
         } else {
-             reset({ name: '', phase: '', weeks: '' });
+             reset({ name: '', phase: '', weeks: '', description: '' });
         }
     }, [selectedTemplate, reset]);
 
@@ -157,7 +161,7 @@ const ProgramBuilder: React.FC = () => {
     const handleCreateNew = () => {
         setIsCreating(true);
         setSelectedTemplate(null);
-        reset({ name: '', phase: '', weeks: '' });
+        reset({ name: '', phase: '', weeks: '', description: '' });
     };
 
     const handleEdit = (template: ProgramTemplateListItem) => {
@@ -169,7 +173,7 @@ const ProgramBuilder: React.FC = () => {
         setIsCreating(false);
         setSelectedTemplate(null);
         setCurrentWorkouts([]); // Clear workouts when cancelling
-        reset({ name: '', phase: '', weeks: '' });
+        reset({ name: '', phase: '', weeks: '', description: '' });
     };
 
     // Save handler with manual validation
@@ -223,7 +227,7 @@ const ProgramBuilder: React.FC = () => {
             // (Refetch logic needs to be extracted or repeated here)
              const { data, error: fetchError } = await supabase
                     .from('program_templates')
-                    .select('id, name, phase, weeks, created_at')
+                    .select('id, name, phase, weeks, created_at, description')
                     .eq('coach_id', coachProfileId)
                     .order('created_at', { ascending: false });
             if (fetchError) {
@@ -637,6 +641,19 @@ const ProgramBuilder: React.FC = () => {
                                             max="52"
                                         />
                                     </div>
+                                </div>
+                                
+                                <div className="mb-4">
+                                    <label htmlFor="description" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Template Notes
+                                    </label>
+                                    <textarea
+                                        id="description"
+                                        {...register('description')}
+                                        rows={3}
+                                        className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        placeholder="Add programming guidance, variations, progression ideas, etc."
+                                    ></textarea>
                                 </div>
                                 
                                 <div className="flex justify-end space-x-3 mt-4">

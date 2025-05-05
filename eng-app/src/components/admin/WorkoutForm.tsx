@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { WorkoutAdminData, ExerciseInstanceAdminData, SetType } from '../../types/adminTypes';
@@ -76,11 +76,13 @@ const ItemTypes = ExerciseItemTypes;
 const ExerciseDropZone = ({ 
     onDrop, 
     index,
-    isOver
+    isOver,
+    isDragging, // New prop to track if any drag operation is in progress
 }: { 
     onDrop: (item: { type: string; exerciseIndex?: number; exercise?: Exercise }, targetIndex: number) => void, 
     index: number,
-    isOver: boolean
+    isOver: boolean,
+    isDragging: boolean, // New prop to track if any drag operation is in progress
 }) => {
     const [{ isOverCurrent }, drop] = useDrop(() => ({
         accept: [ItemTypes.SEARCH_EXERCISE, ItemTypes.WORKOUT_EXERCISE],
@@ -93,13 +95,27 @@ const ExerciseDropZone = ({
         }),
     }));
 
+    // Only show the drop zone visually when dragging or hovering
+    const isActive = isOverCurrent || isOver;
+    
     return (
         <div
             ref={drop}
-            className={`h-2 mx-1 transition-all duration-200 rounded-full ${
-                isOverCurrent || isOver ? 'bg-indigo-300 dark:bg-indigo-600 h-6 mb-2 mt-2' : 'bg-transparent'
-            }`}
-        />
+            className={`
+                mx-1 transition-all duration-200 
+                ${!isDragging ? 'h-2' : isActive ? 'h-20 py-2 my-2' : 'h-6 my-1'}
+                ${isDragging ? 'border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-md' : ''}
+                ${isActive ? 'bg-indigo-100 dark:bg-indigo-900 dark:bg-opacity-30 border-indigo-400 scale-[1.02]' : 'bg-transparent'}
+            `}
+        >
+            {isDragging && isActive && (
+                <div className="flex items-center justify-center h-full">
+                    <span className="text-sm font-medium text-indigo-500 dark:text-indigo-400">
+                        Drop here
+                    </span>
+                </div>
+            )}
+        </div>
     );
 };
 
@@ -266,6 +282,8 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     
     // Add state to track if we're hovering over any drop zone
     const [hoveringIndex, setHoveringIndex] = useState<number | null>(null);
+    // Add state to track if any drag operation is in progress
+    const [isDraggingAny, setIsDraggingAny] = useState(false);
 
     const methods = useForm<WorkoutFormData>({
         defaultValues: {
@@ -891,16 +909,18 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                     </div>
                     
                     <div className="mt-4">
-                        <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <label htmlFor="notes" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                             Add note for this exercise
                         </label>
                         <textarea
+                            id="notes"
+                            {...register('notes')}
                             rows={2}
                             className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             placeholder="Add a note..."
                             value={exercise.notes || ''}
                             onChange={(e) => handleExerciseDetailChange(index, 'notes', e.target.value)}
-                        />
+                        ></textarea>
                     </div>
                 </div>
             </div>
@@ -1316,8 +1336,32 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             isLast: order === totalInGroup
         };
     };
+
+    // Add effect to listen for drag operations globally
+    useEffect(() => {
+        const handleDragStart = () => setIsDraggingAny(true);
+        const handleDragEnd = () => {
+            setIsDraggingAny(false);
+            setHoveringIndex(null);
+        };
         
-        return (
+        // These events will work for native HTML5 drag events
+        document.addEventListener('dragstart', handleDragStart);
+        document.addEventListener('dragend', handleDragEnd);
+        
+        return () => {
+            document.removeEventListener('dragstart', handleDragStart);
+            document.removeEventListener('dragend', handleDragEnd);
+        };
+    }, []);
+
+    // Memoize the transformed search results to prevent unnecessary recalculations
+    const memoizedLocalExercises = useMemo(() => {
+        console.log('Calculating memoized exercise data - should only run when search results change');
+        return searchResults.map(exercise => createLocalExerciseFromAPI(exercise));
+    }, [searchResults]);
+
+    return (
         <DndProvider backend={HTML5Backend}>
         <div className="flex flex-col h-full bg-white rounded-lg shadow dark:bg-gray-800">
             {/* Workout Header */}
@@ -1422,20 +1466,17 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                         {!isLoading && !error && searchResults.length === 0 && (
                             <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                                 No exercises found. Try a different search term or category.
-                                            </div>
+                            </div>
                         )}
                         
-                        <div className="grid grid-cols-2 gap-2">
-                            {searchResults.map((exercise) => {
-                                const localExercise = createLocalExerciseFromAPI(exercise);
-                                return (
-                                    <DraggableExerciseCard
-                                        key={exercise.id}
-                                        exercise={localExercise}
-                                        onClick={() => handleAddExercise(exercise)}
-                                    />
-                                );
-                            })}
+                        <div className="flex flex-col space-y-2">
+                            {memoizedLocalExercises.map((localExercise, index) => (
+                                <DraggableExerciseCard
+                                    key={searchResults[index].id}
+                                    exercise={localExercise}
+                                    onClick={() => handleAddExercise(searchResults[index])}
+                                />
+                            ))}
                         </div>
                         
                         {(page > 1 || hasMore) && (
@@ -1512,8 +1553,22 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                         </p>
                                     )}
                                     </div>
-                                        </div>
-                                    </div>
+                        </div>
+
+                        {/* Add Workout Notes/Description Field */}
+                        <div className="mt-4">
+                            <label htmlFor="description" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Workout Notes
+                            </label>
+                            <textarea
+                                id="description"
+                                {...register('description')}
+                                rows={3}
+                                className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                placeholder="Add general notes about this workout (goals, focus areas, etc.)"
+                            ></textarea>
+                        </div>
+                    </div>
                                     
                         {/* Exercise List with Enhanced Drop Zone and Drag Functionality */}
                         <div 
@@ -1526,6 +1581,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                 onDrop={handleExerciseDrop} 
                                 index={0} 
                                 isOver={hoveringIndex === 0}
+                                isDragging={isDraggingAny}
                             />
 
                             {exercises.map((exercise, index) => (
@@ -1549,6 +1605,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                             onDrop={handleExerciseDrop} 
                                                             index={index + 1}
                                             isOver={hoveringIndex === index + 1}
+                                            isDragging={isDraggingAny}
                                                         />
                                                     )}
                                                 </React.Fragment>

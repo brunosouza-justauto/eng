@@ -65,15 +65,25 @@ const UserManager: React.FC = () => {
 
         try {
             // Get all users where coach_id matches the current coach's profile ID
+            // Include program assignments and program names
             const { data, error } = await supabase
                 .from('profiles')
-                .select('*')
+                .select(`
+                    *,
+                    program_assignments:assigned_plans!athlete_id(
+                        id,
+                        program_template_id,
+                        start_date,
+                        assigned_at,
+                        program:program_templates!program_template_id(id, name)
+                    )
+                `)
                 .eq('coach_id', profile.id)
                 .order('created_at', { ascending: false });
                 
             if (error) throw error;
             
-            console.log("Fetched users:", data);
+            console.log("Fetched users with programs:", data);
             setUsers(data as UserProfileListItem[]);
         } catch (err: unknown) {
             console.error("Error fetching users:", err);
@@ -242,6 +252,46 @@ const UserManager: React.FC = () => {
         return <span className="inline-flex px-2 text-xs font-semibold leading-5 text-red-800 bg-red-100 rounded-full dark:bg-red-900/30 dark:text-red-200">No</span>;
     };
 
+    // Function to get active program name
+    const getActiveProgramName = (user: UserProfileListItem): string => {
+        if (!user.program_assignments || user.program_assignments.length === 0) {
+            return 'No program assigned';
+        }
+        
+        // Get the most recent program assignment
+        const latestAssignment = user.program_assignments.sort((a, b) => 
+            new Date(b.assigned_at || "").getTime() - new Date(a.assigned_at || "").getTime()
+        )[0];
+        
+        if (!latestAssignment || !latestAssignment.program) {
+            return 'No active program';
+        }
+        
+        return latestAssignment.program.name;
+    };
+
+    // Function to render program badge
+    const renderProgramBadge = (user: UserProfileListItem) => {
+        if (!user.program_assignments || user.program_assignments.length === 0) {
+            return <span className="inline-flex px-2 text-xs font-semibold leading-5 text-gray-800 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">No Program</span>;
+        }
+        
+        // Get the most recent program assignment
+        const latestAssignment = user.program_assignments.sort((a, b) => 
+            new Date(b.assigned_at || "").getTime() - new Date(a.assigned_at || "").getTime()
+        )[0];
+        
+        if (!latestAssignment || !latestAssignment.program) {
+            return <span className="inline-flex px-2 text-xs font-semibold leading-5 text-gray-800 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">No Program</span>;
+        }
+        
+        return (
+            <span className="inline-flex px-2 text-xs font-semibold leading-5 text-green-800 bg-green-100 rounded-full dark:bg-green-900/30 dark:text-green-200">
+                {latestAssignment.program.name}
+            </span>
+        );
+    };
+
     return (
         <div className="container mx-auto py-6 px-4">
             <div className="flex items-center justify-between mb-6">
@@ -351,6 +401,7 @@ const UserManager: React.FC = () => {
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Invited</th>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Onboarded</th>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Joined</th>
+                                    <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Program</th>
                                     <th scope="col" className="relative px-6 py-3">
                                         <span className="sr-only">Actions</span>
                                     </th>
@@ -378,6 +429,9 @@ const UserManager: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">
                                             {new Date(user.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">
+                                            {getActiveProgramName(user)}
                                         </td>
                                         <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                                             {!user.user_id && (
@@ -456,6 +510,12 @@ const UserManager: React.FC = () => {
                                         <p className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Onboarded</p>
                                         <div className="mt-1">
                                             {renderOnboardingBadge(user)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Program</p>
+                                        <div className="mt-1">
+                                            {renderProgramBadge(user)}
                                         </div>
                                     </div>
                                 </div>

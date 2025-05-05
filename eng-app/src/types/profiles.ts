@@ -1,5 +1,17 @@
 // Profile types used across the application
 
+// Program assignment type
+export interface ProgramAssignment {
+    id: string;
+    program_template_id: string;
+    start_date: string;
+    assigned_at?: string;
+    program?: {
+        id: string;
+        name: string;
+    };
+}
+
 // Basic profile data needed for lists
 export interface UserProfileListItem {
     id: string; // profile UUID
@@ -11,6 +23,7 @@ export interface UserProfileListItem {
     created_at: string;
     invitation_status?: string | null; // 'pending', 'accepted', etc.
     invited_at?: string | null; // When the invitation was sent
+    program_assignments?: ProgramAssignment[]; // Their assigned programs
 }
 
 // Complete profile data with all fields

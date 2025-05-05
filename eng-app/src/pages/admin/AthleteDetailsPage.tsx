@@ -7,6 +7,19 @@ import Card from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import ProgramAssignmentModal from '../../components/admin/ProgramAssignmentModal';
 
+// Add a proper interface for the program assignment
+interface AthleteProgram {
+    id: string;
+    program_template_id: string;
+    start_date: string;
+    assigned_at: string;
+    program?: {
+        id: string;
+        name: string;
+        description: string | null;
+    };
+}
+
 const AthleteDetailsPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -20,6 +33,9 @@ const AthleteDetailsPage: React.FC = () => {
     
     // State for Program Assignment Modal
     const [showProgramModal, setShowProgramModal] = useState<boolean>(false);
+
+    // Use the new type for the state
+    const [currentProgram, setCurrentProgram] = useState<AthleteProgram | null>(null);
 
     useEffect(() => {
         const fetchAthleteDetails = async () => {
@@ -54,6 +70,59 @@ const AthleteDetailsPage: React.FC = () => {
 
         fetchAthleteDetails();
     }, [id]);
+
+    // Add a section to fetch the athlete's assigned program
+    useEffect(() => {
+        const fetchAthleteProgram = async () => {
+            if (!id) return;
+            
+            try {
+                const { data, error } = await supabase
+                    .from('assigned_plans')
+                    .select(`
+                        id,
+                        program_template_id,
+                        start_date,
+                        assigned_at,
+                        program:program_templates!program_template_id(id, name, description)
+                    `)
+                    .eq('athlete_id', id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                
+                if (error) throw error;
+                
+                if (data) {
+                    // Transform the data to fix the program property
+                    const formattedProgram: AthleteProgram = {
+                        id: data.id,
+                        program_template_id: data.program_template_id,
+                        start_date: data.start_date,
+                        assigned_at: data.assigned_at,
+                        // Handle the case where program might be returned as an array or object
+                        program: Array.isArray(data.program) && data.program.length > 0 
+                            ? {
+                                id: data.program[0].id,
+                                name: data.program[0].name,
+                                description: data.program[0].description
+                            }
+                            : data.program && typeof data.program === 'object'
+                                ? data.program
+                                : undefined
+                    };
+                    setCurrentProgram(formattedProgram);
+                } else {
+                    setCurrentProgram(null);
+                }
+            } catch (err) {
+                console.error("Error fetching athlete program:", err);
+                setCurrentProgram(null);
+            }
+        };
+        
+        fetchAthleteProgram();
+    }, [id, showProgramModal]);
 
     const handleUpdateAthlete = async (formData: Partial<UserProfileFull>) => {
         if (!athleteDetails || !id) return;
@@ -181,8 +250,8 @@ const AthleteDetailsPage: React.FC = () => {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="flex justify-between items-center mb-6">
+        <div className="container px-4 py-8 mx-auto">
+            <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Athlete Details</h1>
                 <Button onClick={() => navigate('/admin/athletes')} variant="secondary">
                     Back to Athletes
@@ -192,8 +261,8 @@ const AthleteDetailsPage: React.FC = () => {
             {/* Loading State */}
             {isLoading && (
                 <Card className="p-6">
-                    <div className="flex justify-center items-center h-40">
-                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+                    <div className="flex items-center justify-center h-40">
+                        <div className="w-12 h-12 border-t-2 border-b-2 border-indigo-500 rounded-full animate-spin"></div>
                     </div>
                 </Card>
             )}
@@ -202,7 +271,7 @@ const AthleteDetailsPage: React.FC = () => {
             {error && !isLoading && (
                 <Card className="p-6 border-red-300 bg-red-50 dark:bg-red-900/20">
                     <div className="text-red-700 dark:text-red-400">
-                        <h3 className="font-bold mb-2">Error</h3>
+                        <h3 className="mb-2 font-bold">Error</h3>
                         <p>{error}</p>
                         <Button 
                             className="mt-4" 
@@ -219,7 +288,7 @@ const AthleteDetailsPage: React.FC = () => {
             {!isLoading && !error && !athleteDetails && (
                 <Card className="p-6">
                     <div className="text-center">
-                        <h3 className="font-bold mb-2 text-gray-800 dark:text-white">Athlete Not Found</h3>
+                        <h3 className="mb-2 font-bold text-gray-800 dark:text-white">Athlete Not Found</h3>
                         <p>The athlete you're looking for could not be found.</p>
                         <Button 
                             className="mt-4" 
@@ -234,7 +303,7 @@ const AthleteDetailsPage: React.FC = () => {
 
             {/* Success Message */}
             {successMessage && (
-                <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded">
+                <div className="p-3 mb-4 text-green-700 bg-green-100 rounded dark:bg-green-900/20 dark:text-green-400">
                     {successMessage}
                 </div>
             )}
@@ -242,7 +311,7 @@ const AthleteDetailsPage: React.FC = () => {
             {/* Athlete Details */}
             {!isLoading && !error && athleteDetails && !isEditing && (
                 <>
-                    <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold text-gray-800 dark:text-white">{athleteDetails.username || 'Unnamed Athlete'}</h2>
                         <div className="space-x-2">
                             <Button 
@@ -260,9 +329,51 @@ const AthleteDetailsPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <Card className="mb-6 p-6">
-                        <h3 className="text-lg font-medium mb-4 border-b pb-2 text-gray-800 dark:text-white">Basic Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Training Program Card */}
+                    <Card className="p-6 mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-medium text-gray-800 dark:text-white">Training Program</h3>
+                            <Button 
+                                onClick={() => setShowProgramModal(true)}
+                                variant="primary"
+                                size="sm"
+                            >
+                                {currentProgram ? 'Change Program' : 'Assign Program'}
+                            </Button>
+                        </div>
+                        
+                        {currentProgram ? (
+                            <div>
+                                <div className="flex flex-col mb-4 md:flex-row md:justify-between md:items-center">
+                                    <div>
+                                        <h3 className="text-lg font-medium text-gray-800 dark:text-white">{currentProgram.program?.name || "Unknown Program"}</h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            Assigned on {new Date(currentProgram.assigned_at).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <div className="mt-2 md:mt-0">
+                                        <span className="inline-flex px-2 py-1 text-xs font-semibold leading-5 text-green-800 bg-green-100 rounded-full dark:bg-green-900/30 dark:text-green-200">
+                                            Active
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                {currentProgram.program?.description && (
+                                    <div className="p-3 mt-4 text-sm text-gray-700 rounded bg-gray-50 dark:bg-gray-700/50 dark:text-gray-300">
+                                        {currentProgram.program.description}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="p-4 text-center text-gray-600 rounded dark:text-gray-400 bg-gray-50 dark:bg-gray-700/30">
+                                No program assigned yet. Click "Assign Program" to get started.
+                            </div>
+                        )}
+                    </Card>
+
+                    <Card className="p-6 mb-6">
+                        <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Basic Information</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Username</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.username || 'Not provided'}</p>
@@ -273,14 +384,14 @@ const AthleteDetailsPage: React.FC = () => {
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Role</p>
-                                <p className="font-medium text-gray-800 dark:text-white capitalize">{athleteDetails.role || 'Not assigned'}</p>
+                                <p className="font-medium text-gray-800 capitalize dark:text-white">{athleteDetails.role || 'Not assigned'}</p>
                             </div>
                         </div>
                     </Card>
 
-                    <Card className="mb-6 p-6">
-                        <h3 className="text-lg font-medium mb-4 border-b pb-2 text-gray-800 dark:text-white">Physical Details</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="p-6 mb-6">
+                        <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Physical Details</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Age</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.age || 'Not provided'}</p>
@@ -300,9 +411,9 @@ const AthleteDetailsPage: React.FC = () => {
                         </div>
                     </Card>
 
-                    <Card className="mb-6 p-6">
-                        <h3 className="text-lg font-medium mb-4 border-b pb-2 text-gray-800 dark:text-white">Goals</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="p-6 mb-6">
+                        <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Goals</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Target Weight (kg)</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.goal_target_weight_kg || 'Not provided'}</p>
@@ -322,9 +433,9 @@ const AthleteDetailsPage: React.FC = () => {
                         </div>
                     </Card>
 
-                    <Card className="mb-6 p-6">
-                        <h3 className="text-lg font-medium mb-4 border-b pb-2 text-gray-800 dark:text-white">Training</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="p-6 mb-6">
+                        <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Training</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Days Per Week</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.training_days_per_week || 'Not provided'}</p>
@@ -348,9 +459,9 @@ const AthleteDetailsPage: React.FC = () => {
                         </div>
                     </Card>
 
-                    <Card className="mb-6 p-6">
-                        <h3 className="text-lg font-medium mb-4 border-b pb-2 text-gray-800 dark:text-white">Nutrition</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="p-6 mb-6">
+                        <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Nutrition</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Meal Patterns</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.nutrition_meal_patterns || 'Not provided'}</p>
@@ -370,9 +481,9 @@ const AthleteDetailsPage: React.FC = () => {
                         </div>
                     </Card>
 
-                    <Card className="mb-6 p-6">
-                        <h3 className="text-lg font-medium mb-4 border-b pb-2 text-gray-800 dark:text-white">Lifestyle</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="p-6 mb-6">
+                        <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Lifestyle</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Sleep Hours</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.lifestyle_sleep_hours || 'Not provided'}</p>
@@ -405,7 +516,7 @@ const AthleteDetailsPage: React.FC = () => {
             {/* Edit Athlete Form */}
             {!isLoading && !error && athleteDetails && isEditing && (
                 <Card className="p-6">
-                    <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Edit Athlete</h2>
                         <Button 
                             onClick={() => setIsEditing(false)}

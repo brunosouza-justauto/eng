@@ -191,29 +191,71 @@ export const getAllExercisesCached = async (): Promise<Exercise[]> => {
 };
 
 /**
- * Fetches details for a single exercise by its ID.
+ * Fetches only the specific exercises needed by ID from the HeyGainz API
+ * More efficient than loading all exercises when we only need a few
+ */
+export const getExercisesByIds = async (exerciseIds: number[]): Promise<Exercise[]> => {
+  if (exerciseIds.length === 0) return [];
+  
+  // Check if we have cached data first
+  const cachedData = sessionStorage.getItem(EXERCISE_CACHE_KEY);
+  if (cachedData) {
+    try {
+      const allExercises = JSON.parse(cachedData) as Exercise[];
+      const exercisesMap = new Map(allExercises.map(ex => [ex.id, ex]));
+      
+      // If all needed exercises are in cache, return them
+      const cachedExercises = exerciseIds
+        .map(id => exercisesMap.get(id))
+        .filter((ex): ex is Exercise => ex !== undefined);
+      
+      if (cachedExercises.length === exerciseIds.length) {
+        console.log('Returning exercises from cache');
+        return cachedExercises;
+      }
+    } catch (e) {
+      console.error('Failed to parse cached exercises:', e);
+      sessionStorage.removeItem(EXERCISE_CACHE_KEY); // Clear corrupted cache
+    }
+  }
+
+  console.log(`Fetching ${exerciseIds.length} specific exercises from HeyGainz API...`);
+  
+  try {
+    // Fetch each exercise individually - this is more efficient than 
+    // getting all 6000+ exercises when we only need a few
+    const exercisePromises = exerciseIds.map(async (id) => {
+      try {
+        const response = await axios.get<HeyGainzExercise>(
+          `${HEYGAINZ_API_URL}/exercises/${id}`
+        );
+        return convertToStandardFormat(response.data);
+      } catch (error) {
+        console.error(`Error fetching exercise ${id}:`, error);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(exercisePromises);
+    const exercises = results.filter((ex): ex is Exercise => ex !== null);
+    
+    console.log(`Successfully fetched ${exercises.length}/${exerciseIds.length} exercises.`);
+    return exercises;
+  } catch (error) {
+    console.error('Failed to fetch exercises by IDs:', error);
+    return []; // Return empty array on failure
+  }
+};
+
+/**
+ * Fetches a single exercise by ID directly from the API.
+ * Much more efficient than previous version.
  */
 export const getExerciseById = async (id: number): Promise<Exercise | null> => {
   try {
-    // The HeyGainz API doesn't have a direct endpoint for fetching by ID
-    // So we'll get exercises and filter
-    const response = await axios.get<HeyGainzPaginatedResponse<HeyGainzExercise>>(
-      `${HEYGAINZ_API_URL}/exercises`,
-      {
-        params: {
-          page: 1,
-          per_page: 100
-        }
-      }
-    );
-
-    const exercise = response.data.data.find(ex => ex.id === id);
-    
-    if (!exercise) {
-      return null;
-    }
-
-    return convertToStandardFormat(exercise);
+    // Direct API endpoint call instead of fetching all exercises
+    const response = await axios.get<HeyGainzExercise>(`${HEYGAINZ_API_URL}/exercises/${id}`);
+    return convertToStandardFormat(response.data);
   } catch (error) {
     console.error(`Error fetching exercise with ID ${id}:`, error);
     return null;

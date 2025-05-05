@@ -23,7 +23,6 @@ interface ExerciseInstanceData {
 interface WorkoutData {
     name: string;
     day_of_week: number | null;
-    week_number: number | null;
     order_in_program: number | null;
     exercise_instances: ExerciseInstanceData[];
 }
@@ -34,37 +33,76 @@ interface WorkoutDataWithId extends WorkoutData {
 
 const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId }) => {
   const [workoutData, setWorkoutData] = useState<WorkoutDataWithId | null>(null);
+  const [allWorkouts, setAllWorkouts] = useState<WorkoutDataWithId[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRestDay, setIsRestDay] = useState<boolean>(false);
+  
+  // Helper to get the name of the day from the day_of_week number
+  const getDayName = (dayOfWeek: number | null): string => {
+    if (dayOfWeek === null) return "";
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    // Convert from 1-based to 0-based index
+    return days[(dayOfWeek - 1) % 7];
+  };
 
   // Helper to get a friendly name for the set type
   const getSetTypeName = (setType: SetType | null | undefined): string => {
     if (!setType) return '';
     
-    const setTypeMap: Record<SetType, string> = {
+    // Using index signature instead of Record<SetType, string> to allow for string keys
+    const setTypeMap: { [key: string]: string } = {
       [SetType.REGULAR]: 'Regular',
       [SetType.WARM_UP]: 'Warm-up',
       [SetType.DROP_SET]: 'Drop Set',
-      [SetType.FAILURE]: 'To Failure'
+      [SetType.FAILURE]: 'To Failure',
+      [SetType.BACKDOWN]: 'Backdown',
+      [SetType.TEMPO]: 'Tempo',
+      [SetType.SUPERSET]: 'Superset',
+      [SetType.CONTRAST]: 'Contrast',
+      [SetType.COMPLEX]: 'Complex',
+      [SetType.CLUSTER]: 'Cluster',
+      [SetType.PYRAMID]: 'Pyramid',
+      [SetType.PARTIAL]: 'Partial',
+      [SetType.BURNS]: 'Burns',
+      [SetType.PAUSE]: 'Pause',
+      [SetType.PULSE]: 'Pulse',
+      [SetType.NEGATIVE]: 'Negative',
+      [SetType.FORCED_REP]: 'Forced Rep',
+      [SetType.PRE_EXHAUST]: 'Pre-Exhaust',
+      [SetType.POST_EXHAUST]: 'Post-Exhaust'
     };
     
-    return setTypeMap[setType] || '';
+    return setTypeMap[setType] || setType;
+  };
+
+  // Helper to get the current day of the week (1 for Monday, 7 for Sunday)
+  const getCurrentDayOfWeek = (): number => {
+    const today = new Date();
+    // getDay returns 0 for Sunday, 1 for Monday, etc.
+    // We want 1 for Monday through 7 for Sunday
+    return today.getDay() === 0 ? 7 : today.getDay();
   };
 
   useEffect(() => {
     const fetchWorkout = async () => {
       if (!programTemplateId) {
+        console.log("No program template ID provided to NextWorkoutWidget");
         setWorkoutData(null);
         setError(null);
         setIsLoading(false);
+        setIsRestDay(false);
         return; // No ID, nothing to fetch
       }
 
+      console.log("Fetching workout data for program ID:", programTemplateId);
       setIsLoading(true);
       setError(null);
       setWorkoutData(null);
+      setIsRestDay(false);
 
       try {
+        // Fetch all workouts for this program template
         const { data, error: fetchError } = await supabase
           .from('program_templates')
           .select(`
@@ -73,7 +111,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
               id,
               name,
               day_of_week,
-              week_number,
               order_in_program,
               exercise_instances (
                 exercise_db_id,
@@ -88,17 +125,40 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
             )
           `)
           .eq('id', programTemplateId)
-          .limit(1, { foreignTable: 'workouts' })
+          // Removed the limit on workouts to get all workouts
           .limit(10, { foreignTable: 'workouts.exercise_instances' })
           .single();
 
         if (fetchError) throw fetchError;
+        
+        console.log("Program template data:", data);
 
-        if (data && data.workouts && data.workouts.length > 0) {
-          setWorkoutData(data.workouts[0] as WorkoutDataWithId); 
+        if (data?.workouts && data.workouts.length > 0) {
+          // Store all workouts
+          const typedWorkouts = data.workouts as WorkoutDataWithId[];
+          setAllWorkouts(typedWorkouts); 
+          
+          // Get the current day of the week (1-7, Monday-Sunday)
+          const currentDayOfWeek = getCurrentDayOfWeek();
+          console.log("Current day of week:", currentDayOfWeek);
+          
+          // Find workout for the current day
+          const todaysWorkout = typedWorkouts.find(w => w.day_of_week === currentDayOfWeek);
+          
+          if (todaysWorkout) {
+            console.log("Found workout for today:", todaysWorkout);
+            setWorkoutData(todaysWorkout);
+            setIsRestDay(false);
+          } else {
+            console.log("No workout found for today (day", currentDayOfWeek, ") - it's a rest day");
+            setWorkoutData(null);
+            setIsRestDay(true);
+          }
         } else {
+          console.log("No workouts found for program ID:", programTemplateId);
           setWorkoutData(null);
           setError('No workouts found for the assigned program.');
+          setIsRestDay(false);
         }
 
       } catch (err: unknown) {
@@ -109,6 +169,7 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
         }
         setError(message);
         setWorkoutData(null);
+        setIsRestDay(false);
       } finally {
         setIsLoading(false);
       }
@@ -123,8 +184,13 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
         </svg>
-        <h2 className="text-lg font-medium">Next Workout</h2>
+        <h2 className="text-lg font-medium">Today's Workout</h2>
       </div>
+      {workoutData?.day_of_week && (
+        <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+          {getDayName(workoutData.day_of_week)}
+        </span>
+      )}
     </div>
   );
   
@@ -162,7 +228,32 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
               </div>
             )}
             
-            {programTemplateId && !workoutData && (
+            {programTemplateId && isRestDay && (
+              <div className="text-center py-10">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">REST DAY</h3>
+                <p className="text-gray-500 dark:text-gray-400">Take time to recover and prepare for your next workout</p>
+                
+                {allWorkouts.length > 0 && (
+                  <div className="mt-4 text-center">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Your program includes:</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {allWorkouts
+                        .sort((a, b) => (a.day_of_week || 0) - (b.day_of_week || 0))
+                        .map(workout => (
+                          <span key={workout.id} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
+                            {getDayName(workout.day_of_week)}: {workout.name}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {programTemplateId && !isRestDay && !workoutData && (
               <div className="text-center py-10">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -177,14 +268,9 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
                 <div className="pb-3 mb-3 border-b border-gray-100 dark:border-gray-700">
                   <h3 className="font-semibold text-lg text-indigo-600 dark:text-indigo-400">{workoutData.name}</h3>
                   <div className="flex items-center mt-1">
-                    {workoutData.week_number !== null && (
-                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 mr-2">
-                        Week {workoutData.week_number}
-                      </span>
-                    )}
                     {workoutData.day_of_week !== null && (
                       <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                        Day {workoutData.day_of_week}
+                        {getDayName(workoutData.day_of_week)}
                       </span>
                     )}
                   </div>

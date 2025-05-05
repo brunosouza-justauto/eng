@@ -1,11 +1,10 @@
 import React from 'react';
 import { useDrag } from 'react-dnd';
-import { FiVideo } from 'react-icons/fi';
 
-// Define ItemTypes
-const ItemTypes = {
-    SEARCH_EXERCISE: 'search_exercise',
-    WORKOUT_EXERCISE: 'workout_exercise',
+// Define item types for drag and drop
+export const ItemTypes = {
+    SEARCH_EXERCISE: 'search-exercise',
+    WORKOUT_EXERCISE: 'workout-exercise',
     EXERCISE: 'exercise'
 };
 
@@ -19,64 +18,71 @@ interface LocalExercise {
     image?: string;
 }
 
-// Component for draggable exercise cards
-const DraggableExerciseCard: React.FC<{ 
-    exercise: LocalExercise; 
+interface DraggableExerciseCardProps {
+    exercise: LocalExercise;
     onClick: () => void;
-}> = ({ exercise, onClick }) => {
+}
+
+// Component for draggable exercise cards
+const DraggableExerciseCard: React.FC<DraggableExerciseCardProps> = ({ exercise, onClick }) => {
     // Extract the drag logic to its own component
     const [{ isDragging }, dragRef] = useDrag({
         type: ItemTypes.SEARCH_EXERCISE,
-        item: exercise,
+        item: { type: ItemTypes.SEARCH_EXERCISE, exercise },
         collect: (monitor) => ({
-            isDragging: monitor.isDragging(),
+            isDragging: !!monitor.isDragging(),
         }),
     });
+
+    // Format category display to handle potential long category names
+    const formatCategory = (category: string) => {
+        return category.length > 15 ? `${category.substring(0, 12)}...` : category;
+    };
 
     return (
         <div
             ref={dragRef}
-            className="cursor-move"
+            className={`flex items-center p-3 mb-2 bg-white border rounded-md cursor-pointer dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                isDragging ? 'opacity-50' : 'opacity-100'
+            }`}
+            style={{ cursor: 'grab' }}
+            title={`${exercise.name} (${exercise.category})`}
             onClick={onClick}
-            style={{ opacity: isDragging ? 0.5 : 1 }}
         >
-            <div className="overflow-hidden transition-shadow duration-200 border rounded-lg shadow-sm cursor-pointer hover:shadow-md dark:bg-gray-750 dark:border-gray-700">
-                {/* Exercise Image */}
-                <div className="relative flex items-center justify-center h-24 bg-gray-200 dark:bg-gray-700">
-                    {exercise.image ? (
-                        <img 
-                            src={exercise.image} 
-                            alt={exercise.name} 
-                            className="object-cover w-full h-full"
-                            onError={(e) => {
-                                // Fallback to icon if image fails to load
-                                e.currentTarget.style.display = 'none';
-                                e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
-                            }}
-                        />
-                    ) : (
-                        <FiVideo className="text-xl text-gray-400 dark:text-gray-500" />
-                    )}
-                    <div className="absolute bottom-1 right-1">
-                        <span className={`text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200`}>
-                            {exercise.category}
-                        </span>
-                    </div>
+            {exercise.image ? (
+                <div className="w-20 h-20 mr-4 overflow-hidden bg-gray-100 rounded-md dark:bg-gray-700">
+                    <img 
+                        src={exercise.image} 
+                        alt={exercise.name} 
+                        className="object-cover w-full h-full"
+                        onError={(e) => {
+                            // If image fails to load, show a fallback
+                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/80?text=No+Image';
+                        }}
+                    />
                 </div>
-                
-                {/* Exercise Details */}
-                <div className="p-2">
-                    <h3 className="text-sm font-medium truncate dark:text-white">{exercise.name}</h3>
-                    <p className="text-xs text-gray-500 truncate dark:text-gray-400">
-                        {exercise.primaryMuscle}
-                        {exercise.secondaryMuscles.length > 0 && `, ${exercise.secondaryMuscles[0]}`}
-                        {exercise.secondaryMuscles.length > 1 && '...'}
-                    </p>
+            ) : (
+                <div className="flex items-center justify-center w-20 h-20 mr-4 text-sm text-gray-500 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-400">
+                    No Image
+                </div>
+            )}
+            <div className="flex-grow min-w-0">
+                <h4 className="text-base font-medium truncate dark:text-white" title={exercise.name}>
+                    {exercise.name}
+                </h4>
+                <div className="flex flex-wrap items-center mt-2 gap-1">
+                    <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                        {formatCategory(exercise.category)}
+                    </span>
+                    {exercise.primaryMuscle && exercise.primaryMuscle !== exercise.category && (
+                        <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:bg-opacity-40 dark:text-indigo-300">
+                            {exercise.primaryMuscle}
+                        </span>
+                    )}
                 </div>
             </div>
         </div>
     );
 };
 
-export default DraggableExerciseCard;
-export { ItemTypes }; 
+export default DraggableExerciseCard; 

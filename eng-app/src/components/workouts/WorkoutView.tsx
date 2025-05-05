@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom'; // Re-enable useParams
 import { supabase } from '../../services/supabaseClient';
-// Import exercise service and types - with updated interface names
-import { getAllExercisesCached, Exercise } from '../../services/exerciseService';
+// Update import to use the new function
+import { getExercisesByIds, Exercise } from '../../services/exerciseService';
 import { SetType, ExerciseSet } from '../../types/adminTypes';
 
 // Define types locally for now (consider moving to shared types file later)
@@ -51,14 +51,7 @@ const WorkoutView: React.FC = () => {
             setExercisesMap(new Map()); // Reset map
 
             try {
-                // Fetch exercises first (potentially from cache)
-                console.log('Fetching exercise cache...');
-                const exercises = await getAllExercisesCached();
-                const exerciseMap = new Map(exercises.map(ex => [ex.id, ex]));
-                setExercisesMap(exerciseMap);
-                console.log(`Loaded ${exerciseMap.size} exercises into map.`);
-
-                // Now fetch the specific workout
+                // First fetch the specific workout
                 if (!workoutId) {
                     throw new Error('Workout ID not found in URL.');
                 }
@@ -89,12 +82,30 @@ const WorkoutView: React.FC = () => {
 
                 if (workoutError) throw workoutError;
                 
-                if (workoutData) {
-                    // Cast needed as Supabase client might not infer nested types perfectly
-                    setWorkout(workoutData as unknown as WorkoutData);
-                } else {
+                if (!workoutData) {
                     throw new Error('Workout not found.');
                 }
+
+                // Cast needed as Supabase client might not infer nested types perfectly
+                const typedWorkoutData = workoutData as unknown as WorkoutData;
+                setWorkout(typedWorkoutData);
+
+                // Extract exercise IDs that we need to fetch
+                const exerciseIds = typedWorkoutData.exercise_instances
+                    .map(ex => ex.exercise_db_id)
+                    .filter((id): id is string => id !== null) // Filter out nulls
+                    .map(id => parseInt(id, 10)) // Convert to numbers
+                    .filter(id => !isNaN(id)); // Filter out invalid numbers
+
+                // Only fetch exercises if we have valid IDs
+                if (exerciseIds.length > 0) {
+                    console.log(`Fetching ${exerciseIds.length} specific exercises...`);
+                    const exercises = await getExercisesByIds(exerciseIds);
+                    const exerciseMap = new Map(exercises.map(ex => [ex.id, ex]));
+                    setExercisesMap(exerciseMap);
+                    console.log(`Loaded ${exerciseMap.size} exercises into map.`);
+                }
+
                 setError(null); // Clear any previous errors on success
             } catch (err: unknown) {
                 console.error("Error loading workout view data:", err);
@@ -123,14 +134,29 @@ const WorkoutView: React.FC = () => {
     const getSetTypeName = (setType: SetType | null | undefined): string => {
         if (!setType) return '';
         
-        const setTypeMap: Record<SetType, string> = {
+        const setTypeMap: Record<string, string> = {
             [SetType.REGULAR]: 'Regular',
             [SetType.WARM_UP]: 'Warm-up',
             [SetType.DROP_SET]: 'Drop Set',
-            [SetType.FAILURE]: 'To Failure'
+            [SetType.FAILURE]: 'To Failure',
+            [SetType.BACKDOWN]: 'Backdown',
+            [SetType.TEMPO]: 'Tempo',
+            [SetType.SUPERSET]: 'Superset',
+            [SetType.CONTRAST]: 'Contrast',
+            [SetType.COMPLEX]: 'Complex',
+            [SetType.CLUSTER]: 'Cluster',
+            [SetType.PYRAMID]: 'Pyramid',
+            [SetType.PARTIAL]: 'Partial',
+            [SetType.BURNS]: 'Burns',
+            [SetType.PAUSE]: 'Pause',
+            [SetType.PULSE]: 'Pulse',
+            [SetType.NEGATIVE]: 'Negative',
+            [SetType.FORCED_REP]: 'Forced Rep',
+            [SetType.PRE_EXHAUST]: 'Pre-Exhaust',
+            [SetType.POST_EXHAUST]: 'Post-Exhaust'
         };
         
-        return setTypeMap[setType] || '';
+        return setTypeMap[setType] || setType;
     };
 
     return (
