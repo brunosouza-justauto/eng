@@ -101,6 +101,12 @@ const AdminLayout = () => {
                   active={location.pathname.startsWith('/admin/programs')} 
                 />
                 <NavItem 
+                  to="/admin/bmr-calculator" 
+                  icon={<FiClipboard />} 
+                  label="BMR & TDEE Calculator" 
+                  active={location.pathname.startsWith('/admin/bmr-calculator')} 
+                />
+                <NavItem 
                   to="/admin/mealplans" 
                   icon={<FiCalendar />} 
                   label="Meal Planning" 

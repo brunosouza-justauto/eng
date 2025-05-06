@@ -24,6 +24,7 @@ import AdminDashboard from './components/admin/AdminDashboard'; // Import AdminD
 import MainLayout from './components/layout/MainLayout'; // Import MainLayout
 import AthleteDetailsPage from './pages/admin/AthleteDetailsPage'; // Import AthleteDetailsPage
 import CoachDetailsPage from './pages/admin/CoachDetailsPage'; // Import CoachDetailsPage
+import BMRCalculatorPage from './pages/admin/BMRCalculatorPage'; // Import BMRCalculatorPage
 // Placeholder pages - we will create these properly later
 // const LoginPage = () => <div>Login Page Placeholder - <Link to="/dashboard">Go to Dashboard (temp)</Link></div>;
 const NotFoundPage = () => <div>404 Not Found</div>;
@@ -174,6 +175,7 @@ function App() {
               <Route path="mealplans" element={<MealPlanner />} />
               <Route path="stepgoals" element={<StepGoalSetter />} />
               <Route path="checkins" element={<CheckInReview />} />
+              <Route path="bmr-calculator" element={<BMRCalculatorPage />} />
               <Route path="*" element={<div>Admin Section Not Found</div>} />
           </Route>
       </Route>
