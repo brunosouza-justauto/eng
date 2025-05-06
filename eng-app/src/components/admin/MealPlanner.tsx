@@ -5,7 +5,9 @@ import { selectProfile } from '../../store/slices/authSlice';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import FormInput from '../ui/FormInput';
-import { FiSearch, FiPlus } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiBook } from 'react-icons/fi';
+import MealManager from './MealManager';
+import RecipeManager from './RecipeManager';
 
 // Basic type for plan list item
 interface NutritionPlanListItem {
@@ -54,6 +56,9 @@ const MealPlanner: React.FC = () => {
     const [selectedPlan, setSelectedPlan] = useState<NutritionPlanListItem | null>(null);
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+    const [showMealManager, setShowMealManager] = useState<boolean>(false);
+    const [selectedPlanForMeals, setSelectedPlanForMeals] = useState<string | null>(null);
+    const [showRecipeManager, setShowRecipeManager] = useState<boolean>(false);
 
     const profile = useSelector(selectProfile);
 
@@ -240,6 +245,24 @@ const MealPlanner: React.FC = () => {
         }
     };
 
+    const handleManageMeals = (planId: string) => {
+        setSelectedPlanForMeals(planId);
+        setShowMealManager(true);
+    };
+
+    const handleCloseMealManager = () => {
+        setShowMealManager(false);
+        setSelectedPlanForMeals(null);
+    };
+
+    const handleManageRecipes = () => {
+        setShowRecipeManager(true);
+    };
+
+    const handleCloseRecipeManager = () => {
+        setShowRecipeManager(false);
+    };
+
     return (
         <FormProvider {...methods}>
             <div className="meal-planner">
@@ -250,14 +273,24 @@ const MealPlanner: React.FC = () => {
                             <p className="mt-1 text-gray-600 dark:text-gray-400">Create and manage nutrition plans for your athletes</p>
                         </div>
                         
-                        {!selectedPlan && !isCreating && (
-                            <button
-                                onClick={handleCreateNew}
-                                className="flex items-center px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-                            >
-                                <FiPlus className="mr-2" /> New Plan
-                            </button>
-                        )}
+                        <div className="flex space-x-2">
+                            {!selectedPlan && !isCreating && (
+                                <>
+                                    <button
+                                        onClick={handleManageRecipes}
+                                        className="flex items-center px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 mr-2"
+                                    >
+                                        <FiBook className="mr-2" /> Manage Recipes
+                                    </button>
+                                    <button
+                                        onClick={handleCreateNew}
+                                        className="flex items-center px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+                                    >
+                                        <FiPlus className="mr-2" /> New Plan
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
 
                     {error && (
@@ -288,6 +321,27 @@ const MealPlanner: React.FC = () => {
                                         Delete
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Show the MealManager when a plan is selected for meal management */}
+                    {showMealManager && selectedPlanForMeals && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                            <div className="max-w-6xl w-full mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+                                <MealManager
+                                    nutritionPlanId={selectedPlanForMeals}
+                                    onClose={handleCloseMealManager}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Show the RecipeManager when user wants to manage recipes */}
+                    {showRecipeManager && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                            <div className="max-w-6xl w-full mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+                                <RecipeManager onClose={handleCloseRecipeManager} />
                             </div>
                         </div>
                     )}
@@ -409,19 +463,25 @@ const MealPlanner: React.FC = () => {
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm text-gray-500 dark:text-gray-400">{plan.total_calories || '-'} kcal</div>
+                                                        <div className="text-sm text-gray-500 dark:text-gray-300">{plan.total_calories || '-'} kcal</div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                        <div className="text-sm text-gray-500 dark:text-gray-300">
                                                             {plan.protein_grams || '-'}g / {plan.carbohydrate_grams || '-'}g / {plan.fat_grams || '-'}g
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                        <div className="text-sm text-gray-500 dark:text-gray-300">
                                                             {new Date(plan.created_at).toLocaleDateString()}
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
+                                                        <button
+                                                            onClick={() => handleManageMeals(plan.id)}
+                                                            className="mr-3 text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                                                        >
+                                                            Meals
+                                                        </button>
                                                         <button
                                                             onClick={() => handleEdit(plan)}
                                                             className="mr-3 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"

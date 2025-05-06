@@ -13,7 +13,7 @@ interface AssignedPlan {
 }
 
 interface StepGoal {
-    daily_steps: number | null;
+  daily_steps: number;
 }
 
 const DashboardPage: React.FC = () => {
@@ -34,28 +34,49 @@ const DashboardPage: React.FC = () => {
       setFetchError(null);
 
       try {
-        // Fetch most recent assigned program from assigned_plans table
+        // Create a combined plan object
+        const combinedPlan: AssignedPlan = {
+          program_template_id: null,
+          nutrition_plan_id: null
+        };
+
+        // Fetch most recent program assignment
         console.log("Fetching program for athlete profile ID:", profile.id);
-        const { data: planData, error: planError } = await supabase
+        const { data: programData, error: programError } = await supabase
           .from('assigned_plans')
-          .select(`
-            program_template_id,
-            nutrition_plan_id,
-            start_date
-          `)
+          .select('program_template_id')
           .eq('athlete_id', profile.id)
+          .not('program_template_id', 'is', null) // Must have program_template_id
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
         
-        if (planError) throw planError;
-        console.log("Program data from assigned_plans:", planData);
+        if (programError) {
+          console.error("Error fetching program assignment:", programError);
+        } else if (programData) {
+          console.log("Program assignment found:", programData);
+          combinedPlan.program_template_id = programData.program_template_id;
+        }
+
+        // Fetch most recent nutrition plan assignment
+        const { data: nutritionData, error: nutritionError } = await supabase
+          .from('assigned_plans')
+          .select('nutrition_plan_id')
+          .eq('athlete_id', profile.id)
+          .is('program_template_id', null) // Program template ID must be null
+          .not('nutrition_plan_id', 'is', null) // Must have nutrition_plan_id
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
         
-        // Set the combined plan data directly
-        const combinedPlan = {
-          program_template_id: planData?.program_template_id || null,
-          nutrition_plan_id: planData?.nutrition_plan_id || null
-        };
+        if (nutritionError) {
+          console.error("Error fetching nutrition plan assignment:", nutritionError);
+        } else if (nutritionData) {
+          console.log("Nutrition plan assignment found:", nutritionData);
+          combinedPlan.nutrition_plan_id = nutritionData.nutrition_plan_id;
+        }
+        
+        // Set the combined plan data
         console.log("Setting assigned plan:", combinedPlan);
         setAssignedPlan(combinedPlan);
 
@@ -70,21 +91,15 @@ const DashboardPage: React.FC = () => {
         if (goalError) throw goalError;
         setStepGoal(goalData); // Will be null if no active goal
 
-      } catch (error: unknown) {
-        console.error("Error fetching dashboard data:", error);
-        let message = 'Failed to load dashboard data.';
-        if (typeof error === 'object' && error !== null && 'message' in error) {
-            message = (error as Error).message;
-        }
-        setFetchError(message);
+      } catch (err) {
+        console.error("Error fetching dashboard data:", err);
+        setFetchError("Failed to load your dashboard data. Please try again later.");
       } finally {
         setIsLoadingData(false);
       }
     };
 
     fetchDashboardData();
-
-    // Dependency array: Refetch if user or profile changes
   }, [user, profile]);
 
   // Combine loading states

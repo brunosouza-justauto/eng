@@ -124,16 +124,25 @@ function App() {
         dispatch(setLoading(false));
     });
 
-    // Subscribe to auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        // We might set loading briefly here if needed
-        // dispatch(setLoading(true)); 
-        dispatch(setSession(session));
-        if (session?.user) {
-            fetchProfile(session.user.id); // Fetch profile on auth change
-        } else {
-            dispatch(setProfile(null)); // Clear profile if user logs out
-            // Loading is set within setSession for null session
+    // Subscribe to auth state changes with debounce for better stability
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state change detected:', event);
+        
+        // Skip processing certain non-critical events that can happen on window focus
+        if (event === 'TOKEN_REFRESHED') {
+            console.log('Token refresh - not updating state to prevent unnecessary redirects');
+            return;
+        }
+        
+        // Only update Redux state for significant auth changes
+        if (['SIGNED_IN', 'SIGNED_OUT', 'USER_UPDATED'].includes(event)) {
+            dispatch(setSession(session));
+            
+            if (session?.user) {
+                fetchProfile(session.user.id); // Fetch profile on auth change
+            } else {
+                dispatch(setProfile(null)); // Clear profile if user logs out
+            }
         }
     });
 

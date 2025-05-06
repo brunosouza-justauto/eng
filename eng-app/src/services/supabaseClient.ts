@@ -13,8 +13,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     // Configure the redirect behavior when using Supabase auth
-    autoRefreshToken: true,
+    autoRefreshToken: false, // Disable automatic refreshing on window focus
     detectSessionInUrl: true,
-    persistSession: true
+    persistSession: true,
+    // Custom storage key to isolate the auth state
+    storageKey: 'eng_supabase_auth',
+    flowType: 'pkce' // More secure flow type for auth
   }
 }); 

@@ -6,6 +6,7 @@ import UserEditForm from '../../components/admin/UserEditForm';
 import Card from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import ProgramAssignmentModal from '../../components/admin/ProgramAssignmentModal';
+import NutritionPlanAssignmentModal from '../../components/admin/NutritionPlanAssignmentModal';
 
 // Add a proper interface for the program assignment
 interface AthleteProgram {
@@ -17,6 +18,100 @@ interface AthleteProgram {
         id: string;
         name: string;
         description: string | null;
+    };
+}
+
+// Add interface for nutrition plan assignment
+interface AthleteNutritionPlan {
+    id: string;
+    nutrition_plan_id: string;
+    start_date: string;
+    assigned_at: string;
+    nutrition_plan?: {
+        id: string;
+        name: string;
+        description: string | null;
+    };
+}
+
+// Define database result types for the transform functions
+interface ProgramDbResult {
+    id: string;
+    program_template_id: string;
+    start_date: string;
+    assigned_at: string;
+    program: unknown; // This can be different formats depending on the query
+}
+
+interface NutritionPlanDbResult {
+    id: string;
+    nutrition_plan_id: string;
+    start_date: string;
+    assigned_at: string;
+    nutrition_plan: unknown; // This can be different formats depending on the query
+}
+
+// Helper function to safely transform program assignment data
+function transformProgramData(data: ProgramDbResult): AthleteProgram {
+    // Extract program info safely
+    let programInfo: { id: string, name: string, description: string | null } | undefined = undefined;
+    
+    if (data.program) {
+        if (Array.isArray(data.program) && data.program.length > 0) {
+            const firstItem = data.program[0];
+            programInfo = {
+                id: String(firstItem.id || ''),
+                name: String(firstItem.name || ''),
+                description: firstItem.description || null
+            };
+        } else if (typeof data.program === 'object' && data.program !== null) {
+            const programObj = data.program as Record<string, unknown>;
+            programInfo = {
+                id: String(programObj.id || ''),
+                name: String(programObj.name || ''),
+                description: (programObj.description as string) || null
+            };
+        }
+    }
+    
+    return {
+        id: data.id,
+        program_template_id: data.program_template_id,
+        start_date: data.start_date,
+        assigned_at: data.assigned_at,
+        program: programInfo
+    };
+}
+
+// Helper function to safely transform nutrition plan assignment data
+function transformNutritionPlanData(data: NutritionPlanDbResult): AthleteNutritionPlan {
+    // Extract nutrition plan info safely
+    let nutritionPlanInfo: { id: string, name: string, description: string | null } | undefined = undefined;
+    
+    if (data.nutrition_plan) {
+        if (Array.isArray(data.nutrition_plan) && data.nutrition_plan.length > 0) {
+            const firstItem = data.nutrition_plan[0];
+            nutritionPlanInfo = {
+                id: String(firstItem.id || ''),
+                name: String(firstItem.name || ''),
+                description: firstItem.description || null
+            };
+        } else if (typeof data.nutrition_plan === 'object' && data.nutrition_plan !== null) {
+            const planObj = data.nutrition_plan as Record<string, unknown>;
+            nutritionPlanInfo = {
+                id: String(planObj.id || ''),
+                name: String(planObj.name || ''),
+                description: (planObj.description as string) || null
+            };
+        }
+    }
+    
+    return {
+        id: data.id,
+        nutrition_plan_id: data.nutrition_plan_id,
+        start_date: data.start_date,
+        assigned_at: data.assigned_at,
+        nutrition_plan: nutritionPlanInfo
     };
 }
 
@@ -33,9 +128,13 @@ const AthleteDetailsPage: React.FC = () => {
     
     // State for Program Assignment Modal
     const [showProgramModal, setShowProgramModal] = useState<boolean>(false);
+    
+    // State for Nutrition Plan Assignment Modal
+    const [showNutritionPlanModal, setShowNutritionPlanModal] = useState<boolean>(false);
 
-    // Use the new type for the state
+    // Use the types for the states
     const [currentProgram, setCurrentProgram] = useState<AthleteProgram | null>(null);
+    const [currentNutritionPlan, setCurrentNutritionPlan] = useState<AthleteNutritionPlan | null>(null);
 
     useEffect(() => {
         const fetchAthleteDetails = async () => {
@@ -71,13 +170,14 @@ const AthleteDetailsPage: React.FC = () => {
         fetchAthleteDetails();
     }, [id]);
 
-    // Add a section to fetch the athlete's assigned program
+    // Fetch current program and nutrition plan assignments
     useEffect(() => {
-        const fetchAthleteProgram = async () => {
-            if (!id) return;
-            
+        if (!id) return;
+
+        const fetchAssignments = async () => {
             try {
-                const { data, error } = await supabase
+                // Fetch current program assignment
+                const { data: programData, error: programError } = await supabase
                     .from('assigned_plans')
                     .select(`
                         id,
@@ -87,46 +187,49 @@ const AthleteDetailsPage: React.FC = () => {
                         program:program_templates!program_template_id(id, name, description)
                     `)
                     .eq('athlete_id', id)
+                    .not('program_template_id', 'is', null)
                     .order('created_at', { ascending: false })
                     .limit(1)
                     .maybeSingle();
+
+                if (programError) throw programError;
                 
-                if (error) throw error;
+                if (programData) {
+                    // Transform the data to match our type
+                    setCurrentProgram(transformProgramData(programData));
+                }
+
+                // Fetch current nutrition plan assignment
+                const { data: nutritionData, error: nutritionError } = await supabase
+                    .from('assigned_plans')
+                    .select(`
+                        id,
+                        nutrition_plan_id,
+                        start_date,
+                        assigned_at,
+                        nutrition_plan:nutrition_plans!nutrition_plan_id(id, name, description)
+                    `)
+                    .eq('athlete_id', id)
+                    .is('program_template_id', null)
+                    .not('nutrition_plan_id', 'is', null)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (nutritionError) throw nutritionError;
                 
-                if (data) {
-                    // Transform the data to fix the program property
-                    const formattedProgram: AthleteProgram = {
-                        id: data.id,
-                        program_template_id: data.program_template_id,
-                        start_date: data.start_date,
-                        assigned_at: data.assigned_at,
-                        // Handle the case where program might be returned as an array or object
-                        program: Array.isArray(data.program) && data.program.length > 0 
-                            ? {
-                                id: data.program[0].id,
-                                name: data.program[0].name,
-                                description: data.program[0].description
-                            }
-                            : data.program && typeof data.program === 'object'
-                                ? {
-                                    id: data.program.id,
-                                    name: data.program.name,
-                                    description: data.program.description
-                                }
-                                : undefined
-                    };
-                    setCurrentProgram(formattedProgram);
-                } else {
-                    setCurrentProgram(null);
+                if (nutritionData) {
+                    // Transform the data to match our type
+                    setCurrentNutritionPlan(transformNutritionPlanData(nutritionData));
                 }
             } catch (err) {
-                console.error("Error fetching athlete program:", err);
-                setCurrentProgram(null);
+                console.error("Error fetching athlete assignments:", err);
+                // Don't display error to user, just log it
             }
         };
-        
-        fetchAthleteProgram();
-    }, [id, showProgramModal]);
+
+        fetchAssignments();
+    }, [id]);
 
     const handleUpdateAthlete = async (formData: Partial<UserProfileFull>) => {
         if (!athleteDetails || !id) return;
@@ -206,6 +309,119 @@ const AthleteDetailsPage: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    // Program Assignment Modal success handler
+    const handleProgramAssignmentSuccess = async () => {
+        // Refresh athlete details after program assignment
+        const fetchAthleteDetails = async () => {
+            if (!id) return;
+            try {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) throw error;
+                if (data) {
+                    setAthleteDetails(data as UserProfileFull);
+                }
+            } catch (err) {
+                console.error("Error refreshing athlete details:", err);
+            }
+        };
+        
+        // Also refresh program assignments
+        const fetchCurrentProgram = async () => {
+            if (!id) return;
+            try {
+                const { data, error } = await supabase
+                    .from('assigned_plans')
+                    .select(`
+                        id,
+                        program_template_id,
+                        start_date,
+                        assigned_at,
+                        program:program_templates!program_template_id(id, name, description)
+                    `)
+                    .eq('athlete_id', id)
+                    .not('program_template_id', 'is', null)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (error) throw error;
+                
+                if (data) {
+                    setCurrentProgram(transformProgramData(data));
+                }
+            } catch (err) {
+                console.error("Error refreshing program assignment:", err);
+            }
+        };
+        
+        await Promise.all([fetchAthleteDetails(), fetchCurrentProgram()]);
+        setShowProgramModal(false);
+        setSuccessMessage('Program assigned successfully');
+        setTimeout(() => setSuccessMessage(null), 5000);
+    };
+
+    // Nutrition Plan Assignment Modal success handler
+    const handleNutritionPlanAssignmentSuccess = async () => {
+        // Refresh athlete details 
+        const fetchAthleteDetails = async () => {
+            if (!id) return;
+            try {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) throw error;
+                if (data) {
+                    setAthleteDetails(data as UserProfileFull);
+                }
+            } catch (err) {
+                console.error("Error refreshing athlete details:", err);
+            }
+        };
+        
+        // Also refresh nutrition plan assignments
+        const fetchCurrentNutritionPlan = async () => {
+            if (!id) return;
+            try {
+                const { data, error } = await supabase
+                    .from('assigned_plans')
+                    .select(`
+                        id,
+                        nutrition_plan_id,
+                        start_date,
+                        assigned_at,
+                        nutrition_plan:nutrition_plans!nutrition_plan_id(id, name, description)
+                    `)
+                    .eq('athlete_id', id)
+                    .is('program_template_id', null)
+                    .not('nutrition_plan_id', 'is', null)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (error) throw error;
+                
+                if (data) {
+                    setCurrentNutritionPlan(transformNutritionPlanData(data));
+                }
+            } catch (err) {
+                console.error("Error refreshing nutrition plan assignment:", err);
+            }
+        };
+        
+        await Promise.all([fetchAthleteDetails(), fetchCurrentNutritionPlan()]);
+        setShowNutritionPlanModal(false);
+        setSuccessMessage('Nutrition plan assigned successfully');
+        setTimeout(() => setSuccessMessage(null), 5000);
     };
 
     if (isLoading) {
@@ -331,47 +547,75 @@ const AthleteDetailsPage: React.FC = () => {
                             >
                                 Manage Programs
                             </Button>
+                            <Button 
+                                onClick={() => setShowNutritionPlanModal(true)}
+                                variant="secondary"
+                            >
+                                Manage Nutrition Plan
+                            </Button>
                         </div>
                     </div>
 
                     {/* Training Program Card */}
                     <Card className="p-6 mb-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-medium text-gray-800 dark:text-white">Training Program</h3>
-                            <Button 
-                                onClick={() => setShowProgramModal(true)}
-                                variant="primary"
-                                size="sm"
-                            >
-                                {currentProgram ? 'Change Program' : 'Assign Program'}
-                            </Button>
-                        </div>
-                        
-                        {currentProgram ? (
+                        <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Training Program</h3>
+                        {currentProgram && currentProgram.program ? (
                             <div>
-                                <div className="flex flex-col mb-4 md:flex-row md:justify-between md:items-center">
-                                    <div>
-                                        <h3 className="text-lg font-medium text-gray-800 dark:text-white">{currentProgram.program?.name || "Unknown Program"}</h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            Assigned on {new Date(currentProgram.assigned_at).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                    <div className="mt-2 md:mt-0">
-                                        <span className="inline-flex px-2 py-1 text-xs font-semibold leading-5 text-green-800 bg-green-100 rounded-full dark:bg-green-900/30 dark:text-green-200">
-                                            Active
-                                        </span>
-                                    </div>
-                                </div>
-                                
-                                {currentProgram.program?.description && (
-                                    <div className="p-3 mt-4 text-sm text-gray-700 rounded bg-gray-50 dark:bg-gray-700/50 dark:text-gray-300">
-                                        {currentProgram.program.description}
-                                    </div>
+                                <p className="mb-2 font-medium text-indigo-600 dark:text-indigo-400">{currentProgram.program.name}</p>
+                                {currentProgram.program.description && (
+                                    <p className="text-gray-600 dark:text-gray-400">{currentProgram.program.description}</p>
                                 )}
+                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                    Assigned on {new Date(currentProgram.start_date).toLocaleDateString()}
+                                </p>
+                                <button 
+                                    onClick={() => setShowProgramModal(true)}
+                                    className="px-3 py-1 mt-2 text-sm text-indigo-600 bg-indigo-100 rounded hover:bg-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-800/40"
+                                >
+                                    Change Program
+                                </button>
                             </div>
                         ) : (
-                            <div className="p-4 text-center text-gray-600 rounded dark:text-gray-400 bg-gray-50 dark:bg-gray-700/30">
-                                No program assigned yet. Click "Assign Program" to get started.
+                            <div>
+                                <p className="text-gray-600 dark:text-gray-400">No program assigned yet.</p>
+                                <button 
+                                    onClick={() => setShowProgramModal(true)}
+                                    className="px-3 py-1 mt-2 text-sm text-indigo-600 bg-indigo-100 rounded hover:bg-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-800/40"
+                                >
+                                    Assign Program
+                                </button>
+                            </div>
+                        )}
+                    </Card>
+
+                    {/* Nutrition Plan Card */}
+                    <Card className="p-6 mb-6">
+                        <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Nutrition Plan</h3>
+                        {currentNutritionPlan && currentNutritionPlan.nutrition_plan ? (
+                            <div>
+                                <p className="mb-2 font-medium text-indigo-600 dark:text-indigo-400">{currentNutritionPlan.nutrition_plan.name}</p>
+                                {currentNutritionPlan.nutrition_plan.description && (
+                                    <p className="text-gray-600 dark:text-gray-400">{currentNutritionPlan.nutrition_plan.description}</p>
+                                )}
+                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                    Assigned on {new Date(currentNutritionPlan.start_date).toLocaleDateString()}
+                                </p>
+                                <button 
+                                    onClick={() => setShowNutritionPlanModal(true)}
+                                    className="px-3 py-1 mt-2 text-sm text-indigo-600 bg-indigo-100 rounded hover:bg-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-800/40"
+                                >
+                                    Change Nutrition Plan
+                                </button>
+                            </div>
+                        ) : (
+                            <div>
+                                <p className="text-gray-600 dark:text-gray-400">No nutrition plan assigned yet.</p>
+                                <button 
+                                    onClick={() => setShowNutritionPlanModal(true)}
+                                    className="px-3 py-1 mt-2 text-sm text-indigo-600 bg-indigo-100 rounded hover:bg-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-800/40"
+                                >
+                                    Assign Nutrition Plan
+                                </button>
                             </div>
                         )}
                     </Card>
@@ -548,29 +792,16 @@ const AthleteDetailsPage: React.FC = () => {
                 <ProgramAssignmentModal
                     athleteId={athleteDetails.id}
                     onClose={() => setShowProgramModal(false)}
-                    onSuccess={() => {
-                        // Refresh athlete details after program assignment
-                        const fetchAthleteDetails = async () => {
-                            if (!id) return;
-                            try {
-                                const { data, error } = await supabase
-                                    .from('profiles')
-                                    .select('*')
-                                    .eq('id', id)
-                                    .single();
+                    onSuccess={handleProgramAssignmentSuccess}
+                />
+            )}
 
-                                if (error) throw error;
-                                if (data) {
-                                    setAthleteDetails(data as UserProfileFull);
-                                }
-                            } catch (err) {
-                                console.error("Error refreshing athlete details:", err);
-                            }
-                        };
-                        
-                        fetchAthleteDetails();
-                        setShowProgramModal(false);
-                    }}
+            {/* Nutrition Plan Assignment Modal */}
+            {athleteDetails && showNutritionPlanModal && (
+                <NutritionPlanAssignmentModal
+                    athleteId={athleteDetails.id}
+                    onClose={() => setShowNutritionPlanModal(false)}
+                    onSuccess={handleNutritionPlanAssignmentSuccess}
                 />
             )}
         </div>

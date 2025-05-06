@@ -24,7 +24,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onClick }) => {
 
   return (
     <div 
-      className="flex flex-col overflow-hidden transition-shadow duration-200 border rounded-lg shadow-sm cursor-pointer dark:bg-gray-750 dark:border-gray-700 hover:shadow-md"
+      className="flex flex-col overflow-hidden transition-shadow duration-200 border rounded-lg shadow-sm cursor-pointer dark:bg-gray-700 dark:border-gray-700 hover:shadow-md"
       onClick={() => onClick(exercise)}
     >
       {/* Exercise Image/Video */}

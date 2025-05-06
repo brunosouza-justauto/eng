@@ -113,16 +113,16 @@ const AdminLayout = () => {
                   active={location.pathname.startsWith('/admin/mealplans')} 
                 />
                 <NavItem 
-                  to="/admin/settings" 
-                  icon={<FiSettings />} 
-                  label="Settings" 
-                  active={location.pathname.startsWith('/admin/settings')} 
-                />
-                <NavItem 
                   to="/admin/checkins" 
                   icon={<FiMessageCircle />} 
                   label="Check-ins" 
                   active={location.pathname.startsWith('/admin/checkins')} 
+                />
+                <NavItem 
+                  to="/admin/settings" 
+                  icon={<FiSettings />} 
+                  label="Settings" 
+                  active={location.pathname.startsWith('/admin/settings')} 
                 />
               </nav>
               
