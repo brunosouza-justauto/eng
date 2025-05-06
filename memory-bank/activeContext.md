@@ -1,49 +1,47 @@
 # Active Context
 
 ## Current Focus
-We have completed all of the requested improvements to the Program Builder functionality:
+We have made significant improvements to two critical areas of the application:
 
-### Program Builder Improvements Completed
-1. **Layout Adjustment** ✅
-   - Changed layout widths: 40% for Exercise Search panel and 60% for Workout Form Fields and Selected Exercises panel
-   
-2. **Exercise Search Enhancement** ✅
-   - Added missing images to exercise cards
-   - Restored muscle group search option with a dropdown
-   
-3. **Exercise Interaction Improvements** ✅
-   - Restored drag and drop functionality from Exercise Search panel to Selected Exercises panel
-   - Enabled dropping exercises between existing selected exercises
-   - Implemented auto-expand of newly added exercises and collapse of existing ones
-   
-4. **UI Clean-up** ✅
-   - Hidden "Week Number" and "Order in Program" fields temporarily
-   - Removed the Add Exercise button and modal (using left panel instead)
-   - Fixed the checkbox UI by moving it to the left side, away from the delete button
-   
-5. **Set Types Enhancement** ✅
-   - Updated set types to include all from the SETTYPES.md documentation
-   - Added informative tooltips explaining each set type
+1. **Exercise Data Fetching Performance** ✅
+   - Optimized the exercise data fetching by only retrieving needed exercises instead of the entire database
+   - Fixed performance issues when viewing workout details
+   - Improved API interaction with HeyGainz service
+
+2. **Dashboard Workout Display** ✅
+   - Enhanced the NextWorkoutWidget to show the correct workout based on day of week
+   - Added REST DAY display when no workout is assigned for the current day
+   - Fixed issue with multiple workouts in a program template
+   - Improved the workout information display with day names
 
 ## Recent Changes
-- Updated layout of the Program Builder with 40/60 split between exercise search and workout form
-- Added muscle group search dropdown for filtering
-- Enhanced exercise cards with images
-- Moved checkbox to the left side to avoid overlap with the delete button
-- Added drag and drop functionality for exercises
-- Removed redundant UI elements (Add Exercise button)
-- Auto-expand newly added exercises
-- Updated SetType enum with all options from SETTYPES.md
-- Added tooltips with explanations for all set types
+
+### Exercise Service Improvements
+- Implemented `getExercisesByIds()` function to fetch only specific exercises needed
+- Replaced inefficient `getAllExercisesCached()` usage in workout view
+- Updated `getExerciseById()` to directly fetch a single exercise from the API
+- Added developer documentation for best practices with exercise fetching
+- Created a README file for the services directory
+
+### NextWorkoutWidget Improvements
+- Removed limit on workouts fetched from program templates
+- Added logic to display the workout corresponding to current day of week
+- Implemented REST DAY display with program overview
+- Removed unused week_number field references
+- Added helper functions for day name conversion
+- Updated UI to show day names instead of numbers
+- Fixed TypeScript type issues for SetType mapping
 
 ## Next Steps
-- Test the implemented changes
-- Address TypeScript linter errors
-- Conduct user testing to validate the improvements
-- Consider potential refinements to the tooltips and UI
+- Monitor performance with the optimized exercise fetching
+- Consider applying similar optimization to other areas of the application
+- Verify REST DAY display logic with extensive testing
+- Update database to formally remove the week_number column if no longer needed
+- Consider expanding the NextWorkoutWidget to also show upcoming workouts
 
 ## Active Decisions and Considerations
-- Set type tooltips use a hover pattern for good user experience
-- Exercise cards in the search panel now have a consistent design with images
-- Changes were implemented in modular steps to maintain stability
-- Some TypeScript type issues need to be addressed in a future update
+- Exercise fetching now follows the principle of only loading what's needed
+- We're using day of week (1-7 for Monday-Sunday) for workout scheduling
+- The REST DAY display provides context by showing all workouts in the program
+- Documentation has been added to guide future development
+- Performance issues with large datasets should be proactively addressed throughout the application

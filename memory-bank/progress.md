@@ -74,6 +74,10 @@
 - Admin interface for coaches to manage athletes and programs
 - User onboarding flow with multi-step form
 - Responsive layouts for both admin and athlete views
+- Program template assignment to athletes
+- Displaying assigned programs in user profiles and dashboards
+- REST DAY display when no workout is assigned for the current day
+- Dynamic workout display based on day of week
 
 ### UI Components
 - Card component for consistent content containers
@@ -85,40 +89,43 @@
 - Responsive navigation sidebar for both Admin and Main layouts
 - Footer component with consistent positioning
 
-### Layout Improvements
-- Fully responsive navigation with mobile slide-in menus
-- Proper footer positioning spanning the full width of the page
-- Consistent layout structure between Admin and Main areas
-- "Back to App" navigation from Admin to Main app
-- Mobile-friendly athlete management with card-based layout on small screens
+### Performance Optimizations
+- Optimized exercise data fetching to only load needed exercises
+- Efficient API interactions with HeyGainz service
+- Improved loading patterns for workout displays
+- Cache handling for exercise data
 
 ## Recently Completed
 
-### API Integration
-- ✅ Updated Exercise DB API from wger to HeyGainz API
-- ✅ Updated documentation across project to reflect new API
-- ✅ Documented new API endpoints for exercises and muscle groups
+### Program Assignment Flow
+- ✅ Implemented program assignment to athletes
+- ✅ Added display of assigned programs in user management view
+- ✅ Pre-selecting current program in assignment modal
+- ✅ Updated types to reflect program assignment data structure
+- ✅ Improved usability with clear "Change Program" UI
 
-### Layout and Navigation
-- ✅ Fixed footer placement across all layouts
-- ✅ Improved sidebar styling consistency between Admin and Main layouts
-- ✅ Added "Back to App" button in Admin sidebar
-- ✅ Implemented responsive athlete list with card view on mobile
-- ✅ Enhanced mobile navigation with proper animation and backdrop
-- ✅ Improved touch targets for mobile interaction
+### Exercise Service Optimization
+- ✅ Created `getExercisesByIds()` function to fetch only specific exercises
+- ✅ Improved `getExerciseById()` to directly fetch from API
+- ✅ Added documentation on best practices for exercise data fetching
+- ✅ Fixed workout view performance issues when loading exercises
+- ✅ Created service documentation in README.md
 
-### UI Components
-- ✅ Standardized NavItem component across layouts
-- ✅ Created reusable status badges for athlete management
-- ✅ Enhanced button styles for better touch interaction
-- ✅ Implemented conditional rendering based on screen size
+### NextWorkoutWidget Improvements
+- ✅ Fixed issue with showing only one workout from assigned program
+- ✅ Implemented day-of-week based workout display
+- ✅ Added REST DAY display when no workout is assigned for the day
+- ✅ Removed unused week_number references
+- ✅ Enhanced UI with day names instead of numbers
+- ✅ Added comprehensive view of all workouts in the program
+- ✅ Fixed TypeScript type issues with SetType mapping
 
 ## In Progress
 
-- Comprehensive review of all data tables for mobile responsiveness
-- Form component responsive behavior
-- Accessibility improvements for interactive elements
-- Loading skeleton states for improved perceived performance
+- Additional performance optimization for data-intensive operations
+- Refining program assignment workflow
+- Improving day-based workout scheduling
+- Further optimizations for API service interactions
 
 ## What's Left to Build
 
@@ -139,6 +146,11 @@
 - Real-time updates for check-ins
 - Enhanced reporting and analytics
 - Export functionality for data
+
+## Known Issues
+- Some TypeScript linter errors in the code need to be addressed
+- Database schema still contains unused week_number column
+- Tooltip positioning might need adjustment for better mobile UI
 
 ## What's Working
 
