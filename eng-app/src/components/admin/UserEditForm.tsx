@@ -3,6 +3,8 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UserProfileFull } from '../../types/profiles'; // Import shared type
+import { SubmitHandler } from 'react-hook-form';
+import { Resolver } from 'react-hook-form';
 
 interface UserEditFormProps {
     user: UserProfileFull;
@@ -78,13 +80,14 @@ const userEditSchema = z.object({
     lifestyle_schedule_notes: z.string().nullable().optional(),
     supplements_meds: z.string().nullable().optional(),
     motivation_readiness: z.string().nullable().optional(),
+    gender: z.string().min(1, 'Gender is required'),
 });
 
 type FormData = z.infer<typeof userEditSchema>;
 
 const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) => {
     const methods = useForm<FormData>({
-        resolver: zodResolver(userEditSchema) as any,
+        resolver: zodResolver(userEditSchema) as Resolver<FormData>,
         defaultValues: {
             username: user.username || '',
             role: user.role || 'athlete',
@@ -116,18 +119,19 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
             lifestyle_schedule_notes: user.lifestyle_schedule_notes || null,
             supplements_meds: user.supplements_meds || null,
             motivation_readiness: user.motivation_readiness || null,
+            gender: user.gender || '',
         }
     });
 
     const { handleSubmit, register, formState: { errors } } = methods;
 
-    const handleFormSubmit = (data: FormData) => {
+    const handleFormSubmit: SubmitHandler<FormData> = (data) => {
         onSave(data);
     };
 
     return (
         <FormProvider {...methods}>
-            <form onSubmit={handleSubmit(handleFormSubmit as any)} className="space-y-4">
+            <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
                 <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Athlete Information</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -200,6 +204,19 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                             className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         />
                         {errors.body_fat_percentage && <p className="mt-1 text-sm text-red-600">{errors.body_fat_percentage.message}</p>}
+                    </div>
+                    <div>
+                        <label htmlFor="gender" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender</label>
+                        <select 
+                            id="gender"
+                            {...register('gender')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                        {errors.gender && <p className="mt-1 text-sm text-red-600">{errors.gender.message}</p>}
                     </div>
                 </div>
                 

@@ -21,7 +21,7 @@ import FormInput from '../ui/FormInput'; // Import the shared component
 
 //     return (
 //         <div className="mb-4">
-//             <label htmlFor={name} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+//             <label htmlFor={name} className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
 //                 {label} {required && <span className="text-red-500">*</span>}
 //             </label>
 //             <input
@@ -45,6 +45,19 @@ const Step1_Demographics: React.FC = () => {
             <FormInput name="weight_kg" label="Current Weight (kg)" type="number" placeholder="e.g., 75.5" step="0.1"/>
             <FormInput name="height_cm" label="Height (cm)" type="number" placeholder="e.g., 180" step="0.1"/>
             <FormInput name="body_fat_percentage" label="Estimated Body Fat (%)" type="number" placeholder="e.g., 15" step="0.1"/>
+            <div className="mb-4">
+                <label htmlFor="gender" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Gender <span className="text-red-500">*</span>
+                </label>
+                <select
+                    id="gender"
+                    className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                >
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                </select>
+            </div>
             {/* Add more fields as needed for this step */}
         </div>
     );

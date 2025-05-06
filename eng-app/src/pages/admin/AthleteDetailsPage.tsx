@@ -108,7 +108,11 @@ const AthleteDetailsPage: React.FC = () => {
                                 description: data.program[0].description
                             }
                             : data.program && typeof data.program === 'object'
-                                ? data.program
+                                ? {
+                                    id: data.program.id,
+                                    name: data.program.name,
+                                    description: data.program.description
+                                }
                                 : undefined
                     };
                     setCurrentProgram(formattedProgram);
@@ -167,7 +171,8 @@ const AthleteDetailsPage: React.FC = () => {
                 lifestyle_water_intake_liters: formData.lifestyle_water_intake_liters,
                 lifestyle_schedule_notes: formData.lifestyle_schedule_notes,
                 supplements_meds: formData.supplements_meds,
-                motivation_readiness: formData.motivation_readiness
+                motivation_readiness: formData.motivation_readiness,
+                gender: formData.gender,
             };
             
             // Remove undefined properties to avoid overwriting existing DB values
@@ -407,6 +412,10 @@ const AthleteDetailsPage: React.FC = () => {
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Body Fat %</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.body_fat_percentage || 'Not provided'}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Gender</p>
+                                <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.gender || 'Not provided'}</p>
                             </div>
                         </div>
                     </Card>

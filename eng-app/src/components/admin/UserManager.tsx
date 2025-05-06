@@ -293,7 +293,7 @@ const UserManager: React.FC = () => {
     };
 
     return (
-        <div className="container mx-auto py-6 px-4">
+        <div className="container px-4 py-6 mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Athlete Management</h1>
                 <div className="flex space-x-2">
@@ -314,7 +314,7 @@ const UserManager: React.FC = () => {
             )}
 
             {error && (
-                <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded dark:bg-red-900/20 dark:border-red-500 dark:text-red-400" role="alert">
+                <div className="p-4 mb-6 text-red-700 bg-red-100 border-l-4 border-red-500 rounded dark:bg-red-900/20 dark:border-red-500 dark:text-red-400" role="alert">
                     <p>{error}</p>
                 </div>
             )}
@@ -369,12 +369,12 @@ const UserManager: React.FC = () => {
             </div>
 
             {isLoading ? (
-                <div className="text-center py-10">
+                <div className="py-10 text-center">
                     <p className="text-gray-500 dark:text-gray-400">Loading athletes...</p>
                 </div>
             ) : !isMobileView && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                    <div className="p-4 border-b dark:border-gray-700 flex items-center justify-between">
+                <div className="overflow-hidden bg-white rounded-lg shadow-md dark:bg-gray-800">
+                    <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
                         <div className="flex items-center">
                             <div className="relative w-64">
                                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -382,7 +382,7 @@ const UserManager: React.FC = () => {
                                 </div>
                                 <input
                                     type="text"
-                                    className="pl-10 pr-4 py-2 w-full border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    className="w-full py-2 pl-10 pr-4 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                     placeholder="Search athletes..."
                                     // Add search functionality if needed
                                 />
@@ -402,6 +402,7 @@ const UserManager: React.FC = () => {
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Onboarded</th>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Joined</th>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Program</th>
+                                    <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Gender</th>
                                     <th scope="col" className="relative px-6 py-3">
                                         <span className="sr-only">Actions</span>
                                     </th>
@@ -433,6 +434,7 @@ const UserManager: React.FC = () => {
                                         <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">
                                             {getActiveProgramName(user)}
                                         </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{user.gender ?? 'N/A'}</td>
                                         <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                                             {!user.user_id && (
                                                 <button 
@@ -518,6 +520,10 @@ const UserManager: React.FC = () => {
                                             {renderProgramBadge(user)}
                                         </div>
                                     </div>
+                                    <div>
+                                        <p className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Gender</p>
+                                        <p className="mt-1 text-sm text-gray-900 dark:text-white">{user.gender ?? 'N/A'}</p>
+                                    </div>
                                 </div>
                                 
                                 <div className="flex justify-end mt-4 space-x-3">
@@ -575,7 +581,7 @@ const UserManager: React.FC = () => {
                                 </button>
                                 <button
                                     onClick={() => setShowDeleteConfirmation(false)}
-                                    className="px-4 py-2 text-base font-medium border border-gray-300 rounded-md shadow-sm text-gray-700 dark:text-gray-300 dark:border-gray-600 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                                    className="px-4 py-2 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm dark:text-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300"
                                 >
                                     Cancel
                                 </button>

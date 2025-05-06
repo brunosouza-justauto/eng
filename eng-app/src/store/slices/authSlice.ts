@@ -6,9 +6,14 @@ import type { RootState } from '../store'; // Import RootState type
 export interface ProfileData {
   id: string; // Profile table's primary key (uuid)
   user_id: string; // Foreign key to auth.users
+  username: string | null; // Add username field
   email: string | null; // Add email field
   onboarding_complete: boolean;
   role: string; // Add the role field
+  height_cm: number | null; // Add height_cm field
+  weight_kg: number | null; // Add weight_kg field
+  age: number | null; // Add age field
+  gender: 'male' | 'female' | null; // Add gender field
   // Add other profile fields you might want in Redux state later (username, role, etc.)
 }
 

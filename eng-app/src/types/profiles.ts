@@ -24,6 +24,7 @@ export interface UserProfileListItem {
     invitation_status?: string | null; // 'pending', 'accepted', etc.
     invited_at?: string | null; // When the invitation was sent
     program_assignments?: ProgramAssignment[]; // Their assigned programs
+    gender?: string | null;
 }
 
 // Complete profile data with all fields
