@@ -113,7 +113,7 @@ const MealPlanner: React.FC = () => {
                 console.log("Form values set from BMR Calculator data");
                 
                 // Clear localStorage
-                localStorage.removeItem('newMealPlanData');
+                //localStorage.removeItem('newMealPlanData');
             } catch (error) {
                 console.error('Error parsing meal plan data from BMR Calculator:', error);
             }
@@ -146,21 +146,12 @@ const MealPlanner: React.FC = () => {
                 fat_grams: selectedPlan.fat_grams?.toString() ?? '',
                 description: selectedPlan.description ?? ''
             });
+        } else {
+            reset({ name: '', total_calories: '', protein_grams: '', carbohydrate_grams: '', fat_grams: '', description: '' });
         }
     }, [selectedPlan, reset]);
 
-    const handleCreateNew = () => { 
-        setIsCreating(true);
-        setSelectedPlan(null);
-        reset();
-        // Also set values explicitly to ensure they're applied
-        methods.setValue('name', '');
-        methods.setValue('total_calories', '');
-        methods.setValue('protein_grams', '');
-        methods.setValue('carbohydrate_grams', '');
-        methods.setValue('fat_grams', '');
-        methods.setValue('description', '');
-    };
+    const handleCreateNew = () => { setIsCreating(true); setSelectedPlan(null); reset(); };
     const handleEdit = (plan: NutritionPlanListItem) => { setSelectedPlan(plan); setIsCreating(false); };
     const handleCancel = () => { setIsCreating(false); setSelectedPlan(null); reset(); };
 

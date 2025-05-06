@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { ProfileData } from '../../store/slices/authSlice';
+import { useNavigate } from 'react-router-dom';
 
 const BMRCalculatorPage: React.FC = () => {
+    const navigate = useNavigate();
     // const profile = useSelector(selectProfile);
     const [activityLevel, setActivityLevel] = useState('1.2'); // Sedentary by default
     const [proteinMultiplier, setProteinMultiplier] = useState(2.0);
@@ -301,6 +303,27 @@ const BMRCalculatorPage: React.FC = () => {
                         </tr>
                     </tbody>
                 </table>
+                
+                <div className="mt-4 text-center">
+                    <button 
+                        onClick={() => {
+                            // Store the calculated values in localStorage
+                            const mealPlanData = {
+                                name: 'New Meal Plan',
+                                total_calories: calorieTarget.toFixed(0),
+                                protein_grams: (proteinMultiplier * parseFloat(weight)).toFixed(0),
+                                carbohydrate_grams: (carbMultiplier * parseFloat(weight)).toFixed(0),
+                                fat_grams: (fatMultiplier * parseFloat(weight)).toFixed(0),
+                                description: `Created from BMR Calculator. Goal: ${goal.charAt(0).toUpperCase() + goal.slice(1)}. BMR: ${bmr.toFixed(0)} kcal/day. TDEE: ${tdee.toFixed(0)} kcal/day.${selectedAthlete ? ` Athlete: ${selectedAthlete.username}.` : ''}`
+                            };
+                            localStorage.setItem('newMealPlanData', JSON.stringify(mealPlanData));
+                            navigate('/admin/mealplans');
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    >
+                        Create Meal Plan with These Values
+                    </button>
+                </div>
             </div>
         </div>
     );
