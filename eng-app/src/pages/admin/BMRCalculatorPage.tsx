@@ -201,7 +201,7 @@ const BMRCalculatorPage: React.FC = () => {
                     </select>
                 </div>
             </div>
-            <div className="grid grid-cols-1 gap-4 mb-4 sm:grid-cols-3">
+            <div className="grid items-end grid-cols-1 gap-4 mb-4 sm:grid-cols-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Protein Multiplier:</label>
                     <input type="number" value={proteinMultiplier} onChange={(e) => setProteinMultiplier(parseFloat(e.target.value))} className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
@@ -211,8 +211,13 @@ const BMRCalculatorPage: React.FC = () => {
                     <input type="number" value={fatMultiplier} onChange={(e) => setFatMultiplier(parseFloat(e.target.value))} className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Carbs Multiplier:</label>
-                    <input type="number" value={carbMultiplier} onChange={(e) => setCarbMultiplier(parseFloat(e.target.value))} className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Carbs Multiplier:</label>
+                        <input type="number" value={carbMultiplier} onChange={(e) => setCarbMultiplier(parseFloat(e.target.value))} className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />                
+                </div>
+                <div>
+                    <button onClick={calculateBMR} className="px-3 py-2 ml-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Calculate
+                    </button>
                 </div>
             </div>
             <div className="mb-4">
@@ -223,9 +228,6 @@ const BMRCalculatorPage: React.FC = () => {
                     <li>Very intense exercise: 2+ hours of elevated heart rate activity.</li>
                 </ul>
             </div>
-            <button onClick={calculateBMR} className="inline-flex justify-center px-4 py-2 mt-4 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Recalculate
-            </button>
             <div className="mt-4">
                 <h4 className="text-lg font-semibold text-gray-800 dark:text-white">Energy Expenditure</h4>
                 <table className="min-w-full mt-2 divide-y divide-gray-200 dark:divide-gray-700">
