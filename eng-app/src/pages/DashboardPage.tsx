@@ -5,6 +5,7 @@ import { supabase } from '../services/supabaseClient'; // Import supabase client
 import NextWorkoutWidget from '../components/dashboard/NextWorkoutWidget';
 import NutritionWidget from '../components/dashboard/NutritionWidget';
 import StepGoalWidget from '../components/dashboard/StepGoalWidget';
+import CheckInReminderWidget from '../components/dashboard/CheckInReminderWidget';
 
 // Define types for the fetched data
 interface AssignedPlan {
@@ -114,7 +115,7 @@ const DashboardPage: React.FC = () => {
         </div>
         
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3, 4].map((i) => (
             <div key={i} className="overflow-hidden bg-white rounded-lg shadow-md dark:bg-gray-800 animate-pulse">
               <div className="p-4">
                 <div className="w-3/4 h-6 mb-4 bg-gray-200 rounded dark:bg-gray-700"></div>
@@ -168,6 +169,9 @@ const DashboardPage: React.FC = () => {
         </div>
         <div className="col-span-1">
           <StepGoalWidget dailyGoal={stepGoal?.daily_steps} />
+        </div>
+        <div className="col-span-1">
+          <CheckInReminderWidget />
         </div>
       </div>
     </div>

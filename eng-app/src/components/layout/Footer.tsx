@@ -23,7 +23,7 @@ const Footer: React.FC = () => {
               Dashboard
             </Link>
             <Link to="/check-in/new" className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
-              Check-in
+              Weekly Check-in
             </Link>
             <Link to="/history" className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
               History

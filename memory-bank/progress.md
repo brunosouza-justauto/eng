@@ -104,6 +104,37 @@
 
 ## Recently Completed
 
+### Check-In System Improvements
+- Fixed foreign key constraint error when submitting check-ins by using profile.user_id
+- Added enhanced logging for better diagnosis of check-in submission issues
+- Fixed issue with "No athletes found" in the admin check-ins area when coaches have athletes
+- Corrected issue where coaches couldn't see their assigned athletes in check-in review 
+- Updated CheckInReview component to properly use profile data for coach identification
+- Enhanced athlete check-in list with improved UI and better empty states handling
+- Implemented standardized dropdown selects for adherence options in check-in form
+- Added consistent rating scales for wellness metrics (sleep quality, stress, etc.)
+- Created reusable UI components for standardizing form inputs
+- Improved data flow between coach profiles and athlete listings
+- Enhanced user experience with better visual styling and organization
+- Added missing body metrics fields (arms, chest, thighs) to the athlete check-in form
+- Added menstrual cycle notes field to the wellness section for comprehensive tracking
+- Aligned form fields with the data structure used in the check-in review component
+- Made critical metrics mandatory (weight, sleep, wellness ratings, adherence, notes)
+- Added clear visual indicators for required fields with asterisk (*) notation
+- Enhanced form validation to provide specific error messages for required fields
+- Fixed CheckInTimeline component to use selectProfile instead of selectUser
+- Improved check-in history display with a comprehensive card-based layout
+- Enhanced timeline UI to show all body metrics and wellness data in organized sections
+- Added adherence metrics display to the check-in history timeline
+- Implemented better loading states and error handling for check-in history
+- Expanded data fetch in timeline to include all available body and wellness metrics
+- Improved media display in the check-in history with larger thumbnails
+- Added styled section cards for better visual organization of check-in history data
+- Fixed metrics display in check-in history to correctly show values when they exist
+- Added helper function to safely display metric values including zero values
+- Enhanced debugging with additional console logging for data structure inspection
+- Improved data transformation to handle nested array structures from Supabase correctly
+
 ### Dashboard Display Improvements
 - Fixed issue where dashboard wouldn't display both workout programs and nutrition plans simultaneously
 - Enhanced the DashboardPage component to properly fetch program and nutrition plan assignments separately

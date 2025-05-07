@@ -23,6 +23,18 @@ We are implementing a comprehensive Meal Planning feature for the application:
 
 ## Recent Changes
 
+### Check-In Form and Review Improvements
+- Fixed foreign key constraint error when submitting check-ins by using correct user_id from profile
+- Added improved logging for check-in submission process to help diagnose future issues
+- Fixed issue with "No athletes found" in the admin check-ins area
+- Updated CheckInReview component to use selectProfile instead of selectUser for correct coach ID
+- Enhanced athlete check-in list with improved UI and better handling of empty states
+- Added standardized dropdown selects for adherence fields and rating scales in the check-in form
+- Implemented consistent rating scales for wellness metrics (sleep quality, stress, fatigue, etc.)
+- Created reusable SelectInput component for better form standardization
+- Fixed data flow between coach profiles and athlete listings
+- Improved label clarity and visual hierarchy throughout the check-in interface
+
 ### Dashboard Improvements
 - Fixed issue where dashboard wouldn't show both workout plans and nutrition plans simultaneously
 - Updated DashboardPage component to fetch program assignments and nutrition plan assignments separately

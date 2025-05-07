@@ -88,7 +88,7 @@ const MainLayout: React.FC = () => {
                 <NavItem 
                   to="/check-in/new" 
                   icon={<FiPlusCircle />} 
-                  label="Check-in" 
+                  label="Weekly Check-in" 
                   active={location.pathname.startsWith('/check-in')} 
                 />
                 

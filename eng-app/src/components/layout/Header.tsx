@@ -42,7 +42,7 @@ const Header: React.FC = () => {
                     {isAuthenticated && (
                         <nav className="hidden md:flex space-x-4">
                             <NavLink to="/dashboard" className={navLinkClass}>Dashboard</NavLink>
-                            <NavLink to="/check-in/new" className={navLinkClass}>Check-in</NavLink>
+                            <NavLink to="/check-in/new" className={navLinkClass}>Weekly Check-in</NavLink>
                             <NavLink to="/history" className={navLinkClass}>History</NavLink>
                             {/* Conditional Admin Link */}
                             {profile?.role === 'coach' && (
@@ -89,7 +89,7 @@ const Header: React.FC = () => {
                 <div className="md:hidden absolute top-16 inset-x-0 p-2 transition transform origin-top-right z-50 shadow-lg ring-1 ring-black ring-opacity-5 bg-white dark:bg-gray-800 divide-y divide-gray-50 dark:divide-gray-700">
                     <div className="pt-2 pb-3 space-y-1">
                         <NavLink to="/dashboard" className={(props) => `${navLinkClass(props)} block`}>Dashboard</NavLink>
-                        <NavLink to="/check-in/new" className={(props) => `${navLinkClass(props)} block`}>Check-in</NavLink>
+                        <NavLink to="/check-in/new" className={(props) => `${navLinkClass(props)} block`}>Weekly Check-in</NavLink>
                         <NavLink to="/history" className={(props) => `${navLinkClass(props)} block`}>History</NavLink>
                         {profile?.role === 'coach' && (
                             <NavLink to="/admin" className={(props) => `${navLinkClass(props)} block`}>Admin</NavLink>

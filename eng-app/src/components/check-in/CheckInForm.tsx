@@ -3,7 +3,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSelector } from 'react-redux';
-import { selectUser } from '../../store/slices/authSlice';
+import { selectProfile } from '../../store/slices/authSlice';
 import { supabase } from '../../services/supabaseClient';
 import FormInput from '../ui/FormInput';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,9 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 const checkInSchema = z.object({
     // Body Metrics
     weight_kg: z.coerce.number({invalid_type_error: 'Weight must be a number'})
-                   .positive()
-                   .optional()
-                   .nullable(),
+                   .positive('Weight must be greater than 0'),
     body_fat_percentage: z.coerce.number({invalid_type_error: 'Body fat % must be a number'})
                    .min(0)
                    .max(100)
@@ -22,22 +20,25 @@ const checkInSchema = z.object({
                    .nullable(),
     waist_cm: z.coerce.number().positive().optional().nullable(),
     hip_cm: z.coerce.number().positive().optional().nullable(),
-    // Add other body measurements (chest, arm, thigh...)
+    // Add other body measurements 
+    arm_cm: z.coerce.number().positive().optional().nullable(),
+    chest_cm: z.coerce.number().positive().optional().nullable(),
+    thigh_cm: z.coerce.number().positive().optional().nullable(),
 
     // Wellness Metrics
-    sleep_hours: z.coerce.number().nonnegative().max(24).optional().nullable(),
-    sleep_quality: z.coerce.number().int().min(1).max(5).optional().nullable(), // 1-5 scale
-    stress_level: z.coerce.number().int().min(1).max(5).optional().nullable(), // 1-5 scale
-    fatigue_level: z.coerce.number().int().min(1).max(5).optional().nullable(), // 1-5 scale
+    sleep_hours: z.coerce.number().nonnegative().max(24, 'Sleep hours must be between 0 and 24'),
+    sleep_quality: z.coerce.number().int().min(1).max(5), // 1-5 scale
+    stress_level: z.coerce.number().int().min(1).max(5), // 1-5 scale
+    fatigue_level: z.coerce.number().int().min(1).max(5), // 1-5 scale
     digestion: z.string().trim().optional().nullable(),
-    motivation_level: z.coerce.number().int().min(1).max(5).optional().nullable(), // 1-5 scale
-    // menstrual_cycle_notes: z.string().trim().optional().nullable(),
+    motivation_level: z.coerce.number().int().min(1).max(5), // 1-5 scale
+    menstrual_cycle_notes: z.string().trim().optional().nullable(),
 
     // Adherence
-    diet_adherence: z.string().trim().optional().nullable(), // Consider enum/select later
-    training_adherence: z.string().trim().optional().nullable(), // Consider enum/select later
-    steps_adherence: z.string().trim().optional().nullable(), // Consider enum/select later
-    notes: z.string().trim().optional().nullable(),
+    diet_adherence: z.string().trim().min(1, 'Diet adherence is required'),
+    training_adherence: z.string().trim().min(1, 'Training adherence is required'),
+    steps_adherence: z.string().trim().min(1, 'Steps adherence is required'),
+    notes: z.string().trim().min(1, 'General notes are required'),
 
     // Media - handled separately, not part of Zod schema for direct form values
     // photos: z.any(),
@@ -64,7 +65,10 @@ interface BodyMetricsInsert {
     body_fat_percentage?: number | null;
     waist_cm?: number | null;
     hip_cm?: number | null;
-    // Add other metrics
+    // Add additional metrics
+    arm_cm?: number | null;
+    chest_cm?: number | null;
+    thigh_cm?: number | null;
 }
 
 interface WellnessMetricsInsert {
@@ -75,14 +79,33 @@ interface WellnessMetricsInsert {
     fatigue_level?: number | null;
     digestion?: string | null;
     motivation_level?: number | null;
+    menstrual_cycle_notes?: string | null;
     // Add other metrics
 }
+
+// Define rating scales for consistent use
+const RATING_SCALE = [
+    { value: "1", label: "1 - Very Low" },
+    { value: "2", label: "2 - Low" },
+    { value: "3", label: "3 - Moderate" },
+    { value: "4", label: "4 - High" },
+    { value: "5", label: "5 - Very High" }
+];
+
+// Define adherence options for consistent use
+const ADHERENCE_OPTIONS = [
+    { value: "Perfect", label: "Perfect - 100% On Plan" },
+    { value: "Good", label: "Good - Mostly On Plan" },
+    { value: "Average", label: "Average - Some Deviations" },
+    { value: "Poor", label: "Poor - Significant Deviations" },
+    { value: "Off Track", label: "Off Track - Did Not Follow Plan" }
+];
 
 const CheckInForm: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [submitSuccess, setSubmitSuccess] = useState<boolean>(false);
-    const user = useSelector(selectUser);
+    const profile = useSelector(selectProfile);
     // State for selected files
     const [photoFiles, setPhotoFiles] = useState<FileList | null>(null);
     const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -111,7 +134,7 @@ const CheckInForm: React.FC = () => {
     const uploadFile = async (file: File, folder: string): Promise<string> => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${uuidv4()}.${fileExt}`;
-        const filePath = `${user!.id}/${folder}/${fileName}`;
+        const filePath = `${profile!.user_id}/${folder}/${fileName}`;
 
         console.log(`Uploading ${folder} to: ${filePath}`);
 
@@ -132,8 +155,9 @@ const CheckInForm: React.FC = () => {
     };
 
     const onSubmit = async (formData: CheckInData) => {
-        if (!user) {
-            setSubmitError('User not found. Please log in again.');
+        if (!profile || !profile.user_id) {
+            console.error("No valid profile or user_id found:", profile);
+            setSubmitError('User profile not found. Please log in again.');
             return;
         }
 
@@ -141,6 +165,9 @@ const CheckInForm: React.FC = () => {
         setSubmitError(null);
         setSubmitSuccess(false);
         setUploadProgress(0); // Start progress at 0
+
+        console.log("Starting check-in submission for user:", profile.user_id);
+        console.log("Profile data:", profile);
 
         let uploadedPhotoPaths: string[] = [];
         let uploadedVideoPath: string | undefined = undefined;
@@ -171,7 +198,7 @@ const CheckInForm: React.FC = () => {
 
             // 3. Prepare data for DB insertion
             const checkInData: CheckInInsert = {
-                user_id: user.id,
+                user_id: profile.user_id,
                 photos: uploadedPhotoPaths.length > 0 ? uploadedPhotoPaths : undefined,
                 video_url: uploadedVideoPath,
                 diet_adherence: formData.diet_adherence,
@@ -180,12 +207,17 @@ const CheckInForm: React.FC = () => {
                 notes: formData.notes,
             };
 
+            console.log('Prepared check-in data:', checkInData);
+
             const bodyMetricsData: BodyMetricsInsert = {
                 weight_kg: formData.weight_kg,
                 body_fat_percentage: formData.body_fat_percentage,
                 waist_cm: formData.waist_cm,
                 hip_cm: formData.hip_cm,
-                // Map other metrics
+                // Add the new metrics
+                arm_cm: formData.arm_cm,
+                chest_cm: formData.chest_cm,
+                thigh_cm: formData.thigh_cm,
             };
 
             const wellnessMetricsData: WellnessMetricsInsert = {
@@ -195,11 +227,12 @@ const CheckInForm: React.FC = () => {
                 fatigue_level: formData.fatigue_level,
                 digestion: formData.digestion,
                 motivation_level: formData.motivation_level,
+                menstrual_cycle_notes: formData.menstrual_cycle_notes,
                 // Map other metrics
             };
 
             // 4. Insert data into DB (handle potential partial failures if not using transaction)
-            console.log('Inserting check_in record...');
+            console.log('Inserting check_in record with user_id:', profile.user_id);
             const { data: checkInResult, error: checkInError } = await supabase
                 .from('check_ins')
                 .insert(checkInData)
@@ -207,6 +240,7 @@ const CheckInForm: React.FC = () => {
                 .single();
 
             if (checkInError || !checkInResult?.id) {
+                console.error("Error inserting check-in record:", checkInError);
                 throw checkInError || new Error('Failed to create check-in record or retrieve ID.');
             }
             console.log(`Check-in record created with ID: ${checkInResult.id}`);
@@ -252,6 +286,40 @@ const CheckInForm: React.FC = () => {
         }
     };
 
+    // Modified component to render a select dropdown with label
+    const SelectInput = ({ 
+        name, 
+        label, 
+        options, 
+        placeholder = "Select an option"
+    }: { 
+        name: keyof CheckInData, 
+        label: string, 
+        options: {value: string, label: string}[],
+        placeholder?: string
+    }) => {
+        return (
+            <div className="mb-4">
+                <label htmlFor={name} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {label}
+                </label>
+                <select
+                    id={name}
+                    {...methods.register(name)}
+                    className="block w-full rounded-md border border-gray-300 shadow-sm py-2 px-3 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    disabled={isSubmitting}
+                >
+                    <option value="">{placeholder}</option>
+                    {options.map(option => (
+                        <option key={option.value} value={option.value}>
+                            {option.label}
+                        </option>
+                    ))}
+                </select>
+            </div>
+        );
+    };
+
     if (submitSuccess) {
         return (
             <div className="max-w-xl mx-auto p-6 text-center">
@@ -266,38 +334,62 @@ const CheckInForm: React.FC = () => {
         <FormProvider {...methods}>
             <form onSubmit={handleSubmit(onSubmit)} className="max-w-xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md space-y-6">
                 
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Fields marked with an asterisk (*) are required.
+                </div>
+                
                 <section>
                     <h3 className="text-lg font-medium mb-3 border-b border-gray-300 dark:border-gray-600 pb-1">Body Metrics</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                         <FormInput 
                             name="weight_kg" 
-                            label="Weight (kg)" 
+                            label="Weight (kg) *" 
                             type="number" 
                             placeholder="e.g., 75.0"
                             step="0.1"
                         />
                         <FormInput 
                             name="body_fat_percentage"
-                            label="Body Fat (%)"
+                            label="Body Fat (% - optional)"
                             type="number"
                             placeholder="e.g., 15.0"
                             step="0.1"
                         />
-                         <FormInput 
+                        <FormInput 
                             name="waist_cm"
-                            label="Waist (cm)"
+                            label="Waist (cm - optional)"
                             type="number"
                             placeholder="e.g., 80.5"
                             step="0.1"
                         />
-                         <FormInput 
+                        <FormInput 
                             name="hip_cm"
-                            label="Hips (cm)"
+                            label="Hips (cm - optional)"
                             type="number"
                             placeholder="e.g., 95.0"
                             step="0.1"
                         />
-                        {/* TODO: Add inputs for other measurements (chest, arm, thigh) if defined in schema */}
+                        <FormInput 
+                            name="arm_cm"
+                            label="Arms (cm - optional)"
+                            type="number"
+                            placeholder="e.g., 35.0"
+                            step="0.1"
+                        />
+                        <FormInput 
+                            name="chest_cm"
+                            label="Chest (cm - optional)"
+                            type="number"
+                            placeholder="e.g., 100.0"
+                            step="0.1"
+                        />
+                        <FormInput 
+                            name="thigh_cm"
+                            label="Thighs (cm - optional)"
+                            type="number"
+                            placeholder="e.g., 60.0"
+                            step="0.1"
+                        />
                     </div>
                 </section>
                 
@@ -306,34 +398,34 @@ const CheckInForm: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                          <FormInput 
                             name="sleep_hours"
-                            label="Avg Sleep (hours)"
+                            label="Avg Sleep (hours) *"
                             type="number"
                             placeholder="e.g., 7.5"
                             step="0.1"
                         />
-                        <FormInput 
+                        <SelectInput
                             name="sleep_quality"
-                            label="Sleep Quality (1-5)"
-                            type="number"
-                            placeholder="1=Poor, 5=Great"
+                            label="Sleep Quality *"
+                            options={RATING_SCALE}
+                            placeholder="Select sleep quality..."
                         />
-                        <FormInput 
+                        <SelectInput
                             name="stress_level"
-                            label="Stress Level (1-5)"
-                            type="number"
-                            placeholder="1=Low, 5=High"
+                            label="Stress Level *"
+                            options={RATING_SCALE}
+                            placeholder="Select stress level..."
                         />
-                        <FormInput 
+                        <SelectInput
                             name="fatigue_level"
-                            label="Fatigue Level (1-5)"
-                            type="number"
-                            placeholder="1=Low, 5=High"
+                            label="Fatigue Level *"
+                            options={RATING_SCALE}
+                            placeholder="Select fatigue level..."
                         />
-                        <FormInput 
+                        <SelectInput
                             name="motivation_level"
-                            label="Motivation Level (1-5)"
-                            type="number"
-                            placeholder="1=Low, 5=High"
+                            label="Motivation Level *"
+                            options={RATING_SCALE}
+                            placeholder="Select motivation level..."
                         />
                     </div>
                      <FormInput 
@@ -343,35 +435,40 @@ const CheckInForm: React.FC = () => {
                         placeholder="Any issues? (e.g., Good, Bloated, etc.)"
                         rows={2}
                     />
-                    {/* TODO: Add menstrual_cycle_notes field if needed */}
+                    <FormInput 
+                        name="menstrual_cycle_notes"
+                        label="Menstrual Cycle Notes (optional)"
+                        type="textarea"
+                        placeholder="Note any details about your cycle if relevant"
+                        rows={2}
+                    />
                 </section>
 
                 <section>
                     <h3 className="text-lg font-medium mb-3 border-b border-gray-300 dark:border-gray-600 pb-1">Adherence & Notes</h3>
-                    {/* TODO: Consider replacing adherence fields with Select or Radio components */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 mb-4">
-                        <FormInput 
+                        <SelectInput
                             name="diet_adherence"
-                            label="Diet Adherence (optional)"
-                            type="text" 
-                            placeholder="e.g., Perfect, Good, Off track..."
+                            label="Diet Adherence *"
+                            options={ADHERENCE_OPTIONS}
+                            placeholder="Select diet adherence..."
                         />
-                         <FormInput 
+                        <SelectInput
                             name="training_adherence"
-                            label="Training Adherence (optional)"
-                            type="text" 
-                            placeholder="e.g., All sessions hit, Missed 1, etc."
+                            label="Training Adherence *"
+                            options={ADHERENCE_OPTIONS}
+                            placeholder="Select training adherence..."
                         />
-                         <FormInput 
+                        <SelectInput
                             name="steps_adherence"
-                            label="Steps Adherence (optional)"
-                            type="text" 
-                            placeholder="e.g., Hit target, Slightly under..."
+                            label="Steps Adherence *"
+                            options={ADHERENCE_OPTIONS}
+                            placeholder="Select steps adherence..."
                         />
                     </div>
                     <FormInput 
                         name="notes"
-                        label="General Notes / How was your week? (optional)"
+                        label="General Notes / How was your week? *"
                         type="textarea"
                         placeholder="Any challenges, successes, questions for your coach?"
                         rows={4}

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { useSelector } from 'react-redux';
-import { selectUser } from '../../store/slices/authSlice';
+import { selectProfile } from '../../store/slices/authSlice';
 import { format } from 'date-fns';
 import { FiSearch, FiUser, FiCalendar, FiFileText, FiX } from 'react-icons/fi';
 
 // Types needed
 interface UserSelectItem {
+    id: string;
     user_id: string;
     email: string | null;
     username: string | null;
@@ -16,34 +17,47 @@ interface CheckInListItem {
     id: string;
     check_in_date: string; 
     notes: string | null;
-    body_metrics: { weight_kg: number | null }[] | null;
+    body_metrics: { weight_kg: number | null } | null;
     // Add other preview fields if needed
 }
 
 // Type for full check-in details
 interface CheckInFullData extends CheckInListItem {
-    photos: string[] | null;
-    video_url: string | null;
-    diet_adherence: string | null;
-    training_adherence: string | null;
-    steps_adherence: string | null;
     coach_feedback: string | null;
+    diet_adherence: string | null;
+    notes: string | null;
+    photos: string[] | null;
+    steps_adherence: string | null;
+    training_adherence: string | null;
+    video_url: string | null;
     body_metrics: { 
-        weight_kg: number | null; 
+        id: string;
+        arm_cm: number | null;
         body_fat_percentage: number | null;
-        waist_cm: number | null;
+        chest_cm: number | null;
         hip_cm: number | null;
+        thigh_cm: number | null;
+        waist_cm: number | null;
+        weight_kg: number | null;
+        check_in_id: string;
+        created_at: string;
+        updated_at: string;
         // Add other fields
-     }[] | null;
-    wellness_metrics: { 
+    } | null;
+    wellness_metrics: {
+        id: string;
+        digestion: string | null;
+        fatigue_level: number | null;
+        menstrual_cycle_notes: string | null;
+        motivation_level: number | null;
         sleep_hours: number | null; 
         sleep_quality: number | null;
         stress_level: number | null; 
-        fatigue_level: number | null;
-        digestion: string | null;
-        motivation_level: number | null;
+        check_in_id: string;
+        created_at: string;
+        updated_at: string;
         // Add other fields
-     }[] | null;
+    } | null;
 }
 
 const CheckInReview: React.FC = () => {
@@ -55,7 +69,7 @@ const CheckInReview: React.FC = () => {
     const [isLoadingUsers, setIsLoadingUsers] = useState(true);
     const [isLoadingCheckIns, setIsLoadingCheckIns] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const coach = useSelector(selectUser);
+    const profile = useSelector(selectProfile);
     const [selectedCheckIn, setSelectedCheckIn] = useState<CheckInFullData | null>(null);
     const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
     const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
@@ -66,23 +80,36 @@ const CheckInReview: React.FC = () => {
     // Fetch users (athletes linked to coach)
     useEffect(() => {
         const fetchAthletes = async () => {
-            if (!coach) return;
+            if (!profile || !profile.id) {
+                console.log("No coach profile available");
+                setIsLoadingUsers(false);
+                return;
+            }
+            
             setIsLoadingUsers(true);
             setError(null);
+            
             try {
+                console.log("Fetching athletes for coach ID:", profile.id);
                 const { data, error: fetchError } = await supabase
                     .from('profiles')
-                    .select('user_id, email, username')
-                    .eq('coach_id', coach.id)
+                    .select('id, user_id, email, username')
+                    .eq('coach_id', profile.id)
                     .neq('role', 'coach');
+                    
                 if (fetchError) throw fetchError;
+                
+                console.log("Fetched athletes:", data);
                 setUsers(data || []);
                 setFilteredUsers(data || []);
-            } catch { setError('Failed to load users.'); }
+            } catch (err) { 
+                console.error("Error fetching athletes:", err);
+                setError('Failed to load athletes.'); 
+            }
             finally { setIsLoadingUsers(false); }
         };
         fetchAthletes();
-    }, [coach]);
+    }, [profile]);
 
     // Filter users based on search
     useEffect(() => {
@@ -118,7 +145,14 @@ const CheckInReview: React.FC = () => {
                     .order('check_in_date', { ascending: false })
                     .limit(50); // Limit check-ins shown initially
                  if (fetchError) throw fetchError;
-                 setCheckIns(data || []);
+                 
+                 // Transform data to match our interface
+                 const transformedData = data?.map(item => ({
+                    ...item,
+                    body_metrics: item.body_metrics?.[0] || null
+                 })) || [];
+                 
+                 setCheckIns(transformedData);
             } catch { setError('Failed to load check-ins.'); setCheckIns([]); }
              finally { setIsLoadingCheckIns(false); }
         };
@@ -157,6 +191,10 @@ const CheckInReview: React.FC = () => {
             
             if (error) throw error;
             if (!data) throw new Error('Check-in not found.');
+
+            console.log("Selected check-in data:", data);
+            console.log("Body metrics:", data.body_metrics);
+            console.log("Wellness metrics:", data.wellness_metrics);
 
             setSelectedCheckIn(data as CheckInFullData);
             setFeedback(data.coach_feedback || ''); // Populate existing feedback
@@ -199,8 +237,12 @@ const CheckInReview: React.FC = () => {
     };
 
     const handleUserSelect = (userId: string) => {
-        setSelectedUserId(userId);
-        setCheckIns([]);
+        // Find the selected user to get their user_id (which links to check-ins)
+        const selectedUser = users.find(user => user.id === userId);
+        if (selectedUser) {
+            setSelectedUserId(selectedUser.user_id);
+            setCheckIns([]);
+        }
     };
 
     return (
@@ -249,9 +291,9 @@ const CheckInReview: React.FC = () => {
                         ) : (
                             <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                                 {filteredUsers.map(user => (
-                                    <li key={user.user_id}>
+                                    <li key={user.id}>
                                         <button 
-                                            onClick={() => handleUserSelect(user.user_id)}
+                                            onClick={() => handleUserSelect(user.id)}
                                             className={`w-full text-left px-4 py-3 flex items-center hover:bg-gray-50 dark:hover:bg-indigo-900/30 transition-colors
                                                 ${selectedUserId === user.user_id ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}
                                         >
@@ -299,34 +341,41 @@ const CheckInReview: React.FC = () => {
                                     Check-ins
                                 </h2>
                             </div>
-                            <div className="overflow-y-auto max-h-[600px]">
-                                <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                                    {checkIns.map((checkIn) => (
-                                        <div key={checkIn.id} className="p-4 hover:bg-gray-50 dark:hover:bg-indigo-900/30">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className="flex items-center">
-                                                    <FiCalendar className="mr-2 text-gray-500 dark:text-gray-400" />
-                                                    <span className="font-medium text-gray-800 dark:text-white">
-                                                        {format(new Date(checkIn.check_in_date), 'PPP')}
-                                                    </span>
+                            
+                            {/* Check-ins list */}
+                            <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {checkIns.map(checkIn => (
+                                    <li key={checkIn.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        <button
+                                            onClick={() => handleViewDetails(checkIn.id)}
+                                            className="w-full text-left px-4 py-3 flex items-center justify-between"
+                                        >
+                                            <div className="flex items-center">
+                                                <div className="flex-shrink-0 bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-2">
+                                                    <FiCalendar className="text-indigo-600 dark:text-indigo-400" />
                                                 </div>
-                                                <button 
-                                                    onClick={() => handleViewDetails(checkIn.id)} 
-                                                    className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
-                                                >
-                                                    View Details
-                                                </button>
+                                                <div className="ml-3">
+                                                    <p className="text-sm font-medium text-gray-800 dark:text-white">
+                                                        {format(new Date(checkIn.check_in_date), 'MMMM d, yyyy')}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                        {checkIn.body_metrics && checkIn.body_metrics.weight_kg != null
+                                                            ? `Weight: ${checkIn.body_metrics.weight_kg} kg`
+                                                            : 'No weight recorded'}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-                                                <span className="font-medium">Notes:</span> {checkIn.notes || 'No notes provided'}
+                                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                {checkIn.notes ? 
+                                                    (checkIn.notes.length > 30 
+                                                        ? `${checkIn.notes.substring(0, 30)}...` 
+                                                        : checkIn.notes) 
+                                                    : 'No notes'}
                                             </div>
-                                            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                                <span className="font-medium">Weight:</span> {checkIn.body_metrics?.[0]?.weight_kg ?? 'N/A'} kg
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
                     )}
                 </div>
@@ -361,17 +410,32 @@ const CheckInReview: React.FC = () => {
                                     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                                         <h4 className="font-medium text-gray-800 dark:text-white mb-3">Basic Info</h4>
                                         <div className="space-y-2">
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Date:</span> {format(new Date(selectedCheckIn.check_in_date), 'PPP')}</p>
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Notes:</span> {selectedCheckIn.notes || '-'}</p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Date:</span> 
+                                                {format(new Date(selectedCheckIn.check_in_date), 'PPP')}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Notes:</span> 
+                                                {selectedCheckIn.notes || '-'}
+                                            </p>
                                         </div>
                                     </div>
 
                                     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                                         <h4 className="font-medium text-gray-800 dark:text-white mb-3">Adherence</h4>
                                         <div className="space-y-2">
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Diet:</span> {selectedCheckIn.diet_adherence || '-'}</p>
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Training:</span> {selectedCheckIn.training_adherence || '-'}</p>
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Steps:</span> {selectedCheckIn.steps_adherence || '-'}</p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Diet:</span> 
+                                                {selectedCheckIn.diet_adherence || '-'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Training:</span> 
+                                                {selectedCheckIn.training_adherence || '-'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Steps:</span> 
+                                                {selectedCheckIn.steps_adherence || '-'}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -380,21 +444,96 @@ const CheckInReview: React.FC = () => {
                                     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                                         <h4 className="font-medium text-gray-800 dark:text-white mb-3">Body Metrics</h4>
                                         <div className="space-y-2">
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Weight:</span> {selectedCheckIn.body_metrics?.[0]?.weight_kg ?? 'N/A'} kg</p>
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Body Fat:</span> {selectedCheckIn.body_metrics?.[0]?.body_fat_percentage ?? 'N/A'}%</p>
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Waist:</span> {selectedCheckIn.body_metrics?.[0]?.waist_cm ?? 'N/A'} cm</p>
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Hip:</span> {selectedCheckIn.body_metrics?.[0]?.hip_cm ?? 'N/A'} cm</p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Weight:</span> 
+                                                {selectedCheckIn.body_metrics && selectedCheckIn.body_metrics.weight_kg != null 
+                                                    ? `${selectedCheckIn.body_metrics.weight_kg} kg` 
+                                                    : 'N/A'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Body Fat:</span> 
+                                                {selectedCheckIn.body_metrics && selectedCheckIn.body_metrics.body_fat_percentage != null 
+                                                    ? `${selectedCheckIn.body_metrics.body_fat_percentage}%` 
+                                                    : 'N/A'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Arms:</span> 
+                                                {selectedCheckIn.body_metrics && selectedCheckIn.body_metrics.arm_cm != null 
+                                                    ? `${selectedCheckIn.body_metrics.arm_cm} cm` 
+                                                    : 'N/A'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Chest:</span> 
+                                                {selectedCheckIn.body_metrics && selectedCheckIn.body_metrics.chest_cm != null 
+                                                    ? `${selectedCheckIn.body_metrics.chest_cm} cm` 
+                                                    : 'N/A'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Waist:</span> 
+                                                {selectedCheckIn.body_metrics && selectedCheckIn.body_metrics.waist_cm != null 
+                                                    ? `${selectedCheckIn.body_metrics.waist_cm} cm` 
+                                                    : 'N/A'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Hip:</span> 
+                                                {selectedCheckIn.body_metrics && selectedCheckIn.body_metrics.hip_cm != null 
+                                                    ? `${selectedCheckIn.body_metrics.hip_cm} cm` 
+                                                    : 'N/A'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Thighs:</span> 
+                                                {selectedCheckIn.body_metrics && selectedCheckIn.body_metrics.thigh_cm != null 
+                                                    ? `${selectedCheckIn.body_metrics.thigh_cm} cm` 
+                                                    : 'N/A'}
+                                            </p>
                                         </div>
                                     </div>
 
                                     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                                         <h4 className="font-medium text-gray-800 dark:text-white mb-3">Wellness Metrics</h4>
                                         <div className="space-y-2">
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Sleep:</span> {selectedCheckIn.wellness_metrics?.[0]?.sleep_hours ?? 'N/A'} hrs (Quality: {selectedCheckIn.wellness_metrics?.[0]?.sleep_quality ?? 'N/A'}/5)</p>
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Stress:</span> {selectedCheckIn.wellness_metrics?.[0]?.stress_level ?? 'N/A'}/5</p>
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Fatigue:</span> {selectedCheckIn.wellness_metrics?.[0]?.fatigue_level ?? 'N/A'}/5</p>
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Motivation:</span> {selectedCheckIn.wellness_metrics?.[0]?.motivation_level ?? 'N/A'}/5</p>
-                                            <p className="text-sm"><span className="font-medium text-gray-600 dark:text-gray-300">Digestion:</span> {selectedCheckIn.wellness_metrics?.[0]?.digestion ?? 'N/A'}</p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Sleep:</span> 
+                                                {selectedCheckIn.wellness_metrics && selectedCheckIn.wellness_metrics.sleep_hours != null 
+                                                    ? `${selectedCheckIn.wellness_metrics.sleep_hours} hrs` 
+                                                    : 'N/A'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Sleep Quality:</span> 
+                                                {selectedCheckIn.wellness_metrics && selectedCheckIn.wellness_metrics.sleep_quality != null 
+                                                    ? `${selectedCheckIn.wellness_metrics.sleep_quality}/5` 
+                                                    : 'N/A'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Stress:</span> 
+                                                {selectedCheckIn.wellness_metrics && selectedCheckIn.wellness_metrics.stress_level != null 
+                                                    ? `${selectedCheckIn.wellness_metrics.stress_level}/5` 
+                                                    : 'N/A'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Fatigue:</span> 
+                                                {selectedCheckIn.wellness_metrics && selectedCheckIn.wellness_metrics.fatigue_level != null 
+                                                    ? `${selectedCheckIn.wellness_metrics.fatigue_level}/5` 
+                                                    : 'N/A'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Motivation:</span> 
+                                                {selectedCheckIn.wellness_metrics && selectedCheckIn.wellness_metrics.motivation_level != null 
+                                                    ? `${selectedCheckIn.wellness_metrics.motivation_level}/5` 
+                                                    : 'N/A'}
+                                            </p>
+                                            <p className="text-sm dark:text-gray-300">
+                                                <span className="mr-2 font-medium text-gray-600 dark:text-white">Digestion:</span> 
+                                                {selectedCheckIn.wellness_metrics && selectedCheckIn.wellness_metrics.digestion 
+                                                    ? selectedCheckIn.wellness_metrics.digestion 
+                                                    : 'N/A'}
+                                            </p>
+                                            {selectedCheckIn.wellness_metrics && selectedCheckIn.wellness_metrics.menstrual_cycle_notes && (
+                                                <p className="text-sm dark:text-gray-300">
+                                                    <span className="mr-2 font-medium text-gray-600 dark:text-white">Menstrual Cycle:</span> 
+                                                    {selectedCheckIn.wellness_metrics.menstrual_cycle_notes}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
