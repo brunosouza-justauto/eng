@@ -311,8 +311,13 @@ export const searchExercises = async (
 const extractEquipment = (description: string): string[] => {
   try {
     // The description is a JSON string containing various properties
-    const parsedDesc = JSON.parse(description);
-    return parsedDesc.equipment ? [parsedDesc.equipment] : [];
+
+    if (description.includes('"equipment":')) {
+      const parsedDesc = JSON.parse(description);
+      return parsedDesc.equipment ? [parsedDesc.equipment] : [];
+    }
+
+    return [];
   } catch (error) {
     console.error('Failed to parse exercise description:', error);
     return [];
@@ -397,20 +402,15 @@ export const fetchExerciseById = async (id: string): Promise<Exercise | null> =>
   try {
     // The API doesn't have a direct endpoint for fetching by ID
     // So we'll search for it and filter
-    const response = await axios.get<HeyGainzPaginatedResponse<HeyGainzExercise>>(`${API_BASE_URL}/exercises`, {
-      params: {
-        page: 1,
-        per_page: 100
-      }
-    });
+    const response = await axios.get<HeyGainzPaginatedResponse<HeyGainzExercise>>(`${API_BASE_URL}/exercises/${id}`);
 
-    const exercise = response.data.data.find(ex => ex.id.toString() === id);
+    const exercise = response.data;
     
     if (!exercise) {
       return null;
     }
 
-    return formatHeyGainzExercise(exercise);
+    return formatHeyGainzExercise(exercise as unknown as HeyGainzExercise);
   } catch (error) {
     console.error(`Error fetching exercise with ID ${id}:`, error);
     return null;

@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute'; // Import ProtectedRou
 import OnboardingPage from './pages/OnboardingPage'; // Import the actual OnboardingPage
 import DashboardPage from './pages/DashboardPage'; // Import the actual DashboardPage
 import WorkoutView from './components/workouts/WorkoutView'; // Import WorkoutView
+import WorkoutSessionPage from './pages/WorkoutSessionPage'; // Import WorkoutSessionPage
 import MealPlanView from './components/nutrition/MealPlanView'; // Import MealPlanView
 import CheckInPage from './pages/CheckInPage'; // Import CheckInPage
 import HistoryPage from './pages/HistoryPage'; // Import HistoryPage
@@ -168,6 +169,7 @@ function App() {
             <Route path="/check-in/new" element={<CheckInPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/workout/:workoutId" element={<WorkoutView />} />
+            <Route path="/workout-session/:workoutId" element={<WorkoutSessionPage />} />
             <Route path="/meal-plan/:planId" element={<MealPlanView />} />
         </Route>
       </Route>

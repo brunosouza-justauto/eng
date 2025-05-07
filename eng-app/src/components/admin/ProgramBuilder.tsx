@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { useSelector } from 'react-redux';
 import { selectProfile } from '../../store/slices/authSlice';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { v4 as uuidv4 } from 'uuid';
+import { RiPlayListAddLine, RiEdit2Line, RiDeleteBin6Line, RiSave3Line } from 'react-icons/ri';
+import { FaDumbbell } from 'react-icons/fa';
 import FormInput from '../ui/FormInput';
-import { z } from 'zod';
-import { WorkoutAdminData, ExerciseInstanceAdminData, SetType, ExerciseGroupType } from '../../types/adminTypes';
+import { WorkoutAdminData, ExerciseInstanceAdminData, SetType, ExerciseGroupType, ExerciseSet } from '../../types/adminTypes';
 import WorkoutForm from './WorkoutForm';
 import { FiSearch, FiPlus } from 'react-icons/fi';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import WorkoutArrangement from './WorkoutArrangement';
+import { z } from 'zod';
 
 // Basic type for template list item
 interface ProgramTemplateListItem {
@@ -121,15 +125,88 @@ const ProgramBuilder: React.FC = () => {
             }
             setIsLoadingWorkouts(true);
             try {
+                // Enhanced query to fetch workouts and exercise instances
                 const { data, error } = await supabase
                     .from('workouts')
-                    .select('*, exercise_instances(*)') // Fetch workouts and their exercises
+                    .select(`
+                        *, 
+                        exercise_instances(*)
+                    `)
                     .eq('program_template_id', selectedTemplate.id)
                     .order('order_in_program', { ascending: true })
                     .order('order_in_workout', { foreignTable: 'exercise_instances', ascending: true });
 
                 if (error) throw error;
-                setCurrentWorkouts(data || []);
+
+                if (data && data.length > 0) {
+                    console.log('*** DETAILED PROGRAM DATA ***');
+                    console.log('Raw workout data:', JSON.stringify(data, null, 2));
+                    
+                    // Get all exercise instance IDs
+                    const exerciseInstanceIds: string[] = [];
+                    data.forEach(workout => {
+                        if (workout.exercise_instances && workout.exercise_instances.length > 0) {
+                            workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
+                                if (instance.id) {
+                                    exerciseInstanceIds.push(instance.id);
+                                }
+                            });
+                        }
+                    });
+                    
+                    console.log('Fetching exercise sets for instances:', exerciseInstanceIds);
+                    
+                    // Fetch all exercise sets for these instances
+                    if (exerciseInstanceIds.length > 0) {
+                        const { data: setsData, error: setsError } = await supabase
+                            .from('exercise_sets')
+                            .select('*')
+                            .in('exercise_instance_id', exerciseInstanceIds)
+                            .order('set_order', { ascending: true });
+                            
+                        if (setsError) {
+                            console.error('Error fetching exercise sets:', setsError);
+                        } else if (setsData) {
+                            console.log('Fetched exercise sets:', setsData);
+                            
+                            // Group sets by exercise instance ID
+                            const setsByExerciseId = new Map<string, ExerciseSet[]>();
+                            
+                            setsData.forEach(set => {
+                                const exerciseId = set.exercise_instance_id;
+                                if (!setsByExerciseId.has(exerciseId)) {
+                                    setsByExerciseId.set(exerciseId, []);
+                                }
+                                
+                                setsByExerciseId.get(exerciseId)?.push({
+                                    id: set.id,
+                                    set_order: set.set_order,
+                                    type: set.type as SetType,
+                                    reps: set.reps || undefined,
+                                    weight: set.weight || undefined,
+                                    rest_seconds: set.rest_seconds || undefined,
+                                    duration: set.duration || undefined
+                                });
+                            });
+                            
+                            // Attach sets to their respective exercise instances
+                            data.forEach(workout => {
+                                if (workout.exercise_instances) {
+                                    workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
+                                        if (instance.id && setsByExerciseId.has(instance.id)) {
+                                            instance.sets_data = setsByExerciseId.get(instance.id);
+                                            console.log(`Attached ${instance.sets_data?.length} sets to ${instance.exercise_name}`);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    }
+                    
+                    setCurrentWorkouts(data);
+                } else {
+                    setCurrentWorkouts([]);
+                }
             } catch (err) {
                 console.error("Error fetching workouts for template:", err);
                 setError('Failed to load workouts for this template.');
@@ -416,7 +493,7 @@ const ProgramBuilder: React.FC = () => {
                         // Map each set to include the exercise_instance_id
                         const setData = exercise.sets_data.map(set => ({
                             exercise_instance_id: exerciseId,
-                            set_order: set.order,
+                            set_order: set.set_order,
                             type: set.type,
                             reps: set.reps || null,
                             weight: set.weight || null,
@@ -459,10 +536,7 @@ const ProgramBuilder: React.FC = () => {
                 .from('workouts')
                 .select(`
                     *, 
-                    exercise_instances(
-                        *,
-                        exercise_sets(*)
-                    )
+                    exercise_instances(*)
                 `)
                 .eq('program_template_id', selectedTemplate.id)
                 .order('order_in_program', { ascending: true })
@@ -470,51 +544,76 @@ const ProgramBuilder: React.FC = () => {
                 
             if (refreshError) {
                 setError('Workout saved, but failed to refresh workout list.');
-            } else {
-                // Define a type for the exercise instance with exercise_sets
-                type ExerciseInstanceWithSets = ExerciseInstanceAdminData & { 
-                    exercise_sets?: Array<{
-                        id: string;
-                        exercise_instance_id: string;
-                        set_order: number;
-                        type: string;
-                        reps?: string | null;
-                        weight?: string | null;
-                        rest_seconds?: number | null;
-                        duration?: string | null;
-                    }> 
-                };
-
-                // Process the data to add sets_data to each exercise_instance
-                const processedWorkouts = refreshedWorkouts?.map(workout => {
-                    if (workout.exercise_instances) {
-                        workout.exercise_instances = workout.exercise_instances.map((instance: ExerciseInstanceWithSets) => {
-                            // Move exercise_sets array to sets_data property with correct mapping of set_order to order
-                            return {
-                                ...instance,
-                                sets_data: instance.exercise_sets ? instance.exercise_sets.map(set => ({
-                                    id: set.id,
-                                    order: set.set_order,
-                                    type: set.type as SetType,
-                                    reps: set.reps || undefined,
-                                    weight: set.weight || undefined,
-                                    rest_seconds: set.rest_seconds || undefined, 
-                                    duration: set.duration || undefined
-                                })) : [],
-                                // Ensure group_type is properly cast
-                                group_type: instance.group_type as ExerciseGroupType || ExerciseGroupType.NONE
-                            };
+            } else if (refreshedWorkouts) {
+                // Get all exercise instance IDs
+                const exerciseInstanceIds: string[] = [];
+                refreshedWorkouts.forEach(workout => {
+                    if (workout.exercise_instances && workout.exercise_instances.length > 0) {
+                        workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
+                            if (instance.id) {
+                                exerciseInstanceIds.push(instance.id);
+                            }
                         });
-                        
-                        // Sort exercise instances by order_in_workout for normal display
-                        workout.exercise_instances.sort((a: ExerciseInstanceAdminData, b: ExerciseInstanceAdminData) => 
-                            (a.order_in_workout || 0) - (b.order_in_workout || 0)
-                        );
                     }
-                    return workout;
                 });
                 
-                setCurrentWorkouts(processedWorkouts || []);
+                console.log('Fetching exercise sets for refreshed workout data:', exerciseInstanceIds);
+                
+                // Fetch all exercise sets for these instances
+                if (exerciseInstanceIds.length > 0) {
+                    const { data: setsData, error: setsError } = await supabase
+                        .from('exercise_sets')
+                        .select('*')
+                        .in('exercise_instance_id', exerciseInstanceIds)
+                        .order('set_order', { ascending: true });
+                        
+                    if (setsError) {
+                        console.error('Error fetching exercise sets:', setsError);
+                    } else if (setsData) {
+                        console.log('Fetched exercise sets for refresh:', setsData);
+                        
+                        // Group sets by exercise instance ID
+                        const setsByExerciseId = new Map<string, ExerciseSet[]>();
+                        
+                        setsData.forEach(set => {
+                            const exerciseId = set.exercise_instance_id;
+                            if (!setsByExerciseId.has(exerciseId)) {
+                                setsByExerciseId.set(exerciseId, []);
+                            }
+                            
+                            setsByExerciseId.get(exerciseId)?.push({
+                                id: set.id,
+                                set_order: set.set_order,
+                                type: set.type as SetType,
+                                reps: set.reps || undefined,
+                                weight: set.weight || undefined,
+                                rest_seconds: set.rest_seconds || undefined,
+                                duration: set.duration || undefined
+                            });
+                        });
+                        
+                        // Attach sets to their respective exercise instances
+                        refreshedWorkouts.forEach(workout => {
+                            if (workout.exercise_instances) {
+                                workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
+                                    if (instance.id && setsByExerciseId.has(instance.id)) {
+                                        instance.sets_data = setsByExerciseId.get(instance.id);
+                                        console.log(`Attached ${instance.sets_data?.length} sets to ${instance.exercise_name}`);
+                                    }
+                                });
+                                
+                                // Sort exercise instances by order_in_workout for normal display
+                                workout.exercise_instances.sort((a: ExerciseInstanceAdminData, b: ExerciseInstanceAdminData) => 
+                                    (a.order_in_workout || 0) - (b.order_in_workout || 0)
+                                );
+                            }
+                        });
+                    }
+                }
+                
+                setCurrentWorkouts(refreshedWorkouts);
+            } else {
+                setCurrentWorkouts([]);
             }
             
             // 7. Close workout form

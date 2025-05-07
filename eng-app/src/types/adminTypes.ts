@@ -35,7 +35,7 @@ export enum ExerciseGroupType {
 // Define individual set structure
 export interface ExerciseSet {
     id?: string; // For existing sets
-    order: number; // Position in the sequence
+    set_order: number; // Position in the sequence
     type: SetType; // The type of this specific set
     reps?: string; // Reps for this set (may differ between sets)
     weight?: string; // Weight for this set

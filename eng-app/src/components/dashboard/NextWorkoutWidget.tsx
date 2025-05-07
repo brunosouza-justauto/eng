@@ -84,6 +84,29 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
     return today.getDay() === 0 ? 7 : today.getDay();
   };
 
+  // Helper to format exercise sets display
+  const formatSetsReps = (exercise: ExerciseInstanceData): string => {
+    // If we have detailed sets_data, use that for a more accurate display
+    if (exercise.sets_data && exercise.sets_data.length > 0) {
+      const repScheme = exercise.sets_data.map(set => {
+        let repText = set.reps || '';
+        // Add set type indicator for special sets
+        if (set.type && set.type !== SetType.REGULAR) {
+          const setTypeAbbr = getSetTypeName(set.type).substring(0, 1); // Get first letter of set type
+          repText = `${repText}${setTypeAbbr}`;
+        }
+        return repText;
+      }).join(' / ');
+      
+      return `${exercise.sets_data.length} sets: ${repScheme}`;
+    }
+    
+    // Fall back to the legacy format
+    const sets = exercise.sets || '0';
+    const reps = exercise.reps || 'N/A';
+    return `${sets}×${reps}`;
+  };
+
   useEffect(() => {
     const fetchWorkout = async () => {
       if (!programTemplateId) {
@@ -286,56 +309,34 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
                             <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-xs font-medium text-indigo-800 dark:text-indigo-300 mr-3">
                               {index + 1}
                             </span>
-                            <span className="font-medium text-gray-800 dark:text-gray-200">{ex.exercise_name || 'Unnamed Exercise'}</span>
-                          </div>
-                          <div className="flex items-center">
-                            {/* Display badges for set types */}
-                            {ex.sets_data && ex.sets_data.length > 0 ? (
-                              // Group by set type and show a badge for each type
-                              [...new Set(ex.sets_data.map(set => set.type))].map((type, idx) => (
-                                <span key={`type-${idx}`} className={`mr-2 px-2 py-0.5 text-xs rounded ${
-                                  type === SetType.WARM_UP ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' : 
-                                  type === SetType.DROP_SET ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' : 
-                                  type === SetType.FAILURE ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' : 
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                                }`}>
-                                  {getSetTypeName(type)}
-                                </span>
-                              ))
-                            ) : (
-                              // If no sets_data, fall back to displaying the overall set_type
-                              ex.set_type && (
-                                <span className={`mr-2 px-2 py-0.5 text-xs rounded ${
-                                  ex.set_type === SetType.WARM_UP ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' : 
-                                  ex.set_type === SetType.DROP_SET ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' : 
-                                  ex.set_type === SetType.FAILURE ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' : 
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                                }`}>
-                                  {getSetTypeName(ex.set_type)}
-                                </span>
-                              )
-                            )}
-                            <span className="px-2.5 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
-                              {ex.sets} × {ex.reps}
-                            </span>
+                            <div>
+                              <span className="font-medium text-gray-800 dark:text-gray-200">{ex.exercise_name || 'Unnamed Exercise'}</span>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {formatSetsReps(ex)}
+                                {ex.set_type && ex.set_type !== SetType.REGULAR && (
+                                  <span className="ml-1 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300">
+                                    {getSetTypeName(ex.set_type)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ))}
                       
                     <div className="pt-2">
                       <ButtonLink 
-                        to={`/workout/${workoutData.id}`}
-                        variant="secondary"
+                        to={`/workout-session/${workoutData.id}`}
+                        variant="primary"
                         color="indigo"
                         fullWidth
                         icon={
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                           </svg>
                         }
                       >
-                        View Full Workout
+                        Start Workout
                       </ButtonLink>
                     </div>
                   </div>

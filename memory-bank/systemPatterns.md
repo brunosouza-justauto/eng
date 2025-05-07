@@ -195,6 +195,118 @@ flowchart TD
     PublicRoutes --> LandingPage[Landing Page]
 ```
 
+## Workout Session Architecture
+
+The workout session timer and exercise demonstration system follows a sophisticated pattern to enhance the workout experience:
+
+```mermaid
+flowchart TD
+    WorkoutSession[Workout Session Page] --> TimerSystem[Rest Timer System]
+    WorkoutSession --> ExerciseList[Exercise List]
+    WorkoutSession --> SessionControls[Session Controls]
+    
+    TimerSystem --> RestTimer[Rest Timer Display]
+    TimerSystem --> AudioAlert[Audio Alert System]
+    TimerSystem --> VibrationFeedback[Vibration Feedback]
+    TimerSystem --> SpeechSystem[Speech Synthesis]
+    
+    RestTimer --> NextExercisePreview[Next Exercise Preview]
+    NextExercisePreview --> ExerciseDemonstration[Exercise Demonstration]
+    
+    ExerciseList --> ExerciseAccordion[Exercise Accordion]
+    ExerciseAccordion --> ExerciseDemonstration
+    
+    ExerciseDemonstration --> ImageCache[Exercise Image Cache]
+    ImageCache --> HeyGainzAPI[HeyGainz API]
+```
+
+### Exercise Image System
+
+1. **Global Cache Implementation**
+   * Uses a global Map to cache exercise images
+   * Prevents redundant API calls for the same exercise
+   * Caches both by exercise ID and exercise name
+   * Persists for the duration of the session
+
+2. **Exercise Demonstration Component**
+   * Wrapped in React.memo to prevent unnecessary re-renders
+   * Lazy loading of images with loading state
+   * Fallback UI for missing or failed images
+   * Supports both exercise database IDs and name-based lookups
+   * Displays appropriate indicators for GIF animations
+
+3. **API Integration**
+   * Primary lookup via fetchExerciseById for direct ID matches
+   * Secondary fuzzy search for name-based matching
+   * Error handling with appropriate fallbacks
+   * Loading states for improved user experience
+
+### Timer System
+
+1. **Rest Timer Implementation**
+   * Interval-based countdown with useRef for stability
+   * Visual progress indication with percentage calculations
+   * Special formatting for countdown display
+   * Enhanced visual feedback during final countdown seconds
+   * Pause/resume capabilities synchronized with workout state
+
+2. **Multi-Sensory Feedback**
+   * **Visual**: Animation, color changes, countdown display
+   * **Audio**: End-of-timer sound, countdown beeps
+   * **Tactile**: Vibration patterns for mobile devices
+   * **Voice**: Speech synthesis announcements
+
+3. **Speech Synthesis**
+   * User permission prompt with persistent preference
+   * Context-aware announcements based on next exercise or set
+   * Visual fallback for browsers without speech support
+   * Configurable through user toggle
+
+4. **Mobile Integration**
+   * Vibration API with feature detection
+   * Different vibration patterns for different events
+   * Mobile-specific optimizations for touch interactions
+
+### User Interaction Patterns
+
+1. **Exercise List Navigation**
+   * Accordion pattern for viewing/hiding demonstrations
+   * Set completion toggles with automatic timer triggering
+   * Progress tracking through checkboxes
+   * Visual indication of completed exercises
+
+2. **Timer Controls**
+   * Skip button for ending rest early
+   * Automatic start on set completion
+   * Visual countdown during final seconds
+   * Next exercise preview for preparation
+
+3. **User Preferences**
+   * Voice feedback toggle with persistent storage
+   * Permission-based features with clear user prompts
+   * Accessibility considerations for all feedback types
+
+### Data Flow
+
+1. **Set Completion**
+   * User marks set as complete
+   * System checks for rest period requirement
+   * Timer initialized with appropriate duration
+   * Next exercise information gathered
+   * Multi-sensory feedback begins
+
+2. **Timer Completion**
+   * Final countdown with enhanced feedback
+   * Announcement of next exercise details
+   * Return to workout view for next set
+   * Audio alert signals timer end
+
+3. **Exercise Demonstration**
+   * On-demand loading via toggle
+   * Cached images for performance
+   * Loading states with spinners
+   * Error states with appropriate fallbacks
+
 ## State Flow
 
 ```mermaid

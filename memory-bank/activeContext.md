@@ -1,27 +1,47 @@
 # Active Context
 
 ## Current Focus
-We are implementing a comprehensive Meal Planning feature for the application:
+We are enhancing the workout experience in the application with advanced training features:
 
-1. **Meal Planning System** 🚧
+1. **Workout Session Enhancement** 🚧
+   - Adding comprehensive rest timer functionality
+   - Implementing exercise demonstrations with GIFs
+   - Adding voice announcements for next exercises
+   - Implementing vibration feedback for mobile devices
+   - Enhancing user experience during workouts
+
+2. **Meal Planning System** 🚧
    - Adding ability to manage meals within nutrition plans
    - Implementing food item search and selection
    - Creating custom recipe functionality
    - Building multi-day meal planning capability
    - Adding nutritional calculations for meals and plans
 
-2. **Bug Fixes and Optimizations** 🔧
+3. **Bug Fixes and Optimizations** 🔧
    - Addressing UI/UX issues in dark mode
    - Improving authentication stability
    - Enhancing data quality for food items
    - Fixing food data classification mapping
 
-3. **Previous Completed Focus Areas** ✅
+4. **Previous Completed Focus Areas** ✅
    - Exercise Data Fetching Performance
    - Dashboard Workout Display
    - Program Builder Improvements
 
 ## Recent Changes
+
+### Workout Session Timer Enhancements
+- Implemented a comprehensive rest timer system for tracking rest periods between sets
+- Added countdown timers with visual, audio, and vibration feedback
+- Implemented speech synthesis for announcing upcoming exercises
+- Created a system for exercise demonstration GIFs from the HeyGainz API
+- Added an accordion-style UI for viewing exercise demonstrations on demand
+- Implemented image caching to prevent unnecessary API calls
+- Added ability to enable/disable voice feedback with persistent preference
+- Enhanced timer UI with countdown animation and progress bar
+- Added mobile device vibration for haptic feedback during workouts
+- Implemented "next exercise preview" to show upcoming exercises during rest
+- Fixed performance issues with exercise image loading
 
 ### Check-In Form and Review Improvements
 - Fixed foreign key constraint error when submitting check-ins by using correct user_id from profile
@@ -95,6 +115,13 @@ We are implementing a comprehensive Meal Planning feature for the application:
 
 ## Next Steps
 
+### Workout Experience Enhancements
+1. 🚧 Add customizable rest timer presets for different exercise types
+2. 🚧 Implement advanced circuit and superset support in workout tracking
+3. 🚧 Create printable/shareable workout summary reports
+4. 🚧 Add workout statistics and personal record tracking
+5. 🚧 Implement exercise history view with progress graphs
+
 ### Multi-Day Meal Planning Enhancement
 1. 🚧 Extend existing meal planning UI to support multi-day view and management
 2. 🚧 Implement UI for creating meal templates across multiple days
@@ -130,6 +157,15 @@ We are implementing a comprehensive Meal Planning feature for the application:
 5. 🚧 Create coach notification system for key check-in metrics
 
 ## Active Decisions and Considerations
+
+### Workout Session Enhancement Approach
+- Using Web Speech API for voice announcements with user permission system
+- Implementing Vibration API for mobile devices with feature detection
+- Caching exercise demonstration images to prevent redundant API calls
+- Using HeyGainz API to fetch realistic exercise demonstration GIFs
+- Providing multi-sensory feedback (visual, audio, tactile) for comprehensive experience
+- All feedback systems are opt-in and can be toggled by the user
+- Storing user preferences in localStorage for persistence between sessions
 
 ### Multi-Day Meal Planning Approach
 - The current system already has day_number field in meals table, supporting multi-day functionality
