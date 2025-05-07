@@ -45,4 +45,23 @@ export default defineConfig({
       }
     })
   ],
+  server: {
+    host: '0.0.0.0',          // Listen on all network interfaces
+    port: 5173,               // Default Vite port
+    strictPort: true,         // Don't try other ports if 5173 is taken
+    cors: true,               // Enable CORS for all origins
+    hmr: {
+      clientPort: 5173,       // Match your port
+      host: 'localhost'       // HMR host
+    },
+    fs: {
+      allow: ['..']           // Allow serving files from one level up
+    },
+    // This is the important part for ngrok connections
+    allowedHosts: ['.ngrok-free.app', 'localhost']
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 5173
+  }
 })

@@ -74,6 +74,7 @@ export interface Exercise {
   image: string | null;
   instructions: string[];
   tips: string[];
+  youtube_link: string | null;
   type: string;
 }
 

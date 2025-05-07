@@ -4,12 +4,14 @@ import ThemeToggle from '../components/common/ThemeToggle';
 import { useDispatch } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
+import { getEmailProviderInfo, CommonEmailLinks, type EmailProvider } from '../utils/emailUtils';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [emailProvider, setEmailProvider] = useState<EmailProvider | null>(null);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -56,6 +58,9 @@ const LoginPage: React.FC = () => {
         throw error;
       }
 
+      // Detect email provider
+      const provider = getEmailProviderInfo(email);
+      setEmailProvider(provider);
       setMessage('Check your email for the login link!');
     } catch (error: unknown) {
       console.error('Error logging in:', error);
@@ -88,7 +93,7 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center bg-gray-50 dark:bg-gray-900 py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex flex-col justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
@@ -103,7 +108,7 @@ const LoginPage: React.FC = () => {
           </h2>
         </div>
 
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="mt-8 mx-auto w-full sm:max-w-md">
           <div className="bg-white dark:bg-gray-800 py-8 px-6 shadow-lg rounded-lg sm:px-10">
             <div className="mb-6">
               <h2 className="text-xl font-medium text-gray-900 dark:text-white">
@@ -126,6 +131,31 @@ const LoginPage: React.FC = () => {
                     <p className="text-sm font-medium text-green-800 dark:text-green-400">
                       {message}
                     </p>
+                    
+                    {/* Email provider links */}
+                    {emailProvider && (
+                      <div className="mt-2">
+                        <a 
+                          href={emailProvider.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-700 border border-green-300 dark:border-green-600 rounded-md text-sm text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-800/30 transition-colors"
+                        >
+                          <span className="mr-2">{emailProvider.icon}</span>
+                          Open {emailProvider.name}
+                        </a>
+                      </div>
+                    )}
+                    
+                    {/* Common email links for other providers */}
+                    {!emailProvider && message.includes('Check your email') && (
+                      <div className="mt-2 space-y-2">
+                        <p className="text-xs text-green-700 dark:text-green-500">
+                          Open your email provider:
+                        </p>
+                        <CommonEmailLinks />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

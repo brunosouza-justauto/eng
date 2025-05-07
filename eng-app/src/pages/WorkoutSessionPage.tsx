@@ -6,6 +6,24 @@ import { supabase } from '../services/supabaseClient';
 import { SetType, ExerciseSet } from '../types/adminTypes';
 import { fetchExerciseById } from '../utils/exerciseAPI';
 
+// Helper function to sanitize text with encoding issues
+const sanitizeText = (text: string | null | undefined): string | null => {
+  if (!text) return null;
+  
+  // Fix common encoding issues
+  return text
+    .replace(/DonÃ†t/g, "Don't")
+    .replace(/DonÃ¢â‚¬â„¢t/g, "Don't")
+    .replace(/canÃ†t/g, "can't")
+    .replace(/canÃ¢â‚¬â„¢t/g, "can't")
+    .replace(/wonÃ†t/g, "won't")
+    .replace(/wonÃ¢â‚¬â„¢t/g, "won't")
+    .replace(/Ã†/g, "'")
+    .replace(/Ã¢â‚¬â„¢/g, "'")
+    .replace(/Ã¢â‚¬â€/g, "\"")
+    .replace(/Ã¢â‚¬Â/g, "\"");
+};
+
 // Define types for the component
 interface ExerciseInstanceData {
   id: string;
@@ -72,7 +90,15 @@ interface CompletedSetRecord {
 }
 
 // Create a global cache for exercise images to prevent redundant API calls
-const exerciseImageCache = new Map<string, { url: string; isAnimation: boolean }>();
+const exerciseImageCache = new Map<string, { 
+  url: string; 
+  isAnimation: boolean; 
+  instructions?: string | null;
+  tips?: string | null;
+  youtubeLink?: string | null 
+}>();
+// Add a static DOM cache to prevent GIF reloading issues
+const staticImageElements = new Map<string, HTMLImageElement>();
 
 // Exercise Demonstration Component wrapped in React.memo to prevent unnecessary rerenders
 const ExerciseDemonstration = React.memo(({ exerciseName, exerciseDbId, expanded = true }: { 
@@ -84,6 +110,13 @@ const ExerciseDemonstration = React.memo(({ exerciseName, exerciseDbId, expanded
   const [isAnimation, setIsAnimation] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [instructions, setInstructions] = useState<string | null>(null);
+  const [tips, setTips] = useState<string | null>(null);
+  const [youtubeLink, setYoutubeLink] = useState<string | null>(null);
+  // Track if component is mounted to prevent state updates after unmount
+  const isMounted = useRef(true);
+  // Reference to the container div
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Create a cache key that combines ID and name
   const cacheKey = useMemo(() => {
@@ -91,16 +124,55 @@ const ExerciseDemonstration = React.memo(({ exerciseName, exerciseDbId, expanded
   }, [exerciseDbId, exerciseName]);
   
   useEffect(() => {
-    // Check cache first
+    // Set up the mounted flag
+    isMounted.current = true;
+    
+    // Check if we already have a DOM element for this exercise
+    if (staticImageElements.has(cacheKey) && containerRef.current) {
+      console.log('Using cached DOM element for', cacheKey);
+      setIsLoading(false);
+      
+      // Clear container and add the cached element
+      const container = containerRef.current;
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+      
+      const cachedImg = staticImageElements.get(cacheKey);
+      if (cachedImg) {
+        // Add a wrapper div for better centering
+        const centeringWrapper = document.createElement('div');
+        centeringWrapper.className = 'flex justify-center items-center w-full h-full';
+        centeringWrapper.appendChild(cachedImg.cloneNode(true));
+        container.appendChild(centeringWrapper);
+        
+        // Add the GIF label if needed
+        if (cachedImg.src.toLowerCase().endsWith('.gif')) {
+          const gifLabel = document.createElement('div');
+          gifLabel.className = 'absolute top-1 right-1 bg-black/50 text-white text-xs px-2 py-1 rounded-full';
+          gifLabel.textContent = 'GIF';
+          container.appendChild(gifLabel);
+        }
+        
+        return;
+      }
+    }
+    
+    // Check URL cache first (different from DOM element cache)
     if (exerciseImageCache.has(cacheKey)) {
       const cachedData = exerciseImageCache.get(cacheKey)!;
       setImageUrl(cachedData.url);
       setIsAnimation(cachedData.isAnimation);
+      setInstructions(cachedData.instructions || null);
+      setTips(cachedData.tips || null);
+      setYoutubeLink(cachedData.youtubeLink || null);
       setIsLoading(false);
       return;
     }
     
     const loadExerciseImage = async () => {
+      if (!isMounted.current) return;
+      
       setIsLoading(true);
       setImageError(false);
       
@@ -110,21 +182,40 @@ const ExerciseDemonstration = React.memo(({ exerciseName, exerciseDbId, expanded
           console.log(`Fetching exercise image for ID: ${exerciseDbId}`);
           const exercise = await fetchExerciseById(exerciseDbId);
           
-          if (exercise && exercise.image) {
+          if (exercise && exercise.image && isMounted.current) {
             console.log(`Found image from API: ${exercise.image}`);
+            console.log(`Instructions: ${exercise.instructions || 'None available'}`);
+            console.log(`Tips: ${exercise.tips || 'None available'}`);
+            console.log(`YouTube Link: ${exercise.youtube_link || 'None available'}`);
             
             // Store in cache
             exerciseImageCache.set(cacheKey, {
               url: exercise.image,
-              isAnimation: exercise.image.toLowerCase().endsWith('.gif')
+              isAnimation: exercise.image.toLowerCase().endsWith('.gif'),
+              instructions: Array.isArray(exercise.instructions) 
+                ? sanitizeText(exercise.instructions.join('\n')) 
+                : sanitizeText(typeof exercise.instructions === 'string' ? exercise.instructions : null),
+              tips: Array.isArray(exercise.tips) 
+                ? sanitizeText(exercise.tips.join('\n')) 
+                : sanitizeText(typeof exercise.tips === 'string' ? exercise.tips : null),
+              youtubeLink: exercise.youtube_link || null
             });
             
             setImageUrl(exercise.image);
             setIsAnimation(exercise.image.toLowerCase().endsWith('.gif'));
+            setInstructions(Array.isArray(exercise.instructions) 
+              ? sanitizeText(exercise.instructions.join('\n')) 
+              : sanitizeText(typeof exercise.instructions === 'string' ? exercise.instructions : null));
+            setTips(Array.isArray(exercise.tips) 
+              ? sanitizeText(exercise.tips.join('\n')) 
+              : sanitizeText(typeof exercise.tips === 'string' ? exercise.tips : null));
+            setYoutubeLink(exercise.youtube_link || null);
             setIsLoading(false);
             return;
           }
         }
+        
+        if (!isMounted.current) return;
         
         // If we don't have an ID or couldn't find the exercise, try to search by name
         console.log(`Searching for exercise by name: ${exerciseName}`);
@@ -133,33 +224,75 @@ const ExerciseDemonstration = React.memo(({ exerciseName, exerciseDbId, expanded
         const searchResponse = await fetch(`https://svc.heygainz.com/api/exercises?search=${encodeURIComponent(exerciseName)}&page=1&per_page=1`);
         const searchData = await searchResponse.json();
         
-        if (searchData && searchData.data && searchData.data.length > 0) {
+        if (searchData && searchData.data && searchData.data.length > 0 && isMounted.current) {
           const matchedExercise = searchData.data[0];
           console.log(`Found exercise match: ${matchedExercise.name} with image: ${matchedExercise.gif_url}`);
+          console.log(`Instructions: ${matchedExercise.instructions || 'None available'}`);
+          console.log(`Tips: ${matchedExercise.tips || 'None available'}`);
+          console.log(`YouTube Link: ${matchedExercise.youtube_link || 'None available'}`);
           
           // Store in cache
           exerciseImageCache.set(cacheKey, {
             url: matchedExercise.gif_url,
-            isAnimation: matchedExercise.gif_url.toLowerCase().endsWith('.gif')
+            isAnimation: matchedExercise.gif_url.toLowerCase().endsWith('.gif'),
+            instructions: Array.isArray(matchedExercise.instructions) 
+              ? sanitizeText(matchedExercise.instructions.join('\n')) 
+              : sanitizeText(typeof matchedExercise.instructions === 'string' ? matchedExercise.instructions : null),
+            tips: Array.isArray(matchedExercise.tips) 
+              ? sanitizeText(matchedExercise.tips.join('\n')) 
+              : sanitizeText(typeof matchedExercise.tips === 'string' ? matchedExercise.tips : null),
+            youtubeLink: matchedExercise.youtube_link || null
           });
           
           setImageUrl(matchedExercise.gif_url);
           setIsAnimation(matchedExercise.gif_url.toLowerCase().endsWith('.gif'));
-        } else {
+          setInstructions(Array.isArray(matchedExercise.instructions) 
+            ? sanitizeText(matchedExercise.instructions.join('\n')) 
+            : sanitizeText(typeof matchedExercise.instructions === 'string' ? matchedExercise.instructions : null));
+          setTips(Array.isArray(matchedExercise.tips) 
+            ? sanitizeText(matchedExercise.tips.join('\n')) 
+            : sanitizeText(typeof matchedExercise.tips === 'string' ? matchedExercise.tips : null));
+          setYoutubeLink(matchedExercise.youtube_link || null);
+        } else if (isMounted.current) {
           console.log(`No exercise found for name: ${exerciseName}`);
           setImageUrl(null);
         }
       } catch (error) {
-        console.error('Error loading exercise image:', error);
-        setImageError(true);
-        setImageUrl(null);
+        if (isMounted.current) {
+          console.error('Error loading exercise image:', error);
+          setImageError(true);
+          setImageUrl(null);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted.current) {
+          setIsLoading(false);
+        }
       }
     };
     
     loadExerciseImage();
+    
+    // Cleanup
+    return () => {
+      isMounted.current = false;
+    };
   }, [cacheKey]); // Only cacheKey as dependency, which is memoized
+
+  // Effect to cache the DOM element once loaded
+  useEffect(() => {
+    if (imageUrl && !isLoading && !imageError && containerRef.current) {
+      // Create a new image element to cache
+      const img = new Image();
+      img.src = imageUrl;
+      img.alt = `${exerciseName} demonstration`;
+      img.className = 'max-w-full max-h-full object-contain';
+      
+      // Store in static DOM element cache when loaded
+      img.onload = () => {
+        staticImageElements.set(cacheKey, img);
+      };
+    }
+  }, [imageUrl, isLoading, imageError, cacheKey, exerciseName]);
 
   // If not expanded, don't render anything
   if (!expanded) return null;
@@ -167,7 +300,7 @@ const ExerciseDemonstration = React.memo(({ exerciseName, exerciseDbId, expanded
   // When loading
   if (isLoading) {
     return (
-      <div className="mb-3 bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden h-32 flex items-center justify-center">
+      <div className="mb-3 bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden h-48 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
       </div>
     );
@@ -176,25 +309,71 @@ const ExerciseDemonstration = React.memo(({ exerciseName, exerciseDbId, expanded
   // If we have an image and no error
   if (imageUrl && !imageError) {
     return (
-      <div className="mb-3 bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden h-32 relative">
-        <img 
-          src={imageUrl} 
-          alt={`${exerciseName} demonstration`}
-          className="w-full h-full object-contain"
-          onError={() => setImageError(true)}
-        />
-        {isAnimation && (
-          <div className="absolute top-1 right-1 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-            GIF
+      <div className="mb-3">
+        <div 
+          ref={containerRef}
+          className="bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden h-48 relative flex justify-center items-center"
+        >
+          <img 
+            src={imageUrl} 
+            alt={`${exerciseName} demonstration`}
+            className="max-w-full max-h-full object-contain"
+            onError={() => setImageError(true)}
+          />
+          {isAnimation && (
+            <div className="absolute top-1 right-1 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
+              GIF
+            </div>
+          )}
+        </div>
+        
+        {/* YouTube button if a link is available */}
+        {youtubeLink && (
+          <div className="mt-2 text-center">
+            <a 
+              href={youtubeLink} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 transition-colors"
+            >
+              <svg 
+                className="w-4 h-4 mr-1.5" 
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox="0 0 24 24" 
+                fill="currentColor"
+              >
+                <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+              </svg>
+              Watch on YouTube
+            </a>
           </div>
         )}
+        
+        {/* Exercise help section combining instructions and tips */}
+        <div className="mt-2 space-y-3">
+          {/* Add exercise instructions if available */}
+          {instructions && (
+            <div className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-md">
+              <h4 className="font-medium text-xs uppercase text-gray-500 dark:text-gray-400 mb-1">Instructions</h4>
+              <p className="text-xs">{instructions}</p>
+            </div>
+          )}
+          
+          {/* Add exercise tips if available */}
+          {tips && (
+            <div className="text-sm text-gray-700 dark:text-gray-300 bg-yellow-50 dark:bg-yellow-900/10 p-3 rounded-md">
+              <h4 className="font-medium text-xs uppercase text-yellow-600 dark:text-yellow-500 mb-1">Tips</h4>
+              <p className="text-xs">{tips}</p>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
   
   // Fallback to placeholder with exercise name and icon
   return (
-    <div className="mb-3 bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden h-32 flex items-center justify-center">
+    <div className="mb-3 bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden h-48 flex items-center justify-center">
       <div className="text-center text-gray-500 dark:text-gray-400 text-sm p-2">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -230,6 +409,13 @@ const WorkoutSessionPage: React.FC = () => {
     totalTime: number;
   } | null>(null);
   
+  // Add toast state for announcements
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  
+  // Add state for completion dialog
+  const [showCompletionDialog, setShowCompletionDialog] = useState<boolean>(false);
+  const [completionMessage, setCompletionMessage] = useState<string>('');
+  
   // Audio ref for timer alert
   const alertSoundRef = useRef<HTMLAudioElement | null>(null);
   
@@ -240,6 +426,9 @@ const WorkoutSessionPage: React.FC = () => {
 
   // Add new ref for tracking the timer state
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Add toast timeout ref
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // State to track if speech is enabled
   const [isSpeechEnabled, setIsSpeechEnabled] = useState<boolean>(false);
@@ -508,6 +697,12 @@ const WorkoutSessionPage: React.FC = () => {
     });
     
     setCompletedSets(setsMap);
+    
+    // After initializing, attempt to load previous workout data
+    if (profile?.user_id) {
+      console.log('Will attempt to load previous workout data after initialization');
+      // We'll load the previous data in the startWorkout function
+    }
   };
 
   // Start workout session and timer
@@ -525,6 +720,9 @@ const WorkoutSessionPage: React.FC = () => {
         initUtterance.onend = () => console.log('Speech synthesis initialized');
         window.speechSynthesis.speak(initUtterance);
       }
+      
+      // Try to fetch previous workout data for this workout
+      await fetchPreviousWorkoutData();
       
       // Create a new workout session in the database
       const { data, error } = await supabase
@@ -559,7 +757,88 @@ const WorkoutSessionPage: React.FC = () => {
       }, 1000);
     } catch (err) {
       console.error('Error starting workout session:', err);
-      alert('Failed to start workout session');
+      setCompletionMessage('Failed to start workout session');
+      setShowCompletionDialog(true);
+    }
+  };
+  
+  // Function to fetch previous workout data
+  const fetchPreviousWorkoutData = async () => {
+    if (!profile?.user_id || !workoutId) return;
+    
+    try {
+      console.log('Fetching previous workout data...');
+      
+      // First get the most recent workout session for this workout
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('workout_sessions')
+        .select('id')
+        .eq('user_id', profile.user_id)
+        .eq('workout_id', workoutId)
+        .order('start_time', { ascending: false })
+        .limit(1);
+      
+      if (sessionError) {
+        console.error('Error fetching previous sessions:', sessionError);
+        return;
+      }
+      
+      if (!sessionData || sessionData.length === 0) {
+        console.log('No previous workout sessions found');
+        return;
+      }
+      
+      const prevSessionId = sessionData[0].id;
+      console.log('Found previous session:', prevSessionId);
+      
+      // Now fetch the completed sets for that session
+      const { data: setsData, error: setsError } = await supabase
+        .from('completed_exercise_sets')
+        .select('*')
+        .eq('workout_session_id', prevSessionId);
+      
+      if (setsError) {
+        console.error('Error fetching completed sets:', setsError);
+        return;
+      }
+      
+      if (!setsData || setsData.length === 0) {
+        console.log('No completed sets found for previous session');
+        return;
+      }
+      
+      console.log('Found completed sets:', setsData);
+      
+      // Update the completedSets state with previous data
+      // Note: We'll only use the weight values as a starting point
+      setCompletedSets(prevSets => {
+        const newSets = new Map(prevSets);
+        
+        setsData.forEach(prevSet => {
+          const exerciseId = prevSet.exercise_instance_id;
+          const setIndex = prevSet.set_order - 1; // Zero-based index
+          
+          if (newSets.has(exerciseId)) {
+            const exerciseSets = [...(newSets.get(exerciseId) || [])];
+            
+            if (exerciseSets[setIndex]) {
+              // Only update the weight from previous session
+              exerciseSets[setIndex] = {
+                ...exerciseSets[setIndex],
+                weight: prevSet.weight || ''
+              };
+              newSets.set(exerciseId, exerciseSets);
+            }
+          }
+        });
+        
+        return newSets;
+      });
+      
+      console.log('Updated sets with previous workout data');
+      
+    } catch (err) {
+      console.error('Error fetching previous workout data:', err);
     }
   };
 
@@ -629,16 +908,59 @@ const WorkoutSessionPage: React.FC = () => {
         if (setsError) throw setsError;
       }
       
-      // Clean up and navigate to summary or dashboard
+      // Clean up and show success message
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
       
-      alert('Workout completed successfully!');
-      navigate('/dashboard');
+      // Show completion dialog instead of alert
+      setCompletionMessage('Workout completed successfully!');
+      setShowCompletionDialog(true);
+      
     } catch (err) {
       console.error('Error completing workout:', err);
-      alert('Failed to save workout data');
+      setCompletionMessage('Failed to save workout data');
+      setShowCompletionDialog(true);
+    }
+  };
+
+  // Add a new function for canceling the workout after pauseWorkout function
+  const cancelWorkout = () => {
+    // First show the completion dialog with a confirmation message
+    setCompletionMessage('Are you sure you want to cancel this workout? This action cannot be undone.');
+    
+    // We'll use the same dialog but with a different behavior
+    setShowCompletionDialog(true);
+  };
+
+  // Modify the handleCompletionDialogClose function to check for cancel vs complete
+  const handleCompletionDialogClose = () => {
+    setShowCompletionDialog(false);
+    
+    // If the message contains "cancel", we treat it as a cancellation confirmation
+    if (completionMessage.includes('Are you sure you want to cancel')) {
+      // Clean up timers
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      
+      // Reset workout state
+      setIsWorkoutStarted(false);
+      setWorkoutSessionId(null);
+      setElapsedTime(0);
+      pausedTimeRef.current = 0; // Fixed: directly set the ref value instead of using a non-existent setter
+      setActiveRestTimer(null);
+      
+      // Navigate back to dashboard
+      navigate('/dashboard');
+    } else {
+      // Normal completion behavior - navigate to dashboard
+      navigate('/dashboard');
     }
   };
 
@@ -707,6 +1029,31 @@ const WorkoutSessionPage: React.FC = () => {
     }
   };
 
+  // Visual toast notification for announcements (fallback for speech)
+  const showAnnouncementToast = (message: string) => {
+    // Clear any existing toast timeout
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    
+    // Update toast message
+    setToastMessage(message);
+    
+    // Auto-hide after 5 seconds
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 5000);
+  };
+  
+  // Clean up toast timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
+  
   // Function to announce next exercise using speech synthesis
   const announceNextExercise = (exerciseId: string, setIndex: number) => {
     if (!workout) return;
@@ -753,8 +1100,10 @@ const WorkoutSessionPage: React.FC = () => {
       
       console.log('👄 Attempting to announce:', announcementText);
       
-      // Show visual announcement as fallback (especially for browsers without speech synthesis)
-      showAnnouncementToast(announcementText);
+      // Show visual announcement
+      if (announcementText) {
+        showAnnouncementToast(announcementText);
+      }
       
       // Use speech synthesis to announce only if enabled
       if (announcementText && window.speechSynthesis && isSpeechEnabled) {
@@ -794,52 +1143,7 @@ const WorkoutSessionPage: React.FC = () => {
     }
   };
 
-  // Visual toast notification for announcements (fallback for speech)
-  const showAnnouncementToast = (message: string) => {
-    // Create a temporary div for the toast
-    const toast = document.createElement('div');
-    toast.className = 'fixed top-5 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fadeIn';
-    toast.textContent = message;
-    
-    // Add animation style
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes fadeIn {
-        0% { opacity: 0; transform: translate(-50%, -20px); }
-        100% { opacity: 1; transform: translate(-50%, 0); }
-      }
-      @keyframes fadeOut {
-        0% { opacity: 1; transform: translate(-50%, 0); }
-        100% { opacity: 0; transform: translate(-50%, -20px); }
-      }
-      .animate-fadeIn {
-        animation: fadeIn 0.3s ease-out forwards;
-      }
-      .animate-fadeOut {
-        animation: fadeOut 0.3s ease-in forwards;
-      }
-    `;
-    
-    // Append to document
-    document.head.appendChild(style);
-    document.body.appendChild(toast);
-    
-    // Remove after 5 seconds with fade out
-    setTimeout(() => {
-      toast.classList.remove('animate-fadeIn');
-      toast.classList.add('animate-fadeOut');
-      setTimeout(() => {
-        if (document.body.contains(toast)) {
-          document.body.removeChild(toast);
-        }
-        if (document.head.contains(style)) {
-          document.head.removeChild(style);
-        }
-      }, 300);
-    }, 5000);
-  };
-  
-  // Start the rest timer function
+  // Start the rest timer function - modified to focus only on the timer
   const startRestTimer = (exerciseId: string, setIndex: number, duration: number) => {
     console.log('Starting rest timer for', duration, 'seconds');
     
@@ -849,7 +1153,7 @@ const WorkoutSessionPage: React.FC = () => {
       timerIntervalRef.current = null;
     }
     
-    // Set the initial state
+    // Set the initial timer state
     setActiveRestTimer({
       exerciseId,
       setIndex,
@@ -903,7 +1207,7 @@ const WorkoutSessionPage: React.FC = () => {
           announceNextExercise(exerciseId, setIndex);
         }, 500);
         
-        // Clear timer state
+        // Clear timer state 
         setActiveRestTimer(null);
         return;
       }
@@ -1236,21 +1540,31 @@ const WorkoutSessionPage: React.FC = () => {
     }));
   };
 
-  // Rest Timer Component
-  const RestTimerDisplay = () => {
+  // Rest Timer Component with integrated next exercise info
+  const RestTimerDisplay = React.memo(() => {
     if (!activeRestTimer) return null;
     
     const progress = (activeRestTimer.timeLeft / activeRestTimer.totalTime) * 100;
     const isCountingDown = activeRestTimer.timeLeft <= 5;
     
-    // Get next exercise information
-    const nextExerciseInfo = getNextExerciseInfo(
-      activeRestTimer.exerciseId, 
-      activeRestTimer.setIndex
-    );
+    // Get next exercise information directly
+    const nextExerciseInfo = activeRestTimer ? 
+      getNextExerciseInfo(activeRestTimer.exerciseId, activeRestTimer.setIndex) : null;
+    
+    // Function to handle timer skip
+    const handleSkipTimer = () => {
+      // Clear the timer interval
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      
+      // Clear the timer state
+      setActiveRestTimer(null);
+    };
     
     return (
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+      <div className="fixed bottom-4 right-4 z-50">
         {/* Timer Display */}
         <div className={`${isCountingDown ? 'bg-red-600 scale-105 transition-all' : 'bg-indigo-600'} text-white p-4 rounded-lg shadow-lg flex flex-col items-center`}>
           <div className="text-sm font-medium mb-1">
@@ -1270,7 +1584,7 @@ const WorkoutSessionPage: React.FC = () => {
           </div>
           <div className="mt-2 flex justify-between w-full">
             <button 
-              onClick={() => setActiveRestTimer(null)}
+              onClick={handleSkipTimer}
               className="text-xs text-indigo-200 hover:text-white"
             >
               Skip
@@ -1285,20 +1599,14 @@ const WorkoutSessionPage: React.FC = () => {
           </div>
         </div>
         
-        {/* Next Exercise Preview */}
+        {/* Next Exercise Preview - Simplified with no GIF */}
         {nextExerciseInfo && (
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-64 animate-fadeIn">
+          <div className="mt-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-64 animate-fadeIn">
             <h4 className="font-medium text-sm mb-2 text-indigo-600 dark:text-indigo-400">
               {nextExerciseInfo.isSameExercise ? 'Next Set' : 'Next Exercise'}
             </h4>
             
-            {/* Exercise Demonstration - now with exerciseDbId */}
-            <ExerciseDemonstration 
-              exerciseName={nextExerciseInfo.exerciseName} 
-              exerciseDbId={nextExerciseInfo.exerciseDbId} 
-            />
-            
-            {/* Exercise Details */}
+            {/* Exercise Details - no image to prevent refresh issues */}
             <div className="flex flex-col">
               <h3 className="font-bold text-gray-800 dark:text-white mb-1">
                 {nextExerciseInfo.exerciseName}
@@ -1316,320 +1624,382 @@ const WorkoutSessionPage: React.FC = () => {
         )}
       </div>
     );
+  });
+
+  // Completion Dialog Component
+  const CompletionDialog = () => {
+    if (!showCompletionDialog) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] pointer-events-auto">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md mx-4">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+            {completionMessage.includes('Failed') ? 'Error' : 'Workout Complete'}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
+            {completionMessage}
+          </p>
+          <div className="flex justify-end">
+            <button
+              onClick={handleCompletionDialogClose}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="container p-4 mx-auto">
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+    <>
+      {/* Absolute positioned toast container that doesn't interfere with layout */}
+      {toastMessage && (
+        <div className="fixed inset-0 flex items-start justify-center pt-5 pointer-events-none z-[9999]">
+          <div className="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg max-w-[90%]">
+            {toastMessage}
+          </div>
         </div>
-      ) : error ? (
-        <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-700 dark:bg-red-900/20 dark:text-red-400">
-          <p>Error: {error}</p>
-        </div>
-      ) : workout ? (
-        <div>
-          {/* Workout Header */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{workout.name}</h1>
-                {workout.description && (
-                  <p className="mt-2 text-gray-600 dark:text-gray-400">{workout.description}</p>
+      )}
+      
+      {/* Workout Completion Dialog */}
+      <CompletionDialog />
+      
+      <div className="container px-2 mx-auto">
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+          </div>
+        ) : error ? (
+          <div className="p-3 bg-red-100 border-l-4 border-red-500 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+            <p>Error: {error}</p>
+          </div>
+        ) : workout ? (
+          <div>
+            {/* Workout Header */}
+            <div className="mb-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{workout.name}</h1>
+                  {workout.description && (
+                    <p className="mt-1 text-gray-600 dark:text-gray-400">{workout.description}</p>
+                  )}
+                </div>
+                {isWorkoutStarted && window.speechSynthesis && (
+                  <button
+                    onClick={isSpeechEnabled ? disableSpeech : enableSpeech}
+                    className={`flex items-center px-2 py-1 rounded-md text-sm ${
+                      isSpeechEnabled 
+                        ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' 
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    {isSpeechEnabled ? (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828a1 1 0 010-1.415z" clipRule="evenodd" />
+                        </svg>
+                        Voice On
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.415L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        Voice Off
+                      </>
+                    )}
+                  </button>
                 )}
               </div>
-              {isWorkoutStarted && window.speechSynthesis && (
-                <button
-                  onClick={isSpeechEnabled ? disableSpeech : enableSpeech}
-                  className={`flex items-center px-3 py-1.5 rounded-md text-sm ${
-                    isSpeechEnabled 
-                      ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' 
-                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                  }`}
-                >
-                  {isSpeechEnabled ? (
-                    <>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
-                      </svg>
-                      Voice On
-                    </>
-                  ) : (
-                    <>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.415L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                      Voice Off
-                    </>
-                  )}
-                </button>
-              )}
             </div>
-          </div>
 
-          {/* Workout Timer and Controls */}
-          <div className="mb-6 p-4 bg-white dark:bg-gray-800 shadow rounded-lg">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400 font-mono">
-                  {formatTime(elapsedTime)}
+            {/* Workout Timer and Controls */}
+            <div className="mb-4 p-3 bg-white dark:bg-gray-800 shadow rounded-lg">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+                    {formatTime(elapsedTime)}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    {isWorkoutStarted ? (isPaused ? 'Paused' : 'Active') : 'Not Started'}
+                  </div>
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {isWorkoutStarted ? (isPaused ? 'Paused' : 'Active') : 'Not Started'}
+                
+                <div className="flex items-center gap-2">
+                  {!isWorkoutStarted ? (
+                    <button
+                      onClick={startWorkout}
+                      className="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    >
+                      Start Workout
+                    </button>
+                  ) : isPaused ? (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={resumeWorkout}
+                        className="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      >
+                        Resume
+                      </button>
+                      <button
+                        onClick={cancelWorkout}
+                        className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={completeWorkout}
+                        className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                      >
+                        Complete
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={pauseWorkout}
+                        className="px-3 py-1.5 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                      >
+                        Pause
+                      </button>
+                      <button
+                        onClick={cancelWorkout}
+                        className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                {!isWorkoutStarted ? (
-                  <button
-                    onClick={startWorkout}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    Start Workout
-                  </button>
-                ) : isPaused ? (
-                  <>
-                    <button
-                      onClick={resumeWorkout}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              {/* Progress bar */}
+              {isWorkoutStarted && (
+                <div className="mt-3">
+                  <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    <span>Progress</span>
+                    <span>{calculateProgress()}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                    <div 
+                      className="bg-indigo-600 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${calculateProgress()}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Exercises List with Accordion */}
+            <div className="space-y-4">
+              {workout.exercise_instances
+                .sort((a, b) => (a.order_in_workout || 0) - (b.order_in_workout || 0))
+                .map((exercise, exerciseIndex) => {
+                  const exerciseSets = completedSets.get(exercise.id) || [];
+                  const isExerciseComplete = exerciseSets.length > 0 && exerciseSets.every(set => set.isCompleted);
+                  // Use the component-level state instead of local useState
+                  const showDemonstration = shownDemonstrations[exercise.id] || false;
+                  
+                  return (
+                    <div 
+                      key={exercise.id} 
+                      className={`p-3 rounded-lg shadow ${
+                        isExerciseComplete 
+                          ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500' 
+                          : 'bg-white dark:bg-gray-800'
+                      }`}
                     >
-                      Resume
-                    </button>
-                    <button
-                      onClick={completeWorkout}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      Complete
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={pauseWorkout}
-                    className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                  >
-                    Pause
-                  </button>
-                )}
-              </div>
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold flex items-center">
+                          <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-2">
+                            {exerciseIndex + 1}
+                          </span>
+                          <span className="text-gray-800 dark:text-white">
+                            {exercise.exercise_name}
+                          </span>
+                        </h3>
+                        
+                        {/* Toggle button for demonstration */}
+                        <button 
+                          onClick={() => toggleDemonstration(exercise.id)}
+                          className="flex text-center items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-xs"
+                        >
+                          {showDemonstration ? (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
+                              </svg>
+                              Hide Demo
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                              </svg>
+                              View Demo
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      
+                      {/* Exercise notes */}
+                      {exercise.notes && (
+                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
+                          {exercise.notes}
+                        </p>
+                      )}
+                      
+                      {/* Exercise Demonstration - Collapsible */}
+                      {showDemonstration && (
+                        <div className="mt-3 animate-fadeIn">
+                          <ExerciseDemonstration 
+                            exerciseName={exercise.exercise_name} 
+                            exerciseDbId={exercise.exercise_db_id} 
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Sets table */}
+                      <div className="mt-3 max-w-full">
+                        <table className="w-full text-xs text-left table-auto">
+                          <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                            <tr>
+                              <th scope="col" className="px-1 py-2 w-[10%] hidden sm:table-cell">Set</th>
+                              <th scope="col" className="px-1 py-2 w-[22%]">Type</th>
+                              <th scope="col" className="px-1 py-2 w-[15%]">Reps</th>
+                              <th scope="col" className="px-1 py-2 w-[18%]">Weight</th>
+                              <th scope="col" className="px-1 py-2 w-[15%]">Rest</th>
+                              <th scope="col" className="px-1 py-2 w-[20%] text-center">Done</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {exerciseSets.map((set, setIndex) => {
+                              // Get the rest time for this specific set from sets_data if available
+                              let restSeconds = null;
+                              if (exercise.sets_data && exercise.sets_data[setIndex]) {
+                                restSeconds = exercise.sets_data[setIndex].rest_seconds;
+                              }
+                              // Fall back to exercise rest_period_seconds if no specific rest time
+                              if (restSeconds === undefined || restSeconds === null) {
+                                restSeconds = exercise.rest_period_seconds;
+                              }
+                              
+                              return (
+                                <tr 
+                                  key={`${exercise.id}-set-${setIndex}`} 
+                                  className={`border-b dark:border-gray-700 ${
+                                    set.isCompleted ? 'bg-green-50 dark:bg-green-900/10' : ''
+                                  }`}
+                                >
+                                  <td className="px-1 py-2 font-medium hidden sm:table-cell">
+                                    {setIndex + 1}
+                                  </td>
+                                  <td className="px-1 py-2">
+                                    <span className={`inline-block px-2 py-1 text-xs rounded-full truncate max-w-full ${
+                                      set.setType === SetType.WARM_UP 
+                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+                                        : set.setType === SetType.FAILURE
+                                        ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+                                        : set.setType === SetType.DROP_SET
+                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
+                                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                    }`}>
+                                      {set.setType ? getSetTypeName(set.setType) : 'Regular'}
+                                    </span>
+                                  </td>
+                                  <td className="px-1 py-2">
+                                    <input
+                                      type="number"
+                                      value={set.reps || ''}
+                                      onChange={(e) => updateSetReps(exercise.id, setIndex, e.target.value)}
+                                      disabled={!isWorkoutStarted || isPaused}
+                                      className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                      min="0"
+                                    />
+                                  </td>
+                                  <td className="px-1 py-2">
+                                    <input
+                                      type="text"
+                                      value={set.weight}
+                                      onChange={(e) => updateSetWeight(exercise.id, setIndex, e.target.value)}
+                                      disabled={!isWorkoutStarted || isPaused}
+                                      placeholder="kg"
+                                      className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    />
+                                  </td>
+                                  <td className="px-1 py-2">
+                                    {restSeconds ? (
+                                      <div className="flex items-center text-blue-600 dark:text-blue-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span>{restSeconds}s</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-400 dark:text-gray-500">-</span>
+                                    )}
+                                  </td>
+                                  <td className="px-1 py-2 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={set.isCompleted}
+                                      onChange={() => toggleSetCompletion(exercise.id, setIndex)}
+                                      disabled={!isWorkoutStarted || isPaused}
+                                      className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+                                    />
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
             
-            {/* Progress bar */}
+            {/* Complete button at bottom for convenience */}
             {isWorkoutStarted && (
-              <div className="mt-4">
-                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  <span>Progress</span>
-                  <span>{calculateProgress()}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                  <div 
-                    className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
-                    style={{ width: `${calculateProgress()}%` }}
-                  ></div>
-                </div>
+              <div className="mt-8 flex justify-center space-x-4">
+                <button
+                  onClick={isPaused ? resumeWorkout : pauseWorkout}
+                  className={`px-4 py-2 rounded-md ${
+                    isPaused 
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                      : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                  }`}
+                >
+                  {isPaused ? 'Resume Workout' : 'Pause Workout'}
+                </button>
+                <button
+                  onClick={cancelWorkout}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  Cancel Workout
+                </button>
+                <button
+                  onClick={completeWorkout}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  Complete Workout
+                </button>
               </div>
             )}
           </div>
-
-          {/* Exercises List with Accordion */}
-          <div className="space-y-6">
-            {workout.exercise_instances
-              .sort((a, b) => (a.order_in_workout || 0) - (b.order_in_workout || 0))
-              .map((exercise, exerciseIndex) => {
-                const exerciseSets = completedSets.get(exercise.id) || [];
-                const isExerciseComplete = exerciseSets.length > 0 && exerciseSets.every(set => set.isCompleted);
-                // Use the component-level state instead of local useState
-                const showDemonstration = shownDemonstrations[exercise.id] || false;
-                
-                return (
-                  <div 
-                    key={exercise.id} 
-                    className={`p-4 rounded-lg shadow ${
-                      isExerciseComplete 
-                        ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500' 
-                        : 'bg-white dark:bg-gray-800'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-semibold flex items-center">
-                        <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-3">
-                          {exerciseIndex + 1}
-                        </span>
-                        <span className="text-gray-800 dark:text-white">
-                          {exercise.exercise_name}
-                        </span>
-                      </h3>
-                      
-                      {/* Toggle button for demonstration */}
-                      <button 
-                        onClick={() => toggleDemonstration(exercise.id)}
-                        className="flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-sm"
-                      >
-                        {showDemonstration ? (
-                          <>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
-                            </svg>
-                            Hide Demo
-                          </>
-                        ) : (
-                          <>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                            </svg>
-                            View Demo
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    
-                    {/* Exercise notes */}
-                    {exercise.notes && (
-                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 ml-11">
-                        {exercise.notes}
-                      </p>
-                    )}
-                    
-                    {/* Exercise Demonstration - Collapsible */}
-                    {showDemonstration && (
-                      <div className="mt-4 ml-11 animate-fadeIn">
-                        <ExerciseDemonstration 
-                          exerciseName={exercise.exercise_name} 
-                          exerciseDbId={exercise.exercise_db_id} 
-                        />
-                      </div>
-                    )}
-                    
-                    {/* Sets table */}
-                    <div className="mt-4 overflow-x-auto">
-                      <table className="w-full text-sm text-left">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                          <tr>
-                            <th scope="col" className="px-4 py-3 w-16">Set</th>
-                            <th scope="col" className="px-4 py-3">Type</th>
-                            <th scope="col" className="px-4 py-3">Reps</th>
-                            <th scope="col" className="px-4 py-3">Weight</th>
-                            <th scope="col" className="px-4 py-3">Rest</th>
-                            <th scope="col" className="px-4 py-3 w-24 text-center">Done</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {exerciseSets.map((set, setIndex) => {
-                            // Get the rest time for this specific set from sets_data if available
-                            let restSeconds = null;
-                            if (exercise.sets_data && exercise.sets_data[setIndex]) {
-                              restSeconds = exercise.sets_data[setIndex].rest_seconds;
-                            }
-                            // Fall back to exercise rest_period_seconds if no specific rest time
-                            if (restSeconds === undefined || restSeconds === null) {
-                              restSeconds = exercise.rest_period_seconds;
-                            }
-                            
-                            return (
-                              <tr 
-                                key={`${exercise.id}-set-${setIndex}`} 
-                                className={`border-b dark:border-gray-700 ${
-                                  set.isCompleted ? 'bg-green-50 dark:bg-green-900/10' : ''
-                                }`}
-                              >
-                                <td className="px-4 py-3 font-medium">
-                                  {setIndex + 1}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                                    set.setType === SetType.WARM_UP 
-                                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
-                                      : set.setType === SetType.FAILURE
-                                      ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
-                                      : set.setType === SetType.DROP_SET
-                                      ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
-                                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                                  }`}>
-                                    {set.setType ? getSetTypeName(set.setType) : 'Regular'}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <input
-                                    type="number"
-                                    value={set.reps || ''}
-                                    onChange={(e) => updateSetReps(exercise.id, setIndex, e.target.value)}
-                                    disabled={!isWorkoutStarted || isPaused}
-                                    className="w-16 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                    min="0"
-                                  />
-                                </td>
-                                <td className="px-4 py-3">
-                                  <input
-                                    type="text"
-                                    value={set.weight}
-                                    onChange={(e) => updateSetWeight(exercise.id, setIndex, e.target.value)}
-                                    disabled={!isWorkoutStarted || isPaused}
-                                    placeholder="kg"
-                                    className="w-24 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                  />
-                                </td>
-                                <td className="px-4 py-3">
-                                  {restSeconds ? (
-                                    <div className="flex items-center text-blue-600 dark:text-blue-400">
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                      </svg>
-                                      <span>{restSeconds}s</span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-gray-400 dark:text-gray-500">-</span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={set.isCompleted}
-                                    onChange={() => toggleSetCompletion(exercise.id, setIndex)}
-                                    disabled={!isWorkoutStarted || isPaused}
-                                    className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                                  />
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                );
-              })}
+        ) : (
+          <div className="text-center py-12">
+            <p>No workout found</p>
           </div>
-          
-          {/* Complete button at bottom for convenience */}
-          {isWorkoutStarted && (
-            <div className="mt-8 flex justify-center">
-              <button
-                onClick={isPaused ? resumeWorkout : pauseWorkout}
-                className={`px-4 py-2 mr-4 rounded-md ${
-                  isPaused 
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
-                    : 'bg-yellow-600 text-white hover:bg-yellow-700'
-                }`}
-              >
-                {isPaused ? 'Resume Workout' : 'Pause Workout'}
-              </button>
-              <button
-                onClick={completeWorkout}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                Complete Workout
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <p>No workout found</p>
-        </div>
-      )}
-      <RestTimerDisplay />
-      <SpeechPermissionPrompt />
-    </div>
+        )}
+        
+        {/* Render only the timer component, which now includes the next exercise info */}
+        <RestTimerDisplay />
+        <SpeechPermissionPrompt />
+      </div>
+    </>
   );
 };
 

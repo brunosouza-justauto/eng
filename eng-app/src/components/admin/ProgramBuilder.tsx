@@ -61,6 +61,7 @@ const ProgramBuilder: React.FC = () => {
     // State for workout form
     const [editingWorkout, setEditingWorkout] = useState<WorkoutAdminData | null>(null);
     const [selectedWorkout, setSelectedWorkout] = useState<WorkoutAdminData | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
 
     const profile = useSelector(selectProfile);
 
@@ -118,104 +119,6 @@ const ProgramBuilder: React.FC = () => {
 
     // Fetch workouts when a template is selected for editing
     useEffect(() => {
-        const fetchWorkoutsForTemplate = async () => {
-            if (!selectedTemplate) {
-                setCurrentWorkouts([]);
-                return;
-            }
-            setIsLoadingWorkouts(true);
-            try {
-                // Enhanced query to fetch workouts and exercise instances
-                const { data, error } = await supabase
-                    .from('workouts')
-                    .select(`
-                        *, 
-                        exercise_instances(*)
-                    `)
-                    .eq('program_template_id', selectedTemplate.id)
-                    .order('order_in_program', { ascending: true })
-                    .order('order_in_workout', { foreignTable: 'exercise_instances', ascending: true });
-
-                if (error) throw error;
-
-                if (data && data.length > 0) {
-                    console.log('*** DETAILED PROGRAM DATA ***');
-                    console.log('Raw workout data:', JSON.stringify(data, null, 2));
-                    
-                    // Get all exercise instance IDs
-                    const exerciseInstanceIds: string[] = [];
-                    data.forEach(workout => {
-                        if (workout.exercise_instances && workout.exercise_instances.length > 0) {
-                            workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
-                                if (instance.id) {
-                                    exerciseInstanceIds.push(instance.id);
-                                }
-                            });
-                        }
-                    });
-                    
-                    console.log('Fetching exercise sets for instances:', exerciseInstanceIds);
-                    
-                    // Fetch all exercise sets for these instances
-                    if (exerciseInstanceIds.length > 0) {
-                        const { data: setsData, error: setsError } = await supabase
-                            .from('exercise_sets')
-                            .select('*')
-                            .in('exercise_instance_id', exerciseInstanceIds)
-                            .order('set_order', { ascending: true });
-                            
-                        if (setsError) {
-                            console.error('Error fetching exercise sets:', setsError);
-                        } else if (setsData) {
-                            console.log('Fetched exercise sets:', setsData);
-                            
-                            // Group sets by exercise instance ID
-                            const setsByExerciseId = new Map<string, ExerciseSet[]>();
-                            
-                            setsData.forEach(set => {
-                                const exerciseId = set.exercise_instance_id;
-                                if (!setsByExerciseId.has(exerciseId)) {
-                                    setsByExerciseId.set(exerciseId, []);
-                                }
-                                
-                                setsByExerciseId.get(exerciseId)?.push({
-                                    id: set.id,
-                                    set_order: set.set_order,
-                                    type: set.type as SetType,
-                                    reps: set.reps || undefined,
-                                    weight: set.weight || undefined,
-                                    rest_seconds: set.rest_seconds || undefined,
-                                    duration: set.duration || undefined
-                                });
-                            });
-                            
-                            // Attach sets to their respective exercise instances
-                            data.forEach(workout => {
-                                if (workout.exercise_instances) {
-                                    workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
-                                        if (instance.id && setsByExerciseId.has(instance.id)) {
-                                            instance.sets_data = setsByExerciseId.get(instance.id);
-                                            console.log(`Attached ${instance.sets_data?.length} sets to ${instance.exercise_name}`);
-                                        }
-                                    });
-                                }
-                            });
-                        }
-                    }
-                    
-                    setCurrentWorkouts(data);
-                } else {
-                    setCurrentWorkouts([]);
-                }
-            } catch (err) {
-                console.error("Error fetching workouts for template:", err);
-                setError('Failed to load workouts for this template.');
-                setCurrentWorkouts([]); // Clear workouts on error
-            } finally {
-                setIsLoadingWorkouts(false);
-            }
-        };
-
         fetchWorkoutsForTemplate();
     }, [selectedTemplate]); // Depend on selectedTemplate
 
@@ -625,6 +528,172 @@ const ProgramBuilder: React.FC = () => {
         }
     };
 
+    // Fix the duplicateWorkout function to properly refer to the existing fetchWorkoutsForTemplate function
+    const duplicateWorkout = async (workout: WorkoutAdminData, targetDayOfWeek: number) => {
+        if (!selectedTemplate || !selectedTemplate.id) {
+            setError('Cannot duplicate workout: No program template selected.');
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            console.log('Starting workout duplication:', workout.name);
+            
+            // Create a new workout object without ID (to create a new record)
+            const newWorkoutData = {
+                program_template_id: selectedTemplate.id,
+                name: `${workout.name} (Copy)`,
+                day_of_week: targetDayOfWeek,
+                week_number: workout.week_number,
+                order_in_program: workout.order_in_program,
+                description: workout.description
+            };
+
+            // 1. Insert the new workout
+            const { data: newWorkout, error: workoutError } = await supabase
+                .from('workouts')
+                .insert(newWorkoutData)
+                .select('id')
+                .single();
+
+            if (workoutError) throw workoutError;
+            if (!newWorkout?.id) throw new Error('No workout ID returned from insert');
+
+            console.log('Created new workout with ID:', newWorkout.id);
+            const newWorkoutId = newWorkout.id;
+
+            // 2. Get the original workout's exercise instances
+            const { data: exerciseInstances, error: exercisesError } = await supabase
+                .from('exercise_instances')
+                .select('*')
+                .eq('workout_id', workout.id);
+
+            if (exercisesError) throw exercisesError;
+            
+            if (!exerciseInstances || exerciseInstances.length === 0) {
+                console.log('No exercise instances to duplicate');
+                // No exercises to duplicate, just return the new workout
+                // Refresh the workout list
+                if (selectedTemplate) {
+                    await fetchWorkoutsForTemplate();
+                }
+                setIsLoading(false);
+                setSuccess(`Duplicated workout "${workout.name}" to ${getDayName(targetDayOfWeek)}`);
+                return;
+            }
+
+            console.log(`Found ${exerciseInstances.length} exercise instances to duplicate`);
+
+            // 3. Create new exercise instances for the duplicated workout
+            const newExerciseData = exerciseInstances.map(exercise => ({
+                ...exercise,
+                id: uuidv4(), // Generate a new UUID instead of undefined
+                workout_id: newWorkoutId // Set to the new workout ID
+            }));
+
+            // 4. Insert the new exercise instances
+            const { data: newExercises, error: newExercisesError } = await supabase
+                .from('exercise_instances')
+                .insert(newExerciseData)
+                .select('id, exercise_db_id');
+
+            if (newExercisesError) {
+                console.error('Error inserting exercise instances:', newExercisesError);
+                throw newExercisesError;
+            }
+            
+            if (!newExercises || newExercises.length === 0) {
+                console.error('No exercise instances were created.');
+                throw new Error('Failed to create exercise instances');
+            }
+            
+            console.log(`Created ${newExercises.length} new exercise instances`);
+            
+            // Create a mapping from old exercise IDs to new exercise IDs
+            const exerciseIdMap = new Map<string, string>();
+            
+            for (let i = 0; i < exerciseInstances.length; i++) {
+                if (newExercises && newExercises[i]) {
+                    exerciseIdMap.set(exerciseInstances[i].id, newExercises[i].id);
+                    console.log(`Mapped old exercise ID ${exerciseInstances[i].id} to new ID ${newExercises[i].id}`);
+                }
+            }
+
+            // 5. Get all exercise sets for the original exercise instances
+            const originalExerciseIds = exerciseInstances.map(e => e.id);
+            
+            console.log('Fetching sets for original exercise IDs:', originalExerciseIds);
+            const { data: exerciseSets, error: setsError } = await supabase
+                .from('exercise_sets')
+                .select('*')
+                .in('exercise_instance_id', originalExerciseIds);
+
+            if (setsError) {
+                console.error('Error fetching exercise sets:', setsError);
+                throw setsError;
+            }
+
+            console.log(`Found ${exerciseSets?.length || 0} exercise sets to duplicate`);
+
+            if (exerciseSets && exerciseSets.length > 0) {
+                // 6. Create new exercise sets for the duplicated exercise instances
+                const newSetsData = exerciseSets.map(set => {
+                    const newExerciseId = exerciseIdMap.get(set.exercise_instance_id);
+                    if (!newExerciseId) {
+                        console.error(`Failed to find mapping for exercise instance ID: ${set.exercise_instance_id}`);
+                    }
+                    
+                    return {
+                        ...set,
+                        id: uuidv4(), // Generate a new UUID for each set too
+                        exercise_instance_id: newExerciseId // Map to new exercise ID
+                    };
+                });
+                
+                console.log('Inserting new sets data:', newSetsData);
+
+                // 7. Insert the new exercise sets
+                const { data: insertedSets, error: newSetsError } = await supabase
+                    .from('exercise_sets')
+                    .insert(newSetsData)
+                    .select();
+
+                if (newSetsError) {
+                    console.error('Error inserting new sets:', newSetsError);
+                    throw newSetsError;
+                }
+                
+                console.log(`Successfully created ${insertedSets?.length || 0} new exercise sets`);
+            } else {
+                console.log('No exercise sets found to duplicate');
+            }
+
+            // 8. Refresh the workouts to show the newly duplicated one
+            if (selectedTemplate) {
+                await fetchWorkoutsForTemplate();
+            }
+            
+            setSuccess(`Duplicated workout "${workout.name}" to ${getDayName(targetDayOfWeek)}`);
+            
+            // Auto-hide success message after 3 seconds
+            setTimeout(() => {
+                setSuccess(null);
+            }, 3000);
+            
+        } catch (err) {
+            console.error('Error duplicating workout:', err);
+            setError('Failed to duplicate workout. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Helper function to get day name from day number
+    const getDayName = (dayOfWeek: number): string => {
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        return days[dayOfWeek - 1] || 'Unknown';
+    };
+
     const handleDeleteTemplate = async (templateId: string) => {
         try {
             // 1. First get all workouts for this template
@@ -683,6 +752,170 @@ const ProgramBuilder: React.FC = () => {
         setEditingWorkout(workout);
     };
 
+    // Add a reusable function for fetching workouts
+    const fetchWorkoutsForTemplate = async () => {
+        if (!selectedTemplate) {
+            setCurrentWorkouts([]);
+            return;
+        }
+        setIsLoadingWorkouts(true);
+        try {
+            // Enhanced query to fetch workouts and exercise instances
+            const { data, error } = await supabase
+                .from('workouts')
+                .select(`
+                    *, 
+                    exercise_instances(*)
+                `)
+                .eq('program_template_id', selectedTemplate.id)
+                .order('order_in_program', { ascending: true })
+                .order('order_in_workout', { foreignTable: 'exercise_instances', ascending: true });
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                console.log('*** DETAILED PROGRAM DATA ***');
+                console.log('Raw workout data:', JSON.stringify(data, null, 2));
+                
+                // Get all exercise instance IDs
+                const exerciseInstanceIds: string[] = [];
+                data.forEach(workout => {
+                    if (workout.exercise_instances && workout.exercise_instances.length > 0) {
+                        workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
+                            if (instance.id) {
+                                exerciseInstanceIds.push(instance.id);
+                            }
+                        });
+                    }
+                });
+                
+                console.log('Fetching exercise sets for instances:', exerciseInstanceIds);
+                
+                // Fetch all exercise sets for these instances
+                if (exerciseInstanceIds.length > 0) {
+                    const { data: setsData, error: setsError } = await supabase
+                        .from('exercise_sets')
+                        .select('*')
+                        .in('exercise_instance_id', exerciseInstanceIds)
+                        .order('set_order', { ascending: true });
+                        
+                    if (setsError) {
+                        console.error('Error fetching exercise sets:', setsError);
+                    } else if (setsData) {
+                        console.log('Fetched exercise sets:', setsData);
+                        
+                        // Group sets by exercise instance ID
+                        const setsByExerciseId = new Map<string, ExerciseSet[]>();
+                        
+                        setsData.forEach(set => {
+                            const exerciseId = set.exercise_instance_id;
+                            if (!setsByExerciseId.has(exerciseId)) {
+                                setsByExerciseId.set(exerciseId, []);
+                            }
+                            
+                            setsByExerciseId.get(exerciseId)?.push({
+                                id: set.id,
+                                set_order: set.set_order,
+                                type: set.type as SetType,
+                                reps: set.reps || undefined,
+                                weight: set.weight || undefined,
+                                rest_seconds: set.rest_seconds || undefined,
+                                duration: set.duration || undefined
+                            });
+                        });
+                        
+                        // Attach sets to their respective exercise instances
+                        data.forEach(workout => {
+                            if (workout.exercise_instances) {
+                                workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
+                                    if (instance.id && setsByExerciseId.has(instance.id)) {
+                                        instance.sets_data = setsByExerciseId.get(instance.id);
+                                        console.log(`Attached ${instance.sets_data?.length} sets to ${instance.exercise_name}`);
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+                
+                setCurrentWorkouts(data);
+            } else {
+                setCurrentWorkouts([]);
+            }
+        } catch (err) {
+            console.error("Error fetching workouts for template:", err);
+            setError('Failed to load workouts for this template.');
+            setCurrentWorkouts([]); // Clear workouts on error
+        } finally {
+            setIsLoadingWorkouts(false);
+        }
+    };
+
+    // After the duplicateWorkout function, add a new deleteWorkout function
+    const deleteWorkout = async (workoutId: string, workoutName: string) => {
+        if (!selectedTemplate || !selectedTemplate.id) {
+            setError('Cannot delete workout: No program template selected.');
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            
+            // 1. Get all exercise instances for this workout
+            const { data: exerciseInstances, error: exercisesError } = await supabase
+                .from('exercise_instances')
+                .select('id')
+                .eq('workout_id', workoutId);
+
+            if (exercisesError) throw exercisesError;
+            
+            // 2. If we have exercise instances, delete all their sets first
+            if (exerciseInstances && exerciseInstances.length > 0) {
+                const exerciseIds = exerciseInstances.map(e => e.id);
+                
+                // Delete all exercise sets for these instances
+                const { error: setsError } = await supabase
+                    .from('exercise_sets')
+                    .delete()
+                    .in('exercise_instance_id', exerciseIds);
+
+                if (setsError) throw setsError;
+            }
+            
+            // 3. Delete all exercise instances for this workout
+            const { error: deleteInstancesError } = await supabase
+                .from('exercise_instances')
+                .delete()
+                .eq('workout_id', workoutId);
+                
+            if (deleteInstancesError) throw deleteInstancesError;
+            
+            // 4. Finally delete the workout itself
+            const { error: deleteWorkoutError } = await supabase
+                .from('workouts')
+                .delete()
+                .eq('id', workoutId);
+                
+            if (deleteWorkoutError) throw deleteWorkoutError;
+            
+            // 5. Refresh the workouts list
+            await fetchWorkoutsForTemplate();
+            
+            setSuccess(`Deleted workout "${workoutName}"`);
+            
+            // Auto-hide success message after 3 seconds
+            setTimeout(() => {
+                setSuccess(null);
+            }, 3000);
+            
+        } catch (err) {
+            console.error('Error deleting workout:', err);
+            setError('Failed to delete workout. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <DndProvider backend={HTML5Backend}>
             <div className="container mx-auto py-6 px-4">
@@ -702,6 +935,12 @@ const ProgramBuilder: React.FC = () => {
                 {error && (
                     <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded" role="alert">
                         <p>{error}</p>
+                    </div>
+                )}
+                
+                {success && (
+                    <div className="p-4 mb-4 bg-green-100 border-l-4 border-green-500 text-green-700 dark:bg-green-900/20 dark:text-green-400 dark:border-green-500">
+                        <p>{success}</p>
                     </div>
                 )}
                 
@@ -928,6 +1167,8 @@ const ProgramBuilder: React.FC = () => {
                                         workouts={currentWorkouts}
                                         onSelectWorkout={selectWorkout}
                                         selectedWorkoutId={selectedWorkout?.id}
+                                        onDuplicateWorkout={duplicateWorkout}
+                                        onDeleteWorkout={deleteWorkout}
                                     />
                                 </div>
                             </div>

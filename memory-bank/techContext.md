@@ -42,4 +42,60 @@
 *   **Branching:** Feature branches based off the main development branch.
 *   **Commits:** Use conventional commit prefixes (`feat:`, `fix:`, `docs:`, `refactor:`).
 *   **Pull Requests:** Submit PRs for review, ensuring linting and tests pass.
-*   **Merging:** Squash and merge strategy preferred. 
+*   **Merging:** Squash and merge strategy preferred.
+
+## Key Technical Patterns
+
+### State Management
+- Redux store with slices for different domains (auth, workouts, etc.)
+- React component state for UI-specific state
+- Redux Toolkit for simplified Redux setup and operations
+
+### Authentication
+- Passwordless authentication with Supabase magic links
+- Protected routes with authentication checks
+- Auth state persisted in Redux store
+
+### API Interactions
+- Axios for HTTP requests
+- Service layer pattern for organizing API calls
+- Response caching for performance optimization
+
+### CSS and Styling
+- Tailwind CSS for utility-first styling
+- Dark mode implementation with class strategy
+- Custom components defined in `@layer components`
+- Mobile-first responsive design with sm/md/lg breakpoints
+- Consistent spacing using Tailwind's built-in scale
+- Using `hidden sm:block` pattern for responsive visibility
+
+### Responsive Techniques
+- Fixed positioning with explicit coordinates for floating UI
+- Using percentage-based widths for table columns
+- Strategic hiding of less critical elements on mobile
+- Optimizing input fields with `w-full` for adaptive sizing
+- Using `max-w-[90%]` pattern for constraining width on mobile
+- `pointer-events-none` to prevent UI overlays from interrupting interactions
+
+## Database Structure
+
+- Supabase PostgreSQL for data storage
+- Key tables:
+  - users
+  - profiles
+  - workouts
+  - exercise_instances
+  - exercise_sets
+  - workout_sessions
+  - completed_exercise_sets
+
+## Deployment
+
+- Vercel for production hosting
+- Supabase for backend infrastructure
+
+## Technical Constraints
+
+- Browser compatibility: Modern browsers only (Chrome, Firefox, Safari, Edge)
+- Mobile support: iOS 12+, Android 8+
+- Connection requirement: Online functionality with limited offline capabilities 

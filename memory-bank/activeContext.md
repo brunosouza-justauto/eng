@@ -30,6 +30,15 @@ We are enhancing the workout experience in the application with advanced trainin
 
 ## Recent Changes
 
+### Exercise Demonstration Enhancements
+- Added YouTube link integration to exercise demonstrations - allowing users to watch video demonstrations
+- Implemented a text sanitization system to fix encoding issues in exercise instructions and tips
+- Created a "Watch on YouTube" button with the YouTube branding that opens videos in a new tab
+- Added proper visual organization of demonstration content (image, YouTube link, instructions, tips)
+- Enhanced mobile-friendly layout with appropriate spacing and sizing for all content sections
+- Fixed character encoding issues (e.g., "DonÃ†t" → "Don't") in exercise instructions
+- Applied comprehensive text sanitization for various special characters and apostrophes
+
 ### Workout Session Timer Enhancements
 - Implemented a comprehensive rest timer system for tracking rest periods between sets
 - Added countdown timers with visual, audio, and vibration feedback
@@ -113,6 +122,25 @@ We are enhancing the workout experience in the application with advanced trainin
 - Updated UI to show day names instead of numbers
 - Fixed TypeScript type issues for SetType mapping
 
+### WorkoutSessionPage Mobile Responsiveness
+- Table layout has been optimized for mobile with percentage-based column widths
+- "Set" column is hidden on mobile screens to save space
+- All inputs use `w-full` to adapt to available space
+- Added `truncate max-w-full` to type labels to prevent text overflow
+- Reduced padding from `px-4` to `px-2` throughout the table to save space
+
+### Toast Notification System
+- Implemented a React-based toast notification system that appears above the content
+- Fixed issues with the announcement toast pushing exercise images to the left
+- Used `fixed inset-0` with `pointer-events-none` to ensure the toast doesn't interfere with layout or interactions
+- Added timeout cleanup to prevent memory leaks
+- Toast displays exercise transitions and countdown information
+
+### Rest Timer Functionality
+- Fixed the "Skip" button to properly clear timer intervals
+- Added `handleSkipTimer` function to clean up timer resources when skipped
+- Positioned the timer in the bottom-right corner with appropriate z-index
+
 ## Next Steps
 
 ### Workout Experience Enhancements
@@ -166,6 +194,8 @@ We are enhancing the workout experience in the application with advanced trainin
 - Providing multi-sensory feedback (visual, audio, tactile) for comprehensive experience
 - All feedback systems are opt-in and can be toggled by the user
 - Storing user preferences in localStorage for persistence between sessions
+- Handling API-provided YouTube links to enable video demonstrations
+- Implementing text sanitization to fix encoding issues in external API data
 
 ### Multi-Day Meal Planning Approach
 - The current system already has day_number field in meals table, supporting multi-day functionality

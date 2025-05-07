@@ -3,6 +3,7 @@ import { supabase } from '../../services/supabaseClient';
 import Card from '../ui/Card';
 import { Button } from '../ui/Button';
 import { UserProfileListItem } from '../../types/profiles';
+import { getEmailProviderInfo, CommonEmailLinks, type EmailProvider } from '../../utils/emailUtils';
 
 interface InvitationManagerProps {
   onInviteSent: (email: string) => void;
@@ -26,6 +27,8 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showBulkInvite, setShowBulkInvite] = useState(false);
   const [bulkEmails, setBulkEmails] = useState('');
+  const [invitedEmails, setInvitedEmails] = useState<{ email: string; provider: EmailProvider | null }[]>([]);
+  const [showSuccessMessage, setShowSuccessMessage] = useState<boolean>(false);
 
   // Display text based on userRole
   const roleText = userRole === 'coach' ? 'Coach' : 'Athlete';
@@ -66,6 +69,11 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
 
       if (profileError) throw profileError;
       
+      // Detect email provider and add to invited emails list
+      const provider = getEmailProviderInfo(email.trim());
+      setInvitedEmails([{ email: email.trim(), provider }]);
+      setShowSuccessMessage(true);
+
       // Call the callback to update the parent component
       onInviteSent(email);
       
@@ -101,6 +109,7 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
     try {
       // Process each email
       let successCount = 0;
+      const successfulEmails: { email: string; provider: EmailProvider | null }[] = [];
       
       for (const emailAddress of emails) {
         try {
@@ -131,6 +140,8 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
 
           if (!profileError) {
             successCount++;
+            const provider = getEmailProviderInfo(emailAddress);
+            successfulEmails.push({ email: emailAddress, provider });
           }
         } catch (err) {
           console.error(`Error processing email ${emailAddress}:`, err);
@@ -140,6 +151,8 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
       
       // Call the callback once for the whole operation
       if (successCount > 0) {
+        setInvitedEmails(successfulEmails);
+        setShowSuccessMessage(true);
         onInviteSent(`${successCount} of ${emails.length} invitations`);
         setBulkEmails('');
         setShowBulkInvite(false);
@@ -152,6 +165,12 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Clear success message 
+  const clearSuccessMessage = () => {
+    setShowSuccessMessage(false);
+    setInvitedEmails([]);
   };
 
   return (
@@ -176,6 +195,56 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
         {error && (
           <div className="p-3 text-sm text-red-700 bg-red-100 rounded dark:bg-red-900/20 dark:text-red-400">
             {error}
+          </div>
+        )}
+
+        {/* Success message with email provider links */}
+        {showSuccessMessage && invitedEmails.length > 0 && (
+          <div className="p-4 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 text-green-700 dark:text-green-300 rounded-md">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-medium mb-2">
+                  {invitedEmails.length === 1 
+                    ? 'Invitation sent successfully!' 
+                    : `${invitedEmails.length} invitations sent successfully!`}
+                </p>
+                <p className="text-sm mb-3">
+                  {invitedEmails.length === 1 
+                    ? `Check ${invitedEmails[0].email} for the invitation link.` 
+                    : 'Recipients will receive an email with the invitation link.'}
+                </p>
+
+                {/* Show email provider links for single email or if multiple emails use the same provider */}
+                {invitedEmails.length === 1 && invitedEmails[0].provider && (
+                  <a 
+                    href={invitedEmails[0].provider.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-700 border border-green-300 dark:border-green-600 rounded-md text-sm text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-800/30 transition-colors"
+                  >
+                    <span className="mr-2">{invitedEmails[0].provider.icon}</span>
+                    Open {invitedEmails[0].provider.name}
+                  </a>
+                )}
+
+                {/* Common provider links if no specific provider detected */}
+                {(invitedEmails.length > 1 || !invitedEmails[0].provider) && (
+                  <div className="mt-2">
+                    <p className="text-xs mb-1">Popular email providers:</p>
+                    <CommonEmailLinks />
+                  </div>
+                )}
+              </div>
+              
+              <button 
+                onClick={clearSuccessMessage} 
+                className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
           </div>
         )}
 

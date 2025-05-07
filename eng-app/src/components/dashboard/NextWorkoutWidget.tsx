@@ -311,14 +311,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
                             </span>
                             <div>
                               <span className="font-medium text-gray-800 dark:text-gray-200">{ex.exercise_name || 'Unnamed Exercise'}</span>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                {formatSetsReps(ex)}
-                                {ex.set_type && ex.set_type !== SetType.REGULAR && (
-                                  <span className="ml-1 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300">
-                                    {getSetTypeName(ex.set_type)}
-                                  </span>
-                                )}
-                              </div>
                             </div>
                           </div>
                         </div>

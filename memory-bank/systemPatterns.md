@@ -449,3 +449,82 @@ Key application data schemas:
 - Responsive design with breakpoint prefixes
 - Component extraction for reusable patterns
 - Consistent spacing and sizing scale 
+
+## Frontend Architecture
+
+### Responsive Design Patterns
+
+#### Mobile-First Table Design
+Tables in the application follow these responsive patterns:
+- Use percentage-based column widths (e.g., `w-[15%]`) instead of fixed widths
+- Hide less critical columns on mobile with `hidden sm:table-cell` 
+- Use `max-w-full` on the table container to prevent horizontal overflow
+- Apply `truncate max-w-full` to text elements that might overflow
+- Reduce padding on mobile (`px-2 py-3` instead of `px-4 py-3`)
+- Make inputs responsive with `w-full` instead of fixed widths like `w-16`
+
+#### Toast Notifications
+Toast notifications follow these implementation patterns:
+- Use `fixed inset-0 flex items-start justify-center` to position without affecting layout
+- Add `pointer-events-none` to ensure clicks pass through to elements beneath
+- Use a high z-index (`z-[9999]`) to ensure visibility above all content
+- Implement with React state management rather than direct DOM manipulation
+- Add timeout cleanup in useEffect to prevent memory leaks
+- Limit width with `max-w-[90%]` for better mobile display
+
+#### Floating UI Components
+Floating UI components (like timers) follow these patterns:
+- Fixed positioning with explicit coordinates (e.g., `fixed bottom-4 right-4`)
+- Appropriate z-index to ensure proper stacking context
+- Self-contained logic that handles their own state
+- Proper cleanup when dismounted or deactivated
+- Memoization with React.memo to prevent unnecessary re-renders 
+
+## Exercise Demonstration Patterns
+
+- Exercise demonstrations in the workout session use the HeyGainz API for images and data
+- Images are cached in a Map to prevent redundant API calls
+- DOM elements are cached separately to prevent GIF reloading issues
+- Component is wrapped in React.memo to prevent unnecessary rerenders
+- Exercise search uses both direct ID lookup and name-based fuzzy search as fallback
+- Images have proper loading states and error handling
+- Comprehensive data handling with multiple fallback strategies
+- Manual memory/reference management with useRef for handling component unmount
+- The component fetches and displays multiple types of supplementary information:
+  - Instructions: Step-by-step movement guidance displayed in a gray box
+  - Tips: Additional advice displayed in a yellow box 
+  - YouTube links: Video demonstrations with branded button
+- Text sanitization is applied to instructions and tips to fix encoding issues:
+  - Common character encoding problems are fixed via regex replacements
+  - Special handling for apostrophes in contractions (don't, can't, etc.)
+  - The sanitization function is applied both when caching and setting state
+
+## Data Sanitization Patterns
+
+- External API data often contains encoding issues that need to be sanitized
+- A sanitizeText utility function handles common encoding problems:
+  - Fixes apostrophes in contractions (don't, can't, won't)
+  - Corrects malformed quotes
+  - Handles generic instances of encoding issues
+- Sanitization is applied at two critical points:
+  - When storing data in the cache to ensure clean persistent data
+  - When setting state variables to ensure clean displayed data
+- Helper function accepts string, null, or undefined inputs for flexibility
+- Function follows a defensive programming approach by:
+  - Checking for null/undefined before attempting sanitization
+  - Using a series of regex replacements for different encoding issues
+  - Returning null for invalid inputs to maintain consistent typing
+
+## External API Integration Patterns
+
+- APIs are wrapped in service functions for consistent error handling
+- Responses are cached to reduce API calls and improve performance
+- Integration with HeyGainz API for exercise data follows a layered approach:
+  - Direct ID lookups for known exercises with exact matches
+  - Fuzzy search by name as a fallback when IDs aren't available
+  - Text matching for similar exercises when exact matches fail
+- YouTube links from the API are integrated when available:
+  - Links open in a new tab with proper security attributes (rel="noopener noreferrer")
+  - Visual consistency with YouTube branding (red button with YouTube logo)
+  - Conditionally rendered based on link availability
+- All external data is validated and sanitized before display 
