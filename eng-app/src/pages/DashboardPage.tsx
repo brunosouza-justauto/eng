@@ -87,7 +87,7 @@ const DashboardPage: React.FC = () => {
         const { data: goalData, error: goalError } = await supabase
           .from('step_goals')
           .select('daily_steps')
-          .eq('user_id', user.id)
+          .eq('user_id', profile.id)
           .eq('is_active', true)
           .maybeSingle();
 
