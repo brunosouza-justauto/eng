@@ -76,12 +76,14 @@ CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     AS $$
 BEGIN
   -- Insert into public.profiles, linking to the new auth.users record
-  INSERT INTO public.profiles (user_id, email, role, onboarding_complete)
+  INSERT INTO public.profiles (user_id, email, role, onboarding_complete, first_name, last_name)
   VALUES (
     NEW.id,             -- The user_id from auth.users
     NEW.email,          -- The email from auth.users
     'athlete',          -- Default role for new signups
-    false               -- Require onboarding
+    false,              -- Require onboarding
+    NULL,               -- First name (will be set during onboarding)
+    NULL                -- Last name (will be set during onboarding)
   );
   RETURN NEW;
 END;
@@ -322,6 +324,8 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "user_id" "uuid",
     "username" "text",
     "email" "text" NOT NULL,
+    "first_name" "text",
+    "last_name" "text",
     "role" "text" DEFAULT 'athlete'::"text" NOT NULL,
     "coach_id" "uuid",
     "age" integer,

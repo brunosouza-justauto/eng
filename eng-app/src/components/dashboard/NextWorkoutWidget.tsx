@@ -33,10 +33,17 @@ interface WorkoutDataWithId extends WorkoutData {
 
 const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId }) => {
   const [workoutData, setWorkoutData] = useState<WorkoutDataWithId | null>(null);
+  // allWorkouts is set in useEffect and is used for program state management,
+  // though not directly rendered in the current view
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [allWorkouts, setAllWorkouts] = useState<WorkoutDataWithId[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isRestDay, setIsRestDay] = useState<boolean>(false);
+  const [showAllExercises, setShowAllExercises] = useState<boolean>(false);
+  
+  // Number of exercises to show in the preview
+  const PREVIEW_COUNT = 3;
   
   // Helper to get the name of the day from the day_of_week number
   const getDayName = (dayOfWeek: number | null): string => {
@@ -44,36 +51,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     // Convert from 1-based to 0-based index
     return days[(dayOfWeek - 1) % 7];
-  };
-
-  // Helper to get a friendly name for the set type
-  const getSetTypeName = (setType: SetType | null | undefined): string => {
-    if (!setType) return '';
-    
-    // Using index signature instead of Record<SetType, string> to allow for string keys
-    const setTypeMap: { [key: string]: string } = {
-      [SetType.REGULAR]: 'Regular',
-      [SetType.WARM_UP]: 'Warm-up',
-      [SetType.DROP_SET]: 'Drop Set',
-      [SetType.FAILURE]: 'To Failure',
-      [SetType.BACKDOWN]: 'Backdown',
-      [SetType.TEMPO]: 'Tempo',
-      [SetType.SUPERSET]: 'Superset',
-      [SetType.CONTRAST]: 'Contrast',
-      [SetType.COMPLEX]: 'Complex',
-      [SetType.CLUSTER]: 'Cluster',
-      [SetType.PYRAMID]: 'Pyramid',
-      [SetType.PARTIAL]: 'Partial',
-      [SetType.BURNS]: 'Burns',
-      [SetType.PAUSE]: 'Pause',
-      [SetType.PULSE]: 'Pulse',
-      [SetType.NEGATIVE]: 'Negative',
-      [SetType.FORCED_REP]: 'Forced Rep',
-      [SetType.PRE_EXHAUST]: 'Pre-Exhaust',
-      [SetType.POST_EXHAUST]: 'Post-Exhaust'
-    };
-    
-    return setTypeMap[setType] || setType;
   };
 
   // Helper to get the current day of the week (1 for Monday, 7 for Sunday)
@@ -84,27 +61,64 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
     return today.getDay() === 0 ? 7 : today.getDay();
   };
 
-  // Helper to format exercise sets display
-  const formatSetsReps = (exercise: ExerciseInstanceData): string => {
-    // If we have detailed sets_data, use that for a more accurate display
-    if (exercise.sets_data && exercise.sets_data.length > 0) {
-      const repScheme = exercise.sets_data.map(set => {
-        let repText = set.reps || '';
-        // Add set type indicator for special sets
-        if (set.type && set.type !== SetType.REGULAR) {
-          const setTypeAbbr = getSetTypeName(set.type).substring(0, 1); // Get first letter of set type
-          repText = `${repText}${setTypeAbbr}`;
-        }
-        return repText;
-      }).join(' / ');
+  // Helper to group exercises by superset (consecutive exercises with set_type=SUPERSET)
+  const groupExercisesBySuperset = (exercises: ExerciseInstanceData[]) => {
+    const sortedExercises = [...exercises].sort((a, b) => 
+      (a.order_in_workout ?? 0) - (b.order_in_workout ?? 0)
+    );
+    
+    const result: {
+      group: ExerciseInstanceData[];
+      isSuperset: boolean;
+      supersetGroupId: string | null;
+    }[] = [];
+    
+    // Temporary workaround until superset_group_id is added to the database
+    // Group consecutive exercises with set_type === SUPERSET as part of the same group
+    let currentGroup: ExerciseInstanceData[] = [];
+    let groupId = 0;
+    
+    for (let i = 0; i < sortedExercises.length; i++) {
+      const exercise = sortedExercises[i];
       
-      return `${exercise.sets_data.length} sets: ${repScheme}`;
+      if (exercise.set_type === SetType.SUPERSET) {
+        // Add to current superset group
+        currentGroup.push(exercise);
+        
+        // If this is the last exercise or the next one isn't a superset, close this group
+        if (i === sortedExercises.length - 1 || 
+            sortedExercises[i + 1].set_type !== SetType.SUPERSET) {
+          
+          // Only create a superset group if there are at least 2 exercises
+          if (currentGroup.length >= 2) {
+            result.push({
+              group: [...currentGroup],
+              isSuperset: true,
+              supersetGroupId: `temp-group-${groupId++}`
+            });
+          } else {
+            // If only one exercise has SUPERSET type, treat it as a regular exercise
+            result.push({
+              group: [currentGroup[0]],
+              isSuperset: false,
+              supersetGroupId: null
+            });
+          }
+          
+          // Reset for next group
+          currentGroup = [];
+        }
+      } else {
+        // Regular exercise, add as its own group
+        result.push({
+          group: [exercise],
+          isSuperset: false,
+          supersetGroupId: null
+        });
+      }
     }
     
-    // Fall back to the legacy format
-    const sets = exercise.sets || '0';
-    const reps = exercise.reps || 'N/A';
-    return `${sets}×${reps}`;
+    return result;
   };
 
   useEffect(() => {
@@ -217,6 +231,153 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
     </div>
   );
   
+  // Function to render exercise list - with null check for workoutData
+  const renderExerciseList = (exercises: ExerciseInstanceData[]) => {
+    if (!workoutData) return null; // Add null check
+    
+    // Group exercises by superset type
+    const exerciseGroups = groupExercisesBySuperset(exercises);
+    
+    // Determine which groups to show based on showAllExercises state
+    // For preview mode, count a superset group as one "item"
+    let visibleGroups = exerciseGroups;
+    const totalExerciseCount = exerciseGroups.reduce((count, group) => count + group.group.length, 0);
+    
+    if (!showAllExercises && totalExerciseCount > PREVIEW_COUNT) {
+      // Show only enough groups to approximately match PREVIEW_COUNT
+      let countSoFar = 0;
+      visibleGroups = [];
+      
+      for (const group of exerciseGroups) {
+        visibleGroups.push(group);
+        countSoFar += group.group.length;
+        
+        if (countSoFar >= PREVIEW_COUNT) {
+          break;
+        }
+      }
+    }
+    
+    // Flag to indicate if we're showing a preview (mobile optimization)
+    const isPreview = !showAllExercises && totalExerciseCount > PREVIEW_COUNT;
+    
+    return (
+      <div className="space-y-3">
+        {/* Visual indicator that this is a preview/summary */}
+        {isPreview && (
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+            </svg>
+            Workout Preview
+          </div>
+        )}
+        
+        {/* Exercise Groups */}
+        {visibleGroups.map((exerciseGroup, groupIndex) => {
+          if (exerciseGroup.isSuperset) {
+            // Render a superset group
+            return (
+              <div 
+                key={exerciseGroup.supersetGroupId || `superset-${groupIndex}`}
+                className="mb-2 border-l-2 border-indigo-300 dark:border-indigo-700 pl-2"
+              >
+                <div className="mb-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                  Superset Group
+                </div>
+                
+                {exerciseGroup.group.map((ex, index) => (
+                  <div 
+                    key={ex.exercise_db_id || `superset-ex-${index}`}
+                    className="flex items-center py-1 border-b border-gray-50 dark:border-gray-700/50 last:border-b-0"
+                  >
+                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-xs font-medium text-indigo-800 dark:text-indigo-300 mr-3">
+                      {index + 1}
+                    </span>
+                    <div>
+                      <span className="font-medium text-gray-800 dark:text-gray-200">
+                        {ex.exercise_name || 'Unnamed Exercise'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          } else {
+            // Regular exercise
+            const ex = exerciseGroup.group[0];
+            return (
+              <div 
+                key={ex.exercise_db_id || `ex-${groupIndex}`}
+                className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50 last:border-b-0"
+              >
+                <div className="flex items-center">
+                  <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-xs font-medium text-indigo-800 dark:text-indigo-300 mr-3">
+                    {groupIndex + 1}
+                  </span>
+                  <div>
+                    <span className="font-medium text-gray-800 dark:text-gray-200">
+                      {ex.exercise_name || 'Unnamed Exercise'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+        })}
+        
+        {/* Show more/less toggle */}
+        {totalExerciseCount > PREVIEW_COUNT && (
+          <button
+            onClick={() => setShowAllExercises(!showAllExercises)}
+            className="w-full text-center text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 py-1"
+          >
+            {showAllExercises ? (
+              <span className="flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
+                Show Less
+              </span>
+            ) : (
+              <span className="flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+                Show {totalExerciseCount - visibleGroups.reduce((count, group) => count + group.group.length, 0)} More
+              </span>
+            )}
+          </button>
+        )}
+        
+        {/* Show indicator of what to do next */}
+        <div className="pt-2 relative">
+          {isPreview && (
+            <div className="w-full text-center absolute -top-3 left-0 right-0 pointer-events-none">
+              <span className="inline-block px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-xs text-indigo-700 dark:text-indigo-300 rounded-full mx-auto animate-pulse">
+                ↓ Click to start workout ↓
+              </span>
+            </div>
+          )}
+          <ButtonLink 
+            to={`/workout-session/${workoutData.id}`}
+            variant="primary"
+            color="indigo"
+            fullWidth
+            icon={
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+              </svg>
+            }
+          >
+            Start Workout
+          </ButtonLink>
+        </div>
+      </div>
+    );
+  };
+  
   return (
     <Card
       header={header}
@@ -251,38 +412,13 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
               </div>
             )}
             
-            {programTemplateId && isRestDay && (
+            {isRestDay && (
               <div className="text-center py-10">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-blue-300 dark:text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
-                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">REST DAY</h3>
-                <p className="text-gray-500 dark:text-gray-400">Take time to recover and prepare for your next workout</p>
-                
-                {allWorkouts.length > 0 && (
-                  <div className="mt-4 text-center">
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Your program includes:</p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {allWorkouts
-                        .sort((a, b) => (a.day_of_week || 0) - (b.day_of_week || 0))
-                        .map(workout => (
-                          <span key={workout.id} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
-                            {getDayName(workout.day_of_week)}: {workout.name}
-                          </span>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {programTemplateId && !isRestDay && !workoutData && (
-              <div className="text-center py-10">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">No Upcoming Workout</h3>
-                <p className="text-gray-500 dark:text-gray-400">Check back later for your next session</p>
+                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Rest Day</h3>
+                <p className="text-gray-500 dark:text-gray-400">Take it easy today and recover for your next workout</p>
               </div>
             )}
             
@@ -300,38 +436,7 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
                 </div>
                 
                 {workoutData.exercise_instances.length > 0 ? (
-                  <div className="space-y-3">
-                    {workoutData.exercise_instances
-                      .sort((a, b) => (a.order_in_workout ?? 0) - (b.order_in_workout ?? 0))
-                      .map((ex, index) => (
-                        <div key={ex.exercise_db_id || index} className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50 last:border-b-0">
-                          <div className="flex items-center">
-                            <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-xs font-medium text-indigo-800 dark:text-indigo-300 mr-3">
-                              {index + 1}
-                            </span>
-                            <div>
-                              <span className="font-medium text-gray-800 dark:text-gray-200">{ex.exercise_name || 'Unnamed Exercise'}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      
-                    <div className="pt-2">
-                      <ButtonLink 
-                        to={`/workout-session/${workoutData.id}`}
-                        variant="primary"
-                        color="indigo"
-                        fullWidth
-                        icon={
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                          </svg>
-                        }
-                      >
-                        Start Workout
-                      </ButtonLink>
-                    </div>
-                  </div>
+                  renderExerciseList(workoutData.exercise_instances)
                 ) : (
                   <div className="text-center py-6 bg-gray-50 dark:bg-gray-800/50 rounded-md">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto mb-3 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

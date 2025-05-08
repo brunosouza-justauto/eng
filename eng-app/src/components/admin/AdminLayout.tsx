@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { FiMenu, FiX, FiHome, FiUsers, FiCalendar, FiSettings, FiMessageCircle, FiHelpCircle, FiArrowLeft, FiClipboard } from 'react-icons/fi';
+import { FiMenu, FiX, FiHome, FiUsers, FiCalendar, FiSettings, FiMessageCircle, FiHelpCircle, FiArrowLeft, FiClipboard, FiActivity } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/slices/authSlice';
 import ThemeToggle from '../common/ThemeToggle';
@@ -111,6 +111,12 @@ const AdminLayout = () => {
                   icon={<FiCalendar />} 
                   label="Meal Planning" 
                   active={location.pathname.startsWith('/admin/mealplans')} 
+                />
+                <NavItem 
+                  to="/admin/stepgoals" 
+                  icon={<FiActivity />} 
+                  label="Step Goals" 
+                  active={location.pathname.startsWith('/admin/stepgoals')} 
                 />
                 <NavItem 
                   to="/admin/checkins" 

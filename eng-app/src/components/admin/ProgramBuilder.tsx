@@ -330,7 +330,15 @@ const ProgramBuilder: React.FC = () => {
                         workout_id: string;
                     }
                     
-                    // Create base object without ID
+                    // Create a more specific interface for internal use that includes superset fields
+                    interface ExerciseWithSupersetFields extends ExerciseInstanceAdminData {
+                        superset_group_id?: string | null;
+                        superset_order?: number;
+                    }
+                    
+                    // Safely access potential superset fields
+                    const exerciseWithSuperset = exercise as ExerciseWithSupersetFields;
+                    
                     const baseExerciseData = {
                         exercise_db_id: exercise.exercise_db_id,
                         exercise_name: exercise.exercise_name,
@@ -342,17 +350,17 @@ const ProgramBuilder: React.FC = () => {
                         order_in_workout: exercise.order_in_workout,
                         set_type: exercise.set_type,
                         each_side: exercise.each_side || false,
-                        // Add group-related fields
-                        group_id: exercise.group_id || null,
-                        group_type: exercise.group_type || ExerciseGroupType.NONE,
-                        group_order: exercise.group_order || 0,
+                        // Map superset fields to group fields
+                        group_id: exerciseWithSuperset.superset_group_id || exercise.group_id || null,
+                        group_type: exercise.set_type === SetType.SUPERSET ? ExerciseGroupType.SUPERSET : (exercise.group_type || ExerciseGroupType.NONE),
+                        group_order: exerciseWithSuperset.superset_order || exercise.group_order || 0,
                         workout_id: savedWorkoutId
                     };
                     
                     // Only include ID if it exists and is not null
                     const exerciseForDb: ExerciseInstanceForDb = exercise.id 
                         ? { ...baseExerciseData, id: exercise.id } 
-                        : baseExerciseData;
+                        : { ...baseExerciseData, id: uuidv4() }; // Generate a new UUID for new exercises
                     
                     return exerciseForDb;
                 });
@@ -498,10 +506,39 @@ const ProgramBuilder: React.FC = () => {
                         // Attach sets to their respective exercise instances
                         refreshedWorkouts.forEach(workout => {
                             if (workout.exercise_instances) {
+                                // First, identify all group IDs and create a mapping of exercises within each group
+                                const exerciseGroups = new Map<string, ExerciseInstanceAdminData[]>();
+                                
+                                // Pre-process to identify all groups
                                 workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
+                                    if (instance.group_id && instance.group_type === ExerciseGroupType.SUPERSET) {
+                                        if (!exerciseGroups.has(instance.group_id)) {
+                                            exerciseGroups.set(instance.group_id, []);
+                                        }
+                                        exerciseGroups.get(instance.group_id)?.push(instance);
+                                    }
+                                });
+                                
+                                // Process each exercise - attach sets and map group fields to superset fields
+                                workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
+                                    // Attach sets if available
                                     if (instance.id && setsByExerciseId.has(instance.id)) {
                                         instance.sets_data = setsByExerciseId.get(instance.id);
                                         console.log(`Attached ${instance.sets_data?.length} sets to ${instance.exercise_name}`);
+                                    }
+                                    
+                                    // Map group fields to superset fields for the UI component
+                                    interface ExerciseWithSupersetFields extends ExerciseInstanceAdminData {
+                                        superset_group_id?: string | null;
+                                        superset_order?: number;
+                                    }
+                                    
+                                    const instanceWithSuperset = instance as ExerciseWithSupersetFields;
+                                    
+                                    // If part of a superset group, set superset fields
+                                    if (instance.group_id && instance.group_type === ExerciseGroupType.SUPERSET) {
+                                        instanceWithSuperset.superset_group_id = instance.group_id;
+                                        instanceWithSuperset.superset_order = instance.group_order;
                                     }
                                 });
                                 
@@ -827,12 +864,46 @@ const ProgramBuilder: React.FC = () => {
                         // Attach sets to their respective exercise instances
                         data.forEach(workout => {
                             if (workout.exercise_instances) {
+                                // First, identify all group IDs and create a mapping of exercises within each group
+                                const exerciseGroups = new Map<string, ExerciseInstanceAdminData[]>();
+                                
+                                // Pre-process to identify all groups
                                 workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
+                                    if (instance.group_id && instance.group_type === ExerciseGroupType.SUPERSET) {
+                                        if (!exerciseGroups.has(instance.group_id)) {
+                                            exerciseGroups.set(instance.group_id, []);
+                                        }
+                                        exerciseGroups.get(instance.group_id)?.push(instance);
+                                    }
+                                });
+                                
+                                // Process each exercise - attach sets and map group fields to superset fields
+                                workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
+                                    // Attach sets if available
                                     if (instance.id && setsByExerciseId.has(instance.id)) {
                                         instance.sets_data = setsByExerciseId.get(instance.id);
                                         console.log(`Attached ${instance.sets_data?.length} sets to ${instance.exercise_name}`);
                                     }
+                                    
+                                    // Map group fields to superset fields for the UI component
+                                    interface ExerciseWithSupersetFields extends ExerciseInstanceAdminData {
+                                        superset_group_id?: string | null;
+                                        superset_order?: number;
+                                    }
+                                    
+                                    const instanceWithSuperset = instance as ExerciseWithSupersetFields;
+                                    
+                                    // If part of a superset group, set superset fields
+                                    if (instance.group_id && instance.group_type === ExerciseGroupType.SUPERSET) {
+                                        instanceWithSuperset.superset_group_id = instance.group_id;
+                                        instanceWithSuperset.superset_order = instance.group_order;
+                                    }
                                 });
+                                
+                                // Sort exercise instances by order_in_workout for normal display
+                                workout.exercise_instances.sort((a: ExerciseInstanceAdminData, b: ExerciseInstanceAdminData) => 
+                                    (a.order_in_workout || 0) - (b.order_in_workout || 0)
+                                );
                             }
                         });
                     }

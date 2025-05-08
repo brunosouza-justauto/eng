@@ -14,6 +14,7 @@ import {
     HeyGainzMuscle as Category
 } from '../../utils/exerciseAPI';
 import DraggableExerciseCard, { ItemTypes as ExerciseItemTypes } from './DraggableExerciseCard';
+import { v4 as uuidv4 } from 'uuid';
 
 // Make sure DraggableExerciseCard can accept Exercise type
 // This modifies the existing LocalExercise interface to be compatible with Exercise
@@ -151,7 +152,13 @@ const DraggableWorkoutExercise = ({
 }) => {
     const [{ isDragging }, drag] = useDrag(() => ({
         type: ItemTypes.WORKOUT_EXERCISE,
-        item: { type: ItemTypes.WORKOUT_EXERCISE, exerciseIndex: index, exercise },
+        item: { 
+            type: ItemTypes.WORKOUT_EXERCISE, 
+            exerciseIndex: index, 
+            exercise,
+            // Include superset information in the dragged item
+            supersetInfo: supersetInfo
+        },
         collect: (monitor) => ({
             isDragging: !!monitor.isDragging(),
         }),
@@ -336,7 +343,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                     
                     // Create properly initialized sets_data array
                     const newSetsData = Array.from({ length: safeNumSets }, (_, i) => ({
-                        order: i + 1,
+                        set_order: i + 1, // Use set_order instead of order
                         type: exercise.set_type || SetType.REGULAR,
                         reps: exercise.reps || '',
                         rest_seconds: exercise.rest_period_seconds || 60
@@ -347,12 +354,68 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                         sets_data: newSetsData
                     };
                 }
+                
+                // Ensure existing sets_data has the set_order property
+                if (exercise.sets_data && exercise.sets_data.length > 0) {
+                    const checkedSetsData = exercise.sets_data.map((set, i) => ({
+                        ...set,
+                        set_order: set.set_order || i + 1 // Use set_order instead of order
+                    }));
+                    
+                    return {
+                        ...exercise,
+                        sets_data: checkedSetsData
+                    };
+                }
+                
                 return exercise;
             });
             
             setExercises(initializedExercises);
+            
+            // Initialize supersetGroups state based on superset_group_id fields
+            const newSupersetGroups: Record<string, number[]> = {};
+            
+            // First, collect all exercises with superset_group_id properties
+            initializedExercises.forEach((exercise, index) => {
+                // Use type assertion to safely access potential superset fields
+                interface ExerciseWithSupersetFields extends ExerciseInstanceAdminData {
+                    superset_group_id?: string | null;
+                    superset_order?: number;
+                }
+                
+                const exerciseWithSuperset = exercise as ExerciseWithSupersetFields;
+                
+                if (exerciseWithSuperset.superset_group_id) {
+                    const groupId = exerciseWithSuperset.superset_group_id;
+                    
+                    if (!newSupersetGroups[groupId]) {
+                        newSupersetGroups[groupId] = [];
+                    }
+                    
+                    newSupersetGroups[groupId].push(index);
+                }
+            });
+            
+            // Sort each group's indices by the superset_order
+            Object.keys(newSupersetGroups).forEach(groupId => {
+                newSupersetGroups[groupId].sort((a, b) => {
+                    const exerciseA = initializedExercises[a] as any;
+                    const exerciseB = initializedExercises[b] as any;
+                    return (exerciseA.superset_order || 0) - (exerciseB.superset_order || 0);
+                });
+            });
+            
+            // Only update if we found any superset groups
+            if (Object.keys(newSupersetGroups).length > 0) {
+                console.log('Initializing superset groups:', newSupersetGroups);
+                setSupersetGroups(newSupersetGroups);
+            } else {
+                setSupersetGroups({});
+            }
         } else {
             setExercises([]);
+            setSupersetGroups({});
         }
     }, [workout, reset]);
     
@@ -717,7 +780,18 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     }));
 
     // Handler for dropping items between exercises
-    const handleExerciseDrop = (item: { type: string; exerciseIndex?: number; exercise?: Exercise }, targetIndex: number) => {
+    const handleExerciseDrop = (item: { 
+        type: string; 
+        exerciseIndex?: number; 
+        exercise?: Exercise;
+        supersetInfo?: { 
+            groupId: string;
+            order: number;
+            totalInGroup: number;
+            isFirst: boolean;
+            isLast: boolean;
+        } | null;
+    }, targetIndex: number) => {
         if (item.type === ItemTypes.WORKOUT_EXERCISE) {
             // This is an existing exercise being reordered
             const sourceIndex = item.exerciseIndex!;
@@ -727,7 +801,20 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                 return;
             }
             
-            // Reorder exercises
+            // Check if this is part of a superset
+            if (item.supersetInfo) {
+                // Get all exercises in this superset
+                const groupId = item.supersetInfo.groupId;
+                const supersetExerciseIndices = supersetGroups[groupId] || [];
+                
+                // If we found indices, move the entire superset
+                if (supersetExerciseIndices.length > 0) {
+                    handleMoveSupersetGroup(groupId, supersetExerciseIndices, targetIndex);
+                    return;
+                }
+            }
+            
+            // If not a superset or superset indices not found, reorder a single exercise
             handleMoveExercise(sourceIndex, targetIndex);
         } else {
             // This is a new exercise from the search panel
@@ -844,17 +931,19 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="text-sm text-gray-700 dark:text-gray-300">Rest</span>
-                                <input 
-                                    type="text" 
-                                    className="w-20 px-2 py-1 text-sm border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                    placeholder="e.g., 60s"
-                                    value={exercise.rest_period_seconds ? `${exercise.rest_period_seconds}s` : ''}
+                                <select 
+                                    value={exercise.rest_period_seconds || 60}
                                     onChange={(e) => {
-                                        const value = e.target.value.replace(/[^0-9]/g, '');
-                                        const restSeconds = value ? parseInt(value, 10) : undefined;
+                                        const restSeconds = parseInt(e.target.value, 10);
                                         handleExerciseDetailChange(index, 'rest_period_seconds', restSeconds);
                                     }}
-                                />
+                                    className="w-28 px-2 py-1 text-sm border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white [&>option]:dark:bg-gray-700 [&>option]:dark:text-white"
+                                >
+                                    <option value={30}>30s</option>
+                                    <option value={60}>60s (1m)</option>
+                                    <option value={120}>120s (2m)</option>
+                                    <option value={180}>180s (3m)</option>
+                                </select>
                             </div>
                         </div>
                         <button 
@@ -971,8 +1060,9 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         
         // Now add a new set to the sets_data array
         const currentSetsData = [...(exercise.sets_data || [])];
+        const newSetOrder = currentSetsData.length + 1;
         const newSet = {
-            order: currentSetsData.length + 1,
+            set_order: newSetOrder, // Use set_order instead of order to match the ExerciseSet interface
             type: exercise.set_type || SetType.REGULAR, // Inherit the exercise's default set type
             reps: exercise.reps || '', // Inherit the exercise's default reps
             rest_seconds: exercise.rest_period_seconds // Inherit the exercise's default rest period
@@ -991,7 +1081,9 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         if (updatedSetsData[setIndex]) {
             updatedSetsData[setIndex] = {
                 ...updatedSetsData[setIndex],
-                type: newType
+                type: newType,
+                // Ensure set_order is preserved
+                set_order: updatedSetsData[setIndex].set_order || setIndex + 1
             };
             handleExerciseDetailChange(exerciseIndex, 'sets_data', updatedSetsData);
         }
@@ -1008,21 +1100,21 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     const confirmSetDeletion = () => {
         if (deletingExerciseIndex !== null && deletingSetIndex !== null) {
             const exercise = exercises[deletingExerciseIndex];
-        if (!exercise.sets_data) return;
+            if (!exercise.sets_data) return;
         
-        // Create a copy of the sets data without the removed set
+            // Create a copy of the sets data without the removed set
             const updatedSetsData = exercise.sets_data.filter((_, i) => i !== deletingSetIndex);
         
-        // Update the order of remaining sets
-        const reorderedSetsData = updatedSetsData.map((set, i) => ({
-            ...set,
-            order: i + 1
-        }));
+            // Update the order of remaining sets
+            const reorderedSetsData = updatedSetsData.map((set, i) => ({
+                ...set,
+                set_order: i + 1 // Use set_order instead of order
+            }));
         
-        // Update the sets count for backward compatibility
+            // Update the sets count for backward compatibility
             handleExerciseDetailChange(deletingExerciseIndex, 'sets', reorderedSetsData.length.toString());
         
-        // Update the sets data
+            // Update the sets data
             handleExerciseDetailChange(deletingExerciseIndex, 'sets_data', reorderedSetsData);
         }
         setShowDeleteConfirm(false);
@@ -1097,19 +1189,21 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                             />
                         </td>
                         <td className="px-4 py-2 text-center">
-                            <input 
-                                type="text" 
-                                defaultValue={set.rest_seconds ? `${set.rest_seconds}s` : ""}
+                            <select 
+                                value={set.rest_seconds || 60}
                                 onChange={(e) => {
-                                    const value = e.target.value.replace(/[^0-9]/g, '');
-                                    const restSeconds = value ? parseInt(value, 10) : undefined;
+                                    const restSeconds = parseInt(e.target.value, 10);
                                     const updatedSetsData = [...exercise.sets_data!];
                                     updatedSetsData[i] = { ...updatedSetsData[i], rest_seconds: restSeconds };
                                     handleExerciseDetailChange(index, 'sets_data', updatedSetsData);
                                 }}
-                                className="w-full py-1 text-center bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-indigo-500 focus:outline-none"
-                                placeholder="60s"
-                            />
+                                className="w-full py-1 text-center bg-transparent border-b border-gray-300 dark:border-gray-600 dark:text-white focus:border-indigo-500 focus:outline-none [&>option]:dark:bg-gray-700 [&>option]:dark:text-white"
+                            >
+                                <option value={30}>30s</option>
+                                <option value={60}>60s (1m)</option>
+                                <option value={120}>120s (2m)</option>
+                                <option value={180}>180s (3m)</option>
+                            </select>
                         </td>
                         <td className="px-1 py-2 text-center">
                             <button
@@ -1137,7 +1231,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                 // Initialize sets_data properly for next render
                 setTimeout(() => {
                     const newSetsData = Array.from({ length: numSets }, (_, i) => ({
-                        order: i + 1,
+                        set_order: i + 1,
                         type: exercise.set_type || SetType.REGULAR,
                         reps: exercise.reps || '',
                         rest_seconds: exercise.rest_period_seconds || 60
@@ -1209,8 +1303,8 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             return;
         }
 
-        // Generate a unique ID for this superset group
-        const supersetId = `superset-${Date.now()}`;
+        // Generate a unique ID for this superset group using proper UUID format
+        const supersetId = uuidv4();
         
         // Add the superset group
         setSupersetGroups(prev => ({
@@ -1360,6 +1454,63 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         console.log('Calculating memoized exercise data - should only run when search results change');
         return searchResults.map(exercise => createLocalExerciseFromAPI(exercise));
     }, [searchResults]);
+
+    // Add a new function to handle moving an entire superset group
+    const handleMoveSupersetGroup = (groupId: string, exerciseIndices: number[], targetIndex: number) => {
+        // Sort indices to maintain the correct order
+        const sortedIndices = [...exerciseIndices].sort((a, b) => a - b);
+        
+        // Calculate the adjusted target index based on whether we're moving forward or backward
+        // If any exercise in the group is before the target, we need to adjust the target index
+        const minIndex = Math.min(...sortedIndices);
+        const maxIndex = Math.max(...sortedIndices);
+        
+        // If we're moving forward, we need to account for the removed exercises
+        const adjustedTargetIndex = minIndex < targetIndex ? 
+            targetIndex - sortedIndices.length : targetIndex;
+        
+        setExercises(prevExercises => {
+            // Create a copy of the exercises array
+            const result = [...prevExercises];
+            
+            // Remove all exercises in the superset (in reverse order to avoid index shifting)
+            const removedExercises = [];
+            for (let i = sortedIndices.length - 1; i >= 0; i--) {
+                const index = sortedIndices[i];
+                const [removed] = result.splice(index, 1);
+                // Store in reverse so they're in the correct order when re-inserted
+                removedExercises.unshift(removed);
+            }
+            
+            // Insert all removed exercises at the target position
+            result.splice(adjustedTargetIndex, 0, ...removedExercises);
+            
+            // Create a new superset group with updated indices
+            const newSupersetGroups = { ...supersetGroups };
+            
+            // Find all exercises at their new positions
+            const newIndices = [];
+            for (let i = 0; i < removedExercises.length; i++) {
+                newIndices.push(adjustedTargetIndex + i);
+            }
+            
+            // Update the superset group with the new indices
+            newSupersetGroups[groupId] = newIndices;
+            setSupersetGroups(newSupersetGroups);
+            
+            // Update order_in_workout for all exercises
+            return result.map((ex, index) => ({
+                ...ex,
+                order_in_workout: index + 1
+            }));
+        });
+        
+        // Update activeExerciseIndex if necessary
+        if (exerciseIndices.includes(activeExerciseIndex!)) {
+            const relativePosition = activeExerciseIndex! - Math.min(...exerciseIndices);
+            setActiveExerciseIndex(targetIndex + relativePosition);
+        }
+    };
 
     return (
         <DndProvider backend={HTML5Backend}>

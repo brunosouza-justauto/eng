@@ -4,6 +4,7 @@ import { supabase } from '../../services/supabaseClient';
 // Update import to use the new function
 import { getExercisesByIds, Exercise } from '../../services/exerciseService';
 import { SetType, ExerciseSet } from '../../types/adminTypes';
+import BackButton from '../common/BackButton';
 
 // Define types locally for now (consider moving to shared types file later)
 interface ExerciseInstanceData {
@@ -17,6 +18,7 @@ interface ExerciseInstanceData {
     order_in_workout: number | null;
     set_type?: SetType | null;
     sets_data?: ExerciseSet[]; // Add support for individual set data
+    superset_group_id?: string | null; // Add superset group ID field
 }
 
 interface WorkoutData {
@@ -159,8 +161,70 @@ const WorkoutView: React.FC = () => {
         return setTypeMap[setType] || setType;
     };
 
+    // Group exercises by consecutive superset set_type
+    const groupExercisesBySuperset = (exercises: ExerciseInstanceData[]) => {
+        const sortedExercises = [...exercises].sort((a, b) => 
+            (a.order_in_workout ?? 0) - (b.order_in_workout ?? 0)
+        );
+        
+        const result: {
+            group: ExerciseInstanceData[];
+            isSuperset: boolean;
+            supersetGroupId: string | null;
+        }[] = [];
+        
+        // Temporary workaround until superset_group_id is added to the database
+        // Group consecutive exercises with set_type === SUPERSET as part of the same group
+        let currentGroup: ExerciseInstanceData[] = [];
+        let groupId = 0;
+        
+        for (let i = 0; i < sortedExercises.length; i++) {
+            const exercise = sortedExercises[i];
+            
+            if (exercise.set_type === SetType.SUPERSET) {
+                // Add to current superset group
+                currentGroup.push(exercise);
+                
+                // If this is the last exercise or the next one isn't a superset, close this group
+                if (i === sortedExercises.length - 1 || 
+                    sortedExercises[i + 1].set_type !== SetType.SUPERSET) {
+                    
+                    // Only create a superset group if there are at least 2 exercises
+                    if (currentGroup.length >= 2) {
+                        result.push({
+                            group: [...currentGroup],
+                            isSuperset: true,
+                            supersetGroupId: `temp-group-${groupId++}`
+                        });
+                    } else {
+                        // If only one exercise has SUPERSET type, treat it as a regular exercise
+                        result.push({
+                            group: [currentGroup[0]],
+                            isSuperset: false,
+                            supersetGroupId: null
+                        });
+                    }
+                    
+                    // Reset for next group
+                    currentGroup = [];
+                }
+            } else {
+                // Regular exercise, add as its own group
+                result.push({
+                    group: [exercise],
+                    isSuperset: false,
+                    supersetGroupId: null
+                });
+            }
+        }
+        
+        return result;
+    };
+
     return (
         <div className="container p-4 mx-auto">
+            <BackButton to="/dashboard" />
+            
             {isLoading && <p>Loading workout details...</p>}
             {error && <p className="text-red-500">Error: {error}</p>}
             {workout && (
@@ -169,17 +233,45 @@ const WorkoutView: React.FC = () => {
                     {/* Add more details like description, week/day etc. */} 
                     
                     <div className="space-y-4">
-                        {workout.exercise_instances
-                            .sort((a, b) => (a.order_in_workout ?? 0) - (b.order_in_workout ?? 0))
-                            .map((ex, index) => {
+                        {workout.exercise_instances.length === 0 ? (
+                            <p>No exercises found for this workout.</p>
+                        ) : (
+                            groupExercisesBySuperset(workout.exercise_instances).map((exerciseGroup, groupIndex) => {
+                                if (exerciseGroup.isSuperset) {
+                                    // Render a superset group
+                                    return (
+                                        <div 
+                                            key={exerciseGroup.supersetGroupId || `superset-${groupIndex}`} 
+                                            className="p-3 bg-gray-50 dark:bg-gray-700 rounded shadow border-2 border-indigo-300 dark:border-indigo-700"
+                                        >
+                                            <div className="mb-2 flex items-center">
+                                                <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs font-semibold">
+                                                    Superset Group
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="space-y-2">
+                                                {exerciseGroup.group.map((ex, index) => {
                                 // Look up exercise data
                                 const exerciseData = getExerciseDetails(ex.exercise_db_id);
                                 const displayName = ex.exercise_name || exerciseData?.name || 'Unnamed Exercise';
                                 
                                 return (
-                                    <div key={ex.exercise_db_id || index} className="p-3 bg-gray-100 rounded shadow dark:bg-gray-700">
+                                                        <div 
+                                                            key={ex.exercise_db_id || `superset-ex-${index}`} 
+                                                            className="p-3 bg-gray-100 rounded dark:bg-gray-700 relative"
+                                                        >
+                                                            {/* Connecting line for all but the last exercise */}
+                                                            {index < exerciseGroup.group.length - 1 && (
+                                                                <div className="absolute w-0.5 bg-indigo-300 dark:bg-indigo-600" style={{
+                                                                    left: '50%',
+                                                                    top: '100%',
+                                                                    height: '8px',
+                                                                    transform: 'translateX(-50%)'
+                                                                }}></div>
+                                                            )}
+                                                            
                                         <h3 className="mb-1 font-semibold">{displayName}</h3>
-                                        {/* Display basic details */} 
                                         <p className="text-sm">Sets: {ex.sets ?? 'N/A'}, Reps: {ex.reps ?? 'N/A'}</p>
                                         {ex.rest_period_seconds !== null && <p className="text-sm">Rest: {ex.rest_period_seconds}s</p>}
                                         {ex.tempo && <p className="text-sm text-gray-600 dark:text-gray-400">Tempo: {ex.tempo}</p>}
@@ -259,7 +351,99 @@ const WorkoutView: React.FC = () => {
                                     </div>
                                 );
                             })}
-                        {workout.exercise_instances.length === 0 && <p>No exercises found for this workout.</p>}
+                                            </div>
+                                        </div>
+                                    );
+                                } else {
+                                    // Render a single exercise
+                                    const ex = exerciseGroup.group[0];
+                                    const exerciseData = getExerciseDetails(ex.exercise_db_id);
+                                    const displayName = ex.exercise_name || exerciseData?.name || 'Unnamed Exercise';
+                                    
+                                    return (
+                                        <div key={ex.exercise_db_id || `ex-${groupIndex}`} className="p-3 bg-gray-100 rounded shadow dark:bg-gray-700">
+                                            <h3 className="mb-1 font-semibold">{displayName}</h3>
+                                            <p className="text-sm">Sets: {ex.sets ?? 'N/A'}, Reps: {ex.reps ?? 'N/A'}</p>
+                                            {ex.rest_period_seconds !== null && <p className="text-sm">Rest: {ex.rest_period_seconds}s</p>}
+                                            {ex.tempo && <p className="text-sm text-gray-600 dark:text-gray-400">Tempo: {ex.tempo}</p>}
+                                            
+                                            {/* Display individual sets if available */}
+                                            {ex.sets_data && ex.sets_data.length > 0 ? (
+                                                <div className="mt-2">
+                                                    <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">Set Details:</p>
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-xs">
+                                                            <thead>
+                                                                <tr className="border-b dark:border-gray-700">
+                                                                    <th className="py-1 pr-2 text-left">#</th>
+                                                                    <th className="py-1 pr-2 text-left">Type</th>
+                                                                    <th className="py-1 pr-2 text-left">Reps</th>
+                                                                    <th className="py-1 text-left">Rest</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {ex.sets_data.map((set, i) => (
+                                                                    <tr key={`set-${i}`} className="border-b border-gray-100 dark:border-gray-800">
+                                                                        <td className="py-1 pr-2">{i + 1}</td>
+                                                                        <td className="py-1 pr-2">
+                                                                            <span className={`inline-block px-1.5 py-0.5 text-xs rounded ${
+                                                                                set.type === SetType.WARM_UP ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' : 
+                                                                                set.type === SetType.DROP_SET ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' : 
+                                                                                set.type === SetType.FAILURE ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' : 
+                                                                                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                                                            }`}>
+                                                                                {getSetTypeName(set.type)}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="py-1 pr-2">{set.reps || '-'}</td>
+                                                                        <td className="py-1">{set.rest_seconds ? `${set.rest_seconds}s` : '-'}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                /* Fall back to showing the overall set type if no individual sets */
+                                                ex.set_type && (
+                                                    <p className="text-sm">
+                                                        <span className={`inline-block px-2 py-1 text-xs rounded mr-1 ${
+                                                            ex.set_type === SetType.WARM_UP ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' : 
+                                                            ex.set_type === SetType.DROP_SET ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' : 
+                                                            ex.set_type === SetType.FAILURE ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' : 
+                                                            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                                        }`}>
+                                                            Set Type: {getSetTypeName(ex.set_type)}
+                                                        </span>
+                                                    </p>
+                                                )
+                                            )}
+                                            
+                                            {ex.notes && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Notes: {ex.notes}</p>}
+                                            
+                                            {/* Display exercise details if found */} 
+                                            {exerciseData && (
+                                                <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                        (Exercise ID: {exerciseData.id})
+                                                        {exerciseData.gif_url && (
+                                                            <a 
+                                                                href={exerciseData.gif_url} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer" 
+                                                                className="ml-2 text-indigo-500 hover:underline"
+                                                            >
+                                                                View Animation
+                                                            </a>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                }
+                            })
+                        )}
                     </div>
                 </div>
             )}

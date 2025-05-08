@@ -1,4 +1,4 @@
-import React, { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
@@ -26,7 +26,7 @@ const steps = [
 
 // --- Define fields associated with each step --- 
 const stepFields: Record<number, (keyof OnboardingData)[]> = {
-    1: ['age', 'weight_kg', 'height_cm', 'body_fat_percentage'],
+    1: ['first_name', 'last_name', 'age', 'weight_kg', 'height_cm', 'body_fat_percentage', 'gender'],
     2: ['goal_target_fat_loss_kg', 'goal_timeframe_weeks', 'goal_target_weight_kg', 'goal_physique_details'],
     3: ['training_days_per_week', 'training_current_program', 'training_equipment', 'training_session_length_minutes', 'training_intensity'],
     4: ['nutrition_meal_patterns', 'nutrition_tracking_method', 'nutrition_preferences', 'nutrition_allergies'],
@@ -36,22 +36,55 @@ const stepFields: Record<number, (keyof OnboardingData)[]> = {
 
 const OnboardingWizard: React.FC = () => {
     const [currentStep, setCurrentStep] = useState(1);
-    const [formData, setFormData] = useState<Partial<OnboardingData>>({}); // Keep track of data across steps
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
     const navigate = useNavigate(); // Hook for navigation
     const user = useSelector(selectUser);
     const currentProfile = useSelector(selectProfile); // Get current profile
     const dispatch = useDispatch(); // Get dispatch function
 
+    // Initialize form with current profile data if available
     const methods = useForm<OnboardingData>({
         resolver: zodResolver(onboardingSchema) as any,
         mode: 'onBlur',
-        defaultValues: { /* TODO: Consider fetching existing profile data if re-onboarding */ }
+        defaultValues: currentProfile as any || {}
     });
 
-    const { handleSubmit, trigger, getValues } = methods;
+    const { handleSubmit, trigger, reset } = methods;
+
+    // Fetch existing profile data when component mounts
+    useEffect(() => {
+        const fetchProfileData = async () => {
+            if (!user?.id) {
+                setIsLoadingProfile(false);
+                return;
+            }
+
+            try {
+                const { data: profileData, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .single();
+
+                if (error) throw error;
+                
+                // Set the form data with existing profile values
+                if (profileData) {
+                    // Reset the form with existing data
+                    reset(profileData);
+                }
+            } catch (error) {
+                console.error('Error fetching profile data:', error);
+            } finally {
+                setIsLoadingProfile(false);
+            }
+        };
+
+        fetchProfileData();
+    }, [user?.id, reset]);
 
     const handleNext = async () => {
         const fieldsToValidate = stepFields[currentStep] || [];
@@ -66,7 +99,8 @@ const OnboardingWizard: React.FC = () => {
             // Step 5 is the last step, so don't try to go to the next step
             // Just update the form data
             if (isValid) {
-                setFormData(prev => ({ ...prev, ...getValues() }));
+                // We no longer need to update formData
+                // Just proceed with the next steps
             }
             return;
         }
@@ -74,7 +108,7 @@ const OnboardingWizard: React.FC = () => {
         const isValid = await trigger(fieldsToValidate as (keyof OnboardingData)[]);
 
         if (isValid && currentStep < steps.length) {
-            setFormData(prev => ({ ...prev, ...getValues() })); 
+            // Just proceed to next step
             setCurrentStep(prev => prev + 1);
         }
     };
@@ -89,10 +123,6 @@ const OnboardingWizard: React.FC = () => {
         const isValid = await trigger(fieldsToValidate as (keyof OnboardingData)[]);
         
         if (isValid) {
-            // Update form data with current values
-            const currentValues = getValues();
-            setFormData(prev => ({ ...prev, ...currentValues }));
-            
             // Then manually call handleSubmit with our onSubmit function
             handleSubmit(onSubmit as any)();
         }
@@ -105,76 +135,54 @@ const OnboardingWizard: React.FC = () => {
     };
 
     const onSubmit = async (data: OnboardingData) => {
-        if (!user) {
-            setSubmitError('User not found. Please log in again.');
+        if (!user?.id) {
+            setSubmitError('User not authenticated. Please sign in again.');
             return;
         }
 
         setIsSubmitting(true);
         setSubmitError(null);
 
-        const finalData = { ...formData, ...data };
-        console.log('Combined form data:', finalData);
-
         try {
-            // First, check if there's an existing placeholder profile with this email
-            // This would be the case if a coach invited this athlete
-            const { data: existingProfile, error: lookupError } = await supabase
+            // Generate a username from first and last name
+            const firstname = data.first_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const lastname = data.last_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const username = `${firstname}.${lastname}`;
+
+            // Data to be saved to the profile
+            const profileUpdate = {
+                ...data,
+                username, // Set the generated username
+                onboarding_complete: true
+            };
+
+            console.log('Saving onboarding data:', profileUpdate);
+
+            // Save the data to the profile
+            const { error } = await supabase
+                .from('profiles')
+                .update(profileUpdate)
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+
+            // Update the Redux state with the updated profile
+            // First fetch the complete updated profile
+            const { data: updatedProfile, error: fetchError } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('email', user.email)
-                .is('user_id', null)
+                .eq('user_id', user.id)
                 .single();
-            
-            if (lookupError && lookupError.code !== 'PGRST116') { // PGRST116 is "not found" which is OK
-                console.warn("Error checking for existing profile:", lookupError);
-            }
-            
-            let updateResult;
-            
-            if (existingProfile) {
-                // Found a placeholder profile - update it with the user data and onboarding info
-                console.log('Found existing placeholder profile:', existingProfile.id);
-                
-                updateResult = await supabase
-                    .from('profiles')
-                    .update({
-                        ...finalData,
-                        user_id: user.id,
-                        onboarding_complete: true,
-                        invitation_status: 'accepted'
-                    })
-                    .eq('id', existingProfile.id);
-            } else {
-                // No placeholder profile found - do regular update by user_id
-                updateResult = await supabase
-                    .from('profiles')
-                    .update({ 
-                        ...finalData, 
-                        onboarding_complete: true
-                    })
-                    .eq('user_id', user.id);
-            }
-            
-            if (updateResult.error) {
-                throw updateResult.error;
+
+            if (fetchError) throw fetchError;
+
+            // Update Redux state
+            if (updatedProfile) {
+                dispatch(setProfile(updatedProfile));
             }
 
-            // Manually update Redux profile state
-            if (currentProfile) { 
-                dispatch(setProfile({ 
-                    ...currentProfile, // Keep existing profile data
-                    onboarding_complete: true // Just update the flag
-                }));
-            } else {
-                // If profile wasn't loaded, we can't reliably update it.
-                // Fetching it again might be better after redirect, but log a warning.
-                console.warn("Profile was null in Redux state, cannot update onboarding status locally.");
-            }
-            
-            console.log('Onboarding profile update complete. Redirecting...');
-            navigate('/dashboard'); 
-
+            // Redirect to the dashboard
+            navigate('/dashboard');
         } catch (error: unknown) {
             console.error('Error updating profile:', error);
             let message = 'Failed to save onboarding data.';
@@ -197,47 +205,52 @@ const OnboardingWizard: React.FC = () => {
                         Step {currentStep}: {steps[currentStep - 1]?.name}
                     </h2>
                     
-                    {/* Use onSubmit={e => e.preventDefault()} to prevent auto-submission */}
-                    <form onSubmit={(e: FormEvent) => { e.preventDefault(); }}>
-                        {/* Render the current step's component */}
-                        {CurrentStepComponent && <CurrentStepComponent />}
-                        
-                        {/* Submission Error Display */}
-                        {submitError && (
-                            <p className="mt-4 text-sm text-center text-red-600 dark:text-red-400">Error: {submitError}</p>
-                        )}
+                    {isLoadingProfile ? (
+                        <div className="flex justify-center py-8">
+                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
+                        </div>
+                    ) : (
+                        <form onSubmit={(e: FormEvent) => { e.preventDefault(); }}>
+                            {/* Render the current step's component */}
+                            {CurrentStepComponent && <CurrentStepComponent />}
+                            
+                            {/* Submission Error Display */}
+                            {submitError && (
+                                <p className="mt-4 text-sm text-center text-red-600 dark:text-red-400">Error: {submitError}</p>
+                            )}
 
-                        {/* Navigation Buttons */}
-                        <div className="flex justify-between mt-8">
-                            <button 
-                                type="button" 
-                                onClick={handlePrevious} 
-                                disabled={currentStep === 1}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
-                            >
-                                Previous
-                            </button>
-
-                            {currentStep < steps.length ? (
+                            {/* Navigation Buttons */}
+                            <div className="flex justify-between mt-8">
                                 <button 
                                     type="button" 
-                                    onClick={handleNext}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800"
+                                    onClick={handlePrevious} 
+                                    disabled={currentStep === 1}
+                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
                                 >
-                                    Next
+                                    Previous
                                 </button>
-                            ) : (
-                                <button 
-                                    type="button" // Changed from "submit" to "button"
-                                    onClick={handleManualSubmit}
-                                    disabled={isSubmitting} // Disable while submitting
-                                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800 disabled:opacity-50"
-                                >
-                                    {isSubmitting ? 'Saving...' : 'Complete Onboarding'}
-                                </button>
-                            )}
-                        </div>
-                    </form>
+
+                                {currentStep < steps.length ? (
+                                    <button 
+                                        type="button" 
+                                        onClick={handleNext}
+                                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800"
+                                    >
+                                        Next
+                                    </button>
+                                ) : (
+                                    <button 
+                                        type="button" // Changed from "submit" to "button"
+                                        onClick={handleManualSubmit}
+                                        disabled={isSubmitting} // Disable while submitting
+                                        className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800 disabled:opacity-50"
+                                    >
+                                        {isSubmitting ? 'Saving...' : 'Complete Onboarding'}
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+                    )}
                 </div>
             </div>
         </FormProvider>

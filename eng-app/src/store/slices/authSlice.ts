@@ -8,6 +8,8 @@ export interface ProfileData {
   user_id: string; // Foreign key to auth.users
   username: string | null; // Add username field
   email: string | null; // Add email field
+  first_name: string | null; // Add first name field
+  last_name: string | null; // Add last name field
   onboarding_complete: boolean;
   role: string; // Add the role field
   height_cm: number | null; // Add height_cm field

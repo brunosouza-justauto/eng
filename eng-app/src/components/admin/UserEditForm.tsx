@@ -3,7 +3,6 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UserProfileFull } from '../../types/profiles'; // Import shared type
-import { SubmitHandler } from 'react-hook-form';
 import { Resolver } from 'react-hook-form';
 
 interface UserEditFormProps {
@@ -12,14 +11,20 @@ interface UserEditFormProps {
     isSaving: boolean;
 }
 
-// Define Zod schema for validation
+// User edit schema with validation
 const userEditSchema = z.object({
-    username: z.string().min(1, 'Username is required'),
-    role: z.string(),
+    username: z.string().optional(),
+    first_name: z.string().min(1, "First name is required"),
+    last_name: z.string().min(1, "Last name is required"),
+    role: z.enum(['athlete', 'coach']),
     // Physical details
     age: z.preprocess(
-        (val) => (val === '' ? null : Number(val)),
-        z.number().min(0, 'Age must be positive').max(120, 'Age cannot exceed 120').nullable().optional()
+        // Convert empty string to null
+        (val) => val === '' ? null : val,
+        z.union([
+            z.null(),
+            z.coerce.number().int().positive().max(120)
+        ])
     ),
     weight_kg: z.preprocess(
         (val) => (val === '' ? null : Number(val)),
@@ -83,14 +88,17 @@ const userEditSchema = z.object({
     gender: z.string().min(1, 'Gender is required'),
 });
 
-type FormData = z.infer<typeof userEditSchema>;
+// Create a type for the form data from the schema
+type EditFormValues = z.infer<typeof userEditSchema>;
 
 const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) => {
-    const methods = useForm<FormData>({
-        resolver: zodResolver(userEditSchema) as Resolver<FormData>,
+    const methods = useForm<EditFormValues>({
+        resolver: zodResolver(userEditSchema) as unknown as Resolver<EditFormValues>,
         defaultValues: {
             username: user.username || '',
-            role: user.role || 'athlete',
+            first_name: user.first_name || '',
+            last_name: user.last_name || '',
+            role: (user.role as 'athlete' | 'coach') || 'athlete',
             // Physical details
             age: user.age || null,
             weight_kg: user.weight_kg || null,
@@ -125,7 +133,14 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
 
     const { handleSubmit, register, formState: { errors } } = methods;
 
-    const handleFormSubmit: SubmitHandler<FormData> = (data) => {
+    const handleFormSubmit = (data: EditFormValues) => {
+        // Generate a username from first and last name if username is empty
+        if (!data.username && data.first_name && data.last_name) {
+            const firstname = data.first_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const lastname = data.last_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            data.username = `${firstname}.${lastname}`;
+        }
+        
         onSave(data);
     };
 
@@ -136,12 +151,35 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
+                        <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">First Name</label>
+                        <input 
+                            id="first_name"
+                            {...register('first_name')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                        {errors.first_name && <p className="mt-1 text-sm text-red-600">{errors.first_name.message}</p>}
+                    </div>
+                    
+                    <div>
+                        <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name</label>
+                        <input 
+                            id="last_name"
+                            {...register('last_name')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                        {errors.last_name && <p className="mt-1 text-sm text-red-600">{errors.last_name.message}</p>}
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
                         <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
                         <input 
                             id="username"
                             {...register('username')}
                             className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Leave blank to auto-generate from name</p>
                         {errors.username && <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>}
                     </div>
                     
@@ -269,7 +307,7 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                 <h3 className="text-md font-medium text-gray-800 dark:text-white mt-4 mb-2">Training</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="training_days_per_week" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Training Days Per Week</label>
+                        <label htmlFor="training_days_per_week" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Training Days Per Week</label>
                         <input 
                             id="training_days_per_week"
                             type="number"

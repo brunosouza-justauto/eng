@@ -298,8 +298,7 @@ const CoachManager: React.FC = () => {
                             <thead className="bg-gray-50 dark:bg-gray-700">
                                 <tr>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Email</th>
-                                    <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Username</th>
-                                    <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Role</th>
+                                    <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Name</th>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Status</th>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Invited</th>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Onboarded</th>
@@ -318,8 +317,7 @@ const CoachManager: React.FC = () => {
                                 {filteredCoaches.map((coach) => (
                                     <tr key={coach.id} className="hover:bg-gray-50 dark:hover:bg-indigo-900/30">
                                         <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap dark:text-white">{coach.email ?? 'N/A'}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{coach.username ?? '-'}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{coach.role}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{coach.first_name} {coach.last_name}</td>
                                         <td className="px-6 py-4 text-sm whitespace-nowrap">
                                             {renderStatusBadge(coach)}
                                         </td>

@@ -533,7 +533,7 @@ const AthleteDetailsPage: React.FC = () => {
             {!isLoading && !error && athleteDetails && !isEditing && (
                 <>
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-semibold text-gray-800 dark:text-white">{athleteDetails.username || 'Unnamed Athlete'}</h2>
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-white">{athleteDetails.first_name} {athleteDetails.last_name}</h2>
                         <div className="space-x-2">
                             <Button 
                                 onClick={() => setIsEditing(true)}
@@ -623,6 +623,14 @@ const AthleteDetailsPage: React.FC = () => {
                     <Card className="p-6 mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Basic Information</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">First Name</p>
+                                <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.first_name || 'Not provided'}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Last Name</p>
+                                <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.last_name || 'Not provided'}</p>
+                            </div>
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Username</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.username || 'Not provided'}</p>

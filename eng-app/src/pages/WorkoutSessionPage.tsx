@@ -5,6 +5,7 @@ import { selectProfile } from '../store/slices/authSlice';
 import { supabase } from '../services/supabaseClient';
 import { SetType, ExerciseSet } from '../types/adminTypes';
 import { fetchExerciseById } from '../utils/exerciseAPI';
+import BackButton from '../components/common/BackButton';
 
 // Helper function to sanitize text with encoding issues
 const sanitizeText = (text: string | null | undefined): string | null => {
@@ -37,6 +38,7 @@ interface ExerciseInstanceData {
   order_in_workout: number | null;
   set_type?: SetType | null;
   sets_data?: ExerciseSet[]; // Add support for individual set data
+  superset_group_id?: string | null; // Added field for superset group ID
 }
 
 // Interface for database exercise set
@@ -401,6 +403,11 @@ const WorkoutSessionPage: React.FC = () => {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [completedSets, setCompletedSets] = useState<Map<string, CompletedSetData[]>>(new Map());
   
+  // Add state for session resumption dialog
+  const [showSessionDialog, setShowSessionDialog] = useState<boolean>(false);
+  const [existingSessionId, setExistingSessionId] = useState<string | null>(null);
+  const [sessionDialogLoading, setSessionDialogLoading] = useState<boolean>(false);
+  
   // Add new state for rest timer
   const [activeRestTimer, setActiveRestTimer] = useState<{
     exerciseId: string;
@@ -415,6 +422,12 @@ const WorkoutSessionPage: React.FC = () => {
   // Add state for completion dialog
   const [showCompletionDialog, setShowCompletionDialog] = useState<boolean>(false);
   const [completionMessage, setCompletionMessage] = useState<string>('');
+  
+  // Add state for initial workout countdown
+  const [initialCountdown, setInitialCountdown] = useState<number | null>(null);
+  
+  // Add a flag to track if we've already announced the first exercise
+  const hasAnnouncedFirstExercise = useRef<boolean>(false);
   
   // Audio ref for timer alert
   const alertSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -705,11 +718,61 @@ const WorkoutSessionPage: React.FC = () => {
     }
   };
 
-  // Start workout session and timer
+  // Later in the file, add a new function to check for existing sessions
+  const checkForExistingSession = async () => {
+    if (!profile?.user_id || !workoutId) return false;
+
+    try {
+      // Look for incomplete sessions (no end_time) for this workout and user
+      const { data, error } = await supabase
+        .from('workout_sessions')
+        .select('id, start_time')
+        .eq('user_id', profile.user_id)
+        .eq('workout_id', workoutId)
+        .is('end_time', null)
+        .order('start_time', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking for existing session:', error);
+        return false;
+      }
+
+      // If we found an incomplete session
+      if (data && data.length > 0) {
+        console.log('Found incomplete session:', data[0]);
+        setExistingSessionId(data[0].id);
+        setShowSessionDialog(true);
+        return true;
+      }
+
+      return false;
+    } catch (err) {
+      console.error('Error in checkForExistingSession:', err);
+      return false;
+    }
+  };
+
+  // Modify the startWorkout function to check for existing sessions first
   const startWorkout = async () => {
     if (!profile?.user_id || !workoutId) return;
     
     try {
+      // Reset the announcement flag at the beginning of each workout
+      hasAnnouncedFirstExercise.current = false;
+      
+      // Ensure any existing speech is cancelled before starting a new workout
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      
+      // Check for existing incomplete sessions first
+      const hasExistingSession = await checkForExistingSession();
+      if (hasExistingSession) {
+        // We'll handle this through the session dialog
+        return;
+      }
+      
       // Pre-initialize speech synthesis to get permission (requires user gesture)
       if (window.speechSynthesis) {
         console.log('Initializing speech synthesis...');
@@ -742,7 +805,62 @@ const WorkoutSessionPage: React.FC = () => {
       // Set session ID for later use
       setWorkoutSessionId(data.id);
       
-      // Start the timer
+      // Start 5-second countdown before beginning the workout
+      setInitialCountdown(5);
+      
+      // Rest of the function stays the same...
+
+      // Countdown timer for workout start
+      const countdownInterval = setInterval(() => {
+        setInitialCountdown(prevCount => {
+          if (prevCount === null) return null;
+          
+          if (prevCount <= 5 && prevCount > 0) {
+            // Play beep for each second
+            playCountdownBeep();
+            
+            // Vibrate if on mobile
+            if (navigator.vibrate && window.matchMedia('(max-width: 768px)').matches) {
+              navigator.vibrate(100);
+            }
+          }
+          
+          if (prevCount === 1) {
+            // Last second - clear the interval
+            clearInterval(countdownInterval);
+            
+            // Play alert sound
+            if (alertSoundRef.current) {
+              alertSoundRef.current.play().catch(err => 
+                console.error('Failed to play timer sound:', err)
+              );
+            }
+            
+            // Reset the announcement flag whenever a new workout starts
+            hasAnnouncedFirstExercise.current = false;
+            
+            // Announce the first exercise if speech is enabled
+            if (workout && workout.exercise_instances.length > 0 && isSpeechEnabled && !hasAnnouncedFirstExercise.current) {
+              const firstExercise = workout.exercise_instances[0];
+              const exerciseName = firstExercise.exercise_name;
+              
+              // Announce first exercise using speech synthesis
+              if (window.speechSynthesis) {
+                // Cancel any ongoing speech
+                window.speechSynthesis.cancel();
+                
+                const firstExerciseUtterance = new SpeechSynthesisUtterance(`Starting ${exerciseName}`);
+                window.speechSynthesis.speak(firstExerciseUtterance);
+                
+                // Mark as announced
+                hasAnnouncedFirstExercise.current = true;
+              }
+              
+              // Show visual announcement
+              showAnnouncementToast(`Starting ${exerciseName}`);
+            }
+            
+            // Start the workout timer after countdown finishes
       startTimeRef.current = new Date();
       setIsWorkoutStarted(true);
       setIsPaused(false);
@@ -755,6 +873,15 @@ const WorkoutSessionPage: React.FC = () => {
           setElapsedTime(elapsed);
         }
       }, 1000);
+            
+            // Clear the countdown
+            return null;
+          }
+          
+          return prevCount - 1;
+        });
+      }, 1000);
+      
     } catch (err) {
       console.error('Error starting workout session:', err);
       setCompletionMessage('Failed to start workout session');
@@ -933,8 +1060,8 @@ const WorkoutSessionPage: React.FC = () => {
     setShowCompletionDialog(true);
   };
 
-  // Modify the handleCompletionDialogClose function to check for cancel vs complete
-  const handleCompletionDialogClose = () => {
+  // Modify the handleCompletionDialogClose function
+  const handleCompletionDialogClose = async () => {
     setShowCompletionDialog(false);
     
     // If the message contains "cancel", we treat it as a cancellation confirmation
@@ -949,12 +1076,18 @@ const WorkoutSessionPage: React.FC = () => {
         timerIntervalRef.current = null;
       }
       
+      // Delete the workout session from the database if we have a session ID
+      if (workoutSessionId) {
+        await deleteWorkoutSession(workoutSessionId);
+      }
+      
       // Reset workout state
       setIsWorkoutStarted(false);
       setWorkoutSessionId(null);
       setElapsedTime(0);
-      pausedTimeRef.current = 0; // Fixed: directly set the ref value instead of using a non-existent setter
+      pausedTimeRef.current = 0;
       setActiveRestTimer(null);
+      setInitialCountdown(null); // Also reset the initial countdown if active
       
       // Navigate back to dashboard
       navigate('/dashboard');
@@ -964,7 +1097,116 @@ const WorkoutSessionPage: React.FC = () => {
     }
   };
 
-  // Update weight for a set
+  // Add a function to save a completed set to the database
+  const saveCompletedSet = async (sessionId: string, setData: CompletedSetData) => {
+    if (!sessionId) return;
+    
+    try {
+      // Create a record for the completed set
+      const record: CompletedSetRecord = {
+        workout_session_id: sessionId,
+        exercise_instance_id: setData.exerciseInstanceId,
+        set_order: setData.setOrder,
+        weight: setData.weight,
+        reps: setData.reps,
+        is_completed: setData.isCompleted,
+        notes: setData.notes,
+        set_type: setData.setType
+      };
+      
+      console.log('Saving completed set:', record);
+      
+      // Check if this record already exists (for updating)
+      const { data: existingData, error: checkError } = await supabase
+        .from('completed_exercise_sets')
+        .select('id')
+        .eq('workout_session_id', sessionId)
+        .eq('exercise_instance_id', setData.exerciseInstanceId)
+        .eq('set_order', setData.setOrder)
+        .limit(1);
+      
+      if (checkError) {
+        console.error('Error checking for existing completed set:', checkError);
+        return;
+      }
+      
+      if (existingData && existingData.length > 0) {
+        // Update existing record
+        const { error } = await supabase
+          .from('completed_exercise_sets')
+          .update(record)
+          .eq('id', existingData[0].id);
+        
+        if (error) {
+          console.error('Error updating completed set:', error);
+        } else {
+          console.log('Updated completed set successfully');
+        }
+      } else {
+        // Insert new record
+        const { error } = await supabase
+          .from('completed_exercise_sets')
+          .insert(record);
+        
+        if (error) {
+          console.error('Error inserting completed set:', error);
+        } else {
+          console.log('Inserted completed set successfully');
+        }
+      }
+    } catch (err) {
+      console.error('Error saving completed set:', err);
+    }
+  };
+
+  // Modify the toggleSetCompletion function to save completed sets immediately
+  const toggleSetCompletion = (exerciseId: string, setIndex: number) => {
+    setCompletedSets(prevSets => {
+      const newSets = new Map(prevSets);
+      const exerciseSets = [...(newSets.get(exerciseId) || [])];
+      
+      if (exerciseSets[setIndex]) {
+        const newIsCompleted = !exerciseSets[setIndex].isCompleted;
+        
+        exerciseSets[setIndex] = {
+          ...exerciseSets[setIndex],
+          isCompleted: newIsCompleted
+        };
+        newSets.set(exerciseId, exerciseSets);
+        
+        // Save this set to the database immediately
+        if (workoutSessionId && isWorkoutStarted) {
+          const setData = exerciseSets[setIndex];
+          saveCompletedSet(workoutSessionId, setData);
+        }
+        
+        // If the set was just marked as completed, and workout is active, start the rest timer
+        if (newIsCompleted && isWorkoutStarted && !isPaused) {
+          const exercise = workout?.exercise_instances.find(ex => ex.id === exerciseId);
+          if (exercise) {
+            // Get the rest time for this specific set
+            let restSeconds = null;
+            if (exercise.sets_data && exercise.sets_data[setIndex]) {
+              restSeconds = exercise.sets_data[setIndex].rest_seconds;
+            }
+            // Fall back to exercise rest_period_seconds if no specific rest time
+            if (restSeconds === undefined || restSeconds === null) {
+              restSeconds = exercise.rest_period_seconds;
+            }
+            
+            // If rest time is specified, start the timer
+            if (restSeconds) {
+              startRestTimer(exerciseId, setIndex, restSeconds);
+            }
+          }
+        }
+      }
+      
+      return newSets;
+    });
+  };
+
+  // Modify updateSetWeight to save changes immediately
   const updateSetWeight = (exerciseId: string, setIndex: number, weight: string) => {
     setCompletedSets(prevSets => {
       const newSets = new Map(prevSets);
@@ -976,13 +1218,18 @@ const WorkoutSessionPage: React.FC = () => {
           weight
         };
         newSets.set(exerciseId, exerciseSets);
+        
+        // Save this change to the database immediately
+        if (workoutSessionId && isWorkoutStarted) {
+          saveCompletedSet(workoutSessionId, exerciseSets[setIndex]);
+        }
       }
       
       return newSets;
     });
   };
 
-  // Update reps for a set
+  // Modify updateSetReps to save changes immediately
   const updateSetReps = (exerciseId: string, setIndex: number, repsStr: string) => {
     // Handle empty input gracefully
     const reps = repsStr ? parseInt(repsStr, 10) : 0;
@@ -997,6 +1244,11 @@ const WorkoutSessionPage: React.FC = () => {
           reps
         };
         newSets.set(exerciseId, exerciseSets);
+        
+        // Save this change to the database immediately
+        if (workoutSessionId && isWorkoutStarted) {
+          saveCompletedSet(workoutSessionId, exerciseSets[setIndex]);
+        }
       }
       
       return newSets;
@@ -1096,6 +1348,12 @@ const WorkoutSessionPage: React.FC = () => {
             announcementText = `Get ready for next exercise: ${nextExercise.exercise_name}`;
           }
         }
+      }
+      
+      // Skip announcement if this is the first exercise and we've already announced it
+      const isFirstExercise = currentExerciseIndex === 0 && setIndex === 0;
+      if (isFirstExercise && hasAnnouncedFirstExercise.current) {
+        return;
       }
       
       console.log('👄 Attempting to announce:', announcementText);
@@ -1262,48 +1520,6 @@ const WorkoutSessionPage: React.FC = () => {
     }
   }, [isPaused, activeRestTimer]);
   
-  // Modify toggleSetCompletion to use our new timer function
-  const toggleSetCompletion = (exerciseId: string, setIndex: number) => {
-    setCompletedSets(prevSets => {
-      const newSets = new Map(prevSets);
-      const exerciseSets = [...(newSets.get(exerciseId) || [])];
-      
-      if (exerciseSets[setIndex]) {
-        const newIsCompleted = !exerciseSets[setIndex].isCompleted;
-        
-        exerciseSets[setIndex] = {
-          ...exerciseSets[setIndex],
-          isCompleted: newIsCompleted
-        };
-        newSets.set(exerciseId, exerciseSets);
-        
-        // If the set was just marked as completed, and workout is active, start the rest timer
-        if (newIsCompleted && isWorkoutStarted && !isPaused) {
-          const exercise = workout?.exercise_instances.find(ex => ex.id === exerciseId);
-          if (exercise) {
-            // Get the rest time for this specific set
-            let restSeconds = null;
-            if (exercise.sets_data && exercise.sets_data[setIndex]) {
-              restSeconds = exercise.sets_data[setIndex].rest_seconds;
-            }
-            // Fall back to exercise rest_period_seconds if no specific rest time
-            if (restSeconds === undefined || restSeconds === null) {
-              restSeconds = exercise.rest_period_seconds;
-            }
-            
-            // If rest time is specified, start the timer
-            if (restSeconds) {
-              startRestTimer(exerciseId, setIndex, restSeconds);
-            }
-          }
-        }
-      }
-      
-      return newSets;
-    });
-  };
-
-  // Format time for display (MM:SS or HH:MM:SS)
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -1652,6 +1868,394 @@ const WorkoutSessionPage: React.FC = () => {
     );
   };
 
+  // Helper function to group exercises by superset
+  const groupExercisesBySuperset = (exercises: ExerciseInstanceData[]) => {
+    const sortedExercises = [...exercises].sort((a, b) => 
+      (a.order_in_workout ?? 0) - (b.order_in_workout ?? 0)
+    );
+    
+    const result: {
+      group: ExerciseInstanceData[];
+      isSuperset: boolean;
+      supersetGroupId: string | null;
+    }[] = [];
+    
+    // Temporary workaround until superset_group_id is added to the database
+    // Group consecutive exercises with set_type === SUPERSET as part of the same group
+    let currentGroup: ExerciseInstanceData[] = [];
+    let groupId = 0;
+    
+    for (let i = 0; i < sortedExercises.length; i++) {
+      const exercise = sortedExercises[i];
+      
+      if (exercise.set_type === SetType.SUPERSET) {
+        // Add to current superset group
+        currentGroup.push(exercise);
+        
+        // If this is the last exercise or the next one isn't a superset, close this group
+        if (i === sortedExercises.length - 1 || 
+            sortedExercises[i + 1].set_type !== SetType.SUPERSET) {
+          
+          // Only create a superset group if there are at least 2 exercises
+          if (currentGroup.length >= 2) {
+            result.push({
+              group: [...currentGroup],
+              isSuperset: true,
+              supersetGroupId: `temp-group-${groupId++}`
+            });
+          } else {
+            // If only one exercise has SUPERSET type, treat it as a regular exercise
+            result.push({
+              group: [currentGroup[0]],
+              isSuperset: false,
+              supersetGroupId: null
+            });
+          }
+          
+          // Reset for next group
+          currentGroup = [];
+        }
+      } else {
+        // Regular exercise, add as its own group
+        result.push({
+          group: [exercise],
+          isSuperset: false,
+          supersetGroupId: null
+        });
+      }
+    }
+    
+    return result;
+  };
+
+  // Add initial countdown component
+  const InitialCountdownDisplay = () => {
+    if (initialCountdown === null) return null;
+    
+    // Find the first exercise name with proper null checking
+    const firstExerciseName = workout && 
+      workout.exercise_instances && 
+      workout.exercise_instances.length > 0 ? 
+      workout.exercise_instances[0].exercise_name : 
+      'your workout';
+    
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
+        <div className="text-center">
+          <div className="text-6xl font-bold text-white mb-3 animate-pulse">
+            {initialCountdown}
+          </div>
+          <div className="text-xl text-white">
+            Get Ready!
+          </div>
+          <div className="mt-3 text-indigo-300">
+            First Exercise: {firstExerciseName}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Add a function to handle session dialog actions
+  const handleSessionAction = async (action: 'resume' | 'new') => {
+    setSessionDialogLoading(true);
+    
+    try {
+      if (action === 'resume' && existingSessionId) {
+        // Resume the existing session
+        console.log('Resuming session:', existingSessionId);
+        
+        // Set session ID for later use
+        setWorkoutSessionId(existingSessionId);
+        
+        // Try to load previous completed sets from this session
+        await loadCompletedSetsFromSession(existingSessionId);
+        
+        // Skip the countdown and start immediately
+        startTimeRef.current = new Date();
+        setIsWorkoutStarted(true);
+        setIsPaused(false);
+        
+        // Start tracking elapsed time
+        timerRef.current = setInterval(() => {
+          if (startTimeRef.current) {
+            const now = new Date();
+            const elapsed = Math.floor((now.getTime() - startTimeRef.current.getTime()) / 1000) + pausedTimeRef.current;
+            setElapsedTime(elapsed);
+          }
+        }, 1000);
+        
+      } else if (action === 'new') {
+        // Delete the existing session and start a new one
+        if (existingSessionId) {
+          console.log('Deleting existing session before starting new one');
+          await deleteWorkoutSession(existingSessionId);
+          
+          // Clear the existing session ID to prevent infinite loop
+          setExistingSessionId(null);
+        }
+        
+        // Check that user profile exists before continuing
+        if (!profile?.user_id || !workoutId) {
+          console.error('Missing profile or workout ID');
+          throw new Error('Missing profile or workout ID');
+        }
+        
+        // Reset the session dialog flag - critical to prevent re-show
+        setShowSessionDialog(false);
+        
+        // Create a new workout session in the database directly instead of calling startWorkout()
+        const { data, error } = await supabase
+          .from('workout_sessions')
+          .insert({
+            user_id: profile.user_id,
+            workout_id: workoutId,
+            start_time: new Date().toISOString(),
+          })
+          .select('id')
+          .single();
+        
+        if (error) throw error;
+        
+        console.log('Started new workout session:', data);
+        
+        // Set session ID for later use
+        setWorkoutSessionId(data.id);
+        
+        // Start 5-second countdown before beginning the workout
+        setInitialCountdown(5);
+        
+        // Countdown timer for workout start
+        const countdownInterval = setInterval(() => {
+          setInitialCountdown(prevCount => {
+            if (prevCount === null) return null;
+            
+            if (prevCount <= 5 && prevCount > 0) {
+              // Play beep for each second
+              playCountdownBeep();
+              
+              // Vibrate if on mobile
+              if (navigator.vibrate && window.matchMedia('(max-width: 768px)').matches) {
+                navigator.vibrate(100);
+              }
+            }
+            
+            if (prevCount === 1) {
+              // Last second - clear the interval
+              clearInterval(countdownInterval);
+              
+              // Play alert sound
+              if (alertSoundRef.current) {
+                alertSoundRef.current.play().catch(err => 
+                  console.error('Failed to play timer sound:', err)
+                );
+              }
+              
+              // Reset the announcement flag whenever a new workout starts
+              hasAnnouncedFirstExercise.current = false;
+              
+              // Announce the first exercise if speech is enabled
+              if (workout && workout.exercise_instances.length > 0 && isSpeechEnabled && !hasAnnouncedFirstExercise.current) {
+                const firstExercise = workout.exercise_instances[0];
+                const exerciseName = firstExercise.exercise_name;
+                
+                // Announce first exercise using speech synthesis
+                if (window.speechSynthesis) {
+                  // Cancel any ongoing speech
+                  window.speechSynthesis.cancel();
+                  
+                  const firstExerciseUtterance = new SpeechSynthesisUtterance(`Starting ${exerciseName}`);
+                  window.speechSynthesis.speak(firstExerciseUtterance);
+                  
+                  // Mark as announced
+                  hasAnnouncedFirstExercise.current = true;
+                }
+                
+                // Show visual announcement
+                showAnnouncementToast(`Starting ${exerciseName}`);
+              }
+              
+              // Start the workout timer after countdown finishes
+              startTimeRef.current = new Date();
+              setIsWorkoutStarted(true);
+              setIsPaused(false);
+              
+              // Start tracking elapsed time
+              timerRef.current = setInterval(() => {
+                if (startTimeRef.current) {
+                  const now = new Date();
+                  const elapsed = Math.floor((now.getTime() - startTimeRef.current.getTime()) / 1000) + pausedTimeRef.current;
+                  setElapsedTime(elapsed);
+                }
+              }, 1000);
+              
+              // Clear the countdown
+              return null;
+            }
+            
+            return prevCount - 1;
+          });
+        }, 1000);
+      }
+    } catch (err) {
+      console.error('Error handling session action:', err);
+      setCompletionMessage('Failed to process workout session');
+      setShowCompletionDialog(true);
+    } finally {
+      setSessionDialogLoading(false);
+    }
+  };
+
+  // Add a function to load completed sets from an existing session
+  const loadCompletedSetsFromSession = async (sessionId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('completed_exercise_sets')
+        .select('*')
+        .eq('workout_session_id', sessionId);
+      
+      if (error) {
+        console.error('Error loading completed sets:', error);
+        return;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log('No completed sets found for session');
+        return;
+      }
+      
+      console.log('Loaded completed sets from session:', data);
+      
+      // Group the completed sets by exercise instance
+      const setsMap = new Map<string, CompletedSetData[]>();
+      
+      data.forEach(set => {
+        const exerciseId = set.exercise_instance_id;
+        if (!setsMap.has(exerciseId)) {
+          setsMap.set(exerciseId, []);
+        }
+        
+        const exerciseSets = setsMap.get(exerciseId) || [];
+        exerciseSets.push({
+          exerciseInstanceId: exerciseId,
+          setOrder: set.set_order,
+          weight: set.weight || '',
+          reps: set.reps,
+          isCompleted: set.is_completed,
+          notes: set.notes || '',
+          setType: set.set_type
+        });
+        
+        // Sort by set order
+        exerciseSets.sort((a, b) => a.setOrder - b.setOrder);
+        setsMap.set(exerciseId, exerciseSets);
+      });
+      
+      // Merge with existing sets data
+      setCompletedSets(prevSets => {
+        const newSets = new Map(prevSets);
+        
+        setsMap.forEach((sets, exerciseId) => {
+          if (newSets.has(exerciseId)) {
+            const existingSets = newSets.get(exerciseId) || [];
+            
+            // Update existing sets with data from the database
+            sets.forEach(set => {
+              const index = existingSets.findIndex(s => s.setOrder === set.setOrder);
+              if (index >= 0) {
+                existingSets[index] = set;
+              } else {
+                existingSets.push(set);
+              }
+            });
+            
+            // Sort by set order
+            existingSets.sort((a, b) => a.setOrder - b.setOrder);
+            newSets.set(exerciseId, existingSets);
+          } else {
+            newSets.set(exerciseId, sets);
+          }
+        });
+        
+        return newSets;
+      });
+      
+    } catch (err) {
+      console.error('Error in loadCompletedSetsFromSession:', err);
+    }
+  };
+
+  // Add function to delete a workout session and its completed sets
+  const deleteWorkoutSession = async (sessionId: string) => {
+    console.log('Deleting workout session:', sessionId);
+    
+    try {
+      // First delete all completed exercise sets for this session
+      const { error: setsError } = await supabase
+        .from('completed_exercise_sets')
+        .delete()
+        .eq('workout_session_id', sessionId);
+      
+      if (setsError) {
+        console.error('Error deleting completed sets:', setsError);
+        // Continue anyway to try to delete the session
+      } else {
+        console.log('Successfully deleted completed sets for session');
+      }
+      
+      // Now delete the workout session
+      const { error } = await supabase
+        .from('workout_sessions')
+        .delete()
+        .eq('id', sessionId);
+      
+      if (error) {
+        console.error('Error deleting workout session:', error);
+        return false;
+      }
+      
+      console.log('Successfully deleted workout session');
+      return true;
+    } catch (err) {
+      console.error('Error in deleteWorkoutSession:', err);
+      return false;
+    }
+  };
+
+  // Add a Session Resume Dialog component
+  const SessionResumeDialog = () => {
+    if (!showSessionDialog) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+            Incomplete Workout Found
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
+            You have an incomplete workout session for this workout. Would you like to resume it or start a new one?
+          </p>
+          <div className="flex flex-col md:flex-row gap-3">
+            <button
+              onClick={() => handleSessionAction('resume')}
+              disabled={sessionDialogLoading}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {sessionDialogLoading ? 'Loading...' : 'Resume Previous'}
+            </button>
+            <button
+              onClick={() => handleSessionAction('new')}
+              disabled={sessionDialogLoading}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {sessionDialogLoading ? 'Loading...' : 'Start New'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       {/* Absolute positioned toast container that doesn't interfere with layout */}
@@ -1663,8 +2267,14 @@ const WorkoutSessionPage: React.FC = () => {
         </div>
       )}
       
+      {/* Initial Countdown Overlay */}
+      <InitialCountdownDisplay />
+      
       {/* Workout Completion Dialog */}
       <CompletionDialog />
+      
+      {/* Session Resume Dialog */}
+      <SessionResumeDialog />
       
       <div className="container px-2 mx-auto">
         {isLoading ? (
@@ -1677,6 +2287,11 @@ const WorkoutSessionPage: React.FC = () => {
           </div>
         ) : workout ? (
           <div>
+            {/* Back Button */}
+            <div className="mb-3 flex justify-end">
+              <BackButton onClick={() => navigate(-1)} />
+            </div>
+
             {/* Workout Header */}
             <div className="mb-4">
               <div className="flex justify-between items-center">
@@ -1794,9 +2409,204 @@ const WorkoutSessionPage: React.FC = () => {
 
             {/* Exercises List with Accordion */}
             <div className="space-y-4">
-              {workout.exercise_instances
-                .sort((a, b) => (a.order_in_workout || 0) - (b.order_in_workout || 0))
-                .map((exercise, exerciseIndex) => {
+              {workout && workout.exercise_instances.length > 0 ? (
+                groupExercisesBySuperset(workout.exercise_instances).map((exerciseGroup, groupIndex) => {
+                  if (exerciseGroup.isSuperset) {
+                    // Render a superset group
+                    return (
+                      <div 
+                        key={exerciseGroup.supersetGroupId || `superset-${groupIndex}`} 
+                        className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg shadow border-2 border-indigo-300 dark:border-indigo-700"
+                      >
+                        <div className="mb-2 flex items-center">
+                          <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs font-semibold">
+                            Superset Group
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {exerciseGroup.group.map((exercise, idx) => {
+                            const exerciseSets = completedSets.get(exercise.id) || [];
+                            const isExerciseComplete = exerciseSets.length > 0 && exerciseSets.every(set => set.isCompleted);
+                            // Use the component-level state instead of local useState
+                            const showDemonstration = shownDemonstrations[exercise.id] || false;
+                            
+                            return (
+                              <div 
+                                key={exercise.id} 
+                                className={`p-3 rounded-lg shadow ${
+                                  isExerciseComplete 
+                                    ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500' 
+                                    : 'bg-white dark:bg-gray-800'
+                                } relative`}
+                              >
+                                {/* Connecting line for all but the last exercise */}
+                                {idx < exerciseGroup.group.length - 1 && (
+                                  <div className="absolute w-0.5 bg-indigo-300 dark:bg-indigo-600" style={{
+                                    left: '50%',
+                                    top: '100%',
+                                    height: '8px',
+                                    transform: 'translateX(-50%)'
+                                  }}></div>
+                                )}
+                                
+                                <div className="flex justify-between items-center">
+                                  <h3 className="text-lg font-semibold flex items-center">
+                                    <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-2">
+                                      {groupExercisesBySuperset(workout.exercise_instances)
+                                        .slice(0, groupIndex)
+                                        .flatMap(g => g.group)
+                                        .length + idx + 1}
+                                    </span>
+                                    <span className="text-gray-800 dark:text-white">
+                                      {exercise.exercise_name}
+                                    </span>
+                                  </h3>
+                                  
+                                  {/* Toggle button for demonstration */}
+                                  <button 
+                                    onClick={() => toggleDemonstration(exercise.id)}
+                                    className="flex text-center items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-xs"
+                                  >
+                                    {showDemonstration ? (
+                                      <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                        Hide Demo
+                                      </>
+                                    ) : (
+                                      <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                        </svg>
+                                        View Demo
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                                
+                                {/* Exercise notes */}
+                                {exercise.notes && (
+                                  <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
+                                    {exercise.notes}
+                                  </p>
+                                )}
+                                
+                                {/* Exercise Demonstration - Collapsible */}
+                                {showDemonstration && (
+                                  <div className="mt-3 animate-fadeIn">
+                                    <ExerciseDemonstration 
+                                      exerciseName={exercise.exercise_name} 
+                                      exerciseDbId={exercise.exercise_db_id} 
+                                    />
+                                  </div>
+                                )}
+                                
+                                {/* Sets table */}
+                                <div className="mt-3 max-w-full">
+                                  <table className="w-full text-xs text-left table-auto">
+                                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                      <tr>
+                                        <th scope="col" className="px-1 py-2 w-[10%] hidden sm:table-cell">Set</th>
+                                        <th scope="col" className="px-1 py-2 w-[22%]">Type</th>
+                                        <th scope="col" className="px-1 py-2 w-[15%]">Reps</th>
+                                        <th scope="col" className="px-1 py-2 w-[18%]">Weight</th>
+                                        <th scope="col" className="px-1 py-2 w-[15%]">Rest</th>
+                                        <th scope="col" className="px-1 py-2 w-[20%] text-center">Done</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(completedSets.get(exercise.id) || []).map((set, setIndex) => {
+                                        // Get the rest time for this specific set from sets_data if available
+                                        let restSeconds = null;
+                                        if (exercise.sets_data && exercise.sets_data[setIndex]) {
+                                          restSeconds = exercise.sets_data[setIndex].rest_seconds;
+                                        }
+                                        // Fall back to exercise rest_period_seconds if no specific rest time
+                                        if (restSeconds === undefined || restSeconds === null) {
+                                          restSeconds = exercise.rest_period_seconds;
+                                        }
+                                        
+                                        return (
+                                          <tr 
+                                            key={`${exercise.id}-set-${setIndex}`} 
+                                            className={`border-b dark:border-gray-700 ${
+                                              set.isCompleted ? 'bg-green-50 dark:bg-green-900/10' : ''
+                                            }`}
+                                          >
+                                            <td className="px-1 py-2 font-medium hidden sm:table-cell">
+                                              {setIndex + 1}
+                                            </td>
+                                            <td className="px-1 py-2">
+                                              <span className={`inline-block px-2 py-1 text-xs rounded-full truncate max-w-full ${
+                                                set.setType === SetType.WARM_UP 
+                                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+                                                  : set.setType === SetType.FAILURE
+                                                  ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+                                                  : set.setType === SetType.DROP_SET
+                                                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
+                                                  : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                              }`}>
+                                                {set.setType ? getSetTypeName(set.setType) : 'Regular'}
+                                              </span>
+                                            </td>
+                                            <td className="px-1 py-2">
+                                              <input
+                                                type="number"
+                                                value={set.reps || ''}
+                                                onChange={(e) => updateSetReps(exercise.id, setIndex, e.target.value)}
+                                                disabled={!isWorkoutStarted || isPaused}
+                                                className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                min="0"
+                                              />
+                                            </td>
+                                            <td className="px-1 py-2">
+                                              <input
+                                                type="text"
+                                                value={set.weight}
+                                                onChange={(e) => updateSetWeight(exercise.id, setIndex, e.target.value)}
+                                                disabled={!isWorkoutStarted || isPaused}
+                                                placeholder="kg"
+                                                className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                              />
+                                            </td>
+                                            <td className="px-1 py-2">
+                                              {restSeconds ? (
+                                                <div className="flex items-center text-blue-600 dark:text-blue-400">
+                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                  </svg>
+                                                  <span>{restSeconds}s</span>
+                                                </div>
+                                              ) : (
+                                                <span className="text-gray-400 dark:text-gray-500">-</span>
+                                              )}
+                                            </td>
+                                            <td className="px-1 py-2 text-center">
+                                              <input
+                                                type="checkbox"
+                                                checked={set.isCompleted}
+                                                onChange={() => toggleSetCompletion(exercise.id, setIndex)}
+                                                disabled={!isWorkoutStarted || isPaused}
+                                                className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+                                              />
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    // Regular exercise (non-superset)
+                    const exercise = exerciseGroup.group[0];
                   const exerciseSets = completedSets.get(exercise.id) || [];
                   const isExerciseComplete = exerciseSets.length > 0 && exerciseSets.every(set => set.isCompleted);
                   // Use the component-level state instead of local useState
@@ -1814,7 +2624,10 @@ const WorkoutSessionPage: React.FC = () => {
                       <div className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold flex items-center">
                           <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-2">
-                            {exerciseIndex + 1}
+                              {groupExercisesBySuperset(workout.exercise_instances)
+                                .slice(0, groupIndex)
+                                .flatMap(g => g.group)
+                                .length + 1}
                           </span>
                           <span className="text-gray-800 dark:text-white">
                             {exercise.exercise_name}
@@ -1958,7 +2771,13 @@ const WorkoutSessionPage: React.FC = () => {
                       </div>
                     </div>
                   );
-                })}
+                  }
+                })
+              ) : (
+                <div className="text-center py-12">
+                  <p>No exercises in this workout</p>
+                </div>
+              )}
             </div>
             
             {/* Complete button at bottom for convenience */}

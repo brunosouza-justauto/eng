@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom'; // Import useParams
-// import { useParams } from 'react-router-dom'; // Will use this later for routing
+import { useParams } from 'react-router-dom'; // Keep only useParams
 import { supabase } from '../../services/supabaseClient';
+import BackButton from '../common/BackButton';
 
 // Define types locally (consider moving later)
 interface FoodItemData {
@@ -122,6 +122,8 @@ const MealPlanView: React.FC = () => {
 
     return (
         <div className="container p-4 mx-auto">
+            <BackButton to="/dashboard" />
+
             {isLoading && <p>Loading meal plan details...</p>}
             {error && <p className="text-red-500">Error: {error}</p>}
             {plan && (

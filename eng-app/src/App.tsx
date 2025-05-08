@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { supabase } from './services/supabaseClient';
 import { setSession, setProfile, setLoading, setError, ProfileData } from './store/slices/authSlice';
@@ -8,11 +8,11 @@ import LoginPage from './pages/LoginPage'; // Import the actual LoginPage compon
 import ProtectedRoute from './components/ProtectedRoute'; // Import ProtectedRoute
 import OnboardingPage from './pages/OnboardingPage'; // Import the actual OnboardingPage
 import DashboardPage from './pages/DashboardPage'; // Import the actual DashboardPage
+import CheckInPage from './pages/CheckInPage'; // Import CheckInPage
+import CheckInHistoryPage from './pages/CheckInHistoryPage'; // Import CheckInHistoryPage
 import WorkoutView from './components/workouts/WorkoutView'; // Import WorkoutView
 import WorkoutSessionPage from './pages/WorkoutSessionPage'; // Import WorkoutSessionPage
 import MealPlanView from './components/nutrition/MealPlanView'; // Import MealPlanView
-import CheckInPage from './pages/CheckInPage'; // Import CheckInPage
-import HistoryPage from './pages/HistoryPage'; // Import HistoryPage
 import AdminRoute from './components/AdminRoute'; // Import AdminRoute
 import AdminLayout from './components/admin/AdminLayout'; // Import AdminLayout
 import UserManager from './components/admin/UserManager'; // Import UserManager
@@ -50,7 +50,7 @@ function App() {
       try {
         const { data, error, status } = await supabase
           .from('profiles')
-          .select(`id, user_id, onboarding_complete, role, email`)
+          .select(`id, user_id, onboarding_complete, role, email, first_name, last_name`)
           .eq('user_id', userId)
           .single();
 
@@ -166,8 +166,10 @@ function App() {
         <Route element={<MainLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            {/* Check-in routes */}
             <Route path="/check-in/new" element={<CheckInPage />} />
-            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/check-in/history" element={<CheckInHistoryPage />} />
+            <Route path="/history" element={<Navigate to="/check-in/history" replace />} />
             <Route path="/workout/:workoutId" element={<WorkoutView />} />
             <Route path="/workout-session/:workoutId" element={<WorkoutSessionPage />} />
             <Route path="/meal-plan/:planId" element={<MealPlanView />} />

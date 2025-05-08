@@ -1,64 +1,57 @@
 import React from 'react';
-// Removed useFormContext import as it's handled by FormInput
-// import { useFormContext } from 'react-hook-form';
-// Removed OnboardingData import as it's handled by FormInput
-// import { OnboardingData } from './onboardingSchema';
-import FormInput from '../ui/FormInput'; // Import the shared component
-
-// Reusable Input component for onboarding fields
-// interface FormInputProps {
-//     name: keyof OnboardingData;
-//     label: string;
-//     type?: 'text' | 'number' | 'email' | 'tel'; // Extend as needed
-//     placeholder?: string;
-//     step?: string; // For number inputs
-//     required?: boolean;
-// }
-
-// const FormInput: React.FC<FormInputProps> = ({ name, label, type = 'text', placeholder, step, required }) => {
-//     const { register, formState: { errors } } = useFormContext<OnboardingData>();
-//     const error = errors[name]?.message;
-
-//     return (
-//         <div className="mb-4">
-//             <label htmlFor={name} className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-//                 {label} {required && <span className="text-red-500">*</span>}
-//             </label>
-//             <input
-//                 id={name}
-//                 type={type} // Use text for numbers to allow better handling via zod preprocess
-//                 step={step}
-//                 placeholder={placeholder}
-//                 {...register(name)}
-//                 className={`mt-1 block w-full px-3 py-2 border ${error ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white`}
-//             />
-//             {error && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{typeof error === 'string' ? error : 'Invalid input'}</p>}
-//         </div>
-//     );
-// };
+import FormInput from '../ui/FormInput';
+import FormSelect from '../ui/FormSelect';
 
 // Step 1 Component
 const Step1_Demographics: React.FC = () => {
     return (
         <div className="space-y-4">
-            <FormInput name="age" label="Age" type="number" placeholder="e.g., 30" autoFocus />
+            <FormInput name="first_name" label="First Name" type="text" placeholder="Your first name" autoFocus required />
+            <FormInput name="last_name" label="Last Name" type="text" placeholder="Your last name" required />
+            <FormInput name="age" label="Age" type="number" placeholder="e.g., 30" />
             <FormInput name="weight_kg" label="Current Weight (kg)" type="number" placeholder="e.g., 75.5" step="0.1"/>
             <FormInput name="height_cm" label="Height (cm)" type="number" placeholder="e.g., 180" step="0.1"/>
-            <FormInput name="body_fat_percentage" label="Estimated Body Fat (%)" type="number" placeholder="e.g., 15" step="0.1"/>
+            
             <div className="mb-4">
-                <label htmlFor="gender" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Gender <span className="text-red-500">*</span>
-                </label>
-                <select
-                    id="gender"
-                    className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                >
-                    <option value="">Select Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                </select>
+                <FormInput name="body_fat_percentage" label="Estimated Body Fat (%)" type="number" placeholder="e.g., 15" step="0.1"/>
+                
+                <div className="mt-2 p-3 text-sm bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 rounded-md">
+                    <p className="font-medium mb-1">Typical Body Fat Percentage Ranges:</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                            <p className="font-medium">Men:</p>
+                            <ul className="list-disc ml-5 space-y-1">
+                                <li>Essential fat: 2-5%</li>
+                                <li>Athletes: 6-13%</li>
+                                <li>Fitness: 14-17%</li>
+                                <li>Average: 18-24%</li>
+                                <li>Obese: 25%+</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <p className="font-medium">Women:</p>
+                            <ul className="list-disc ml-5 space-y-1">
+                                <li>Essential fat: 10-13%</li>
+                                <li>Athletes: 14-20%</li>
+                                <li>Fitness: 21-24%</li>
+                                <li>Average: 25-31%</li>
+                                <li>Obese: 32%+</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             </div>
-            {/* Add more fields as needed for this step */}
+            
+            <FormSelect 
+                name="gender"
+                label="Gender"
+                required
+                options={[
+                    { value: "male", label: "Male" },
+                    { value: "female", label: "Female" }
+                ]}
+                placeholder="Select Gender"
+            />
         </div>
     );
 };

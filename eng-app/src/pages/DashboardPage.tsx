@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import { selectUser, selectProfile } from '../store/slices/authSlice';
 import { supabase } from '../services/supabaseClient'; // Import supabase client
 import NextWorkoutWidget from '../components/dashboard/NextWorkoutWidget';
 import NutritionWidget from '../components/dashboard/NutritionWidget';
 import StepGoalWidget from '../components/dashboard/StepGoalWidget';
 import CheckInReminderWidget from '../components/dashboard/CheckInReminderWidget';
+import LatestCheckInWidget from '../components/dashboard/LatestCheckInWidget'; // Import the new widget
 
 // Define types for the fetched data
 interface AssignedPlan {
@@ -134,13 +136,24 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="mb-1 text-2xl font-bold text-gray-800 dark:text-white">
-          Welcome, {profile?.email?.split('@')[0] || 'Athlete'}!
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Here's your training overview for today.
-        </p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="mb-1 text-2xl font-bold text-gray-800 dark:text-white">
+            Welcome, {profile?.first_name || 'Athlete'}!
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Here's your day overview for today.
+          </p>
+        </div>
+        <Link 
+          to="/check-in/new" 
+          className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-sm font-medium transition-colors"
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+          </svg>
+          New Check-in
+        </Link>
       </div>
 
       {fetchError && (
@@ -160,7 +173,8 @@ const DashboardPage: React.FC = () => {
         </div>
       )}
       
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {/* Dashboard widgets */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
         <div className="col-span-1">
           <NextWorkoutWidget programTemplateId={assignedPlan?.program_template_id} />
         </div>
@@ -172,6 +186,9 @@ const DashboardPage: React.FC = () => {
         </div>
         <div className="col-span-1">
           <CheckInReminderWidget />
+        </div>
+        <div className="col-span-1">
+          <LatestCheckInWidget />
         </div>
       </div>
     </div>

@@ -18,6 +18,8 @@ export interface UserProfileListItem {
     user_id: string | null; // auth user UUID - can be null for invited users
     email: string | null;
     username: string | null;
+    first_name: string | null;
+    last_name: string | null;
     role: string;
     onboarding_complete: boolean;
     created_at: string;

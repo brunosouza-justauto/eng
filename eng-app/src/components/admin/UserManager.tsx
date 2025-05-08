@@ -292,6 +292,17 @@ const UserManager: React.FC = () => {
         );
     };
 
+    // Helper function to get user display name
+    const getUserDisplayName = (user: UserProfileListItem): string => {
+        if (user.first_name && user.last_name) {
+            return `${user.first_name} ${user.last_name}`;
+        } else if (user.username) {
+            return user.username;
+        } else {
+            return user.email || 'Unnamed User';
+        }
+    };
+
     return (
         <div className="container px-4 py-6 mx-auto">
             <div className="flex items-center justify-between mb-6">
@@ -395,8 +406,7 @@ const UserManager: React.FC = () => {
                             <thead className="bg-gray-50 dark:bg-gray-700">
                                 <tr>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Email</th>
-                                    <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Username</th>
-                                    <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Role</th>
+                                    <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Name</th>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Status</th>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Invited</th>
                                     <th scope="col" className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Onboarded</th>
@@ -416,9 +426,8 @@ const UserManager: React.FC = () => {
                                 )}
                                 {filteredUsers.map((user) => (
                                     <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-indigo-900/30">
-                                        <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap dark:text-white">{user.email ?? 'N/A'}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{user.username ?? '-'}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{user.role}</td>
+                                        <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap dark:text-white">{user.email}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{user.first_name} {user.last_name}</td>
                                         <td className="px-6 py-4 text-sm whitespace-nowrap">
                                             {renderStatusBadge(user)}
                                         </td>
@@ -480,7 +489,7 @@ const UserManager: React.FC = () => {
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1 min-w-0">
                                         <h3 className="text-lg font-medium leading-6 text-gray-900 truncate dark:text-white">
-                                            {user.email ?? 'N/A'}
+                                            {getUserDisplayName(user)}
                                         </h3>
                                         <div className="flex flex-wrap mt-1 gap-x-2">
                                             {renderStatusBadge(user)}
@@ -562,7 +571,7 @@ const UserManager: React.FC = () => {
                         <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">Delete Athlete</h3>
                         <div className="mt-4">
                             <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-                                Are you sure you want to delete the athlete "{userToDelete.email}"?
+                                Are you sure you want to delete the athlete "{getUserDisplayName(userToDelete)}"?
                             </p>
                             
                             {deleteError && (

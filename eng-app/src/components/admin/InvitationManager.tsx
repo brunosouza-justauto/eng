@@ -58,7 +58,9 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
         coach_id: coachId,
         role: userRole, // Use the passed userRole
         onboarding_complete: false,
-        username: email.split('@')[0], // Default username from email
+        username: email.split('@')[0], // Default username from email, will be updated during onboarding
+        first_name: null, // Will be set during onboarding
+        last_name: null,  // Will be set during onboarding
         invitation_status: 'pending',
         invited_at: new Date().toISOString(),
       };
@@ -130,6 +132,8 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
             role: userRole, // Use the passed userRole
             onboarding_complete: false,
             username: emailAddress.split('@')[0],
+            first_name: null, // Will be set during onboarding
+            last_name: null,  // Will be set during onboarding
             invitation_status: 'pending',
             invited_at: new Date().toISOString(),
           };

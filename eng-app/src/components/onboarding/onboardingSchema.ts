@@ -14,6 +14,8 @@ import { z } from 'zod';
 
 export const onboardingSchema = z.object({
     // == Step 1: Demographics ==
+    first_name: z.string().min(1, { message: 'First name is required' }).trim(),
+    last_name: z.string().min(1, { message: 'Last name is required' }).trim(),
     age: z.coerce.number({invalid_type_error: 'Age must be a number'})
              .int({ message: 'Age must be a whole number' })
              .positive({ message: 'Age must be positive' })
@@ -32,12 +34,23 @@ export const onboardingSchema = z.object({
                               .max(100, { message: 'Body fat % cannot exceed 100' })
                               .optional()
                               .nullable(),
+    gender: z.enum(['male', 'female'], {
+      required_error: "Gender is required",
+      invalid_type_error: "Gender must be selected",
+    }),
 
     // == Step 2: Goals ==
+    goal_type: z.enum(['fat_loss', 'muscle_gain', 'both', 'maintenance'])
+                 .optional()
+                 .nullable(),
     goal_target_fat_loss_kg: z.coerce.number({invalid_type_error: 'Target fat loss must be a number'})
                                   .nonnegative({ message: 'Target fat loss cannot be negative' })
                                   .optional()
                                   .nullable(),
+    goal_target_muscle_gain_kg: z.coerce.number({invalid_type_error: 'Target muscle gain must be a number'})
+                                     .nonnegative({ message: 'Target muscle gain cannot be negative' })
+                                     .optional()
+                                     .nullable(),
     goal_timeframe_weeks: z.coerce.number({invalid_type_error: 'Timeframe must be a number'})
                                .int({ message: 'Timeframe must be a whole number' })
                                .positive({ message: 'Timeframe must be positive' })
@@ -60,7 +73,7 @@ export const onboardingSchema = z.object({
     training_equipment: z.string().trim().optional().nullable(), // Consider multi-select later
     training_session_length_minutes: z.coerce.number({invalid_type_error: 'Session length must be a number'})
                                           .int({ message: 'Session length must be a whole number' })
-                                          .positive({ message: 'Session length must be positive' })
+                                          .nonnegative({ message: 'Session length cannot be negative' })
                                           .optional()
                                           .nullable(),
     training_intensity: z.string().trim().optional().nullable(), // Consider enum/select later (e.g., RPE, RIR)

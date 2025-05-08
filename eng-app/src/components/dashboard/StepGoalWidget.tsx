@@ -1,16 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Card from '../ui/Card';
+import { FiActivity, FiArrowUp, FiWatch } from 'react-icons/fi';
 
 interface StepGoalWidgetProps {
   dailyGoal: number | null | undefined;
 }
 
 const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
-  // TODO: Fetch/calculate current step progress
-  const currentProgress = 0; // Placeholder
+  // In a real implementation, this would fetch data from a step tracking API or database
+  // For now, we'll use mock data as a placeholder
+  const [currentProgress, setCurrentProgress] = useState<number>(Math.floor(Math.random() * 2000)); // Random placeholder
+  
   const progressPercentage = dailyGoal && dailyGoal > 0 
-                            ? Math.min(100, Math.round((currentProgress / dailyGoal) * 100)) 
-                            : 0;
+                           ? Math.min(100, Math.round((currentProgress / dailyGoal) * 100)) 
+                           : 0;
 
   // Function to determine progress color
   const getProgressColor = () => {
@@ -19,16 +22,24 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
     return 'bg-green-500 dark:bg-green-600';
   };
 
+  // Demo function for future implementation - simulate updating steps count
+  const simulateStepUpdate = () => {
+    // This is just for demo purposes - in a real app, this would connect to a fitness API
+    setCurrentProgress(prev => Math.min(prev + Math.floor(Math.random() * 500) + 100, dailyGoal || 10000));
+  };
+
   const header = (
     <div className="flex items-center justify-between">
       <div className="flex items-center">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M5.05 3.636a1 1 0 010 1.414 7 7 0 000 9.9 1 1 0 11-1.414 1.414 9 9 0 010-12.728 1 1 0 011.414 0zm9.9 0a1 1 0 011.414 0 9 9 0 010 12.728 1 1 0 11-1.414-1.414 7 7 0 000-9.9 1 1 0 010-1.414zM7.879 6.464a1 1 0 010 1.414 3 3 0 000 4.243 1 1 0 11-1.415 1.414 5 5 0 010-7.07 1 1 0 011.415 0zm4.242 0a1 1 0 011.415 0 5 5 0 010 7.072 1 1 0 01-1.415-1.415 3 3 0 000-4.242 1 1 0 010-1.415z" clipRule="evenodd" />
-        </svg>
+        <FiActivity className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mr-2" />
         <h2 className="text-lg font-medium">Daily Steps</h2>
       </div>
       {dailyGoal && (
-        <span className="text-xs font-medium px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
+        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+          progressPercentage >= 100 
+            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+            : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300'
+        }`}>
           {progressPercentage}% Complete
         </span>
       )}
@@ -50,12 +61,20 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
             </div>
             <div className="flex justify-between items-baseline">
               <span className="text-gray-600 dark:text-gray-400">Today:</span>
-              <span className="font-semibold text-xl">{currentProgress.toLocaleString()}</span>
+              <div className="flex items-center">
+                <span className="font-semibold text-xl">{currentProgress.toLocaleString()}</span>
+                {currentProgress > 0 && (
+                  <span className="ml-2 text-xs text-green-600 dark:text-green-400 flex items-center">
+                    <FiArrowUp className="mr-1" />
+                    Active
+                  </span>
+                )}
+              </div>
             </div>
             
             {/* Enhanced Progress Bar */}
             <div className="mt-4">
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
                 <div 
                   className={`${getProgressColor()} h-3 rounded-full transition-all duration-500 ease-in-out`}
                   style={{ width: `${progressPercentage}%` }}
@@ -77,14 +96,42 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
               {progressPercentage >= 75 && progressPercentage < 100 && "Almost there! Finish strong!"}
               {progressPercentage === 100 && "Congratulations! Goal achieved!"}
             </p>
+
+            {/* Placeholder for future step tracking integration */}
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={simulateStepUpdate}
+                className="w-full py-2 px-4 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-800/30 text-indigo-700 dark:text-indigo-300 rounded-md transition-colors text-sm flex items-center justify-center"
+              >
+                <FiWatch className="mr-2" />
+                <span>Sync with fitness device</span>
+              </button>
+              <p className="text-xs text-center mt-2 text-gray-500 dark:text-gray-400">
+                Coming soon: Connect with Fitbit, Garmin, Apple Health and more
+              </p>
+            </div>
           </>
         ) : (
           <div className="flex flex-col items-center justify-center py-6 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 dark:text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <p className="text-gray-600 dark:text-gray-400">No active step goal assigned</p>
-            <p className="text-xs mt-2 text-gray-500 dark:text-gray-500">Contact your coach to set up your daily target</p>
+            <div className="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-4">
+              <FiActivity className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">No Active Step Goal</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Your coach hasn't set a daily step goal for you yet.
+            </p>
+            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg w-full">
+              <p className="text-sm font-medium">Benefits of daily steps:</p>
+              <ul className="text-sm text-left mt-2 space-y-1 text-gray-600 dark:text-gray-400">
+                <li>• Improved cardiovascular health</li>
+                <li>• Better weight management</li>
+                <li>• Enhanced mood and mental well-being</li>
+                <li>• Increased energy levels</li>
+              </ul>
+              <p className="text-xs mt-4 text-center text-gray-500 dark:text-gray-500">
+                Contact your coach to set up your personalized daily step target
+              </p>
+            </div>
           </div>
         )}
       </div>
