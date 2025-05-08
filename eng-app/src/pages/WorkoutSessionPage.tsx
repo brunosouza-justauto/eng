@@ -1070,6 +1070,17 @@ const WorkoutSessionPage: React.FC = () => {
 
   // Modify the handleCompletionDialogClose function
   const handleCompletionDialogClose = async () => {
+    // If the message is the completion prompt, complete the workout instead of just closing
+    if (completionMessage.includes('Congratulations! You\'ve completed all sets')) {
+      // Close dialog first
+      setShowCompletionDialog(false);
+      
+      // Save the workout automatically
+      console.log('Automatically completing workout after user confirmed');
+      await completeWorkout();
+      return;
+    }
+
     // If the message contains "cancel", we treat it as a cancellation confirmation
     if (completionMessage.includes('Are you sure you want to cancel')) {
       // Show a deleting message to prevent user from navigating away during deletion
@@ -1294,23 +1305,43 @@ const WorkoutSessionPage: React.FC = () => {
           saveCompletedSet(workoutSessionId, setData);
         }
         
-        // If the set was just marked as completed, and workout is active, start the rest timer
+        // Only if the set was marked as completed (not uncompleted)
         if (newIsCompleted && isWorkoutStarted && !isPaused) {
-          const exercise = workout?.exercise_instances.find(ex => ex.id === exerciseId);
-          if (exercise) {
-            // Get the rest time for this specific set
-            let restSeconds = null;
-            if (exercise.sets_data && exercise.sets_data[setIndex]) {
-              restSeconds = exercise.sets_data[setIndex].rest_seconds;
-            }
-            // Fall back to exercise rest_period_seconds if no specific rest time
-            if (restSeconds === undefined || restSeconds === null) {
-              restSeconds = exercise.rest_period_seconds;
-            }
-            
-            // If rest time is specified, start the timer
-            if (restSeconds) {
-              startRestTimer(exerciseId, setIndex, restSeconds);
+          // Check if this was the last set to complete in the workout
+          // Use a local calculation similar to calculateProgress() function
+          let totalSets = 0;
+          let completedCount = 0;
+          
+          newSets.forEach((sets) => {
+            totalSets += sets.length;
+            completedCount += sets.filter(s => s.isCompleted).length;
+          });
+          
+          const progressPercentage = totalSets > 0 ? Math.round((completedCount / totalSets) * 100) : 0;
+          
+          if (progressPercentage === 100) {
+            // All sets are now completed - show the completion prompt
+            console.log('Workout 100% complete! Showing completion prompt');
+            setCompletionMessage('Congratulations! You\'ve completed all sets in this workout. Do you want to mark the workout as complete?');
+            setShowCompletionDialog(true);
+          } else {
+            // Not complete yet, handle rest timer as usual
+            const exercise = workout?.exercise_instances.find(ex => ex.id === exerciseId);
+            if (exercise) {
+              // Get the rest time for this specific set
+              let restSeconds = null;
+              if (exercise.sets_data && exercise.sets_data[setIndex]) {
+                restSeconds = exercise.sets_data[setIndex].rest_seconds;
+              }
+              // Fall back to exercise rest_period_seconds if no specific rest time
+              if (restSeconds === undefined || restSeconds === null) {
+                restSeconds = exercise.rest_period_seconds;
+              }
+              
+              // If rest time is specified, start the timer
+              if (restSeconds) {
+                startRestTimer(exerciseId, setIndex, restSeconds);
+              }
             }
           }
         }
