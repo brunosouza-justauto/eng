@@ -141,6 +141,12 @@ We are enhancing the workout experience in the application with advanced trainin
 - Added `handleSkipTimer` function to clean up timer resources when skipped
 - Positioned the timer in the bottom-right corner with appropriate z-index
 
+### Workout Completion Flow Improvements
+- Implemented automatic workout completion when the user finishes the last set
+- Added a congratulatory dialog that appears when all sets are completed
+- Modified the completion flow so clicking "Continue" on the dialog actually saves the workout
+- Fixed the dialog behavior to properly call the completeWorkout() function upon confirmation
+
 ## Next Steps
 
 ### Workout Experience Enhancements

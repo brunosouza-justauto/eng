@@ -60,3 +60,9 @@
 - Set Types menu is missing many available options
 - New exercise addition doesn't auto-expand set options 
 - Some API-sourced text may still contain encoding issues in rare cases 
+
+## Recent Improvements
+- Added automatic detection of when all sets are completed (100% progress)
+- Implemented a congratulatory completion dialog when the final set is marked as done
+- Enhanced the dialog interaction to automatically save the workout when the user confirms
+- Eliminated the unnecessary rest timer after the final set 

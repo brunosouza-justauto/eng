@@ -528,3 +528,22 @@ Floating UI components (like timers) follow these patterns:
   - Visual consistency with YouTube branding (red button with YouTube logo)
   - Conditionally rendered based on link availability
 - All external data is validated and sanitized before display 
+
+## Workout Flow
+- Workout session begins when user clicks "Start Workout"
+- Each set can be marked as completed, which updates progress percentage
+- Completing a set automatically starts a rest timer for the specified duration
+- When all sets reach 100% completion, a congratulatory dialog appears
+- Confirming completion saves the workout data and navigates to dashboard
+- Workout can be manually paused, cancelled, or completed at any time
+
+## Component Structure
+- WorkoutSessionPage serves as the container for the entire workout experience
+- Exercise components display information and tracking UI for each exercise
+- Dialog component is used for multiple purposes (confirmation, cancellation, completion)
+- RestTimerDisplay shows countdown and next exercise preview
+
+## State Management
+- Local React state manages workout progress and UI state
+- Supabase database stores completed sets and workout sessions
+- Completion status is calculated on-the-fly based on marked sets 
