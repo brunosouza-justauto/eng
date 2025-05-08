@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
+import { useSelector } from 'react-redux';
+import { selectProfile } from '../../store/slices/authSlice';
 import Card from '../ui/Card';
 import { ButtonLink } from '../ui/Button';
 import { SetType, ExerciseSet } from '../../types/adminTypes';
@@ -31,7 +33,13 @@ interface WorkoutDataWithId extends WorkoutData {
     id: string;
 }
 
+interface WorkoutCompletionStatus {
+  isCompleted: boolean;
+  completionTime: string | null;
+}
+
 const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId }) => {
+  const profile = useSelector(selectProfile);
   const [workoutData, setWorkoutData] = useState<WorkoutDataWithId | null>(null);
   // allWorkouts is set in useEffect and is used for program state management,
   // though not directly rendered in the current view
@@ -41,6 +49,11 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
   const [error, setError] = useState<string | null>(null);
   const [isRestDay, setIsRestDay] = useState<boolean>(false);
   const [showAllExercises, setShowAllExercises] = useState<boolean>(false);
+  // Add a new state to track workout completion status
+  const [completionStatus, setCompletionStatus] = useState<WorkoutCompletionStatus>({
+    isCompleted: false,
+    completionTime: null
+  });
   
   // Number of exercises to show in the preview
   const PREVIEW_COUNT = 3;
@@ -137,6 +150,7 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
       setError(null);
       setWorkoutData(null);
       setIsRestDay(false);
+      setCompletionStatus({ isCompleted: false, completionTime: null });
 
       try {
         // Fetch all workouts for this program template
@@ -186,6 +200,11 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
             console.log("Found workout for today:", todaysWorkout);
             setWorkoutData(todaysWorkout);
             setIsRestDay(false);
+            
+            // Check if this workout has already been completed today
+            if (profile?.user_id) {
+              await checkWorkoutCompletion(todaysWorkout.id, profile.user_id);
+            }
           } else {
             console.log("No workout found for today (day", currentDayOfWeek, ") - it's a rest day");
             setWorkoutData(null);
@@ -213,7 +232,51 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
     };
 
     fetchWorkout();
-  }, [programTemplateId]);
+  }, [programTemplateId, profile?.user_id]);
+
+  // Add a new function to check if the workout has been completed today
+  const checkWorkoutCompletion = async (workoutId: string, userId: string) => {
+    try {
+      // Get today's date in ISO format (YYYY-MM-DD)
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      console.log(`Checking if workout ${workoutId} has been completed today (${todayStr})`);
+      
+      // Query for completed workout sessions from today
+      const { data, error } = await supabase
+        .from('workout_sessions')
+        .select('id, end_time')
+        .eq('workout_id', workoutId)
+        .eq('user_id', userId)
+        .not('end_time', 'is', null) // Only sessions that were completed (have an end_time)
+        .gte('start_time', `${todayStr}T00:00:00`) // From start of today
+        .lte('start_time', `${todayStr}T23:59:59`) // To end of today
+        .order('end_time', { ascending: false });
+      
+      if (error) {
+        console.error('Error checking workout completion:', error);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        // Found at least one completed session for today
+        console.log('Found completed workout session for today:', data[0]);
+        setCompletionStatus({
+          isCompleted: true,
+          completionTime: data[0].end_time
+        });
+      } else {
+        console.log('No completed workout found for today');
+        setCompletionStatus({
+          isCompleted: false,
+          completionTime: null
+        });
+      }
+    } catch (err) {
+      console.error('Error in checkWorkoutCompletion:', err);
+    }
+  };
 
   const header = (
     <div className="flex items-center justify-between">
@@ -223,7 +286,11 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
         </svg>
         <h2 className="text-lg font-medium">Today's Workout</h2>
       </div>
-      {workoutData?.day_of_week && (
+      {completionStatus.isCompleted ? (
+        <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+          Completed
+        </span>
+      ) : workoutData?.day_of_week && (
         <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
           {getDayName(workoutData.day_of_week)}
         </span>
@@ -231,9 +298,9 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
     </div>
   );
   
-  // Function to render exercise list - with null check for workoutData
+  // Modify the exercise list rendering to show exercises and the start button
   const renderExerciseList = (exercises: ExerciseInstanceData[]) => {
-    if (!workoutData) return null; // Add null check
+    if (!workoutData) return null;
     
     // Group exercises by superset type
     const exerciseGroups = groupExercisesBySuperset(exercises);
@@ -262,96 +329,57 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
     const isPreview = !showAllExercises && totalExerciseCount > PREVIEW_COUNT;
     
     return (
-      <div className="space-y-3">
-        {/* Visual indicator that this is a preview/summary */}
-        {isPreview && (
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-            </svg>
-            Workout Preview
-          </div>
-        )}
-        
-        {/* Exercise Groups */}
-        {visibleGroups.map((exerciseGroup, groupIndex) => {
-          if (exerciseGroup.isSuperset) {
-            // Render a superset group
-            return (
-              <div 
-                key={exerciseGroup.supersetGroupId || `superset-${groupIndex}`}
-                className="mb-2 border-l-2 border-indigo-300 dark:border-indigo-700 pl-2"
-              >
-                <div className="mb-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
-                  Superset Group
+      <div className="space-y-4">
+        {/* Exercise list */}
+        <div className="space-y-2">
+          {visibleGroups.map((group, groupIndex) => (
+            <div 
+              key={group.supersetGroupId || `group-${groupIndex}`} 
+              className={`p-2 rounded-md ${
+                group.isSuperset 
+                  ? 'bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800' 
+                  : ''
+              }`}
+            >
+              {/* If this is a superset, add a superset label */}
+              {group.isSuperset && (
+                <div className="mb-1 px-2">
+                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300">
+                    Superset
+                  </span>
                 </div>
-                
-                {exerciseGroup.group.map((ex, index) => (
+              )}
+              
+              {/* Exercise items */}
+              <div className={`space-y-1 ${group.isSuperset ? 'pl-2' : ''}`}>
+                {group.group.map((exercise, exIndex) => (
                   <div 
-                    key={ex.exercise_db_id || `superset-ex-${index}`}
-                    className="flex items-center py-1 border-b border-gray-50 dark:border-gray-700/50 last:border-b-0"
+                    key={`${group.supersetGroupId || groupIndex}-exercise-${exIndex}`}
+                    className="flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-700 last:border-0"
                   >
-                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-xs font-medium text-indigo-800 dark:text-indigo-300 mr-3">
-                      {index + 1}
-                    </span>
-                    <div>
-                      <span className="font-medium text-gray-800 dark:text-gray-200">
-                        {ex.exercise_name || 'Unnamed Exercise'}
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-800 dark:text-white">
+                        {exercise.exercise_name}
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
-            );
-          } else {
-            // Regular exercise
-            const ex = exerciseGroup.group[0];
-            return (
-              <div 
-                key={ex.exercise_db_id || `ex-${groupIndex}`}
-                className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50 last:border-b-0"
-              >
-                <div className="flex items-center">
-                  <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-xs font-medium text-indigo-800 dark:text-indigo-300 mr-3">
-                    {groupIndex + 1}
-                  </span>
-                  <div>
-                    <span className="font-medium text-gray-800 dark:text-gray-200">
-                      {ex.exercise_name || 'Unnamed Exercise'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          }
-        })}
+            </div>
+          ))}
+        </div>
         
-        {/* Show more/less toggle */}
+        {/* "Show more" toggle if we have more exercises than the preview count */}
         {totalExerciseCount > PREVIEW_COUNT && (
           <button
             onClick={() => setShowAllExercises(!showAllExercises)}
-            className="w-full text-center text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 py-1"
+            className="block w-full text-center text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 py-1"
           >
-            {showAllExercises ? (
-              <span className="flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-                </svg>
-                Show Less
-              </span>
-            ) : (
-              <span className="flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-                Show {totalExerciseCount - visibleGroups.reduce((count, group) => count + group.group.length, 0)} More
-              </span>
-            )}
+            {showAllExercises ? 'Show Less' : `Show All (${totalExerciseCount})`}
           </button>
         )}
         
-        {/* Show indicator of what to do next */}
+        {/* Start Workout Button */}
         <div className="pt-2 relative">
           {isPreview && (
             <div className="w-full text-center absolute -top-3 left-0 right-0 pointer-events-none">
@@ -360,6 +388,7 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
               </span>
             </div>
           )}
+          
           <ButtonLink 
             to={`/workout-session/${workoutData.id}`}
             variant="primary"
@@ -424,6 +453,7 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
             
             {workoutData && (
               <div className="space-y-4">
+                {/* Workout header - always show this */}
                 <div className="pb-3 mb-3 border-b border-gray-100 dark:border-gray-700">
                   <h3 className="font-semibold text-lg text-indigo-600 dark:text-indigo-400">{workoutData.name}</h3>
                   <div className="flex items-center mt-1">
@@ -435,9 +465,41 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
                   </div>
                 </div>
                 
-                {workoutData.exercise_instances.length > 0 ? (
+                {/* Show different content based on completion status */}
+                {completionStatus.isCompleted ? (
+                  // Show only the completion message when workout is completed
+                  <div className="text-center py-8">
+                    <div className="flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-green-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-medium text-gray-800 dark:text-white mb-2">
+                      Workout Complete!
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-1">
+                      You've completed your workout for today.
+                    </p>
+                    {completionStatus.completionTime && (
+                      <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
+                        Completed at {new Date(completionStatus.completionTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}.
+                      </p>
+                    )}
+                    <button
+                      onClick={() => window.location.href = "/workouts/history"}
+                      className="inline-flex items-center px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                      </svg>
+                      View Workout History
+                    </button>
+                  </div>
+                ) : workoutData.exercise_instances.length > 0 ? (
+                  // Show exercises and start button for non-completed workouts
                   renderExerciseList(workoutData.exercise_instances)
                 ) : (
+                  // Show message if no exercises are defined
                   <div className="text-center py-6 bg-gray-50 dark:bg-gray-800/50 rounded-md">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto mb-3 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />

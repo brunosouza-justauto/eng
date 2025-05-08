@@ -449,6 +449,9 @@ const WorkoutSessionPage: React.FC = () => {
   // State to track which exercise demonstrations are shown
   const [shownDemonstrations, setShownDemonstrations] = useState<Record<string, boolean>>({});
 
+  // Add a debounce map at top level component to prevent duplicate saves
+  const saveDebounceMap = useRef<Map<string, number>>(new Map());
+
   // Check for saved speech preference on component mount
   useEffect(() => {
     const savedSpeechPreference = localStorage.getItem('workout-speech-enabled');
@@ -723,6 +726,8 @@ const WorkoutSessionPage: React.FC = () => {
     if (!profile?.user_id || !workoutId) return false;
 
     try {
+      console.log('Checking for existing session, current sessionStorage value:', sessionStorage.getItem('workout_session_start_time'));
+      
       // Look for incomplete sessions (no end_time) for this workout and user
       const { data, error } = await supabase
         .from('workout_sessions')
@@ -742,6 +747,9 @@ const WorkoutSessionPage: React.FC = () => {
       if (data && data.length > 0) {
         console.log('Found incomplete session:', data[0]);
         setExistingSessionId(data[0].id);
+        // Store the start_time in sessionStorage since we don't have a state for it
+        sessionStorage.setItem('workout_session_start_time', data[0].start_time);
+        console.log('Stored start_time in sessionStorage:', data[0].start_time);
         setShowSessionDialog(true);
         return true;
       }
@@ -1062,10 +1070,11 @@ const WorkoutSessionPage: React.FC = () => {
 
   // Modify the handleCompletionDialogClose function
   const handleCompletionDialogClose = async () => {
-    setShowCompletionDialog(false);
-    
     // If the message contains "cancel", we treat it as a cancellation confirmation
     if (completionMessage.includes('Are you sure you want to cancel')) {
+      // Show a deleting message to prevent user from navigating away during deletion
+      setCompletionMessage('Canceling workout and cleaning up...');
+      
       // Clean up timers
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -1078,21 +1087,59 @@ const WorkoutSessionPage: React.FC = () => {
       
       // Delete the workout session from the database if we have a session ID
       if (workoutSessionId) {
-        await deleteWorkoutSession(workoutSessionId);
+        try {
+          console.log('Attempting to delete workout session during cancellation:', workoutSessionId);
+          const success = await deleteWorkoutSession(workoutSessionId);
+          
+          if (success) {
+            console.log('Workout session deleted successfully during cancellation');
+            // Reset workout state
+            setIsWorkoutStarted(false);
+            setWorkoutSessionId(null);
+            setElapsedTime(0);
+            pausedTimeRef.current = 0;
+            setActiveRestTimer(null);
+            setInitialCountdown(null); // Also reset the initial countdown if active
+            
+            // Hide dialog and navigate back to dashboard
+            setShowCompletionDialog(false);
+            navigate('/dashboard');
+          } else {
+            // Show error message if deletion failed but allow user to continue anyway
+            console.error('Failed to delete workout session cleanly during cancellation');
+            setCompletionMessage('Warning: Failed to delete workout completely. You may still navigate away, but there might be orphaned data.');
+            
+            // Keep dialog open but add a "Continue Anyway" option that the user can click
+            // The dialog will close normally when the user clicks the button
+          }
+        } catch (error) {
+          console.error('Error occurred during session cancellation:', error);
+          setCompletionMessage('An error occurred while canceling the workout. You may continue, but there might be orphaned data.');
+        }
+      } else {
+        // No session ID to delete, just navigate back
+        setShowCompletionDialog(false);
+        navigate('/dashboard');
       }
+    } else if (completionMessage.includes('Failed to delete workout') || 
+               completionMessage.includes('Warning:') || 
+               completionMessage.includes('An error occurred')) {
+      // For error cases, just close the dialog and navigate away
+      // User has chosen to continue despite the error
+      setShowCompletionDialog(false);
       
-      // Reset workout state
+      // Reset workout state 
       setIsWorkoutStarted(false);
       setWorkoutSessionId(null);
       setElapsedTime(0);
       pausedTimeRef.current = 0;
       setActiveRestTimer(null);
-      setInitialCountdown(null); // Also reset the initial countdown if active
+      setInitialCountdown(null);
       
-      // Navigate back to dashboard
       navigate('/dashboard');
     } else {
-      // Normal completion behavior - navigate to dashboard
+      // Normal completion behavior - hide dialog and navigate to dashboard
+      setShowCompletionDialog(false);
       navigate('/dashboard');
     }
   };
@@ -1100,6 +1147,22 @@ const WorkoutSessionPage: React.FC = () => {
   // Add a function to save a completed set to the database
   const saveCompletedSet = async (sessionId: string, setData: CompletedSetData) => {
     if (!sessionId) return;
+    
+    // Create a unique key for this set
+    const debounceKey = `${sessionId}-${setData.exerciseInstanceId}-${setData.setOrder}`;
+    
+    // Check if we're already processing a save for this key
+    const now = Date.now();
+    const lastSave = saveDebounceMap.current.get(debounceKey) || 0;
+    
+    // If less than 1000ms has passed since last save, skip this one
+    if (now - lastSave < 1000) {
+      console.log(`Skipping duplicate save for ${debounceKey}, too soon after last save`);
+      return;
+    }
+    
+    // Mark that we're processing this save
+    saveDebounceMap.current.set(debounceKey, now);
     
     try {
       // Create a record for the completed set
@@ -1116,40 +1179,91 @@ const WorkoutSessionPage: React.FC = () => {
       
       console.log('Saving completed set:', record);
       
-      // Check if this record already exists (for updating)
-      const { data: existingData, error: checkError } = await supabase
+      // First check if any records exist for this session/exercise/set combination
+      const { count, error: countError } = await supabase
         .from('completed_exercise_sets')
-        .select('id')
+        .select('*', { count: 'exact', head: true })
         .eq('workout_session_id', sessionId)
         .eq('exercise_instance_id', setData.exerciseInstanceId)
-        .eq('set_order', setData.setOrder)
-        .limit(1);
+        .eq('set_order', setData.setOrder);
       
-      if (checkError) {
-        console.error('Error checking for existing completed set:', checkError);
+      if (countError) {
+        console.error('Error checking for existing completed sets count:', countError);
         return;
       }
       
-      if (existingData && existingData.length > 0) {
-        // Update existing record
-        const { error } = await supabase
+      console.log(`Found ${count} existing records for this set`);
+      
+      if (count && count > 0) {
+        // If multiple records exist (which shouldn't happen), delete all and insert a new one
+        if (count > 1) {
+          console.warn(`Found ${count} duplicate records for the same set! Cleaning up...`);
+          
+          // Delete all duplicates
+          const { error: deleteError } = await supabase
+            .from('completed_exercise_sets')
+            .delete()
+            .eq('workout_session_id', sessionId)
+            .eq('exercise_instance_id', setData.exerciseInstanceId)
+            .eq('set_order', setData.setOrder);
+          
+          if (deleteError) {
+            console.error('Error deleting duplicate sets:', deleteError);
+            return;
+          }
+          
+          // Insert a single fresh record
+          const { error: insertError } = await supabase
+            .from('completed_exercise_sets')
+            .insert(record);
+          
+          if (insertError) {
+            console.error('Error inserting new record after cleanup:', insertError);
+          } else {
+            console.log('Successfully cleaned up duplicates and inserted new record');
+          }
+          
+          return;
+        }
+        
+        // Get the ID of the existing record
+        const { data: existingData, error: fetchError } = await supabase
+          .from('completed_exercise_sets')
+          .select('id')
+          .eq('workout_session_id', sessionId)
+          .eq('exercise_instance_id', setData.exerciseInstanceId)
+          .eq('set_order', setData.setOrder)
+          .single();
+        
+        if (fetchError) {
+          console.error('Error fetching existing completed set ID:', fetchError);
+          return;
+        }
+        
+        if (!existingData || !existingData.id) {
+          console.error('Could not find ID for existing record even though count says it exists');
+          return;
+        }
+        
+        // Update the existing record with the new data
+        const { error: updateError } = await supabase
           .from('completed_exercise_sets')
           .update(record)
-          .eq('id', existingData[0].id);
+          .eq('id', existingData.id);
         
-        if (error) {
-          console.error('Error updating completed set:', error);
+        if (updateError) {
+          console.error('Error updating completed set:', updateError);
         } else {
           console.log('Updated completed set successfully');
         }
       } else {
         // Insert new record
-        const { error } = await supabase
+        const { error: insertError } = await supabase
           .from('completed_exercise_sets')
           .insert(record);
         
-        if (error) {
-          console.error('Error inserting completed set:', error);
+        if (insertError) {
+          console.error('Error inserting completed set:', insertError);
         } else {
           console.log('Inserted completed set successfully');
         }
@@ -1965,11 +2079,37 @@ const WorkoutSessionPage: React.FC = () => {
         // Resume the existing session
         console.log('Resuming session:', existingSessionId);
         
+        // Get the original start time from sessionStorage - do this BEFORE any async operations
+        const originalStartTimeStr = sessionStorage.getItem('workout_session_start_time');
+        console.log('Retrieved start_time from sessionStorage:', originalStartTimeStr);
+        
         // Set session ID for later use
         setWorkoutSessionId(existingSessionId);
         
         // Try to load previous completed sets from this session
         await loadCompletedSetsFromSession(existingSessionId);
+        
+        // Hide the session dialog - important!
+        setShowSessionDialog(false);
+        
+        // Check if originalStartTimeStr is still available after async operations
+        console.log('Checking start_time is still available after async operations:', sessionStorage.getItem('workout_session_start_time'));
+        
+        if (originalStartTimeStr) {
+          // Calculate elapsed time between original start time and now
+          const originalStartTime = new Date(originalStartTimeStr);
+          const now = new Date();
+          const elapsedSeconds = Math.floor((now.getTime() - originalStartTime.getTime()) / 1000);
+          
+          console.log('Resume workout with elapsed time from original start:', elapsedSeconds, 'seconds');
+          
+          // Set the elapsed time to the time since the original start
+          pausedTimeRef.current = elapsedSeconds;
+          setElapsedTime(elapsedSeconds);
+        } else {
+          console.warn('No original start time found, starting timer from zero');
+          pausedTimeRef.current = 0;
+        }
         
         // Skip the countdown and start immediately
         startTimeRef.current = new Date();
@@ -1986,12 +2126,44 @@ const WorkoutSessionPage: React.FC = () => {
         }, 1000);
         
       } else if (action === 'new') {
-        // Delete the existing session and start a new one
+        console.log('Starting new session and removing old one if exists');
+        
+        // Hide the session dialog before any other operations
+        setShowSessionDialog(false);
+        
+        // Delete the existing session if it exists
         if (existingSessionId) {
-          console.log('Deleting existing session before starting new one');
-          await deleteWorkoutSession(existingSessionId);
+          console.log('Deleting existing session before starting new one:', existingSessionId);
           
-          // Clear the existing session ID to prevent infinite loop
+          try {
+            // Direct approach to delete completed sets first
+            const { error: setsDeleteError } = await supabase
+              .from('completed_exercise_sets')
+              .delete()
+              .eq('workout_session_id', existingSessionId);
+              
+            if (setsDeleteError) {
+              console.error('Error deleting existing sets:', setsDeleteError);
+            } else {
+              console.log('Successfully deleted completed sets');
+            }
+            
+            // Then delete the session
+            const { error: sessionDeleteError } = await supabase
+              .from('workout_sessions')
+              .delete()
+              .eq('id', existingSessionId);
+              
+            if (sessionDeleteError) {
+              console.error('Error deleting existing session:', sessionDeleteError);
+            } else {
+              console.log('Successfully deleted existing session');
+            }
+          } catch (error) {
+            console.error('Error in deletion process:', error);
+          }
+          
+          // Clear the existing session ID regardless of success or failure
           setExistingSessionId(null);
         }
         
@@ -2001,10 +2173,7 @@ const WorkoutSessionPage: React.FC = () => {
           throw new Error('Missing profile or workout ID');
         }
         
-        // Reset the session dialog flag - critical to prevent re-show
-        setShowSessionDialog(false);
-        
-        // Create a new workout session in the database directly instead of calling startWorkout()
+        // Create a new workout session in the database
         const { data, error } = await supabase
           .from('workout_sessions')
           .insert({
@@ -2028,6 +2197,7 @@ const WorkoutSessionPage: React.FC = () => {
         // Countdown timer for workout start
         const countdownInterval = setInterval(() => {
           setInitialCountdown(prevCount => {
+            // Rest of countdown code remains the same...
             if (prevCount === null) return null;
             
             if (prevCount <= 5 && prevCount > 0) {
@@ -2101,6 +2271,7 @@ const WorkoutSessionPage: React.FC = () => {
       console.error('Error handling session action:', err);
       setCompletionMessage('Failed to process workout session');
       setShowCompletionDialog(true);
+      setShowSessionDialog(false); // Always hide the session dialog if there's an error
     } finally {
       setSessionDialogLoading(false);
     }
@@ -2190,6 +2361,9 @@ const WorkoutSessionPage: React.FC = () => {
     console.log('Deleting workout session:', sessionId);
     
     try {
+      // Simple, direct approach with better error handling
+      console.log('Attempting direct deletion...');
+      
       // First delete all completed exercise sets for this session
       const { error: setsError } = await supabase
         .from('completed_exercise_sets')
@@ -2198,23 +2372,63 @@ const WorkoutSessionPage: React.FC = () => {
       
       if (setsError) {
         console.error('Error deleting completed sets:', setsError);
-        // Continue anyway to try to delete the session
+        // Continue with session deletion even if sets deletion fails
+        console.log('Continuing with session deletion despite sets deletion failure');
       } else {
-        console.log('Successfully deleted completed sets for session');
+        console.log('Successfully deleted completed sets');
       }
       
+      // Add a small delay to ensure database consistency
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Now delete the workout session
-      const { error } = await supabase
+      const { error: sessionError } = await supabase
         .from('workout_sessions')
         .delete()
         .eq('id', sessionId);
       
-      if (error) {
-        console.error('Error deleting workout session:', error);
-        return false;
+      if (sessionError) {
+        console.error('Error deleting workout session:', sessionError);
+        
+        // Try one more time after a longer delay
+        console.log('Attempting session deletion one more time after delay...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const { error: retryError } = await supabase
+          .from('workout_sessions')
+          .delete()
+          .eq('id', sessionId);
+        
+        if (retryError) {
+          console.error('Session deletion retry also failed:', retryError);
+          return false;
+        } else {
+          console.log('Session deletion succeeded on retry');
+        }
+      } else {
+        console.log('Successfully deleted workout session on first attempt');
       }
       
-      console.log('Successfully deleted workout session');
+      // Final verification - but don't block completion on this
+      try {
+        const { count, error: countError } = await supabase
+          .from('workout_sessions')
+          .select('*', { count: 'exact', head: true })
+          .eq('id', sessionId);
+        
+        if (countError) {
+          console.error('Error verifying session deletion:', countError);
+        } else if (count && count > 0) {
+          console.warn('Session still exists after deletion attempts, but proceeding anyway');
+        } else {
+          console.log('Deletion verified: session no longer exists in database');
+        }
+      } catch (verifyError) {
+        console.error('Error during verification:', verifyError);
+      }
+      
+      // Return true even if verification showed the session still exists
+      // This avoids blocking the user's workflow while database catches up
       return true;
     } catch (err) {
       console.error('Error in deleteWorkoutSession:', err);
