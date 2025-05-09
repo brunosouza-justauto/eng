@@ -73,20 +73,7 @@ const DashboardNutritionWidget: React.FC = () => {
 
   // Render the meal logging widget with the nutrition plan
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Nutrition</h2>
-        <div className="flex space-x-2">
-          <Link
-            to="/nutrition"
-            className="text-sm flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400"
-          >
-            <FiList className="mr-1" />
-            <span>View Plan</span>
-          </Link>
-        </div>
-      </div>
-      
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow">     
       <MealLoggingWidget nutritionPlanId={nutritionPlanId} />
     </div>
   );
