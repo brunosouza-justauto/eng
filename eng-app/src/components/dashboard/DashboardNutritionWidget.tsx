@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { selectProfile } from '../../store/slices/authSlice';
 import { getUserNutritionPlan } from '../../services/nutritionPlanService';
 import MealLoggingWidget from './MealLoggingWidget';
-import { FiList, FiChevronRight } from 'react-icons/fi';
+import { FiChevronRight } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 
 const DashboardNutritionWidget: React.FC = () => {
@@ -55,15 +55,15 @@ const DashboardNutritionWidget: React.FC = () => {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
         <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Nutrition</h2>
-        <div className="bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 p-3 rounded-md">
-          {error || 'No nutrition plan found'}
+        <div className="bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 p-3 rounded-md">
+          You don't have a nutrition plan assigned yet. Choose a plan to start tracking your nutrition!
         </div>
         <div className="mt-4 flex justify-end">
           <Link 
-            to="/nutrition" 
+            to="/nutrition-plans" 
             className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm font-medium flex items-center"
           >
-            View nutrition plan
+            View available plans
             <FiChevronRight className="ml-1" />
           </Link>
         </div>

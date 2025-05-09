@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { selectUser, selectProfile } from '../store/slices/authSlice';
@@ -8,6 +8,7 @@ import DashboardNutritionWidget from '../components/dashboard/DashboardNutrition
 import StepGoalWidget from '../components/dashboard/StepGoalWidget';
 import CheckInReminderWidget from '../components/dashboard/CheckInReminderWidget';
 import LatestCheckInWidget from '../components/dashboard/LatestCheckInWidget'; // Import the new widget
+import { format, startOfWeek, endOfWeek, addWeeks, parseISO } from 'date-fns';
 
 // Define types for the fetched data
 interface AssignedPlan {
@@ -28,6 +29,46 @@ const DashboardPage: React.FC = () => {
   const [stepGoal, setStepGoal] = useState<StepGoal | null>(null);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [hasWeeklyCheckIn, setHasWeeklyCheckIn] = useState<boolean>(false);
+  const [lastCheckInDate, setLastCheckInDate] = useState<string | null>(null);
+
+  // Memoize the date calculations to prevent re-renders
+  const { currentWeekStart, currentWeekEnd } = useMemo(() => {
+    const start = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const end = endOfWeek(new Date(), { weekStartsOn: 1 });
+    return { currentWeekStart: start, currentWeekEnd: end };
+  }, []);
+  
+  // Calculate the next check-in date
+  const getNextCheckInDate = (): Date => {
+    const today = new Date();
+    
+    if (lastCheckInDate) {
+      // If there's a previous check-in, calculate next date based on that
+      const lastDate = parseISO(lastCheckInDate);
+      
+      // If we already submitted for this week, next check-in is next week
+      if (hasWeeklyCheckIn) {
+        return addWeeks(lastDate, 1);
+      }
+    }
+    
+    // If we don't have a last check-in date or it wasn't in this week,
+    // the next check-in is today
+    return today;
+  };
+
+  // Get formatted date display
+  const getNextCheckInDayDisplay = (): string => {
+    const nextDate = getNextCheckInDate();
+    return format(nextDate, 'EEEE');
+  };
+
+  // Format the next check-in date for display
+  const getNextCheckInDateDisplay = (): string => {
+    const nextDate = getNextCheckInDate();
+    return format(nextDate, 'MMMM d, yyyy');
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -94,6 +135,35 @@ const DashboardPage: React.FC = () => {
         if (goalError) throw goalError;
         setStepGoal(goalData); // Will be null if no active goal
 
+        // Get the most recent check-in
+        const { data: recentData, error: recentError } = await supabase
+          .from('check_ins')
+          .select('check_in_date')
+          .eq('user_id', profile.user_id)
+          .order('check_in_date', { ascending: false })
+          .limit(1);
+        
+        if (recentError) throw recentError;
+        
+        // Get check-ins for the current week
+        const { data: weeklyData, error: weeklyError } = await supabase
+          .from('check_ins')
+          .select('id, check_in_date')
+          .eq('user_id', profile.user_id)
+          .gte('check_in_date', currentWeekStart.toISOString())
+          .lte('check_in_date', currentWeekEnd.toISOString());
+        
+        if (weeklyError) throw weeklyError;
+        
+        // Set the check-in status
+        const hasCheckInThisWeek = weeklyData && weeklyData.length > 0;
+        setHasWeeklyCheckIn(hasCheckInThisWeek);
+        
+        // Set the most recent check-in date if available
+        if (recentData && recentData.length > 0) {
+          setLastCheckInDate(recentData[0].check_in_date);
+        }
+
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
         setFetchError("Failed to load your dashboard data. Please try again later.");
@@ -103,7 +173,7 @@ const DashboardPage: React.FC = () => {
     };
 
     fetchDashboardData();
-  }, [user, profile]);
+  }, [user, profile, currentWeekStart, currentWeekEnd]);
 
   // Combine loading states
   const isLoading = !profile || isLoadingData;
@@ -136,24 +206,35 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="mb-1 text-2xl font-bold text-gray-800 dark:text-white">
-            Welcome, {profile?.first_name || 'Athlete'}!
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Here's your day overview for today.
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="mb-1 text-2xl font-bold text-gray-800 dark:text-white">
+          Welcome, {profile?.first_name || 'Athlete'}!
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
+          Here's your day overview for today.
+        </p>
         <Link 
           to="/check-in/new" 
-          className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-sm font-medium transition-colors"
+          className="flex justify-center items-center w-full px-4 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-sm font-medium transition-colors"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
           </svg>
-          New Check-in
+          Weekly Check-in
         </Link>
+        <div className="mt-2 text-center text-sm font-medium">
+          {isLoadingData ? (
+            <span className="text-gray-400">Loading check-in status...</span>
+          ) : hasWeeklyCheckIn ? (
+            <span className="text-green-600 dark:text-green-400">
+              Next check-in: {getNextCheckInDayDisplay()}, {getNextCheckInDateDisplay()}
+            </span>image.png
+          ) : (
+            <span className="text-yellow-600 dark:text-yellow-400">
+              Check-in due this week.<br />Please complete by {format(currentWeekEnd, 'EEEE, MMMM d')}
+            </span>
+          )}
+        </div>
       </div>
 
       {fetchError && (

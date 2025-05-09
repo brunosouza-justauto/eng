@@ -560,17 +560,76 @@ Floating UI components (like timers) follow these patterns:
 
 ## UI Patterns
 
-### Fitness Data Visualization
-- Step goals displayed with percentage completion
-- Progress bars use color-coding based on completion level
-- 7-day history available with bar chart visualization
-- Achievements shown based on goal completion and streaks
+### Nutrition and Meal Planning UI
 
-### Device Management
-- Modal interface for connecting and managing fitness devices
-- Connected devices shown with sync and disconnect options
-- Device connection status indicated in UI
-- Sync button provides immediate data refresh option
+1. **Meal Cards**
+   - Dark background (`bg-gray-900`) for improved contrast and readability
+   - Consistent header with meal name, calorie count, and macro breakdown
+   - Nested information architecture with clear visual hierarchy:
+     - Meal name and calories in large font at the top
+     - Macronutrient breakdown (P/C/F) directly below in smaller font
+     - Food items listed in a structured table format
+     - Macronutrient details for each food item displayed beneath the item name
+
+2. **Nutrition Information Display**
+   - Consistent format for macronutrients: "P: [value]g · C: [value]g · F: [value]g"
+   - Use of centered dot (·) as separator between macro values
+   - Calories shown with "kcal" suffix
+   - Macros shown with "g" suffix
+
+3. **Table Layouts**
+   - Fixed-width tables (`table-fixed`) for consistent column sizes
+   - Column width distribution: 50% for item name, 25% for amount, 25% for calories
+   - Adequate spacing between columns using padding
+   - Food item names in medium weight font for better readability
+   - Vertical alignment adjustments for multi-row cells
+
+4. **State Preservation**
+   - Using URL parameters to maintain context between views
+   - Passing selected filters (e.g., day type) when navigating between related views
+
+### Data Display Patterns
+
+1. **Caloric and Macronutrient Information**
+   - Total calories displayed prominently
+   - Macronutrients (protein, carbs, fat) displayed together in a consistent format
+   - Visual distinction between item-level and aggregate nutritional data
+
+2. **Day Type Filtering**
+   - Tab-based or button-based UI for selecting different day types
+   - Visual indication of the currently selected day type
+   - Filtered content updates immediately upon day type selection
+
+### Food and Meal Hierarchy
+
+1. **Three-Level Structure**
+   - Nutrition Plans contain multiple Meals
+   - Meals contain multiple Food Items
+   - Each level aggregates nutritional data from its children
+
+2. **Nutritional Calculations**
+   - Calculate item nutrition based on quantity and per-100g values
+   - Aggregate meal nutrition by summing all contained food items
+   - Format displayed values consistently with appropriate precision (whole numbers for calories, one decimal place for macros)
+
+## Development Patterns
+
+### Component Structure
+
+1. **Meal Planning Components**
+   - `MealPlanView`: Detailed view of a nutrition plan with all meals and food items
+   - `MealLoggingWidget`: Dashboard widget for tracking daily meal consumption
+   - Integration between these components via consistent URL structure and parameter passing
+
+2. **State Management**
+   - Local component state for UI-specific concerns (selected day type, loading states)
+   - API calls to fetch nutrition plan data
+   - Calculated values for nutritional totals derived from fetched data
+
+3. **Navigation Flow**
+   - Dashboard → Meal Plan View with preserved day type
+   - Context preservation through URL parameters
+   - Consistent back navigation to source screens
 
 ## API Integration Patterns
 
@@ -584,3 +643,77 @@ Floating UI components (like timers) follow these patterns:
 - Last sync time tracked for each connection
 - User can manually trigger synchronization
 - APIs return standardized response format regardless of provider 
+
+## Nutrition and Meal Planning UI Patterns
+
+The meal planning and nutrition tracking components follow established UI patterns to ensure consistency and usability throughout the application:
+
+### UI Patterns
+
+1. **Meal Cards**
+   * Dark-themed cards with clear visual hierarchy
+   * Consistent header styling using `p-4 bg-gray-800`
+   * Clear separation between meal header and food item list
+   * Expandable/collapsible sections for detailed information
+
+2. **Nutrition Information Display**
+   * Consistent presentation of macronutrients in P/C/F order
+   * Color coding for macronutrients (protein=red, carbs=yellow, fat=blue)
+   * Secondary nutrition information displayed in `text-sm text-gray-400`
+   * Progress indicators for macro consumption relative to targets
+
+3. **Table Layouts**
+   * Food items displayed in table format with consistent column alignment
+   * Optimized column spacing using `pr-4` for readability
+   * Macro information displayed beneath food item names
+   * Clear visual separation between rows using subtle borders or background alternation
+
+4. **State Preservation**
+   * URL parameters maintain selected day type when navigating between views
+   * User selections persist across navigation boundaries
+   * Query parameters encode user context (e.g., `?dayType=moderate`)
+
+### Data Display Patterns
+
+1. **Caloric and Macronutrient Information**
+   * Total calories prominently displayed
+   * Macronutrient distribution shown as both grams and percentages
+   * Visual progress indicators for daily consumption
+   * Clear distinction between consumed, remaining, and target values
+
+2. **Day Type Filtering**
+   * Consistent support for four day types (Rest, Light, Moderate, Heavy)
+   * Tab-style selectors for day types in dashboard widgets
+   * Day type selections preserved when navigating to detailed views
+   * Visual indicators for current day type selection
+
+### Food and Meal Hierarchy
+
+1. **Three-Level Structure**
+   * Nutrition plans contain multiple meals
+   * Meals contain multiple food items
+   * Food items display individual nutritional information
+
+2. **Nutritional Calculations**
+   * Automatic calculation of calories and macros based on food quantities
+   * Aggregation of nutritional values at meal and daily levels
+   * Target vs. actual calculations for tracking adherence
+   * Remaining nutrient calculations for day-of meal planning
+
+### Development Patterns
+
+1. **Component Structure**
+   * `MealLoggingWidget`: Dashboard component for daily meal tracking
+   * `MealPlanView`: Detailed view of complete nutrition plan
+   * `AddExtraMealModal`: Common pattern for adding unplanned meals
+   * Shared utility functions for nutritional calculations
+
+2. **State Management**
+   * Local component state for UI interactions
+   * Redux for shared nutrition data
+   * URL parameters for cross-component state preservation
+
+3. **Navigation Flow**
+   * Dashboard widgets link to detailed views with context preserved
+   * "View Plan" buttons include current day type as a parameter
+   * Consistent back navigation patterns to return to previous context 

@@ -11,6 +11,13 @@
 - Modern sidebar navigation pattern with mobile responsiveness
 - Uses Tailwind CSS v3.3.2 (stable version)
 - Dark/light mode toggle with persistent preference
+- Meal planning components use dark-themed cards with clear content separation
+- Nutrition data uses consistent color coding (protein=red, carbs=yellow, fat=blue)
+
+### Navigation
+- URL parameters are used to maintain context between related screens
+- Query parameters preserve user selections when navigating between components
+- Dashboard widgets link to detailed views with preserved context
 
 ## Tailwind CSS Configuration
 
@@ -19,6 +26,10 @@
 - **Custom Components**: Defined in index.css using `@layer components`
 - **Dark Mode**: Implemented with Tailwind's class strategy (`darkMode: 'class'`)
 - **Theme**: Uses Tailwind's indigo color palette as primary color
+- **Common Patterns**: 
+  - `pr-4` for table column spacing (not `pr-8` which is too wide)
+  - Card headers use `p-4 bg-gray-800` for consistent styling
+  - Macro indicators use `text-sm text-gray-400` for secondary information
 
 ## Project Structure
 
@@ -35,10 +46,16 @@
 - Consistent styling with Tailwind CSS classes
 - Form handling with React Hook Form
 - Data validation with Zod schema
+- Nutrition components handle different day types (Rest, Light, Moderate, Heavy)
+- Table layouts use consistent spacing with proper column alignment
+- URL parameters maintain context across navigation boundaries
+- Macronutrient displays follow P/C/F order with consistent color coding
 
 ## Known Challenges
 
 - Responsive design needs attention on smallest screen sizes
 - Admin CMS data integration is pending
+- Some column spacing in tables requires fine-tuning for optimal readability
+- Daily nutrition calculations need to account for unlogged days
 
 This file serves as a learning journal and will be updated as new patterns and decisions emerge. 

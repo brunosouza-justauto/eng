@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { FiCheck, FiX, FiPlus, FiClock, FiExternalLink } from 'react-icons/fi';
+import { FiCheck, FiX, FiPlus, FiClock, FiExternalLink, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { 
     DailyNutritionLog, 
@@ -44,6 +44,8 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
     const [dailyLog, setDailyLog] = useState<DailyNutritionLog | null>(null);
     const [showAddExtraMeal, setShowAddExtraMeal] = useState<boolean>(false);
     const [loadingMeals, setLoadingMeals] = useState<Record<string, boolean>>({});
+    // Add state to track expanded meals
+    const [expandedMeals, setExpandedMeals] = useState<Record<string, boolean>>({});
 
     // Fetch nutrition plan data
     useEffect(() => {
@@ -241,6 +243,14 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
         return remaining > 0 ? Math.round(remaining) : 0;
     };
 
+    // Toggle meal expansion
+    const toggleMealExpansion = (mealId: string) => {
+        setExpandedMeals(prev => ({
+            ...prev,
+            [mealId]: !prev[mealId]
+        }));
+    };
+
     // Define the header for the Card component
     const header = (
         <div className="flex items-center justify-between">
@@ -361,11 +371,11 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                 </div>
 
                 {/* Nutrition Summary */}
-                <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">
                         Daily Nutrition {selectedDayType && `(${selectedDayType})`}
                     </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-2 gap-6">
                         {/* Calories */}
                         <div className="flex flex-col items-center">
                             <p className="text-sm font-medium text-green-500 dark:text-green-400 mb-2">
@@ -391,7 +401,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                                 ></div>
                                 
                                 {/* Center circle - larger to make the ring thinner */}
-                                <div className="absolute inset-[18%] rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+                                <div className="absolute inset-[15%] rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
                                     <p className="text-base font-bold text-green-500 dark:text-green-400">
                                         {dayTypeNutrition.planned_calories > 0 ? 
                                             calculateRemaining(dayTypeNutrition.total_calories, dayTypeNutrition.planned_calories) : 0}
@@ -436,7 +446,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                                 ></div>
                                 
                                 {/* Center circle - larger to make the ring thinner */}
-                                <div className="absolute inset-[18%] rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+                                <div className="absolute inset-[15%] rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
                                     <p className="text-base font-bold text-blue-500 dark:text-blue-400">
                                         {dayTypeNutrition.planned_protein > 0 ? 
                                             calculateRemaining(dayTypeNutrition.total_protein, dayTypeNutrition.planned_protein) : 0}g
@@ -481,7 +491,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                                 ></div>
                                 
                                 {/* Center circle - larger to make the ring thinner */}
-                                <div className="absolute inset-[18%] rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+                                <div className="absolute inset-[15%] rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
                                     <p className="text-base font-bold text-amber-500 dark:text-amber-400">
                                         {dayTypeNutrition.planned_carbs > 0 ? 
                                             calculateRemaining(dayTypeNutrition.total_carbs, dayTypeNutrition.planned_carbs) : 0}g
@@ -526,7 +536,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                                 ></div>
                                 
                                 {/* Center circle - larger to make the ring thinner */}
-                                <div className="absolute inset-[18%] rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+                                <div className="absolute inset-[15%] rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
                                     <p className="text-base font-bold text-purple-500 dark:text-purple-400">
                                         {dayTypeNutrition.planned_fat > 0 ? 
                                             calculateRemaining(dayTypeNutrition.total_fat, dayTypeNutrition.planned_fat) : 0}g
@@ -567,53 +577,113 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                             {plannedMeals.map((meal) => {
                                 const isLogged = isMealLogged(meal.id);
                                 const isLoggingInProgress = loadingMeals[meal.id];
+                                const isExpanded = expandedMeals[meal.id] || false;
                                 
                                 return (
                                     <div 
                                         key={meal.id}
                                         className={`
-                                            p-4 rounded-lg border 
+                                            rounded-lg border overflow-hidden
                                             ${isLogged 
                                                 ? 'border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-900/20' 
                                                 : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
                                             }
                                         `}
                                     >
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <h4 className="font-medium text-gray-800 dark:text-white">
-                                                    {meal.name}
-                                                </h4>
-                                                {meal.time_suggestion && (
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
-                                                        <FiClock className="mr-1" /> {meal.time_suggestion}
-                                                    </p>
-                                                )}
-                                                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                    {Math.round(meal.total_calories)} cal • {Math.round(meal.total_protein)}g protein
+                                        <div className="p-4">
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center">
+                                                    <button
+                                                        onClick={() => toggleMealExpansion(meal.id)}
+                                                        className="p-2 mr-2 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-opacity-80 transition-colors flex-shrink-0"
+                                                        aria-label={isExpanded ? "Collapse ingredients" : "Expand ingredients"}
+                                                    >
+                                                        {isExpanded ? (
+                                                            <FiChevronUp className="w-4 h-4" />
+                                                        ) : (
+                                                            <FiChevronDown className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                    <div>
+                                                        <h4 className="font-medium text-gray-800 dark:text-white">
+                                                            {meal.name}
+                                                        </h4>
+                                                        {meal.time_suggestion && (
+                                                            <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                                                                <FiClock className="mr-1" /> {meal.time_suggestion}
+                                                            </p>
+                                                        )}
+                                                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                            {Math.round(meal.total_calories)} cal • {Math.round(meal.total_protein)}g protein
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleLogMeal(meal)}
+                                                    disabled={isLoggingInProgress}
+                                                    className={`
+                                                        p-2 rounded-full flex-shrink-0
+                                                        ${isLogged 
+                                                            ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' 
+                                                            : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                                                        }
+                                                        hover:bg-opacity-80 transition-colors
+                                                    `}
+                                                >
+                                                    {isLoggingInProgress ? (
+                                                        <div className="w-5 h-5 border-t-2 border-b-2 border-current rounded-full animate-spin"></div>
+                                                    ) : isLogged ? (
+                                                        <FiCheck className="w-5 h-5" />
+                                                    ) : (
+                                                        <FiPlus className="w-5 h-5" />
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Expanded ingredients section */}
+                                        {isExpanded && meal.food_items.length > 0 && (
+                                            <div className="px-4 pb-4 pt-0">
+                                                <div className="mt-2 border-t border-gray-200 dark:border-gray-700 pt-3">
+                                                    <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                        Ingredients
+                                                    </h5>
+                                                    <ul className="space-y-2">
+                                                        {meal.food_items.map((item) => (
+                                                            <li key={item.id} className="text-sm">
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-gray-800 dark:text-gray-200">
+                                                                        {item.food_item?.food_name || 'Unknown Food'}
+                                                                    </span>
+                                                                    <span className="text-gray-600 dark:text-gray-400">
+                                                                        {item.quantity} {item.unit}
+                                                                    </span>
+                                                                </div>
+                                                                {item.food_item && (
+                                                                    <div className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
+                                                                        {Math.round(item.calculated_calories || 0)} cal • 
+                                                                        P: {Math.round(item.calculated_protein || 0)}g • 
+                                                                        C: {Math.round(item.calculated_carbs || 0)}g • 
+                                                                        F: {Math.round(item.calculated_fat || 0)}g
+                                                                    </div>
+                                                                )}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => handleLogMeal(meal)}
-                                                disabled={isLoggingInProgress}
-                                                className={`
-                                                    p-2 rounded-full 
-                                                    ${isLogged 
-                                                        ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' 
-                                                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                                                    }
-                                                    hover:bg-opacity-80 transition-colors
-                                                `}
-                                            >
-                                                {isLoggingInProgress ? (
-                                                    <div className="w-5 h-5 border-t-2 border-b-2 border-current rounded-full animate-spin"></div>
-                                                ) : isLogged ? (
-                                                    <FiCheck className="w-5 h-5" />
-                                                ) : (
-                                                    <FiPlus className="w-5 h-5" />
-                                                )}
-                                            </button>
-                                        </div>
+                                        )}
+                                        
+                                        {/* Empty state for no ingredients */}
+                                        {isExpanded && meal.food_items.length === 0 && (
+                                            <div className="px-4 pb-4 pt-0">
+                                                <div className="mt-2 border-t border-gray-200 dark:border-gray-700 pt-3">
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                                        No ingredients information available
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}

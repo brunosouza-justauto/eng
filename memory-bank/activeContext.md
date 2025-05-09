@@ -28,6 +28,60 @@ We are enhancing the workout experience in the application with advanced trainin
    - Dashboard Workout Display
    - Program Builder Improvements
 
+## Current Focus: Meal Planning and Nutrition Tracking
+
+We've been enhancing the meal planning and nutrition tracking features of the ENG App. Recent work has focused on:
+
+1. **Meal Plan View Enhancements**
+   - Implementing a dark-themed UI that aligns with the application's design language
+   - Improving the organization of nutrition information for food items
+   - Refining table layouts for better readability and user experience
+   - Adjusting visual elements for clarity and emphasis on important data
+
+2. **Navigation and Context Preservation**
+   - Adding support for day type parameters via URL query strings
+   - Creating seamless transitions between the dashboard and meal plan views
+   - Ensuring user context is maintained when navigating between related screens
+
+3. **Nutrition Data Visualization**
+   - Enhancing the display of macro and calorie data
+   - Creating a more prominent visual hierarchy for nutritional information
+   - Improving the accessibility and readability of nutritional metrics
+
+## Active Decisions
+
+1. **UI Design Principles**
+   - Using consistent spacing patterns across nutrition-related components
+   - Employing a dark theme with strategic color highlights for important data
+   - Implementing responsive layouts that work well on various device sizes
+
+2. **Navigation Flow**
+   - Preserving user context (like selected day type) when moving between screens
+   - Using URL parameters to maintain state across navigation boundaries
+   - Creating intuitive paths between related nutrition components
+
+3. **Testing & Refinement**
+   - Actively testing layout adjustments for optimal spacing and readability
+   - Iterating on visual hierarchy based on user feedback
+   - Ensuring responsive behavior across different viewport sizes
+
+## Next Steps
+
+1. **Nutrition Analytics**
+   - Develop enhanced visualizations for tracking nutrition goals vs. actuals
+   - Create trend analyses for macro consumption over time
+   - Implement comparison views between different day types
+
+2. **Meal Planning Extensions**
+   - Consider implementing drag-and-drop functionality for meal rearrangement
+   - Add support for meal templates and favorites
+   - Enhance food search capabilities with filters and intelligent suggestions
+
+3. **Mobile Optimizations**
+   - Further refine responsive layouts for small screens
+   - Implement touch-friendly interactions for meal logging
+   - Optimize performance for nutrition calculations on mobile devices
+
 ## Current Focus: Fitness Device Integration Improvements
 
 We've recently focused on enhancing the fitness device integration functionality in the application, addressing several key issues:
@@ -168,106 +222,3 @@ We've recently focused on enhancing the fitness device integration functionality
 - Added a congratulatory dialog that appears when all sets are completed
 - Modified the completion flow so clicking "Continue" on the dialog actually saves the workout
 - Fixed the dialog behavior to properly call the completeWorkout() function upon confirmation
-
-## Next Steps
-
-### Workout Experience Enhancements
-1. 🚧 Add customizable rest timer presets for different exercise types
-2. 🚧 Implement advanced circuit and superset support in workout tracking
-3. 🚧 Create printable/shareable workout summary reports
-4. 🚧 Add workout statistics and personal record tracking
-5. 🚧 Implement exercise history view with progress graphs
-
-### Multi-Day Meal Planning Enhancement
-1. 🚧 Extend existing meal planning UI to support multi-day view and management
-2. 🚧 Implement UI for creating meal templates across multiple days
-3. 🚧 Add day type labeling (e.g., Training Day, Rest Day) for different nutritional needs
-4. 🚧 Create calendar view for visualizing a complete meal plan cycle
-5. 🚧 Implement copy/duplicate functionality for entire days
-
-### Food Search Improvements  
-1. 🚧 Enhance food filtering with dietary preferences (vegetarian, vegan, gluten-free)
-2. 🚧 Implement autocomplete suggestions for common foods
-3. 🚧 Add advanced filtering by macro ranges (e.g., high protein, low carb)
-4. 🚧 Create "Frequently Used" section based on user history
-5. 🚧 Improve unit conversion accuracy for different food densities
-
-### Nutrition Analytics
-1. 🚧 Create a dashboard for tracking daily/weekly nutrition targets vs. actuals
-2. 🚧 Implement visual charts for macronutrient distribution
-3. 🚧 Add progress tracking for body metrics correlated with nutrition adherence
-4. 🚧 Create printable/shareable meal plan reports
-5. 🚧 Implement nutrition goal setting and progress visualization
-
-### Dashboard Enhancements
-1. 📝 Add performance metrics to dashboard (workout completion, nutrition adherence)
-2. 📝 Implement calendar view widget for upcoming workouts/meals
-3. 📝 Add quick actions (log workout, record meal) directly from dashboard
-4. 📝 Provide customization options for widget arrangement and preferences
-
-### Check-In Form Improvements
-1. 🚧 Replace text inputs with standardized select/radio inputs for consistency
-2. 🚧 Add photo upload capability for progress photos
-3. 🚧 Implement trend visualization for check-in metrics
-4. 🚧 Add automated feedback based on check-in data
-5. 🚧 Create coach notification system for key check-in metrics
-
-## Active Decisions and Considerations
-
-### Workout Session Enhancement Approach
-- Using Web Speech API for voice announcements with user permission system
-- Implementing Vibration API for mobile devices with feature detection
-- Caching exercise demonstration images to prevent redundant API calls
-- Using HeyGainz API to fetch realistic exercise demonstration GIFs
-- Providing multi-sensory feedback (visual, audio, tactile) for comprehensive experience
-- All feedback systems are opt-in and can be toggled by the user
-- Storing user preferences in localStorage for persistence between sessions
-- Handling API-provided YouTube links to enable video demonstrations
-- Implementing text sanitization to fix encoding issues in external API data
-
-### Multi-Day Meal Planning Approach
-- The current system already has day_number field in meals table, supporting multi-day functionality
-- Need to decide on UI approach - calendar view vs. tabbed day view vs. scrollable timeline
-- Should provide flexibility to create meal templates (e.g., "Training Day", "Rest Day") 
-- Consider implementing meal cycles (e.g., 7-day plans that repeat)
-- Need to balance simplicity with flexibility for different dietary approaches
-
-### Food Search and Filtering  
-- Currently implementing basic category and text search only
-- Need more sophisticated filtering by dietary preferences and nutritional content
-- Consider indexing strategy for performance with large food database
-- Proper unit conversion needs food-specific density information
-- Should implement "recently used" or "favorites" functionality
-
-### Nutrition Analytics Requirements
-- Need to determine key metrics for nutrition tracking (beyond basic macros)
-- Consider how to handle partial adherence and deviations from plan
-- Should correlate nutrition adherence with physical progress metrics
-- Privacy considerations for sharing nutrition data with coaches
-- Performance optimization for handling large datasets of meal records
-
-### Assignment Data Structure
-- Using a single `assigned_plans` table for both training programs and nutrition plans
-- When assigning either type, we store it in a separate row for the athlete with appropriate fields
-- For workout plans, we store `program_template_id` (with `nutrition_plan_id` as NULL)
-- For nutrition plans, we store `nutrition_plan_id` (with `program_template_id` as NULL)
-- This approach provides flexibility while avoiding complex joins on fetches
-- Dashboard queries are now separate for each assignment type for accurate fetching
-- We keep only the most recent assignment of each type as the "active" one
-
-### Nutrition Plan Assignments
-- Using the same `assigned_plans` table for both training programs and nutrition plans
-- Programs use `program_template_id` while nutrition plans use `nutrition_plan_id`
-- When assigning a nutrition plan, `program_template_id` is set to `null` and vice versa
-- We query with appropriate IS NULL / NOT NULL filters to get the correct type of assignment
-- This approach provides flexibility while using existing database schema
-
-- Recipes will be specific to each coach (not shared)
-- Food items and recipes will appear in the same search results
-- Nutritional values for recipes will be calculated from ingredients
-- Meals will remain tied to nutrition plans (not independent)
-- We'll implement a comprehensive unit conversion system for food quantities
-- Multi-day planning will support different meal plans for training vs. rest days
-- When a recipe is added to a meal, it will be broken down into individual items for quantity editing
-- Food items are now categorized into standardized groups for better organization and filtering
-- Food classifications come from the AFCD dataset and are mapped to standardized food groups

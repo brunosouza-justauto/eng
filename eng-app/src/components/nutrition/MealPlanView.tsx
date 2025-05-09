@@ -293,10 +293,6 @@ const MealPlanView: React.FC = () => {
                                                             </span>
                                                         )}
                                                     </h2>
-                                                    
-                                                    <p className="text-sm text-gray-400 mt-1">
-                                                        Day Type: {meal.day_type}
-                                                    </p>
                                                 </div>
                                                 
                                                 <div className="text-right">
@@ -321,19 +317,18 @@ const MealPlanView: React.FC = () => {
                                         )}
                                         
                                         <div className="p-4">
-                                            <table className="w-full text-sm">
+                                            <table className="w-full text-sm table-fixed">
                                                 <thead className="text-xs text-gray-400 border-b border-gray-800 dark:border-gray-700">
                                                     <tr>
-                                                        <th className="text-left pb-3 font-medium">Item</th>
-                                                        <th className="text-right pb-3 font-medium">Amount</th>
-                                                        <th className="text-right pb-3 font-medium">Calories</th>
-                                                        <th className="text-right pb-3 font-medium whitespace-nowrap">P/C/F (g)</th>
+                                                        <th className="text-left pb-3 font-medium w-1/2">Item</th>
+                                                        <th className="text-right pb-3 font-medium w-1/4">Amount</th>
+                                                        <th className="text-right pb-3 font-medium w-1/4">Calories</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="text-gray-300">
                                                     {meal.meal_food_items.length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={4} className="py-3 text-center text-gray-500">
+                                                            <td colSpan={3} className="py-3 text-center text-gray-500">
                                                                 No food items defined for this meal.
                                                             </td>
                                                         </tr>
@@ -343,17 +338,19 @@ const MealPlanView: React.FC = () => {
                                                             
                                                             return (
                                                                 <tr key={idx} className="border-b border-gray-800 dark:border-gray-700 last:border-0">
-                                                                    <td className="py-3 font-medium">
-                                                                        {item.food_items?.food_name ?? 'Unknown Item'}
+                                                                    <td className="py-3">
+                                                                        <div className="font-medium">
+                                                                            {item.food_items?.food_name ?? 'Unknown Item'}
+                                                                        </div>
+                                                                        <div className="text-xs text-gray-400 mt-1">
+                                                                            P: {itemNutrition.protein} · C: {itemNutrition.carbs} · F: {itemNutrition.fat}
+                                                                        </div>
                                                                     </td>
-                                                                    <td className="py-3 text-right whitespace-nowrap">
+                                                                    <td className="py-3 text-right whitespace-nowrap align-top">
                                                                         {item.quantity}{item.unit}
                                                                     </td>
-                                                                    <td className="py-3 text-right">
+                                                                    <td className="py-3 text-right align-top">
                                                                         {itemNutrition.calories}
-                                                                    </td>
-                                                                    <td className="py-3 text-right whitespace-nowrap">
-                                                                        {itemNutrition.protein}/{itemNutrition.carbs}/{itemNutrition.fat}
                                                                     </td>
                                                                 </tr>
                                                             );
