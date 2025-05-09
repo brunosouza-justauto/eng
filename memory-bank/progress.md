@@ -65,4 +65,15 @@
 - Added automatic detection of when all sets are completed (100% progress)
 - Implemented a congratulatory completion dialog when the final set is marked as done
 - Enhanced the dialog interaction to automatically save the workout when the user confirms
-- Eliminated the unnecessary rest timer after the final set 
+- Eliminated the unnecessary rest timer after the final set
+- Fixed Fitbit OAuth authentication by adding proper Basic Authentication headers
+- Resolved CORS issues with Fitbit API by implementing a development proxy
+- Fixed HTML structure in the StepGoalWidget component
+- Added a convenient sync button for connected devices
+- Enhanced error handling throughout the OAuth and API integration flow
+- Improved user feedback during device connection and synchronization
+
+## In Progress
+- Comprehensive testing of all fitness device integrations
+- Refinement of error handling for specific API errors
+- Exploring additional fitness metrics integration 

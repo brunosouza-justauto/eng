@@ -1,0 +1,20 @@
+{
+  "name": "fitness-token-exchange-proxy",
+  "version": "1.0.0",
+  "description": "A proxy server to handle fitness device API token exchanges",
+  "main": "tokenExchangeProxy.js",
+  "scripts": {
+    "start": "node tokenExchangeProxy.js",
+    "dev": "nodemon tokenExchangeProxy.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+} 

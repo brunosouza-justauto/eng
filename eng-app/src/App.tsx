@@ -26,6 +26,8 @@ import MainLayout from './components/layout/MainLayout'; // Import MainLayout
 import AthleteDetailsPage from './pages/admin/AthleteDetailsPage'; // Import AthleteDetailsPage
 import CoachDetailsPage from './pages/admin/CoachDetailsPage'; // Import CoachDetailsPage
 import BMRCalculatorPage from './pages/admin/BMRCalculatorPage'; // Import BMRCalculatorPage
+import FitnessDeviceCallback from './pages/auth/callback/FitnessDeviceCallback';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 // Placeholder pages - we will create these properly later
 // const LoginPage = () => <div>Login Page Placeholder - <Link to="/dashboard">Go to Dashboard (temp)</Link></div>;
 const NotFoundPage = () => <div>404 Not Found</div>;
@@ -161,6 +163,9 @@ function App() {
           <Route path="/onboarding" element={<OnboardingPage />} />
       </Route>
 
+      {/* Legal Pages - Accessible without authentication */}
+      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+
       {/* Routes WITH MainLayout (Authenticated) */}
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
@@ -192,6 +197,12 @@ function App() {
               <Route path="*" element={<div>Admin Section Not Found</div>} />
           </Route>
       </Route>
+
+      {/* Fitness Device Callback Routes */}
+      <Route path="/auth/callback/fitbit" element={<FitnessDeviceCallback />} />
+      <Route path="/auth/callback/garmin" element={<FitnessDeviceCallback />} />
+      <Route path="/auth/callback/google-fit" element={<FitnessDeviceCallback />} />
+      {/* We'll handle apple-health and samsung-health through native app integrations */}
 
       {/* Fallback 404 Route (without MainLayout) */}
       <Route path="*" element={<NotFoundPage />} />

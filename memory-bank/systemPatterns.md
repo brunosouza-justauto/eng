@@ -547,3 +547,40 @@ Floating UI components (like timers) follow these patterns:
 - Local React state manages workout progress and UI state
 - Supabase database stores completed sets and workout sessions
 - Completion status is calculated on-the-fly based on marked sets 
+
+## Authentication Patterns
+
+### OAuth Integration
+- OAuth state is stored in localStorage for persistence across page refreshes
+- State includes a UUID for CSRF protection and timestamp for expiration check
+- Provider-specific requirements are handled in token exchange:
+  - Fitbit: Uses Basic Authentication header with encoded client credentials
+  - Google Fit: Sends client ID and secret in request body
+- Token refresh follows similar provider-specific patterns
+
+## UI Patterns
+
+### Fitness Data Visualization
+- Step goals displayed with percentage completion
+- Progress bars use color-coding based on completion level
+- 7-day history available with bar chart visualization
+- Achievements shown based on goal completion and streaks
+
+### Device Management
+- Modal interface for connecting and managing fitness devices
+- Connected devices shown with sync and disconnect options
+- Device connection status indicated in UI
+- Sync button provides immediate data refresh option
+
+## API Integration Patterns
+
+### CORS Handling
+- Development environment uses Vite proxy to avoid CORS issues
+- Production environment will require server-side proxy or backend API
+- API requests include proper authorization headers based on provider requirements
+
+### Data Synchronization
+- Step data is fetched from fitness APIs and stored in application database
+- Last sync time tracked for each connection
+- User can manually trigger synchronization
+- APIs return standardized response format regardless of provider 

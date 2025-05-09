@@ -9,11 +9,14 @@ import {
     MealWithFoodItems, 
     MealFormData,
     mealSchema,
-    NutritionPlanWithMeals
+    NutritionPlanWithMeals,
+    DAY_TYPES
 } from '../../types/mealPlanning';
 import { createMeal, updateMeal, deleteMeal, getNutritionPlanById, duplicateMeal, updateMealsOrder } from '../../services/mealPlanningService';
 import { MealFoodItems } from './MealFoodItems';
 import { FoodSelector } from './FoodSelector';
+import EditDayModal from './EditDayModal';
+import { Button } from '../ui/Button';
 
 // Define types for drag and drop
 type DragItem = {
@@ -214,6 +217,18 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose }) =
     const [showFoodSelector, setShowFoodSelector] = useState(false);
     const [selectedMealId, setSelectedMealId] = useState<string | null>(null);
     const [mealToDelete, setMealToDelete] = useState<string | null>(null);
+    const [showEditDayModal, setShowEditDayModal] = useState(false);
+    const [editingDayNumber, setEditingDayNumber] = useState<number | null>(null);
+    const [editingDayType, setEditingDayType] = useState<string>('');
+    const [showAddDayModal, setShowAddDayModal] = useState(false);
+
+    // New form states for dropdown and ref
+    const [selectedDayType, setSelectedDayType] = useState<string>(DAY_TYPES[0]);
+    const [customDayType, setCustomDayType] = useState<string>('');
+    const dayNumberRef = useRef<HTMLInputElement>(null);
+    
+    // Alert state for validation messages
+    const [alertMessage, setAlertMessage] = useState<{message: string; type: 'success' | 'error'} | null>(null);
 
     // Form methods for adding/editing meals
     const mealFormMethods = useForm<MealFormData>({
@@ -261,17 +276,93 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose }) =
         setActiveDayNumber(day);
     };
 
-    // Add new day
-    const handleAddDay = () => {
-        const maxDay = nutritionPlan?.days.reduce((max, day) => Math.max(max, day), 0) || 0;
-        setActiveDayNumber(maxDay + 1);
-        setShowAddMealForm(true);
-        resetMealForm({
-            name: '',
-            time_suggestion: '',
+    // Add a handler for editing a day
+    const handleEditDay = (dayNumber: number) => {
+        // Find the first meal for this day to get the day type
+        const dayMeals = nutritionPlan?.meals.filter(meal => meal.day_number === dayNumber) || [];
+        const dayMeal = dayMeals[0];
+        if (dayMeal) {
+            setEditingDayNumber(dayNumber);
+            setEditingDayType(dayMeal.day_type || '');
+            setShowEditDayModal(true);
+        }
+    };
+
+    // Handler for day edit success
+    const handleDayEditSuccess = () => {
+        setShowEditDayModal(false);
+        fetchNutritionPlan();
+    };
+
+    // Handler for opening the add day modal
+    const openAddDayModal = () => {
+        setShowAddDayModal(true);
+    };
+
+    // Modify the handleAddDay function to default the day_type
+    const handleAddDay = (dayNumber: number, dayType: string) => {
+        // Validate day type
+        if (!dayType.trim()) {
+            setAlertMessage({
+                message: 'Please provide a day type',
+                type: 'error'
+            });
+            return;
+        }
+
+        if (isNaN(dayNumber) || dayNumber <= 0) {
+            setAlertMessage({
+                message: 'Please enter a valid day number',
+                type: 'error'
+            });
+            return;
+        }
+
+        // Check if day already exists
+        if (nutritionPlan?.days.includes(dayNumber)) {
+            setAlertMessage({
+                message: 'This day number already exists',
+                type: 'error'
+            });
+            return;
+        }
+
+        // Create a new meal with the specified day number and type
+        const newMeal = {
+            nutrition_plan_id: nutritionPlanId,
+            day_number: dayNumber,
+            day_type: dayType,
+            meal_number: 1,
+            name: 'Meal 1',
+            description: '',
             notes: '',
-            day_number: maxDay + 1,
-            day_type: ''
+            order_in_plan: 0, // First meal of the day
+        };
+
+        // Add the meal using the existing createMeal function
+        createMeal(newMeal).then(() => {
+            // Close the modal
+            setShowAddDayModal(false);
+            
+            // Refresh the nutrition plan after adding the meal
+            fetchNutritionPlan();
+            
+            // Show success message
+            setAlertMessage({
+                message: 'Day added successfully',
+                type: 'success'
+            });
+            
+            // Clear the message after 3 seconds
+            setTimeout(() => {
+                setAlertMessage(null);
+            }, 3000);
+        }).catch((error: Error) => {
+            console.error('Error adding day:', error);
+            setAlertMessage({
+                message: 'Failed to add day: ' + (error.message || 'Unknown error'),
+                type: 'error'
+            });
         });
     };
 
@@ -511,7 +602,7 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose }) =
                     <div className="flex items-center mb-2">
                         <h3 className="text-lg font-medium text-gray-800 dark:text-white mr-2">Days</h3>
                         <button
-                            onClick={handleAddDay}
+                            onClick={openAddDayModal}
                             className="ml-auto flex items-center px-3 py-1 text-sm text-white bg-indigo-600 rounded hover:bg-indigo-700"
                         >
                             <FiPlus className="mr-1" /> Add Day
@@ -519,19 +610,32 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose }) =
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {nutritionPlan.days.length > 0 ? (
-                            nutritionPlan.days.map(day => (
-                                <button
-                                    key={day}
-                                    onClick={() => handleDayChange(day)}
-                                    className={`px-4 py-2 text-sm rounded-md transition-colors ${
-                                        activeDayNumber === day
-                                            ? 'bg-indigo-600 text-white'
-                                            : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
-                                    }`}
-                                >
-                                    Day {day}
-                                </button>
-                            ))
+                            nutritionPlan.days.map(day => {
+                                // Get the day type from the first meal with this day number
+                                const dayMeal = nutritionPlan.meals.find(meal => meal.day_number === day);
+                                const dayType = dayMeal?.day_type || `Day ${day}`;
+                                
+                                return (
+                                    <div key={day} className="flex flex-col items-center">
+                                        <button
+                                            onClick={() => handleDayChange(day)}
+                                            className={`px-4 py-2 text-sm rounded-md transition-colors w-full ${
+                                                activeDayNumber === day
+                                                    ? 'bg-indigo-600 text-white'
+                                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
+                                            }`}
+                                        >
+                                            {dayType}
+                                        </button>
+                                        <button
+                                            onClick={() => handleEditDay(day)}
+                                            className="mt-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
+                                );
+                            })
                         ) : (
                             <p className="text-gray-600 dark:text-gray-400">No days added yet. Use the "Add Day" button to get started.</p>
                         )}
@@ -604,7 +708,7 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose }) =
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 <FormInput<MealFormData> name="day_number" label="Day Number" type="number" required />
-                                <FormInput<MealFormData> name="day_type" label="Day Type (e.g., training, rest)" />
+                                <FormInput<MealFormData> name="day_type" label="Day Type" required />
                             </div>
                             <FormInput<MealFormData> name="notes" label="Notes (optional)" type="textarea" rows={3} />
                             <div className="flex justify-end mt-4 space-x-3">
@@ -708,6 +812,122 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose }) =
                                 >
                                     Delete
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Edit Day Modal */}
+                {showEditDayModal && editingDayNumber !== null && (
+                    <EditDayModal
+                        isOpen={showEditDayModal}
+                        onClose={() => setShowEditDayModal(false)}
+                        onSuccess={handleDayEditSuccess}
+                        nutritionPlanId={nutritionPlanId}
+                        dayNumber={editingDayNumber}
+                        dayType={editingDayType || ''}
+                    />
+                )}
+
+                {/* Add Day Modal */}
+                {showAddDayModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+                            <div className="p-6">
+                                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                                    Add New Day
+                                </h2>
+                                
+                                {alertMessage && (
+                                    <div className={`mb-4 p-3 rounded-md ${
+                                        alertMessage.type === 'error' 
+                                            ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300' 
+                                            : 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                                    }`}>
+                                        {alertMessage.message}
+                                    </div>
+                                )}
+
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const dayNumber = parseInt(dayNumberRef.current?.value || '0');
+                                    const finalDayType = selectedDayType === 'Custom Day' 
+                                        ? customDayType.trim() 
+                                        : selectedDayType;
+                                    handleAddDay(dayNumber, finalDayType);
+                                }}>
+                                    <div className="mb-4">
+                                        <label htmlFor="dayNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Day Number <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            id="dayNumber"
+                                            type="number"
+                                            ref={dayNumberRef}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                            placeholder="e.g., 1, 2, 3"
+                                            min="1"
+                                            required
+                                        />
+                                    </div>
+                                    
+                                    <div className="mb-4">
+                                        <label htmlFor="dayType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Day Type <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            id="dayType"
+                                            value={selectedDayType}
+                                            onChange={(e) => setSelectedDayType(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                        >
+                                            {DAY_TYPES.map((type) => (
+                                                <option key={type} value={type}>
+                                                    {type}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        
+                                        {selectedDayType === 'Custom Day' && (
+                                            <div className="mt-3">
+                                                <label htmlFor="customDayType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                                    Custom Day Name <span className="text-red-500">*</span>
+                                                </label>
+                                                <input
+                                                    id="customDayType"
+                                                    type="text"
+                                                    value={customDayType}
+                                                    onChange={(e) => setCustomDayType(e.target.value)}
+                                                    placeholder="e.g., Upper Body Day, Leg Day"
+                                                    required={selectedDayType === 'Custom Day'}
+                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                                />
+                                            </div>
+                                        )}
+                                        
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            Select a predefined day type or choose "Custom Day" to enter your own
+                                        </p>
+                                    </div>
+
+                                    <div className="flex justify-end space-x-3 mt-6">
+                                        <Button
+                                            type="button"
+                                            onClick={() => setShowAddDayModal(false)}
+                                            variant="secondary"
+                                            color="gray"
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            variant="primary"
+                                            color="indigo"
+                                        >
+                                            Add Day
+                                        </Button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>

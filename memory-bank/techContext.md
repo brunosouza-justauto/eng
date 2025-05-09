@@ -98,4 +98,38 @@
 
 - Browser compatibility: Modern browsers only (Chrome, Firefox, Safari, Edge)
 - Mobile support: iOS 12+, Android 8+
-- Connection requirement: Online functionality with limited offline capabilities 
+- Connection requirement: Online functionality with limited offline capabilities
+
+## API Integrations
+
+### Fitness Device APIs
+The application integrates with several fitness device APIs to sync step data:
+
+1. **Fitbit API**
+   - Uses OAuth 2.0 for authentication
+   - Requires Basic Authentication with client ID and secret for token exchange
+   - API requests are proxied in development to avoid CORS issues
+   - Step data retrieved using the activities/steps endpoint
+
+2. **Google Fit API**
+   - Uses OAuth 2.0 for authentication
+   - Token exchange doesn't require Basic Authentication
+   - Uses dataset:aggregate endpoint for step data
+
+3. **Other providers**
+   - Garmin, Apple Health, and Samsung Health integrations are prepared but may require additional implementation
+
+## Development Environment
+
+### Vite Proxy Configuration
+- Local development server uses Vite's proxy feature to handle CORS issues
+- Proxy paths:
+  - `/api/fitbit` → `https://api.fitbit.com`
+  - Additional proxies can be added for other fitness APIs
+
+### Authentication Flow
+1. OAuth flow initiated with `initiateOAuth` function
+2. Callback handled in `FitnessDeviceCallback` component
+3. Token exchange performed with provider-specific authentication requirements
+4. Connection stored in the `device_connections` table in Supabase
+5. Token refresh handled automatically when expired 

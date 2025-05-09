@@ -22,6 +22,8 @@ interface MealFoodItemData {
 interface MealData {
     name: string;
     order_in_plan: number | null;
+    day_number: number | null;
+    day_type: string | null; // Day type (e.g., "Training Day", "Rest Day")
     meal_food_items: MealFoodItemData[];
 }
 
@@ -38,10 +40,19 @@ interface NutritionPlanDataWithId extends NutritionPlanData {
     id: string;
 }
 
+// Helper type for organizing meals by day
+interface DayMeals {
+    day: number;
+    dayType: string;
+    meals: MealData[];
+}
+
 const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) => {
     const [planData, setPlanData] = useState<NutritionPlanDataWithId | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const [selectedDay, setSelectedDay] = useState<number>(1); // Default to day 1
+    const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
     useEffect(() => {
         const fetchPlan = async () => {
@@ -69,6 +80,8 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
                         meals (
                             name,
                             order_in_plan,
+                            day_number,
+                            day_type,
                             meal_food_items (
                                 quantity,
                                 unit,
@@ -77,8 +90,8 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
                         )
                     `)
                     .eq('id', nutritionPlanId)
-                    // TODO: Add ordering for meals and meal_food_items if needed
-                    // .order('order_in_plan', { foreignTable: 'meals', ascending: true })
+                    .order('day_number', { foreignTable: 'meals', ascending: true })
+                    .order('order_in_plan', { foreignTable: 'meals', ascending: true })
                     .single();
 
                 if (fetchError) throw fetchError;
@@ -106,12 +119,87 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
 
     }, [nutritionPlanId]);
 
+    // Reset expanded state when day changes
+    useEffect(() => {
+        setIsExpanded(false);
+    }, [selectedDay]);
+
+    // Group meals by day
+    const getMealsByDay = (): DayMeals[] => {
+        if (!planData?.meals || planData.meals.length === 0) return [];
+
+        // Create a map to group meals by day
+        const mealsByDay = new Map<number, { meals: MealData[], dayType: string }>();
+        
+        // Group all meals by their day number (default to day 1 if missing)
+        planData.meals.forEach(meal => {
+            const day = meal.day_number || 1;
+            // Use a default day type if none exists
+            const dayType = meal.day_type || `Day ${day}`;
+            
+            if (!mealsByDay.has(day)) {
+                mealsByDay.set(day, { 
+                    meals: [],
+                    dayType
+                });
+            }
+            mealsByDay.get(day)?.meals.push(meal);
+        });
+        
+        // Convert map to array and sort by day number
+        return Array.from(mealsByDay.entries())
+            .map(([day, data]) => ({ 
+                day, 
+                dayType: data.dayType,
+                meals: data.meals.sort((a, b) => (a.order_in_plan || 0) - (b.order_in_plan || 0))
+            }))
+            .sort((a, b) => a.day - b.day);
+    };
+
+    const getDayLabel = (day: number, dayType: string): string => {
+        return dayType || `Day ${day}`;
+    };
+
+    const dayMeals = getMealsByDay();
+    
+    // Get the current day's meals and type
+    const currentDay = dayMeals.find(dayMeal => dayMeal.day === selectedDay);
+    const currentDayMeals = currentDay?.meals || [];
+    const currentDayType = currentDay?.dayType || `Day ${selectedDay}`;
+    
+    // For the summary view, show only the first two meals
+    const summaryMeals = currentDayMeals.slice(0, 2);
+    const remainingMealsCount = currentDayMeals.length - summaryMeals.length;
+
     const header = (
         <div className="flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h5a1 1 0 000-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM13 16a1 1 0 102 0v-5.586l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 101.414 1.414L13 10.414V16z" />
             </svg>
             <h2 className="text-lg font-medium">Today's Nutrition</h2>
+        </div>
+    );
+
+    // Render a single meal card
+    const renderMealCard = (meal: MealData, index: number) => (
+        <div key={index} className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-sm">
+            <h5 className="font-medium text-indigo-600 dark:text-indigo-400 mb-2">{meal.name}</h5>
+            {meal.meal_food_items && meal.meal_food_items.length > 0 ? (
+                <ul className="space-y-2">
+                    {meal.meal_food_items.map((item, itemIndex) => (
+                        <li key={itemIndex} className="flex justify-between text-sm">
+                            <span className="text-gray-700 dark:text-gray-300 truncate pr-2">
+                                {item.food_items?.food_name || 'Unknown food'}
+                            </span>
+                            <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                {item.quantity} {item.unit}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 italic">No food items</p>
+            )}
         </div>
     );
 
@@ -194,6 +282,69 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
                                         </div>
                                     </div>
                                 </div>
+                                
+                                {/* Day selector tabs */}
+                                {dayMeals.length > 1 && (
+                                    <div className="flex overflow-x-auto space-x-2 pb-2">
+                                        {dayMeals.map((dayMeal) => (
+                                            <button
+                                                key={dayMeal.day}
+                                                onClick={() => setSelectedDay(dayMeal.day)}
+                                                className={`px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap ${
+                                                    selectedDay === dayMeal.day
+                                                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
+                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                                                }`}
+                                            >
+                                                {getDayLabel(dayMeal.day, dayMeal.dayType)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Meals for selected day */}
+                                {dayMeals.length > 0 ? (
+                                    <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                {currentDayType} Meals
+                                            </h4>
+                                            {currentDayMeals.length > 0 && (
+                                                <button 
+                                                    onClick={() => setIsExpanded(!isExpanded)}
+                                                    className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
+                                                >
+                                                    {isExpanded ? 'Show Less' : 'Show All'}
+                                                </button>
+                                            )}
+                                        </div>
+                                        
+                                        {currentDayMeals.length > 0 ? (
+                                            <div className="space-y-4">
+                                                {/* Show either summary or all meals based on expanded state */}
+                                                {(isExpanded ? currentDayMeals : summaryMeals).map((meal, index) => 
+                                                    renderMealCard(meal, index)
+                                                )}
+                                                
+                                                {/* Show "more meals" indicator if not expanded */}
+                                                {!isExpanded && remainingMealsCount > 0 && (
+                                                    <button 
+                                                        onClick={() => setIsExpanded(true)}
+                                                        className="w-full py-2 px-3 text-sm text-center text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-md transition-colors"
+                                                    >
+                                                        + {remainingMealsCount} more meal{remainingMealsCount !== 1 ? 's' : ''}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">No meals defined for this day</p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 italic">No meals defined for this plan</p>
+                                    </div>
+                                )}
                                 
                                 <div className="pt-2">
                                     <ButtonLink 

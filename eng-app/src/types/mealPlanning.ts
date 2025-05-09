@@ -4,6 +4,21 @@ import { z } from 'zod';
 export const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack'] as const;
 export type MealType = typeof MEAL_TYPES[number];
 
+// Day types for nutrition planning
+export const DAY_TYPES = [
+  'Training Day',
+  'Rest Day', 
+  'Low Carb Day',
+  'High Carb Day',
+  'Moderate Carb Day',
+  'Refeed Day',
+  'Deload Day',
+  'Competition Day',
+  'Travel Day',
+  'Custom Day'
+] as const;
+export type DayType = typeof DAY_TYPES[number];
+
 // Basic interfaces matching our database schema
 export interface Meal {
     id: string;
@@ -140,7 +155,7 @@ export const mealSchema = z.object({
         (val) => (val ? parseInt(String(val), 10) : 1),
         z.number().int().min(1, 'Day number must be at least 1')
     ),
-    day_type: z.string().optional(),
+    day_type: z.string().min(1, 'Day type is required'),
 });
 
 export const recipeSchema = z.object({
