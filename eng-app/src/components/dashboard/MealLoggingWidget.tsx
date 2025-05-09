@@ -337,7 +337,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Calories</p>
+                        <p className="text-sm font-medium text-green-600 dark:text-green-400">Calories</p>
                         <div className="flex flex-col">
                             <p className="text-lg font-semibold text-gray-800 dark:text-white">
                                 {Math.round(dayTypeNutrition.total_calories || 0)}
@@ -353,7 +353,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                         </div>
                     </div>
                     <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Protein</p>
+                        <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Protein</p>
                         <div className="flex flex-col">
                             <p className="text-lg font-semibold text-gray-800 dark:text-white">
                                 {Math.round(dayTypeNutrition.total_protein || 0)}g
@@ -362,14 +362,14 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                                 </span>
                             </p>
                             {dayTypeNutrition.planned_protein > 0 && (
-                                <p className="text-xs text-green-600 dark:text-green-400">
+                                <p className="text-xs text-blue-600 dark:text-blue-400">
                                     {calculateRemaining(dayTypeNutrition.total_protein, dayTypeNutrition.planned_protein)}g remaining
                                 </p>
                             )}
                         </div>
                     </div>
                     <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Carbs</p>
+                        <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Carbs</p>
                         <div className="flex flex-col">
                             <p className="text-lg font-semibold text-gray-800 dark:text-white">
                                 {Math.round(dayTypeNutrition.total_carbs || 0)}g
@@ -378,14 +378,14 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                                 </span>
                             </p>
                             {dayTypeNutrition.planned_carbs > 0 && (
-                                <p className="text-xs text-green-600 dark:text-green-400">
+                                <p className="text-xs text-amber-600 dark:text-amber-400">
                                     {calculateRemaining(dayTypeNutrition.total_carbs, dayTypeNutrition.planned_carbs)}g remaining
                                 </p>
                             )}
                         </div>
                     </div>
                     <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Fat</p>
+                        <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Fat</p>
                         <div className="flex flex-col">
                             <p className="text-lg font-semibold text-gray-800 dark:text-white">
                                 {Math.round(dayTypeNutrition.total_fat || 0)}g
@@ -394,7 +394,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                                 </span>
                             </p>
                             {dayTypeNutrition.planned_fat > 0 && (
-                                <p className="text-xs text-green-600 dark:text-green-400">
+                                <p className="text-xs text-purple-600 dark:text-purple-400">
                                     {calculateRemaining(dayTypeNutrition.total_fat, dayTypeNutrition.planned_fat)}g remaining
                                 </p>
                             )}
