@@ -29,7 +29,6 @@ export const getNutritionPlanById = async (planId: string): Promise<NutritionPla
             .from('meals')
             .select('*')
             .eq('nutrition_plan_id', planId)
-            .order('day_number', { ascending: true })
             .order('order_in_plan', { ascending: true });
         
         if (mealsError) throw mealsError;
@@ -38,7 +37,7 @@ export const getNutritionPlanById = async (planId: string): Promise<NutritionPla
         const mealIds = mealsData?.map(meal => meal.id) || [];
         
         let mealsWithFoodItems: MealWithFoodItems[] = [];
-        const days: number[] = [];
+        const uniqueDayTypes: string[] = [];
         
         if (mealIds.length > 0) {
             const { data: foodItemsData, error: foodItemsError } = await supabase
@@ -93,9 +92,9 @@ export const getNutritionPlanById = async (planId: string): Promise<NutritionPla
                     { calories: 0, protein: 0, carbs: 0, fat: 0 }
                 );
                 
-                // Track unique days
-                if (!days.includes(meal.day_number)) {
-                    days.push(meal.day_number);
+                // Track unique day types
+                if (meal.day_type && !uniqueDayTypes.includes(meal.day_type)) {
+                    uniqueDayTypes.push(meal.day_type);
                 }
                 
                 return {
@@ -108,14 +107,14 @@ export const getNutritionPlanById = async (planId: string): Promise<NutritionPla
                 };
             });
             
-            // Sort days
-            days.sort((a, b) => a - b);
+            // Sort day types
+            uniqueDayTypes.sort();
         }
         
         return {
             ...planData,
             meals: mealsWithFoodItems,
-            days
+            dayTypes: uniqueDayTypes
         };
     } catch (error) {
         console.error('Error fetching nutrition plan:', error);
@@ -141,7 +140,7 @@ export const createMeal = async (meal: Omit<Meal, 'id' | 'created_at' | 'updated
 };
 
 // New function to duplicate a meal with all its food items
-export const duplicateMeal = async (mealId: string, newDayNumber?: number): Promise<Meal> => {
+export const duplicateMeal = async (mealId: string): Promise<Meal> => {
     try {
         // 1. Get the original meal with all its food items
         const { data: mealData, error: mealError } = await supabase
@@ -168,7 +167,6 @@ export const duplicateMeal = async (mealId: string, newDayNumber?: number): Prom
             time_suggestion: mealData.time_suggestion || undefined,
             notes: mealData.notes || undefined,
             order_in_plan: mealData.order_in_plan + 1, // Place right after the original meal
-            day_number: newDayNumber || mealData.day_number, // Use the provided day or keep the same
             day_type: mealData.day_type || undefined
         };
         

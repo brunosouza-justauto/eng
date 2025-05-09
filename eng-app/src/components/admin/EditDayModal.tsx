@@ -7,30 +7,24 @@ interface EditDayModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  nutritionPlanId: string;
-  dayNumber: number;
   dayType: string | null;
+  mealIds: string[]; // Pass the IDs of all meals with this day type
 }
 
 const EditDayModal: React.FC<EditDayModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  nutritionPlanId,
-  dayNumber,
-  dayType
+  dayType,
+  mealIds
 }) => {
   const [selectedDayType, setSelectedDayType] = useState<string>('Custom Day');
   const [customDayType, setCustomDayType] = useState<string>('');
-  const [newDayNumber, setNewDayNumber] = useState<number>(dayNumber);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Initialize form values when the component mounts or dayType changes
   useEffect(() => {
-    // Set the day number
-    setNewDayNumber(dayNumber);
-    
     // Set the day type
     if (dayType) {
       // Check if the dayType is in our predefined list
@@ -43,11 +37,11 @@ const EditDayModal: React.FC<EditDayModalProps> = ({
         setCustomDayType(dayType);
       }
     } else {
-      // Default to "Day X" format if no dayType provided
-      setSelectedDayType('Custom Day');
-      setCustomDayType(`Day ${dayNumber}`);
+      // Default to first day type if no dayType provided
+      setSelectedDayType(DAY_TYPES[0]);
+      setCustomDayType('');
     }
-  }, [dayType, dayNumber]);
+  }, [dayType]);
 
   if (!isOpen) return null;
 
@@ -68,44 +62,21 @@ const EditDayModal: React.FC<EditDayModalProps> = ({
       return;
     }
 
-    // Validate that we have a valid day number
-    if (newDayNumber <= 0) {
-      setError('Day number must be greater than 0');
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      // Check if we're changing the day number
-      if (newDayNumber !== dayNumber) {
-        // Check if the new day number already exists in the plan
-        const { data: existingMeals, error: existingError } = await supabase
+      // Update all meals with this day type
+      if (mealIds && mealIds.length > 0) {
+        const { error: updateError } = await supabase
           .from('meals')
-          .select('id')
-          .eq('nutrition_plan_id', nutritionPlanId)
-          .eq('day_number', newDayNumber)
-          .limit(1);
-          
-        if (existingError) throw existingError;
-        
-        if (existingMeals && existingMeals.length > 0) {
-          setError(`Day ${newDayNumber} already exists in this plan. Please choose a different day number.`);
-          setIsLoading(false);
-          return;
-        }
+          .update({ 
+            day_type: finalDayType
+          })
+          .in('id', mealIds);
+
+        if (updateError) throw updateError;
+      } else {
+        // No meals to update
+        console.warn('No meal IDs provided for day type update');
       }
-
-      // Update all meals for this day with the new day type and number
-      const { error: updateError } = await supabase
-        .from('meals')
-        .update({ 
-          day_type: finalDayType,
-          day_number: newDayNumber
-        })
-        .eq('nutrition_plan_id', nutritionPlanId)
-        .eq('day_number', dayNumber);
-
-      if (updateError) throw updateError;
 
       onSuccess();
       onClose();
@@ -126,7 +97,7 @@ const EditDayModal: React.FC<EditDayModalProps> = ({
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
         <div className="p-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            Edit Day {dayNumber}
+            Edit Day Type
           </h2>
 
           {error && (
@@ -136,24 +107,6 @@ const EditDayModal: React.FC<EditDayModalProps> = ({
           )}
 
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label htmlFor="dayNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Day Number <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="dayNumber"
-                type="number"
-                min="1"
-                value={newDayNumber}
-                onChange={(e) => setNewDayNumber(parseInt(e.target.value) || 1)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                required
-              />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Changing the day number will move all meals to the new day
-              </p>
-            </div>
-            
             <div className="mb-4">
               <label htmlFor="dayType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Day Type <span className="text-red-500">*</span>

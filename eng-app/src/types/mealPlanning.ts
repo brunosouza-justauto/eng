@@ -27,7 +27,6 @@ export interface Meal {
     time_suggestion?: string;
     notes?: string;
     order_in_plan: number;
-    day_number: number;
     day_type?: string;
     created_at: string;
     updated_at: string;
@@ -126,7 +125,8 @@ export interface NutritionPlanWithMeals {
     fat_grams?: number;
     description?: string;
     meals: MealWithFoodItems[];
-    days: number[]; // List of day numbers in the plan
+    // Track order groups in the plan by day_type instead of day numbers
+    dayTypes?: string[];
 }
 
 // Form data interfaces for React Hook Form
@@ -134,7 +134,6 @@ export interface MealFormData {
     name: string;
     time_suggestion: string;
     notes: string;
-    day_number: number;
     day_type: string;
 }
 
@@ -151,10 +150,6 @@ export const mealSchema = z.object({
     name: z.string().min(1, 'Meal name is required'),
     time_suggestion: z.string().optional(),
     notes: z.string().optional(),
-    day_number: z.preprocess(
-        (val) => (val ? parseInt(String(val), 10) : 1),
-        z.number().int().min(1, 'Day number must be at least 1')
-    ),
     day_type: z.string().min(1, 'Day type is required'),
 });
 

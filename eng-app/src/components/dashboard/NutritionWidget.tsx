@@ -30,7 +30,6 @@ interface MealData {
     id: string;
     name: string;
     order_in_plan: number | null;
-    day_number: number | null;
     day_type: string | null; // Day type (e.g., "Training Day", "Rest Day")
     meal_food_items: MealFoodItemData[];
 }
@@ -108,7 +107,6 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
                             id,
                             name,
                             order_in_plan,
-                            day_number,
                             day_type,
                             meal_food_items (
                                 id,
@@ -158,19 +156,19 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
                     // Set default selected day type - prioritize order_in_plan 0
                     if (processedMeals && processedMeals.length > 0) {
                         // Try to find meals with order_in_plan 0
-                        const day0Meal = processedMeals.find(meal => meal.order_in_plan === 0);
+                        const firstMeal = processedMeals.find(meal => meal.order_in_plan === 0);
                         
-                        if (day0Meal && day0Meal.day_type) {
+                        if (firstMeal && firstMeal.day_type) {
                             // If found, use its day_type
-                            setSelectedDayType(day0Meal.day_type);
+                            setSelectedDayType(firstMeal.day_type);
                         } else {
                             // If no order_in_plan 0 meals, find the day with the lowest order_in_plan
-                            const sortedByDayNumber = [...processedMeals]
+                            const sortedByOrder = [...processedMeals]
                                 .filter(meal => meal.order_in_plan !== null)
                                 .sort((a, b) => (a.order_in_plan || 0) - (b.order_in_plan || 0));
                             
-                            if (sortedByDayNumber.length > 0 && sortedByDayNumber[0].day_type) {
-                                setSelectedDayType(sortedByDayNumber[0].day_type);
+                            if (sortedByOrder.length > 0 && sortedByOrder[0].day_type) {
+                                setSelectedDayType(sortedByOrder[0].day_type);
                             } else {
                                 // Fallback to first day type alphabetically
                                 const firstDayType = Object.keys(dayTypes)[0] || null;
