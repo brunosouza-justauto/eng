@@ -9,22 +9,25 @@ interface NutritionWidgetProps {
 
 // Define types for fetched data
 interface FoodItemData {
+    id: string;
     food_name: string;
+    calories_per_100g: number;
+    protein_per_100g: number;
+    carbs_per_100g: number;
+    fat_per_100g: number;
     // Add other fields if needed for display
 }
 
 interface MealFoodItemData {
+    id: string;
     quantity: number;
     unit: string;
-    // Add nutrition properties
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
+    food_item_id: string;
     food_items: FoodItemData | null; // Nested fetch
 }
 
 interface MealData {
+    id: string;
     name: string;
     order_in_plan: number | null;
     day_number: number | null;
@@ -59,6 +62,14 @@ interface DayTypeNutrition {
     fat: number;
 }
 
+// Helper interface for nutrition values of a food item
+interface FoodItemNutrition {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+}
+
 const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) => {
     const [planData, setPlanData] = useState<NutritionPlanDataWithId | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -83,7 +94,7 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
             setPlanData(null);
 
             try {
-                // Also fetch food_items nutrition data to calculate per-day type macros
+                // Update query to fetch the necessary food item data to calculate nutrition
                 const { data, error: fetchError } = await supabase
                     .from('nutrition_plans')
                     .select(`
@@ -94,18 +105,24 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
                         carbohydrate_grams,
                         fat_grams,
                         meals (
+                            id,
                             name,
                             order_in_plan,
                             day_number,
                             day_type,
                             meal_food_items (
+                                id,
                                 quantity,
                                 unit,
-                                calories,
-                                protein,
-                                carbs,
-                                fat,
-                                food_items ( food_name )
+                                food_item_id,
+                                food_items (
+                                    id,
+                                    food_name,
+                                    calories_per_100g,
+                                    protein_per_100g,
+                                    carbs_per_100g,
+                                    fat_per_100g
+                                )
                             )
                         )
                     `)
@@ -119,17 +136,47 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
                 if (data) {
                     // Cast the data safely
                     const typedData = data as unknown as NutritionPlanDataWithId;
-                    setPlanData(typedData);
+                    
+                    // Process meals to calculate nutrition for each meal food item
+                    const processedMeals = typedData.meals.map(meal => {
+                        // Process each meal and its food items
+                        const processedMeal = { ...meal };
+                        return processedMeal;
+                    });
+                    
+                    const processedPlanData = {
+                        ...typedData,
+                        meals: processedMeals
+                    };
+                    
+                    setPlanData(processedPlanData);
                     
                     // Calculate nutrition totals per day type
-                    const dayTypes = calculateDayTypeNutrition(typedData.meals);
+                    const dayTypes = calculateDayTypeNutrition(processedMeals);
                     setDayTypeNutrition(dayTypes);
 
-                    // Set default selected day type
-                    if (typedData.meals && typedData.meals.length > 0) {
-                        // Find first day type with meals
-                        const firstDayType = Object.keys(dayTypes)[0] || null;
-                        setSelectedDayType(firstDayType);
+                    // Set default selected day type - prioritize order_in_plan 0
+                    if (processedMeals && processedMeals.length > 0) {
+                        // Try to find meals with order_in_plan 0
+                        const day0Meal = processedMeals.find(meal => meal.order_in_plan === 0);
+                        
+                        if (day0Meal && day0Meal.day_type) {
+                            // If found, use its day_type
+                            setSelectedDayType(day0Meal.day_type);
+                        } else {
+                            // If no order_in_plan 0 meals, find the day with the lowest order_in_plan
+                            const sortedByDayNumber = [...processedMeals]
+                                .filter(meal => meal.order_in_plan !== null)
+                                .sort((a, b) => (a.order_in_plan || 0) - (b.order_in_plan || 0));
+                            
+                            if (sortedByDayNumber.length > 0 && sortedByDayNumber[0].day_type) {
+                                setSelectedDayType(sortedByDayNumber[0].day_type);
+                            } else {
+                                // Fallback to first day type alphabetically
+                                const firstDayType = Object.keys(dayTypes)[0] || null;
+                                setSelectedDayType(firstDayType);
+                            }
+                        }
                     }
                 } else {
                     setError('Assigned nutrition plan not found.');
@@ -157,6 +204,33 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
         setIsExpanded(false);
     }, [selectedDayType]);
 
+    // Calculate nutrition for a food item based on quantity and unit
+    const calculateFoodItemNutrition = (foodItem: MealFoodItemData): FoodItemNutrition => {
+        if (!foodItem.food_items) {
+            return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+        }
+        
+        // Convert quantity to grams based on unit if needed
+        let quantityInGrams = foodItem.quantity;
+        
+        // Adjust for different units if necessary
+        // This is a simplified conversion - more complex logic might be needed for other units
+        if (foodItem.unit.toLowerCase() === 'oz') {
+            quantityInGrams = foodItem.quantity * 28.35; // 1 oz = 28.35g
+        } else if (foodItem.unit.toLowerCase() === 'lb') {
+            quantityInGrams = foodItem.quantity * 453.59; // 1 lb = 453.59g
+        }
+        
+        // Calculate nutrition based on per 100g values and actual quantity
+        const multiplier = quantityInGrams / 100;
+        return {
+            calories: (foodItem.food_items.calories_per_100g || 0) * multiplier,
+            protein: (foodItem.food_items.protein_per_100g || 0) * multiplier,
+            carbs: (foodItem.food_items.carbs_per_100g || 0) * multiplier,
+            fat: (foodItem.food_items.fat_per_100g || 0) * multiplier
+        };
+    };
+
     // Calculate nutrition totals per day type from meals
     const calculateDayTypeNutrition = (meals: MealData[]): Record<string, DayTypeNutrition> => {
         if (!meals || meals.length === 0) return {};
@@ -176,13 +250,14 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
                 };
             }
             
-            // Add up meal food item nutrients
+            // Calculate and add up meal food item nutrients
             (meal.meal_food_items || []).forEach(item => {
-                if (item) {
-                    nutritionByDayType[dayType].calories += item.calories || 0;
-                    nutritionByDayType[dayType].protein += item.protein || 0;
-                    nutritionByDayType[dayType].carbs += item.carbs || 0;
-                    nutritionByDayType[dayType].fat += item.fat || 0;
+                if (item && item.food_items) {
+                    const nutrition = calculateFoodItemNutrition(item);
+                    nutritionByDayType[dayType].calories += nutrition.calories;
+                    nutritionByDayType[dayType].protein += nutrition.protein;
+                    nutritionByDayType[dayType].carbs += nutrition.carbs;
+                    nutritionByDayType[dayType].fat += nutrition.fat;
                 }
             });
         });
@@ -217,6 +292,22 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
             .sort((a, b) => a.dayType.localeCompare(b.dayType));
     };
 
+    // Get meal nutrition for display
+    const getMealNutrition = (meal: MealData): FoodItemNutrition => {
+        return meal.meal_food_items.reduce(
+            (total, item) => {
+                const nutrition = calculateFoodItemNutrition(item);
+                return {
+                    calories: total.calories + nutrition.calories,
+                    protein: total.protein + nutrition.protein,
+                    carbs: total.carbs + nutrition.carbs,
+                    fat: total.fat + nutrition.fat
+                };
+            },
+            { calories: 0, protein: 0, carbs: 0, fat: 0 }
+        );
+    };
+
     const dayTypeMeals = getMealsByDayType();
     
     // Get the current day type's meals
@@ -240,27 +331,36 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
     );
 
     // Render a single meal card
-    const renderMealCard = (meal: MealData, index: number) => (
-        <div key={index} className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-sm">
-            <h5 className="font-medium text-indigo-600 dark:text-indigo-400 mb-2">{meal.name}</h5>
-            {meal.meal_food_items && meal.meal_food_items.length > 0 ? (
-                <ul className="space-y-2">
-                    {meal.meal_food_items.map((item, itemIndex) => (
-                        <li key={itemIndex} className="flex justify-between text-sm">
-                            <span className="text-gray-700 dark:text-gray-300 truncate pr-2">
-                                {item.food_items?.food_name || 'Unknown food'}
-                            </span>
-                            <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                {item.quantity} {item.unit}
-                            </span>
-                        </li>
-                    ))}
-                </ul>
-            ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400 italic">No food items</p>
-            )}
-        </div>
-    );
+    const renderMealCard = (meal: MealData, index: number) => {
+        const mealNutrition = getMealNutrition(meal);
+        
+        return (
+            <div key={index} className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-sm">
+                <div className="flex justify-between items-center mb-2">
+                    <h5 className="font-medium text-indigo-600 dark:text-indigo-400">{meal.name}</h5>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {Math.round(mealNutrition.calories)} cal
+                    </span>
+                </div>
+                {meal.meal_food_items && meal.meal_food_items.length > 0 ? (
+                    <ul className="space-y-2">
+                        {meal.meal_food_items.map((item, itemIndex) => (
+                            <li key={itemIndex} className="flex justify-between text-sm">
+                                <span className="text-gray-700 dark:text-gray-300 truncate pr-2">
+                                    {item.food_items?.food_name || 'Unknown food'}
+                                </span>
+                                <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                    {item.quantity} {item.unit}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">No food items</p>
+                )}
+            </div>
+        );
+    };
 
     return (
         <Card 

@@ -373,8 +373,8 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
                 // Update existing meal
                 await updateMeal(editingMeal.id, {
                     name: data.name,
-                    time_suggestion: data.time_suggestion || null,
-                    notes: data.notes || null,
+                    time_suggestion: data.time_suggestion || '',
+                    notes: data.notes || '',
                     day_type: finalDayType
                 });
             } else {
@@ -385,8 +385,8 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
                 await createMeal({
                     nutrition_plan_id: nutritionPlanId,
                     name: data.name,
-                    time_suggestion: data.time_suggestion || null,
-                    notes: data.notes || null,
+                    time_suggestion: data.time_suggestion || '',
+                    notes: data.notes || '',
                     order_in_plan: maxOrder + 1,
                     day_number: 1, // Default day_number, since we're moving away from this concept
                     day_type: finalDayType
