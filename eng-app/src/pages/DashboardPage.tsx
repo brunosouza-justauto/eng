@@ -228,7 +228,7 @@ const DashboardPage: React.FC = () => {
           ) : hasWeeklyCheckIn ? (
             <span className="text-green-600 dark:text-green-400">
               Next check-in: {getNextCheckInDayDisplay()}, {getNextCheckInDateDisplay()}
-            </span>image.png
+            </span>
           ) : (
             <span className="text-yellow-600 dark:text-yellow-400">
               Check-in due this week.<br />Please complete by {format(currentWeekEnd, 'EEEE, MMMM d')}

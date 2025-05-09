@@ -19,6 +19,8 @@ import Card from '../ui/Card';
 
 interface MealLoggingWidgetProps {
     nutritionPlanId: string;
+    hideHeader?: boolean;
+    onDayTypeChange?: (dayType: string | null) => void;
 }
 
 // Define an interface for day-specific nutrition
@@ -33,7 +35,11 @@ interface DayTypeNutrition {
     planned_fat: number;
 }
 
-const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }) => {
+const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ 
+    nutritionPlanId,
+    hideHeader = false,
+    onDayTypeChange
+}) => {
     const { user } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -223,6 +229,10 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
     // Handle day type selection
     const handleDayTypeSelect = (dayType: string) => {
         setSelectedDayType(dayType);
+        // Call the callback if it exists
+        if (onDayTypeChange) {
+            onDayTypeChange(dayType);
+        }
     };
 
     // Handle extra meal added
@@ -251,8 +261,15 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
         }));
     };
 
+    // Effect to call onDayTypeChange when selectedDayType changes due to fetch operations
+    useEffect(() => {
+        if (onDayTypeChange && selectedDayType) {
+            onDayTypeChange(selectedDayType);
+        }
+    }, [selectedDayType, onDayTypeChange]);
+
     // Define the header for the Card component
-    const header = (
+    const header = !hideHeader ? (
         <div className="flex items-center justify-between">
             <div className="flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -269,7 +286,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                 <FiExternalLink className="ml-1 w-3.5 h-3.5" />
             </Link>
         </div>
-    );
+    ) : undefined;
 
     // Render loading state
     if (isLoading && !nutritionPlan) {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Card from '../ui/Card';
 import { 
   FiActivity, FiArrowUp, FiWatch, FiPlus, FiRefreshCw, FiCalendar, 
-  FiAward, FiTrendingUp, FiChevronRight, FiX, FiAlertCircle
+  FiAward, FiTrendingUp, FiChevronRight, FiX, FiAlertCircle, FiTarget
 } from 'react-icons/fi';
 import { supabase } from '../../services/supabaseClient';
 import { useSelector } from 'react-redux';
@@ -13,6 +13,7 @@ import {
   syncStepsFromDevice as syncAPIStepsFromDevice,
   disconnectDevice as disconnectAPIDevice
 } from '../../services/fitnessSyncService';
+import PersonalStepGoalModal from './PersonalStepGoalModal';
 
 interface StepGoalWidgetProps {
   dailyGoal: number | null | undefined;
@@ -67,6 +68,7 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
   const [connectedDevices, setConnectedDevices] = useState<DeviceConnection[]>([]);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [syncInProgress, setSyncInProgress] = useState<boolean>(false);
+  const [showPersonalGoalModal, setShowPersonalGoalModal] = useState<boolean>(false);
   
   const today = format(new Date(), 'yyyy-MM-dd');
   
@@ -623,21 +625,24 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
     }
   };
 
+  // Handle setting a personal goal
+  const handleSetPersonalGoal = (goalAmount: number) => {
+    // Update UI immediately while backend processes
+    setStatusMessage({
+      text: `Your new goal of ${goalAmount.toLocaleString()} steps has been set!`,
+      type: 'success'
+    });
+    // Reload to refresh the widget with new goal after 1.5 seconds
+    setTimeout(() => window.location.reload(), 1500);
+  };
+
+  // Define the header for the Card component
   const header = (
     <div className="flex items-center justify-between">
       <div className="flex items-center">
-        <FiActivity className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mr-2" />
-        <h2 className="text-lg font-medium">Daily Steps</h2>
+        <FiActivity className="w-5 h-5 mr-2 text-indigo-600 dark:text-indigo-400" />
+        <h2 className="text-lg font-medium">Steps</h2>
       </div>
-      {dailyGoal && (
-        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-          progressPercentage >= 100 
-            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
-            : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300'
-        }`}>
-          {progressPercentage}% Complete
-        </span>
-      )}
     </div>
   );
 
@@ -761,318 +766,318 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
   };
 
   return (
-    <Card 
-      header={header} 
-      className="h-full flex flex-col"
-      variant="default"
-    >
-      <div className="flex-grow space-y-4">
-        {/* Status message banner */}
-        {statusMessage && (
-          <div className={`p-2 rounded-md text-sm ${
-            statusMessage.type === 'success' 
-              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
-              : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-          }`}>
-            {statusMessage.text}
-          </div>
-        )}
-      
-        {isLoading ? (
-          <div className="flex justify-center items-center h-48">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-          </div>
-        ) : dailyGoal !== null && dailyGoal !== undefined ? (
+    <Card header={header} className="flex flex-col h-full" variant="default">
+      <div className="flex-1 flex flex-col">
+        {dailyGoal ? (
           <>
-            {/* Current Progress Section */}
-            <div className="flex justify-between items-baseline">
-              <span className="text-gray-600 dark:text-gray-400">Goal:</span>
-              <span className="font-semibold text-xl">{dailyGoal.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-baseline">
-              <span className="text-gray-600 dark:text-gray-400">Today:</span>
-              <div className="flex items-center">
-                <span className="font-semibold text-xl">{currentProgress.toLocaleString()}</span>
-                {currentProgress > 0 && (
-                  <span className="ml-2 text-xs text-green-600 dark:text-green-400 flex items-center">
-                    <FiArrowUp className="mr-1" />
-                    Active
-                  </span>
-                )}
+            {/* Status message banner */}
+            {statusMessage && (
+              <div className={`p-2 rounded-md text-sm ${
+                statusMessage.type === 'success' 
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+              }`}>
+                {statusMessage.text}
               </div>
-            </div>
-            
-            {/* Enhanced Progress Bar */}
-            <div className="mt-4">
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
-                <div 
-                  className={`${getProgressColor()} h-3 rounded-full transition-all duration-500 ease-in-out`}
-                  style={{ width: `${progressPercentage}%` }}
-                ></div>
+            )}
+          
+            {isLoading ? (
+              <div className="flex justify-center items-center h-48">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
               </div>
-              <div className="flex justify-between mt-1 text-xs text-gray-500 dark:text-gray-400">
-                <span>0</span>
-                <span>{Math.floor(dailyGoal / 2).toLocaleString()}</span>
-                <span>{dailyGoal.toLocaleString()}</span>
-              </div>
-            </div>
-
-            {/* Streak Counter & Badges Button */}
-            <div className="flex justify-between items-center">
-              {streak > 0 ? (
-                <div className="bg-indigo-100 dark:bg-indigo-900/20 rounded-full px-3 py-1 flex items-center text-sm text-indigo-700 dark:text-indigo-300">
-                  <FiTrendingUp className="mr-1" />
-                  <span>{streak} day streak!</span>
+            ) : (
+              <>
+                {/* Current Progress Section */}
+                <div className="flex justify-between items-baseline">
+                  <span className="text-gray-600 dark:text-gray-400">Goal:</span>
+                  <span className="font-semibold text-xl">{dailyGoal.toLocaleString()}</span>
                 </div>
-              ) : (
-                <div className="text-sm text-gray-500 dark:text-gray-400">Start your streak!</div>
-              )}
-              
-              <button 
-                onClick={() => setShowAchievements(!showAchievements)}
-                className="text-sm text-indigo-600 dark:text-indigo-400 flex items-center"
-              >
-                <FiAward className="mr-1" /> 
-                Achievements
-                <FiChevronRight className={`ml-1 transition-transform ${showAchievements ? 'rotate-90' : ''}`} />
-              </button>
-            </div>
-
-            {/* Achievements Section */}
-            {showAchievements && (
-              <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">Your Achievements</h4>
-                <div className="space-y-2">
-                  {achievements.map(achievement => (
+                <div className="flex justify-between items-baseline">
+                  <span className="text-gray-600 dark:text-gray-400">Today:</span>
+                  <div className="flex items-center">
+                    <span className="font-semibold text-xl">{currentProgress.toLocaleString()}</span>
+                    {currentProgress > 0 && (
+                      <span className="ml-2 text-xs text-green-600 dark:text-green-400 flex items-center">
+                        <FiArrowUp className="mr-1" />
+                        Active
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Enhanced Progress Bar */}
+                <div className="mt-4">
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
                     <div 
-                      key={achievement.id} 
-                      className={`flex items-center p-2 rounded-md ${
-                        achievement.unlocked 
-                          ? 'bg-white dark:bg-gray-700' 
-                          : 'bg-gray-100 dark:bg-gray-800 opacity-50'
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        achievement.unlocked 
-                          ? 'bg-indigo-100 dark:bg-indigo-900/30' 
-                          : 'bg-gray-200 dark:bg-gray-700'
-                      }`}>
-                        {achievement.icon}
-                      </div>
-                      <div className="ml-3">
-                        <div className="text-sm font-medium">{achievement.name}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{achievement.description}</div>
-                      </div>
-                    </div>
-                  ))}
+                      className={`${getProgressColor()} h-3 rounded-full transition-all duration-500 ease-in-out`}
+                      style={{ width: `${progressPercentage}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <span>0</span>
+                    <span>{Math.floor(dailyGoal / 2).toLocaleString()}</span>
+                    <span>{dailyGoal.toLocaleString()}</span>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* Step History Toggle */}
-            <div className="flex justify-between items-center">
-              <button 
-                onClick={() => {
-                  setShowHistory(!showHistory);
-                  console.log('Toggling history view, current data:', historyData);
-                }}
-                className="text-sm text-indigo-600 dark:text-indigo-400 flex items-center"
-              >
-                <FiCalendar className="mr-1" /> 
-                7-Day History
-                <FiChevronRight className={`ml-1 transition-transform ${showHistory ? 'rotate-90' : ''}`} />
-              </button>
-              
-              {/* Last update info */}
-              {stepEntry && (
-                <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-                  Last updated: {new Date(stepEntry.updated_at).toLocaleTimeString()}
+                {/* Streak Counter & Badges Button */}
+                <div className="flex justify-between items-center">
+                  {streak > 0 ? (
+                    <div className="bg-indigo-100 dark:bg-indigo-900/20 rounded-full px-3 py-1 flex items-center text-sm text-indigo-700 dark:text-indigo-300">
+                      <FiTrendingUp className="mr-1" />
+                      <span>{streak} day streak!</span>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Start your streak!</div>
+                  )}
+                  
                   <button 
-                    onClick={handleRefresh} 
-                    className="ml-2 inline-flex items-center text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300"
-                    disabled={isLoading}
+                    onClick={() => setShowAchievements(!showAchievements)}
+                    className="text-sm text-indigo-600 dark:text-indigo-400 flex items-center"
                   >
-                    <FiRefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+                    <FiAward className="mr-1" /> 
+                    Achievements
+                    <FiChevronRight className={`ml-1 transition-transform ${showAchievements ? 'rotate-90' : ''}`} />
                   </button>
                 </div>
-              )}
-            </div>
 
-            {/* Step History Chart */}
-            {showHistory && (
-              <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">Your 7-Day Step History</h4>
-                {isLoadingHistory ? (
-                  <div className="flex justify-center items-center h-20">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
-                  </div>
-                ) : historyData.length > 0 ? (
-                  <div className="flex items-end justify-between h-32 pt-2">
-                    {historyData.map((entry) => {
-                      const date = new Date(entry.date);
-                      const dayName = format(date, 'EEE');
-                      const dayDate = format(date, 'd');
-                      const heightPercentage = (entry.step_count / maxHistorySteps) * 100;
-                      const isToday = entry.date === today;
-                      const goalMet = entry.step_count >= (dailyGoal || 0);
-                      
-                      return (
-                        <div key={entry.date} className="flex flex-col items-center">
-                          <div className="flex-grow flex items-end h-24">
-                            <div 
-                              className={`w-8 rounded-t-md ${
-                                isToday 
-                                  ? 'bg-indigo-500 dark:bg-indigo-600' 
-                                  : goalMet 
-                                    ? 'bg-green-500 dark:bg-green-600' 
-                                    : 'bg-gray-300 dark:bg-gray-600'
-                              }`}
-                              style={{ height: `${Math.max(5, heightPercentage)}%` }}
-                            ></div>
+                {/* Achievements Section */}
+                {showAchievements && (
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+                    <h4 className="text-sm font-medium mb-2">Your Achievements</h4>
+                    <div className="space-y-2">
+                      {achievements.map(achievement => (
+                        <div 
+                          key={achievement.id} 
+                          className={`flex items-center p-2 rounded-md ${
+                            achievement.unlocked 
+                              ? 'bg-white dark:bg-gray-700' 
+                              : 'bg-gray-100 dark:bg-gray-800 opacity-50'
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            achievement.unlocked 
+                              ? 'bg-indigo-100 dark:bg-indigo-900/30' 
+                              : 'bg-gray-200 dark:bg-gray-700'
+                          }`}>
+                            {achievement.icon}
                           </div>
-                          <div className="text-xs mt-1 text-gray-600 dark:text-gray-400">{dayName}</div>
-                          <div className="text-xs font-medium">{dayDate}</div>
+                          <div className="ml-3">
+                            <div className="text-sm font-medium">{achievement.name}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{achievement.description}</div>
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
-                    <p>No step data available for the past week</p>
-                    <button
-                      onClick={() => {
-                        // For testing only - uncomment to use mock data
-                        // setHistoryData(generateMockHistoryData());
-                        // Or re-fetch from database
-                        if (profile && dailyGoal) {
-                          const fetchStepHistory = async () => {
-                            setIsLoadingHistory(true);
-                            try {
-                              const sevenDaysAgo = format(subDays(new Date(), 6), 'yyyy-MM-dd');
-                              
-                              const { data, error } = await supabase
-                                .from('step_entries')
-                                .select('*')
-                                .eq('user_id', profile.user_id)
-                                .gte('date', sevenDaysAgo)
-                                .lte('date', today)
-                                .order('date', { ascending: false });
-                                
-                              if (error) throw error;
-                                
-                              if (data && data.length > 0) {
-                                setHistoryData(data);
-                              }
-                            } catch (err) {
-                              console.error('Error re-fetching step history:', err);
-                            } finally {
-                              setIsLoadingHistory(false);
-                            }
-                          };
-                          fetchStepHistory();
-                        }
-                      }}
-                      className="mt-2 text-indigo-600 dark:text-indigo-400 text-xs underline"
-                    >
-                      Refresh History
-                    </button>
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Motivation message based on progress */}
-            <p className="text-sm text-center mt-2 font-medium">
-              {progressPercentage === 0 && "Let's get those steps in today!"}
-              {progressPercentage > 0 && progressPercentage < 25 && "Great start! Keep moving!"}
-              {progressPercentage >= 25 && progressPercentage < 50 && "You're making good progress!"}
-              {progressPercentage >= 50 && progressPercentage < 75 && "More than halfway there!"}
-              {progressPercentage >= 75 && progressPercentage < 100 && "Almost there! Finish strong!"}
-              {progressPercentage >= 100 && "Congratulations! Goal achieved!"}
-            </p>
-
-            {/* Manual Step Entry */}
-            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-              {showManualEntry ? (
-                <div className="space-y-2">
-                  <div className="flex space-x-2">
-                    <input
-                      type="number"
-                      value={manualSteps}
-                      onChange={(e) => setManualSteps(e.target.value)}
-                      placeholder="Enter steps"
-                      className="flex-1 p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
-                      min="1"
-                    />
-                    <button
-                      onClick={addStepsManually}
-                      disabled={isUpdating}
-                      className={`px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-sm flex items-center justify-center ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}
-                    >
-                      {isUpdating ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      ) : (
-                        "Add"
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setShowManualEntry(false)}
-                      className="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-colors text-sm"
-                      disabled={isUpdating}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Enter the number of steps you've taken that aren't tracked automatically
-                  </p>
-                </div>
-              ) : (
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setShowManualEntry(true)}
-                    className="flex-1 py-2 px-4 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-800/30 text-indigo-700 dark:text-indigo-300 rounded-md transition-colors text-sm flex items-center justify-center"
+                {/* Step History Toggle */}
+                <div className="flex justify-between items-center">
+                  <button 
+                    onClick={() => {
+                      setShowHistory(!showHistory);
+                      console.log('Toggling history view, current data:', historyData);
+                    }}
+                    className="text-sm text-indigo-600 dark:text-indigo-400 flex items-center"
                   >
-                    <FiPlus className="mr-2" />
-                    <span>Add Steps Manually</span>
+                    <FiCalendar className="mr-1" /> 
+                    7-Day History
+                    <FiChevronRight className={`ml-1 transition-transform ${showHistory ? 'rotate-90' : ''}`} />
                   </button>
-              <button
-                    onClick={() => setShowDeviceModal(true)}
-                    className="flex-1 py-2 px-4 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-800/30 text-indigo-700 dark:text-indigo-300 rounded-md transition-colors text-sm flex items-center justify-center"
-              >
-                <FiWatch className="mr-2" />
-                    <span>
-                      {connectedDevices.length > 0 
-                        ? `Manage Devices (${connectedDevices.length})` 
-                        : 'Connect Device'
-                      }
-                    </span>
-              </button>
-                </div>
-              )}
-              <div className="text-xs text-center mt-2 text-gray-500 dark:text-gray-400">
-                {connectedDevices.length > 0 
-                  ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <span>Connected: {connectedDevices.map(d => d.name).join(', ')}</span>
-                      <button
-                        onClick={syncAllDevices}
-                        disabled={syncInProgress}
-                        className={`inline-flex items-center text-xs px-2 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-800/30 text-indigo-700 dark:text-indigo-300 rounded transition-colors ${syncInProgress ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  
+                  {/* Last update info */}
+                  {stepEntry && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
+                      Last updated: {new Date(stepEntry.updated_at).toLocaleTimeString()}
+                      <button 
+                        onClick={handleRefresh} 
+                        className="ml-2 inline-flex items-center text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300"
+                        disabled={isLoading}
                       >
-                        {syncInProgress ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-700 dark:border-indigo-300 mr-1"></div>
-                        ) : (
-                          <FiRefreshCw className="h-3 w-3 mr-1" />
-                        )}
-                        Sync
+                        <FiRefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
                       </button>
                     </div>
-                  ) 
-                  : 'Connect with Fitbit, Garmin, Apple Health and more'
-                }
-              </div>
-            </div>
+                  )}
+                </div>
+
+                {/* Step History Chart */}
+                {showHistory && (
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+                    <h4 className="text-sm font-medium mb-2">Your 7-Day Step History</h4>
+                    {isLoadingHistory ? (
+                      <div className="flex justify-center items-center h-20">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
+                      </div>
+                    ) : historyData.length > 0 ? (
+                      <div className="flex items-end justify-between h-32 pt-2">
+                        {historyData.map((entry) => {
+                          const date = new Date(entry.date);
+                          const dayName = format(date, 'EEE');
+                          const dayDate = format(date, 'd');
+                          const heightPercentage = (entry.step_count / maxHistorySteps) * 100;
+                          const isToday = entry.date === today;
+                          const goalMet = entry.step_count >= (dailyGoal || 0);
+                          
+                          return (
+                            <div key={entry.date} className="flex flex-col items-center">
+                              <div className="flex-grow flex items-end h-24">
+                                <div 
+                                  className={`w-8 rounded-t-md ${
+                                    isToday 
+                                      ? 'bg-indigo-500 dark:bg-indigo-600' 
+                                      : goalMet 
+                                        ? 'bg-green-500 dark:bg-green-600' 
+                                        : 'bg-gray-300 dark:bg-gray-600'
+                                  }`}
+                                  style={{ height: `${Math.max(5, heightPercentage)}%` }}
+                                ></div>
+                              </div>
+                              <div className="text-xs mt-1 text-gray-600 dark:text-gray-400">{dayName}</div>
+                              <div className="text-xs font-medium">{dayDate}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
+                        <p>No step data available for the past week</p>
+                        <button
+                          onClick={() => {
+                            // For testing only - uncomment to use mock data
+                            // setHistoryData(generateMockHistoryData());
+                            // Or re-fetch from database
+                            if (profile && dailyGoal) {
+                              const fetchStepHistory = async () => {
+                                setIsLoadingHistory(true);
+                                try {
+                                  const sevenDaysAgo = format(subDays(new Date(), 6), 'yyyy-MM-dd');
+                                  
+                                  const { data, error } = await supabase
+                                    .from('step_entries')
+                                    .select('*')
+                                    .eq('user_id', profile.user_id)
+                                    .gte('date', sevenDaysAgo)
+                                    .lte('date', today)
+                                    .order('date', { ascending: false });
+                                    
+                                  if (error) throw error;
+                                    
+                                  if (data && data.length > 0) {
+                                    setHistoryData(data);
+                                  }
+                                } catch (err) {
+                                  console.error('Error re-fetching step history:', err);
+                                } finally {
+                                  setIsLoadingHistory(false);
+                                }
+                              };
+                              fetchStepHistory();
+                            }
+                          }}
+                          className="mt-2 text-indigo-600 dark:text-indigo-400 text-xs underline"
+                        >
+                          Refresh History
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Motivation message based on progress */}
+                <p className="text-sm text-center mt-2 font-medium">
+                  {progressPercentage === 0 && "Let's get those steps in today!"}
+                  {progressPercentage > 0 && progressPercentage < 25 && "Great start! Keep moving!"}
+                  {progressPercentage >= 25 && progressPercentage < 50 && "You're making good progress!"}
+                  {progressPercentage >= 50 && progressPercentage < 75 && "More than halfway there!"}
+                  {progressPercentage >= 75 && progressPercentage < 100 && "Almost there! Finish strong!"}
+                  {progressPercentage >= 100 && "Congratulations! Goal achieved!"}
+                </p>
+
+                {/* Manual Step Entry */}
+                <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  {showManualEntry ? (
+                    <div className="space-y-2">
+                      <div className="flex space-x-2">
+                        <input
+                          type="number"
+                          value={manualSteps}
+                          onChange={(e) => setManualSteps(e.target.value)}
+                          placeholder="Enter steps"
+                          className="flex-1 p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
+                          min="1"
+                        />
+                        <button
+                          onClick={addStepsManually}
+                          disabled={isUpdating}
+                          className={`px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-sm flex items-center justify-center ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                          {isUpdating ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          ) : (
+                            "Add"
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setShowManualEntry(false)}
+                          className="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-colors text-sm"
+                          disabled={isUpdating}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Enter the number of steps you've taken that aren't tracked automatically
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setShowManualEntry(true)}
+                        className="flex-1 py-2 px-4 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-800/30 text-indigo-700 dark:text-indigo-300 rounded-md transition-colors text-sm flex items-center justify-center"
+                      >
+                        <FiPlus className="mr-2" />
+                        <span>Add Steps Manually</span>
+                      </button>
+                      <button
+                        onClick={() => setShowDeviceModal(true)}
+                        className="flex-1 py-2 px-4 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-800/30 text-indigo-700 dark:text-indigo-300 rounded-md transition-colors text-sm flex items-center justify-center"
+                      >
+                        <FiWatch className="mr-2" />
+                        <span>
+                          {connectedDevices.length > 0 
+                            ? `Manage Devices (${connectedDevices.length})` 
+                            : 'Connect Device'
+                          }
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                  <div className="text-xs text-center mt-2 text-gray-500 dark:text-gray-400">
+                    {connectedDevices.length > 0 
+                      ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <span>Connected: {connectedDevices.map(d => d.name).join(', ')}</span>
+                          <button
+                            onClick={syncAllDevices}
+                            disabled={syncInProgress}
+                            className={`inline-flex items-center text-xs px-2 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-800/30 text-indigo-700 dark:text-indigo-300 rounded transition-colors ${syncInProgress ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          >
+                            {syncInProgress ? (
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-700 dark:border-indigo-300 mr-1"></div>
+                            ) : (
+                              <FiRefreshCw className="h-3 w-3 mr-1" />
+                            )}
+                            Sync
+                          </button>
+                        </div>
+                      ) 
+                      : 'Connect with Fitbit, Garmin, Apple Health and more'
+                    }
+                  </div>
+                </div>
+              </>
+            )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center py-6 text-center">
@@ -1081,8 +1086,15 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
             </div>
             <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">No Active Step Goal</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Your coach hasn't set a daily step goal for you yet.
+              Set your own goal or wait for your coach to set one for you.
             </p>
+            <button
+              onClick={() => setShowPersonalGoalModal(true)}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center mb-4"
+            >
+              <FiTarget className="mr-2" />
+              Set My Own Goal
+            </button>
             <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg w-full">
               <p className="text-sm font-medium">Benefits of daily steps:</p>
               <ul className="text-sm text-left mt-2 space-y-1 text-gray-600 dark:text-gray-400">
@@ -1091,9 +1103,6 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
                 <li>• Enhanced mood and mental well-being</li>
                 <li>• Increased energy levels</li>
               </ul>
-              <p className="text-xs mt-4 text-center text-gray-500 dark:text-gray-500">
-                Contact your coach to set up your personalized daily step target
-              </p>
             </div>
           </div>
         )}
@@ -1101,6 +1110,16 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
 
       {/* Render device modal at the root level */}
       {renderDeviceModal()}
+      
+      {/* Personal goal modal */}
+      {profile && (
+        <PersonalStepGoalModal
+          isOpen={showPersonalGoalModal}
+          onClose={() => setShowPersonalGoalModal(false)}
+          userId={profile.id}
+          onGoalSet={handleSetPersonalGoal}
+        />
+      )}
     </Card>
   );
 };

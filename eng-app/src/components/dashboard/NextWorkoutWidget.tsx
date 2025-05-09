@@ -5,6 +5,8 @@ import { selectProfile } from '../../store/slices/authSlice';
 import Card from '../ui/Card';
 import { ButtonLink } from '../ui/Button';
 import { SetType, ExerciseSet } from '../../types/adminTypes';
+import { Link } from 'react-router-dom';
+import { FiChevronRight, FiExternalLink } from 'react-icons/fi';
 
 interface NextWorkoutWidgetProps {
   programTemplateId: string | null | undefined;
@@ -286,14 +288,32 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
         </svg>
         <h2 className="text-lg font-medium">Today's Workout</h2>
       </div>
-      {completionStatus.isCompleted ? (
-        <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-          Completed
-        </span>
-      ) : workoutData?.day_of_week && (
-        <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-          {getDayName(workoutData.day_of_week)}
-        </span>
+      {!isLoading && !error && (
+        <>
+          {!programTemplateId ? (
+            <Link 
+              to="/workout-programs" 
+              className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm font-medium flex items-center"
+            >
+              View available programs
+              <FiChevronRight className="ml-1" />
+            </Link>
+          ) : completionStatus.isCompleted ? (
+            <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+              Completed
+            </span>
+          ) : workoutData && workoutData.id ? (
+            // TODO: Create a proper WorkoutPlanView page and route to display the complete workout program
+            // Similar to how MealPlanView works for nutrition plans
+            <Link
+              to={`/workout/${programTemplateId}`}
+              className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm font-medium flex items-center"
+            >
+              View Plan
+              <FiExternalLink className="ml-1 w-3.5 h-3.5" />
+            </Link>
+          ) : null}
+        </>
       )}
     </div>
   );
