@@ -56,8 +56,6 @@ const MealPlanner: React.FC = () => {
     const [selectedPlan, setSelectedPlan] = useState<NutritionPlanListItem | null>(null);
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-    const [showMealManager, setShowMealManager] = useState<boolean>(false);
-    const [selectedPlanForMeals, setSelectedPlanForMeals] = useState<string | null>(null);
     const [showRecipeManager, setShowRecipeManager] = useState<boolean>(false);
 
     const profile = useSelector(selectProfile);
@@ -246,13 +244,12 @@ const MealPlanner: React.FC = () => {
     };
 
     const handleManageMeals = (planId: string) => {
-        setSelectedPlanForMeals(planId);
-        setShowMealManager(true);
-    };
-
-    const handleCloseMealManager = () => {
-        setShowMealManager(false);
-        setSelectedPlanForMeals(null);
+        // Find the plan in the list
+        const plan = plans.find(p => p.id === planId);
+        if (plan) {
+            // Set it as the selected plan to edit, which will show the embedded MealManager
+            handleEdit(plan);
+        }
     };
 
     const handleManageRecipes = () => {
@@ -325,18 +322,6 @@ const MealPlanner: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Show the MealManager when a plan is selected for meal management */}
-                    {showMealManager && selectedPlanForMeals && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                            <div className="max-w-6xl w-full mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
-                                <MealManager
-                                    nutritionPlanId={selectedPlanForMeals}
-                                    onClose={handleCloseMealManager}
-                                />
-                            </div>
-                        </div>
-                    )}
-
                     {/* Show the RecipeManager when user wants to manage recipes */}
                     {showRecipeManager && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
@@ -393,8 +378,12 @@ const MealPlanner: React.FC = () => {
                             {selectedPlan && (
                                 <div className="pt-6 mt-6 border-t border-gray-200 dark:border-gray-700">
                                     <h3 className="mb-4 text-lg font-medium text-gray-800 dark:text-white">Meals Management</h3>
-                                    <div className="p-8 text-center border border-gray-300 border-dashed rounded-md dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                                        <p className="text-gray-500 dark:text-gray-400">Meal/Food Item Management will be implemented in future updates</p>
+                                    <div className="border border-gray-300 dark:border-gray-700 rounded-md overflow-hidden">
+                                        <MealManager 
+                                            nutritionPlanId={selectedPlan.id}
+                                            onClose={() => {}} // Empty function since we're not in a modal anymore
+                                            isEmbedded={true}
+                                        />
                                     </div>
                                 </div>
                             )}

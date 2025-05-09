@@ -16,6 +16,11 @@ interface FoodItemData {
 interface MealFoodItemData {
     quantity: number;
     unit: string;
+    // Add nutrition properties
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
     food_items: FoodItemData | null; // Nested fetch
 }
 
@@ -40,19 +45,29 @@ interface NutritionPlanDataWithId extends NutritionPlanData {
     id: string;
 }
 
-// Helper type for organizing meals by day
-interface DayMeals {
-    day: number;
+// Helper type for organizing meals by day type
+interface DayTypeMeals {
     dayType: string;
     meals: MealData[];
+}
+
+// Nutrition totals for a day type
+interface DayTypeNutrition {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
 }
 
 const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) => {
     const [planData, setPlanData] = useState<NutritionPlanDataWithId | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
-    const [selectedDay, setSelectedDay] = useState<number>(1); // Default to day 1
+    const [selectedDayType, setSelectedDayType] = useState<string | null>(null);
     const [isExpanded, setIsExpanded] = useState<boolean>(false);
+    
+    // Daily nutrition for each day type
+    const [dayTypeNutrition, setDayTypeNutrition] = useState<Record<string, DayTypeNutrition>>({});
 
     useEffect(() => {
         const fetchPlan = async () => {
@@ -68,6 +83,7 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
             setPlanData(null);
 
             try {
+                // Also fetch food_items nutrition data to calculate per-day type macros
                 const { data, error: fetchError } = await supabase
                     .from('nutrition_plans')
                     .select(`
@@ -85,19 +101,36 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
                             meal_food_items (
                                 quantity,
                                 unit,
+                                calories,
+                                protein,
+                                carbs,
+                                fat,
                                 food_items ( food_name )
                             )
                         )
                     `)
                     .eq('id', nutritionPlanId)
-                    .order('day_number', { foreignTable: 'meals', ascending: true })
+                    .order('day_type', { foreignTable: 'meals', ascending: true })
                     .order('order_in_plan', { foreignTable: 'meals', ascending: true })
                     .single();
 
                 if (fetchError) throw fetchError;
 
                 if (data) {
-                    setPlanData(data as NutritionPlanDataWithId);
+                    // Cast the data safely
+                    const typedData = data as unknown as NutritionPlanDataWithId;
+                    setPlanData(typedData);
+                    
+                    // Calculate nutrition totals per day type
+                    const dayTypes = calculateDayTypeNutrition(typedData.meals);
+                    setDayTypeNutrition(dayTypes);
+
+                    // Set default selected day type
+                    if (typedData.meals && typedData.meals.length > 0) {
+                        // Find first day type with meals
+                        const firstDayType = Object.keys(dayTypes)[0] || null;
+                        setSelectedDayType(firstDayType);
+                    }
                 } else {
                     setError('Assigned nutrition plan not found.');
                 }
@@ -119,53 +152,79 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
 
     }, [nutritionPlanId]);
 
-    // Reset expanded state when day changes
+    // Reset expanded state when day type changes
     useEffect(() => {
         setIsExpanded(false);
-    }, [selectedDay]);
+    }, [selectedDayType]);
 
-    // Group meals by day
-    const getMealsByDay = (): DayMeals[] => {
-        if (!planData?.meals || planData.meals.length === 0) return [];
+    // Calculate nutrition totals per day type from meals
+    const calculateDayTypeNutrition = (meals: MealData[]): Record<string, DayTypeNutrition> => {
+        if (!meals || meals.length === 0) return {};
 
-        // Create a map to group meals by day
-        const mealsByDay = new Map<number, { meals: MealData[], dayType: string }>();
+        const nutritionByDayType: Record<string, DayTypeNutrition> = {};
         
-        // Group all meals by their day number (default to day 1 if missing)
-        planData.meals.forEach(meal => {
-            const day = meal.day_number || 1;
+        meals.forEach(meal => {
             // Use a default day type if none exists
-            const dayType = meal.day_type || `Day ${day}`;
+            const dayType = meal.day_type || 'Unspecified';
             
-            if (!mealsByDay.has(day)) {
-                mealsByDay.set(day, { 
-                    meals: [],
-                    dayType
-                });
+            if (!nutritionByDayType[dayType]) {
+                nutritionByDayType[dayType] = {
+                    calories: 0,
+                    protein: 0,
+                    carbs: 0,
+                    fat: 0
+                };
             }
-            mealsByDay.get(day)?.meals.push(meal);
+            
+            // Add up meal food item nutrients
+            (meal.meal_food_items || []).forEach(item => {
+                if (item) {
+                    nutritionByDayType[dayType].calories += item.calories || 0;
+                    nutritionByDayType[dayType].protein += item.protein || 0;
+                    nutritionByDayType[dayType].carbs += item.carbs || 0;
+                    nutritionByDayType[dayType].fat += item.fat || 0;
+                }
+            });
         });
         
-        // Convert map to array and sort by day number
-        return Array.from(mealsByDay.entries())
-            .map(([day, data]) => ({ 
-                day, 
-                dayType: data.dayType,
-                meals: data.meals.sort((a, b) => (a.order_in_plan || 0) - (b.order_in_plan || 0))
+        return nutritionByDayType;
+    };
+
+    // Group meals by day type
+    const getMealsByDayType = (): DayTypeMeals[] => {
+        if (!planData?.meals || planData.meals.length === 0) return [];
+
+        // Create a map to group meals by day type
+        const mealsByDayType = new Map<string, MealData[]>();
+        
+        // Group all meals by their day type
+        planData.meals.forEach(meal => {
+            // Use a default day type if none exists
+            const dayType = meal.day_type || 'Unspecified';
+            
+            if (!mealsByDayType.has(dayType)) {
+                mealsByDayType.set(dayType, []);
+            }
+            mealsByDayType.get(dayType)?.push(meal);
+        });
+        
+        // Convert map to array and sort alphabetically by day type
+        return Array.from(mealsByDayType.entries())
+            .map(([dayType, meals]) => ({ 
+                dayType, 
+                meals: meals.sort((a, b) => (a.order_in_plan || 0) - (b.order_in_plan || 0))
             }))
-            .sort((a, b) => a.day - b.day);
+            .sort((a, b) => a.dayType.localeCompare(b.dayType));
     };
 
-    const getDayLabel = (day: number, dayType: string): string => {
-        return dayType || `Day ${day}`;
-    };
-
-    const dayMeals = getMealsByDay();
+    const dayTypeMeals = getMealsByDayType();
     
-    // Get the current day's meals and type
-    const currentDay = dayMeals.find(dayMeal => dayMeal.day === selectedDay);
-    const currentDayMeals = currentDay?.meals || [];
-    const currentDayType = currentDay?.dayType || `Day ${selectedDay}`;
+    // Get the current day type's meals
+    const currentDayType = selectedDayType || (dayTypeMeals[0]?.dayType ?? null);
+    const currentDayMeals = dayTypeMeals.find(d => d.dayType === currentDayType)?.meals || [];
+    
+    // Get nutrition for current day type
+    const currentNutrition = currentDayType ? dayTypeNutrition[currentDayType] || null : null;
     
     // For the summary view, show only the first two meals
     const summaryMeals = currentDayMeals.slice(0, 2);
@@ -253,57 +312,62 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
                                     <h3 className="font-semibold text-lg text-indigo-600 dark:text-indigo-400">{planData.name}</h3>
                                 </div>
                                 
-                                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
-                                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Daily Macros</h4>
-                                    <div className="grid grid-cols-4 gap-4">
-                                        <div className="bg-white dark:bg-gray-800 p-3 rounded-md text-center shadow-sm">
-                                            <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Calories</div>
-                                            <div className="font-bold text-xl text-gray-800 dark:text-gray-200">
-                                                {planData.total_calories?.toLocaleString() ?? 'N/A'}
-                                            </div>
-                                        </div>
-                                        <div className="bg-white dark:bg-gray-800 p-3 rounded-md text-center shadow-sm">
-                                            <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Protein</div>
-                                            <div className="font-bold text-xl text-gray-800 dark:text-gray-200">
-                                                {planData.protein_grams?.toLocaleString() ?? 'N/A'}<span className="text-xs font-normal ml-1">g</span>
-                                            </div>
-                                        </div>
-                                        <div className="bg-white dark:bg-gray-800 p-3 rounded-md text-center shadow-sm">
-                                            <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Carbs</div>
-                                            <div className="font-bold text-xl text-gray-800 dark:text-gray-200">
-                                                {planData.carbohydrate_grams?.toLocaleString() ?? 'N/A'}<span className="text-xs font-normal ml-1">g</span>
-                                            </div>
-                                        </div>
-                                        <div className="bg-white dark:bg-gray-800 p-3 rounded-md text-center shadow-sm">
-                                            <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Fat</div>
-                                            <div className="font-bold text-xl text-gray-800 dark:text-gray-200">
-                                                {planData.fat_grams?.toLocaleString() ?? 'N/A'}<span className="text-xs font-normal ml-1">g</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {/* Day selector tabs */}
-                                {dayMeals.length > 1 && (
+                                {/* Day type selector tabs */}
+                                {dayTypeMeals.length > 1 && (
                                     <div className="flex overflow-x-auto space-x-2 pb-2">
-                                        {dayMeals.map((dayMeal) => (
+                                        {dayTypeMeals.map((dayTypeMeal) => (
                                             <button
-                                                key={dayMeal.day}
-                                                onClick={() => setSelectedDay(dayMeal.day)}
+                                                key={dayTypeMeal.dayType}
+                                                onClick={() => setSelectedDayType(dayTypeMeal.dayType)}
                                                 className={`px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap ${
-                                                    selectedDay === dayMeal.day
+                                                    selectedDayType === dayTypeMeal.dayType
                                                         ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
                                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                                                 }`}
                                             >
-                                                {getDayLabel(dayMeal.day, dayMeal.dayType)}
+                                                {dayTypeMeal.dayType}
                                             </button>
                                         ))}
                                     </div>
                                 )}
+                                
+                                {/* Daily Macros for the selected day type */}
+                                {currentDayType && currentNutrition && (
+                                    <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
+                                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                            {currentDayType} Macros
+                                        </h4>
+                                        <div className="grid grid-cols-4 gap-4">
+                                            <div className="bg-white dark:bg-gray-800 p-3 rounded-md text-center shadow-sm">
+                                                <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Calories</div>
+                                                <div className="font-bold text-xl text-gray-800 dark:text-gray-200">
+                                                    {Math.round(currentNutrition.calories).toLocaleString() ?? 'N/A'}
+                                                </div>
+                                            </div>
+                                            <div className="bg-white dark:bg-gray-800 p-3 rounded-md text-center shadow-sm">
+                                                <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Protein</div>
+                                                <div className="font-bold text-xl text-gray-800 dark:text-gray-200">
+                                                    {Math.round(currentNutrition.protein).toLocaleString() ?? 'N/A'}<span className="text-xs font-normal ml-1">g</span>
+                                                </div>
+                                            </div>
+                                            <div className="bg-white dark:bg-gray-800 p-3 rounded-md text-center shadow-sm">
+                                                <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Carbs</div>
+                                                <div className="font-bold text-xl text-gray-800 dark:text-gray-200">
+                                                    {Math.round(currentNutrition.carbs).toLocaleString() ?? 'N/A'}<span className="text-xs font-normal ml-1">g</span>
+                                                </div>
+                                            </div>
+                                            <div className="bg-white dark:bg-gray-800 p-3 rounded-md text-center shadow-sm">
+                                                <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Fat</div>
+                                                <div className="font-bold text-xl text-gray-800 dark:text-gray-200">
+                                                    {Math.round(currentNutrition.fat).toLocaleString() ?? 'N/A'}<span className="text-xs font-normal ml-1">g</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
-                                {/* Meals for selected day */}
-                                {dayMeals.length > 0 ? (
+                                {/* Meals for selected day type */}
+                                {dayTypeMeals.length > 0 ? (
                                     <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
                                         <div className="flex justify-between items-center mb-3">
                                             <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -337,7 +401,7 @@ const NutritionWidget: React.FC<NutritionWidgetProps> = ({ nutritionPlanId }) =>
                                                 )}
                                             </div>
                                         ) : (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">No meals defined for this day</p>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">No meals defined for this day type</p>
                                         )}
                                     </div>
                                 ) : (
