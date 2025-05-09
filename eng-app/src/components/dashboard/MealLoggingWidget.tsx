@@ -252,7 +252,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ nutritionPlanId }
                 <h2 className="text-lg font-medium">Nutrition</h2>
             </div>
             <Link 
-                to={`/meal-plan/${nutritionPlanId}`} 
+                to={`/meal-plan/${nutritionPlanId}${selectedDayType ? `?dayType=${selectedDayType}` : ''}`} 
                 className="flex items-center text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300"
             >
                 <span>View Plan</span>

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import BackButton from '../common/BackButton';
 import { FiInfo, FiCheckCircle } from 'react-icons/fi';
-import { logPlannedMeal, checkIfMealLogged } from '../../services/mealLoggingService';
+import { checkIfMealLogged } from '../../services/mealLoggingService';
 import { getCurrentDate } from '../../utils/dateUtils';
 import { selectProfile } from '../../store/slices/authSlice';
 import { useSelector } from 'react-redux';
@@ -81,19 +81,34 @@ const calculateMealNutrition = (meal: MealData) => {
 const MealPlanView: React.FC = () => {
     const { planId } = useParams<MealPlanViewParams>();
     const userProfile = useSelector(selectProfile);
+    const location = useLocation();
+    
+    // Get dayType from URL query parameters
+    const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+    const dayTypeParam = queryParams.get('dayType');
     
     const [plan, setPlan] = useState<NutritionPlanData | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedDayType, setSelectedDayType] = useState<string | "all">("all");
     const [loggedMeals, setLoggedMeals] = useState<Record<string, boolean>>({});
-    const [isLoggingMeal, setIsLoggingMeal] = useState<string | null>(null);
 
     // Get unique day types from meals
     const dayTypes = useMemo(() => {
         if (!plan?.meals) return [];
         return Array.from(new Set(plan.meals.map(meal => meal.day_type))).filter(Boolean);
     }, [plan?.meals]);
+
+    // Set initial day type from URL parameter when plan loads
+    useEffect(() => {
+        if (dayTypeParam && plan) {
+            // Check if the day type from URL is valid for this plan
+            const validDayTypes = Array.from(new Set(plan.meals.map(meal => meal.day_type))).filter(Boolean);
+            if (validDayTypes.includes(dayTypeParam)) {
+                setSelectedDayType(dayTypeParam);
+            }
+        }
+    }, [dayTypeParam, plan]);
 
     useEffect(() => {
         const fetchFullPlan = async () => {
@@ -191,26 +206,6 @@ const MealPlanView: React.FC = () => {
         checkLoggedMeals();
     }, [plan, userProfile]);
 
-    const handleLogMeal = async (mealId: string) => {
-        if (!userProfile || !planId) return;
-        
-        setIsLoggingMeal(mealId);
-        try {
-            const today = getCurrentDate();
-            await logPlannedMeal(userProfile.id, mealId, today);
-            
-            // Update local state
-            setLoggedMeals(prev => ({
-                ...prev,
-                [mealId]: true
-            }));
-        } catch (error: unknown) {
-            console.error("Error logging meal:", error);
-        } finally {
-            setIsLoggingMeal(null);
-        }
-    };
-
     // Filter meals by selected day type
     const filteredMeals = useMemo(() => {
         if (!plan?.meals) return [];
@@ -255,17 +250,6 @@ const MealPlanView: React.FC = () => {
                     {dayTypes.length > 0 && (
                         <div className="mb-6 overflow-x-auto">
                             <div className="flex space-x-2 p-1">
-                                <button
-                                    onClick={() => setSelectedDayType("all")}
-                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
-                                        ${selectedDayType === "all" 
-                                            ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200" 
-                                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                                        }`}
-                                >
-                                    All Days
-                                </button>
-                                
                                 {dayTypes.map(dayType => (
                                     <button
                                         key={dayType}
@@ -325,18 +309,6 @@ const MealPlanView: React.FC = () => {
                                             <div className="mt-2 text-sm text-gray-300">
                                                 P: {mealNutrition.protein}g · C: {mealNutrition.carbs}g · F: {mealNutrition.fat}g
                                             </div>
-
-                                            {!isLogged && userProfile && (
-                                                <div className="mt-3">
-                                                    <button
-                                                        onClick={() => handleLogMeal(meal.id)}
-                                                        disabled={isLoggingMeal === meal.id}
-                                                        className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        {isLoggingMeal === meal.id ? 'Logging...' : 'Log Meal'}
-                                                    </button>
-                                                </div>
-                                            )}
                                         </div>
                                         
                                         {meal.notes && (
