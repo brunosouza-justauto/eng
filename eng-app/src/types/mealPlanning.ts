@@ -200,4 +200,54 @@ export const calculateNutrition = (
         carbs: foodItem.carbs_per_100g * factor,
         fat: foodItem.fat_per_100g * factor,
     };
-}; 
+};
+
+// Interfaces for meal logging
+export interface LoggedMeal {
+    id: string;
+    user_id: string;
+    meal_id?: string; // Reference to the planned meal (null for extra meals)
+    nutrition_plan_id: string;
+    name: string;
+    date: string; // ISO date string (YYYY-MM-DD)
+    time: string; // Time when the meal was logged (HH:MM)
+    day_type: string;
+    notes?: string;
+    is_extra_meal: boolean; // Whether this is an extra meal not in the plan
+    created_at: string;
+    updated_at: string;
+}
+
+export interface LoggedMealWithNutrition extends LoggedMeal {
+    total_calories: number;
+    total_protein: number;
+    total_carbs: number;
+    total_fat: number;
+    food_items?: MealFoodItem[]; // For extra meals
+}
+
+export interface DailyNutritionLog {
+    date: string;
+    day_type: string;
+    logged_meals: LoggedMealWithNutrition[];
+    total_calories: number;
+    total_protein: number;
+    total_carbs: number;
+    total_fat: number;
+    target_calories?: number;
+    target_protein?: number;
+    target_carbs?: number;
+    target_fat?: number;
+}
+
+// Form data for logging an extra meal
+export interface ExtraMealFormData {
+    name: string;
+    day_type: string;
+    notes?: string;
+    food_items: Array<{
+        food_item_id: string;
+        quantity: number;
+        unit: string;
+    }>;
+} 

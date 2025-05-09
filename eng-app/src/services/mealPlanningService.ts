@@ -780,4 +780,78 @@ export const getRecipesWithNutritionByCoach = async (
         console.error('Error getting recipes with nutrition:', error);
         throw new Error(`Failed to get recipes with nutrition: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+};
+
+// New function to duplicate all meals with a specific day_type
+export const duplicateDayType = async (
+    nutritionPlanId: string,
+    sourceDayType: string,
+    newDayType: string
+): Promise<void> => {
+    try {
+        // 1. Find all meals with the source day_type in this nutrition plan
+        const { data: mealsData, error: mealsError } = await supabase
+            .from('meals')
+            .select('*')
+            .eq('nutrition_plan_id', nutritionPlanId)
+            .eq('day_type', sourceDayType);
+        
+        if (mealsError) throw mealsError;
+        if (!mealsData || mealsData.length === 0) {
+            throw new Error(`No meals found with day type "${sourceDayType}"`);
+        }
+        
+        // 2. For each meal, create a duplicate with the new day_type
+        const duplicatedMeals: Meal[] = [];
+        
+        for (const meal of mealsData) {
+            // Get the meal's food items
+            const { data: foodItemsData, error: foodItemsError } = await supabase
+                .from('meal_food_items')
+                .select('*')
+                .eq('meal_id', meal.id);
+            
+            if (foodItemsError) throw foodItemsError;
+            
+            // Create a new meal with the same properties but different day_type
+            const { data: newMealData, error: newMealError } = await supabase
+                .from('meals')
+                .insert({
+                    nutrition_plan_id: meal.nutrition_plan_id,
+                    name: meal.name,
+                    time_suggestion: meal.time_suggestion || undefined,
+                    notes: meal.notes || undefined,
+                    order_in_plan: meal.order_in_plan,
+                    day_type: newDayType
+                })
+                .select()
+                .single();
+            
+            if (newMealError) throw newMealError;
+            duplicatedMeals.push(newMealData);
+            
+            // Duplicate food items if they exist
+            if (foodItemsData && foodItemsData.length > 0) {
+                const newFoodItems = foodItemsData.map(item => ({
+                    meal_id: newMealData.id,
+                    food_item_id: item.food_item_id,
+                    source_recipe_id: item.source_recipe_id || undefined,
+                    quantity: item.quantity,
+                    unit: item.unit,
+                    notes: item.notes || undefined
+                }));
+                
+                const { error: insertError } = await supabase
+                    .from('meal_food_items')
+                    .insert(newFoodItems);
+                
+                if (insertError) throw insertError;
+            }
+        }
+        
+        console.log(`Successfully duplicated ${duplicatedMeals.length} meals from "${sourceDayType}" to "${newDayType}"`);
+    } catch (error) {
+        console.error('Error duplicating day type:', error);
+        throw error;
+    }
 }; 

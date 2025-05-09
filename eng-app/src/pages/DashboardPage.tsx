@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { selectUser, selectProfile } from '../store/slices/authSlice';
 import { supabase } from '../services/supabaseClient'; // Import supabase client
 import NextWorkoutWidget from '../components/dashboard/NextWorkoutWidget';
-import NutritionWidget from '../components/dashboard/NutritionWidget';
+import DashboardNutritionWidget from '../components/dashboard/DashboardNutritionWidget';
 import StepGoalWidget from '../components/dashboard/StepGoalWidget';
 import CheckInReminderWidget from '../components/dashboard/CheckInReminderWidget';
 import LatestCheckInWidget from '../components/dashboard/LatestCheckInWidget'; // Import the new widget
@@ -179,7 +179,7 @@ const DashboardPage: React.FC = () => {
           <NextWorkoutWidget programTemplateId={assignedPlan?.program_template_id} />
         </div>
         <div className="col-span-1">
-          <NutritionWidget nutritionPlanId={assignedPlan?.nutrition_plan_id} />
+          <DashboardNutritionWidget />
         </div>
         <div className="col-span-1">
           <StepGoalWidget dailyGoal={stepGoal?.daily_steps} />

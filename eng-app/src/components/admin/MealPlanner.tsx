@@ -466,12 +466,6 @@ const MealPlanner: React.FC = () => {
                                                     </td>
                                                     <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                                                         <button
-                                                            onClick={() => handleManageMeals(plan.id)}
-                                                            className="mr-3 text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                                                        >
-                                                            Meals
-                                                        </button>
-                                                        <button
                                                             onClick={() => handleEdit(plan)}
                                                             className="mr-3 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                                                         >

@@ -16,7 +16,10 @@ import { createMeal, updateMeal, deleteMeal, getNutritionPlanById, duplicateMeal
 import { MealFoodItems } from './MealFoodItems';
 import { FoodSelector } from './FoodSelector';
 import EditDayModal from './EditDayModal';
+import DuplicateDayTypeModal from './DuplicateDayTypeModal';
 import { Button } from '../ui/Button';
+import { supabase } from '../../services/supabaseClient';
+import { calculateTotalNutrition } from '../../utils/nutritionUtils';
 
 // Define types for drag and drop
 type DragItem = {
@@ -225,6 +228,10 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
     const [selectedMealId, setSelectedMealId] = useState<string | null>(null);
     const [mealToDelete, setMealToDelete] = useState<string | null>(null);
     const [selectedDayTypeFilter, setSelectedDayTypeFilter] = useState<string | null>(null);
+    
+    // Day Duplication state
+    const [showDuplicateDayTypeModal, setShowDuplicateDayTypeModal] = useState(false);
+    const [duplicatingDayType, setDuplicatingDayType] = useState<string | null>(null);
     
     // Alert state for validation messages
     const [alertMessage, setAlertMessage] = useState<{message: string; type: 'success' | 'error'} | null>(null);
@@ -569,6 +576,12 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
         }
     };
 
+    // Handler for duplicating a day type
+    const handleDuplicateDayType = (dayType: string) => {
+        setDuplicatingDayType(dayType);
+        setShowDuplicateDayTypeModal(true);
+    };
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-64">
@@ -891,6 +904,15 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
                                             <h4 className="text-md font-semibold text-gray-800 dark:text-white">
                                                 {dayType}
                                             </h4>
+                                            <div className="flex space-x-2">
+                                                <button
+                                                    onClick={() => handleDuplicateDayType(dayType)}
+                                                    className="flex items-center px-2 py-1 text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded"
+                                                    title="Duplicate day type"
+                                                >
+                                                    <FiCopy className="mr-1" /> Duplicate Day
+                                                </button>
+                                            </div>
                                         </div>
                                         
                                         {/* Day Type Nutrition Summary */}
@@ -984,6 +1006,26 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
                             </div>
                         </div>
                     </div>
+                )}
+
+                {/* Duplicate Day Type Modal */}
+                {duplicatingDayType && (
+                    <DuplicateDayTypeModal
+                        isOpen={showDuplicateDayTypeModal}
+                        onClose={() => setShowDuplicateDayTypeModal(false)}
+                        onSuccess={() => {
+                            fetchNutritionPlan();
+                            setAlertMessage({
+                                message: `"${duplicatingDayType}" meals successfully duplicated`,
+                                type: 'success'
+                            });
+                            setTimeout(() => {
+                                setAlertMessage(null);
+                            }, 3000);
+                        }}
+                        sourceDayType={duplicatingDayType}
+                        nutritionPlanId={nutritionPlanId}
+                    />
                 )}
             </div>
         </DndProvider>

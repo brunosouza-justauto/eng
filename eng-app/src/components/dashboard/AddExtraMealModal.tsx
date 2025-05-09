@@ -1,0 +1,419 @@
+import React, { useState, useEffect } from 'react';
+import { FiX, FiPlus } from 'react-icons/fi';
+import { useSelector } from 'react-redux';
+import { selectUser } from '../../store/slices/authSlice';
+import { ExtraMealFormData, DAY_TYPES } from '../../types/mealPlanning';
+import { searchFoodItems } from '../../services/mealPlanningService';
+import { logExtraMeal } from '../../services/mealLoggingService';
+
+interface AddExtraMealModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onMealAdded: () => void;
+    nutritionPlanId: string;
+    date: string;
+    dayType?: string;
+}
+
+// Food search result interface
+interface FoodSearchResult {
+    id: string;
+    food_name: string;
+    calories_per_100g: number;
+    protein_per_100g: number;
+    carbs_per_100g: number;
+    fat_per_100g: number;
+}
+
+const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
+    isOpen,
+    onClose,
+    onMealAdded,
+    nutritionPlanId,
+    date,
+    dayType
+}) => {
+    // Get user from Redux store
+    const user = useSelector(selectUser);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [error, setError] = useState<string | null>(null);
+    const [name, setName] = useState<string>('');
+    const [notes, setNotes] = useState<string>('');
+    const [selectedDayType, setSelectedDayType] = useState<string>(dayType || DAY_TYPES[0]);
+    const [customDayType, setCustomDayType] = useState<string>('');
+    
+    // Food selection state
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([]);
+    const [isSearching, setIsSearching] = useState<boolean>(false);
+    const [selectedFoods, setSelectedFoods] = useState<Array<{
+        id: string;
+        name: string;
+        quantity: number;
+        unit: string;
+    }>>([]);
+
+    // Reset form when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setName('');
+            setNotes('');
+            setSelectedDayType(dayType || DAY_TYPES[0]);
+            setCustomDayType('');
+            setSearchQuery('');
+            setSearchResults([]);
+            setSelectedFoods([]);
+            setError(null);
+        }
+    }, [isOpen, dayType]);
+
+    // Search for food items
+    useEffect(() => {
+        const searchFoods = async () => {
+            if (!searchQuery.trim()) {
+                setSearchResults([]);
+                return;
+            }
+
+            setIsSearching(true);
+            try {
+                const result = await searchFoodItems(searchQuery);
+                setSearchResults(result.items || []);
+            } catch (err) {
+                console.error('Error searching food items:', err);
+                setError('Failed to search food items');
+            } finally {
+                setIsSearching(false);
+            }
+        };
+
+        const timeoutId = setTimeout(searchFoods, 500);
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery]);
+
+    // Add food to selected list
+    const handleAddFood = (food: FoodSearchResult) => {
+        setSelectedFoods([
+            ...selectedFoods,
+            {
+                id: food.id,
+                name: food.food_name,
+                quantity: 100, // Default quantity
+                unit: 'g'     // Default unit
+            }
+        ]);
+        setSearchQuery('');
+    };
+
+    // Remove food from selected list
+    const handleRemoveFood = (index: number) => {
+        const newSelectedFoods = [...selectedFoods];
+        newSelectedFoods.splice(index, 1);
+        setSelectedFoods(newSelectedFoods);
+    };
+
+    // Update food quantity
+    const handleUpdateQuantity = (index: number, quantity: number) => {
+        const newSelectedFoods = [...selectedFoods];
+        newSelectedFoods[index].quantity = quantity;
+        setSelectedFoods(newSelectedFoods);
+    };
+
+    // Update food unit
+    const handleUpdateUnit = (index: number, unit: string) => {
+        const newSelectedFoods = [...selectedFoods];
+        newSelectedFoods[index].unit = unit;
+        setSelectedFoods(newSelectedFoods);
+    };
+
+    // Submit form
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!user?.id) {
+            setError('You must be logged in to add a meal');
+            return;
+        }
+        
+        if (!name.trim()) {
+            setError('Meal name is required');
+            return;
+        }
+        
+        if (selectedFoods.length === 0) {
+            setError('Please add at least one food item');
+            return;
+        }
+
+        // Determine day type
+        const finalDayType = selectedDayType === 'Custom Day' 
+            ? customDayType.trim() 
+            : selectedDayType;
+            
+        if (selectedDayType === 'Custom Day' && !customDayType.trim()) {
+            setError('Please provide a custom day type');
+            return;
+        }
+
+        // Create meal data
+        const mealData: ExtraMealFormData = {
+            name,
+            day_type: finalDayType,
+            notes: notes.trim() || undefined,
+            food_items: selectedFoods.map(food => ({
+                food_item_id: food.id,
+                quantity: food.quantity,
+                unit: food.unit
+            }))
+        };
+
+        setIsLoading(true);
+        setError(null);
+        
+        try {
+            await logExtraMeal(user.id, nutritionPlanId, mealData, date);
+            onMealAdded();
+        } catch (err) {
+            console.error('Error adding extra meal:', err);
+            setError('Failed to add meal');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+                <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        Log Extra Meal
+                    </h2>
+                    <button 
+                        onClick={onClose}
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    >
+                        <FiX className="w-5 h-5" />
+                    </button>
+                </div>
+                
+                <div className="p-4 overflow-y-auto max-h-[calc(90vh-4rem)]">
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-md text-sm">
+                            {error}
+                        </div>
+                    )}
+                    
+                    <form onSubmit={handleSubmit}>
+                        {/* Meal Name */}
+                        <div className="mb-4">
+                            <label htmlFor="mealName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Meal Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="mealName"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="e.g., Post-Workout Snack"
+                                required
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                            />
+                        </div>
+                        
+                        {/* Day Type */}
+                        <div className="mb-4">
+                            <label htmlFor="dayType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Day Type <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                id="dayType"
+                                value={selectedDayType}
+                                onChange={(e) => setSelectedDayType(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                            >
+                                {DAY_TYPES.map((type) => (
+                                    <option key={type} value={type}>
+                                        {type}
+                                    </option>
+                                ))}
+                                <option value="Custom Day">Custom Day</option>
+                            </select>
+                            
+                            {selectedDayType === 'Custom Day' && (
+                                <div className="mt-3">
+                                    <label htmlFor="customDayType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Custom Day Name <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        id="customDayType"
+                                        type="text"
+                                        value={customDayType}
+                                        onChange={(e) => setCustomDayType(e.target.value)}
+                                        placeholder="e.g., Refeed Day, Travel Day"
+                                        required={selectedDayType === 'Custom Day'}
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Notes */}
+                        <div className="mb-4">
+                            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Notes (Optional)
+                            </label>
+                            <textarea
+                                id="notes"
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                placeholder="Add any additional notes here..."
+                                rows={2}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                            />
+                        </div>
+                        
+                        {/* Food Items */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Food Items <span className="text-red-500">*</span>
+                            </label>
+                            
+                            {/* Food Search */}
+                            <div className="mb-4">
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search for food items..."
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                />
+                                
+                                {isSearching && (
+                                    <div className="mt-2 text-center">
+                                        <div className="inline-block w-5 h-5 border-t-2 border-b-2 border-indigo-500 rounded-full animate-spin"></div>
+                                    </div>
+                                )}
+                                
+                                {searchQuery.trim() && searchResults.length > 0 && (
+                                    <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-md max-h-40 overflow-y-auto">
+                                        {searchResults.map((food) => (
+                                            <div 
+                                                key={food.id}
+                                                onClick={() => handleAddFood(food)}
+                                                className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                                            >
+                                                <p className="text-sm font-medium text-gray-800 dark:text-white">
+                                                    {food.food_name}
+                                                </p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                    {Math.round(food.calories_per_100g)} cal • {Math.round(food.protein_per_100g)}g protein • {Math.round(food.carbs_per_100g)}g carbs • {Math.round(food.fat_per_100g)}g fat (per 100g)
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                
+                                {searchQuery.trim() && searchResults.length === 0 && !isSearching && (
+                                    <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                        No food items found. Try a different search term.
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* Selected Foods */}
+                            <div className="space-y-3 mt-3">
+                                {selectedFoods.length === 0 ? (
+                                    <div className="text-center py-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-md">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            No food items added yet. Search and add food items above.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    selectedFoods.map((food, index) => (
+                                        <div 
+                                            key={index}
+                                            className="p-3 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-700"
+                                        >
+                                            <div className="flex justify-between mb-2">
+                                                <p className="font-medium text-gray-800 dark:text-white">
+                                                    {food.name}
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveFood(index)}
+                                                    className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                                                >
+                                                    <FiX className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                            <div className="flex space-x-2">
+                                                <div className="w-1/2">
+                                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                                        Quantity
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        value={food.quantity}
+                                                        onChange={(e) => handleUpdateQuantity(index, parseFloat(e.target.value) || 0)}
+                                                        min="0.1"
+                                                        step="0.1"
+                                                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                                    />
+                                                </div>
+                                                <div className="w-1/2">
+                                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                                        Unit
+                                                    </label>
+                                                    <select
+                                                        value={food.unit}
+                                                        onChange={(e) => handleUpdateUnit(index, e.target.value)}
+                                                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                                    >
+                                                        <option value="g">g</option>
+                                                        <option value="oz">oz</option>
+                                                        <option value="ml">ml</option>
+                                                        <option value="cup">cup</option>
+                                                        <option value="serving">serving</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                        
+                        {/* Submit Button */}
+                        <div className="flex justify-end space-x-3 mt-6">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
+                                disabled={isLoading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <div className="inline-block w-4 h-4 border-t-2 border-b-2 border-white rounded-full animate-spin"></div>
+                                ) : (
+                                    <>
+                                        <FiPlus className="inline-block mr-1" /> Log Meal
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default AddExtraMealModal; 
