@@ -7,6 +7,7 @@ import Card from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import ProgramAssignmentModal from '../../components/admin/ProgramAssignmentModal';
 import NutritionPlanAssignmentModal from '../../components/admin/NutritionPlanAssignmentModal';
+import AthleteMeasurementsManager from '../../components/admin/AthleteMeasurementsManager';
 
 // Add a proper interface for the program assignment
 interface AthleteProgram {
@@ -556,6 +557,21 @@ const AthleteDetailsPage: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Body Measurements Tracking */}
+                    <Card className="p-6 mb-6">
+                        <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Body Measurements</h3>
+                        <AthleteMeasurementsManager 
+                            athleteId={athleteDetails.id}
+                            athleteData={{
+                                gender: athleteDetails.gender as 'male' | 'female',
+                                age: athleteDetails.age || 0,
+                                height_cm: athleteDetails.height_cm || 0,
+                                first_name: athleteDetails.first_name || '',
+                                last_name: athleteDetails.last_name || ''
+                            }}
+                        />
+                    </Card>
+
                     {/* Training Program Card */}
                     <Card className="p-6 mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Training Program</h3>
@@ -570,7 +586,7 @@ const AthleteDetailsPage: React.FC = () => {
                                 </p>
                                 <button 
                                     onClick={() => setShowProgramModal(true)}
-                                    className="px-3 py-1 mt-2 text-sm text-indigo-600 bg-indigo-100 rounded hover:bg-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-800/40"
+                                    className="mt-3 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
                                 >
                                     Change Program
                                 </button>
@@ -580,7 +596,7 @@ const AthleteDetailsPage: React.FC = () => {
                                 <p className="text-gray-600 dark:text-gray-400">No program assigned yet.</p>
                                 <button 
                                     onClick={() => setShowProgramModal(true)}
-                                    className="px-3 py-1 mt-2 text-sm text-indigo-600 bg-indigo-100 rounded hover:bg-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-800/40"
+                                    className="mt-3 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
                                 >
                                     Assign Program
                                 </button>
@@ -602,7 +618,7 @@ const AthleteDetailsPage: React.FC = () => {
                                 </p>
                                 <button 
                                     onClick={() => setShowNutritionPlanModal(true)}
-                                    className="px-3 py-1 mt-2 text-sm text-indigo-600 bg-indigo-100 rounded hover:bg-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-800/40"
+                                    className="mt-3 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
                                 >
                                     Change Nutrition Plan
                                 </button>
@@ -612,7 +628,7 @@ const AthleteDetailsPage: React.FC = () => {
                                 <p className="text-gray-600 dark:text-gray-400">No nutrition plan assigned yet.</p>
                                 <button 
                                     onClick={() => setShowNutritionPlanModal(true)}
-                                    className="px-3 py-1 mt-2 text-sm text-indigo-600 bg-indigo-100 rounded hover:bg-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-800/40"
+                                    className="mt-3 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
                                 >
                                     Assign Nutrition Plan
                                 </button>
