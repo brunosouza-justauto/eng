@@ -203,12 +203,75 @@ const AthleteMeasurementsHistory: React.FC<AthleteMeasurementsHistoryProps> = ({
                         {measurement.body_fat_override && (
                           <span className="ml-1 text-xs text-orange-500 dark:text-orange-400" title="Manually overridden">*</span>
                         )}
+                        {measurement.id !== measurements[measurements.length - 1]?.id && measurements.indexOf(measurement) < measurements.length - 1 && (
+                          (() => {
+                            const nextMeasurement = measurements[measurements.indexOf(measurement) + 1];
+                            if (nextMeasurement && nextMeasurement.body_fat_percentage && measurement.body_fat_percentage) {
+                              const change = measurement.body_fat_percentage - nextMeasurement.body_fat_percentage;
+                              return (
+                                <span className={`ml-2 px-1.5 py-0.5 text-xs font-medium rounded ${
+                                  change > 0 
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+                                    : change < 0 
+                                      ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
+                                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                }`}>
+                                  {change > 0 ? '-' : change < 0 ? '+' : ''}
+                                  {Math.abs(change).toFixed(1)}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                         {measurement.lean_body_mass_kg?.toFixed(1)}
+                        {measurement.id !== measurements[measurements.length - 1]?.id && measurements.indexOf(measurement) < measurements.length - 1 && (
+                          (() => {
+                            const nextMeasurement = measurements[measurements.indexOf(measurement) + 1];
+                            if (nextMeasurement && nextMeasurement.lean_body_mass_kg && measurement.lean_body_mass_kg) {
+                              const change = measurement.lean_body_mass_kg - nextMeasurement.lean_body_mass_kg;
+                              return (
+                                <span className={`ml-2 px-1.5 py-0.5 text-xs font-medium rounded ${
+                                  change > 0 
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+                                    : change < 0 
+                                      ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
+                                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                }`}>
+                                  {change > 0 ? '+' : ''}
+                                  {change.toFixed(1)}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                         {measurement.fat_mass_kg?.toFixed(1)}
+                        {measurement.id !== measurements[measurements.length - 1]?.id && measurements.indexOf(measurement) < measurements.length - 1 && (
+                          (() => {
+                            const nextMeasurement = measurements[measurements.indexOf(measurement) + 1];
+                            if (nextMeasurement && nextMeasurement.fat_mass_kg && measurement.fat_mass_kg) {
+                              const change = measurement.fat_mass_kg - nextMeasurement.fat_mass_kg;
+                              return (
+                                <span className={`ml-2 px-1.5 py-0.5 text-xs font-medium rounded ${
+                                  change > 0 
+                                    ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
+                                    : change < 0 
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+                                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                }`}>
+                                  {change > 0 ? '+' : ''}
+                                  {change.toFixed(1)}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                         {getCalculationMethodName(measurement.calculation_method)}

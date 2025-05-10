@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AthleteBodyMeasurementForm from './AthleteBodyMeasurementForm';
 import AthleteMeasurementsHistory from './AthleteMeasurementsHistory';
+import AthleteMeasurementsChart from './AthleteMeasurementsChart';
+import AthleteMeasurementsSummary from './AthleteMeasurementsSummary';
 import Button from '../ui/Button';
+import { getAthleteAllMeasurements, BodyMeasurement } from '../../services/measurementService';
 
 interface AthleteMeasurementsManagerProps {
   athleteId: string;
@@ -20,6 +23,8 @@ const AthleteMeasurementsManager: React.FC<AthleteMeasurementsManagerProps> = ({
 }) => {
   const [showNewMeasurementForm, setShowNewMeasurementForm] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
+  const [loading, setLoading] = useState(true);
   
   // Toggle the new measurement form
   const toggleNewMeasurementForm = () => {
@@ -32,6 +37,26 @@ const AthleteMeasurementsManager: React.FC<AthleteMeasurementsManagerProps> = ({
     // Increment refresh trigger to reload measurements
     setRefreshTrigger(prev => prev + 1);
   };
+  
+  // Load measurements for the chart
+  useEffect(() => {
+    const loadMeasurements = async () => {
+      setLoading(true);
+      try {
+        const { data } = await getAthleteAllMeasurements(athleteId);
+        setMeasurements(data || []);
+      } catch (err) {
+        console.error('Error loading measurements for chart:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadMeasurements();
+  }, [athleteId, refreshTrigger]);
+  
+  // Check if we have at least two measurements for comparison
+  const hasSufficientData = measurements.length >= 2;
   
   return (
     <div className="space-y-8">
@@ -56,6 +81,25 @@ const AthleteMeasurementsManager: React.FC<AthleteMeasurementsManagerProps> = ({
             athleteId={athleteId}
             athleteData={athleteData}
             onSaved={handleMeasurementSaved}
+          />
+        </div>
+      )}
+      
+      {/* Progress Summary Cards */}
+      {!loading && hasSufficientData && (
+        <div className="mb-8">
+          <AthleteMeasurementsSummary 
+            measurements={measurements}
+          />
+        </div>
+      )}
+      
+      {/* Measurements Chart */}
+      {!loading && hasSufficientData && (
+        <div className="mb-8">
+          <AthleteMeasurementsChart 
+            measurements={measurements} 
+            className="w-full"
           />
         </div>
       )}
