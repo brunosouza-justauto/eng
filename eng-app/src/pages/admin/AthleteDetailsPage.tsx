@@ -561,7 +561,7 @@ const AthleteDetailsPage: React.FC = () => {
                     <Card className="p-6 mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Body Measurements</h3>
                         <AthleteMeasurementsManager 
-                            athleteId={athleteDetails.id}
+                            athleteId={athleteDetails.user_id || ''}
                             athleteData={{
                                 gender: athleteDetails.gender as 'male' | 'female',
                                 age: athleteDetails.age || 0,
@@ -814,7 +814,7 @@ const AthleteDetailsPage: React.FC = () => {
             {/* Program Assignment Modal */}
             {athleteDetails && showProgramModal && (
                 <ProgramAssignmentModal
-                    athleteId={athleteDetails.id}
+                    athleteId={athleteDetails.user_id || ''}
                     onClose={() => setShowProgramModal(false)}
                     onSuccess={handleProgramAssignmentSuccess}
                 />
@@ -823,7 +823,7 @@ const AthleteDetailsPage: React.FC = () => {
             {/* Nutrition Plan Assignment Modal */}
             {athleteDetails && showNutritionPlanModal && (
                 <NutritionPlanAssignmentModal
-                    athleteId={athleteDetails.id}
+                    athleteId={athleteDetails.user_id || ''}
                     onClose={() => setShowNutritionPlanModal(false)}
                     onSuccess={handleNutritionPlanAssignmentSuccess}
                 />

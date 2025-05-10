@@ -66,7 +66,70 @@ function App() {
         if (data) {
           dispatch(setProfile(data as ProfileData));
         } else {
-          // Handle case where profile might not exist yet (e.g., right after signup)
+          // Handle case where user might be logging in for the first time
+          // Check if there's a profile with matching email but null user_id
+          const user = await supabase.auth.getUser();
+          if (user && user.data.user?.email) {
+            const email = user.data.user.email;
+            
+            console.log('No profile found with user_id, checking for profile with email:', email);
+            
+            // Try to find a profile with matching email and NULL user_id
+            const { data: emailProfile, error: emailError } = await supabase
+              .from('profiles')
+              .select(`id, user_id, onboarding_complete, role, email, first_name, last_name`)
+              .eq('email', email)
+              .is('user_id', null)
+              .single();
+              
+            if (emailError && emailError.code !== 'PGRST116') { // PGRST116 is 'no rows returned'
+              console.error('Error looking up profile by email:', emailError);
+            }
+            
+            if (emailProfile) {
+              console.log('Found profile with matching email but NULL user_id. Linking to auth account...');
+              
+              // Update the profile with the user_id
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ user_id: userId })
+                .eq('id', emailProfile.id);
+                
+              if (updateError) {
+                console.error('Error updating profile with user_id:', updateError);
+                throw updateError;
+              }
+              
+              // Fetch the updated profile
+              const { data: updatedProfile, error: fetchError } = await supabase
+                .from('profiles')
+                .select(`id, user_id, onboarding_complete, role, email, first_name, last_name`)
+                .eq('id', emailProfile.id)
+                .single();
+                
+              if (fetchError) {
+                throw fetchError;
+              }
+              
+              if (updatedProfile) {
+                console.log('Successfully linked profile to auth account:', updatedProfile);
+                
+                // Log onboarding status for debugging
+                if (!updatedProfile.onboarding_complete) {
+                  console.log('Profile requires onboarding. User will be redirected to onboarding page.');
+                } else {
+                  console.log('Profile has completed onboarding.');
+                }
+                
+                dispatch(setProfile(updatedProfile as ProfileData));
+                return;
+              }
+            } else {
+              console.log('No profile found with matching email and NULL user_id.');
+            }
+          }
+          
+          // If we get here, no matching profile was found or linked
           dispatch(setProfile(null)); 
         }
       } catch (error: unknown) {

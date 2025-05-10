@@ -66,11 +66,11 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
       setWaist(existingMeasurement.waist_cm?.toString() || '');
       setNeck(existingMeasurement.neck_cm?.toString() || '');
       setHips(existingMeasurement.hips_cm?.toString() || '');
-      setChest(existingMeasurement.chest_cm?.toString() || '');
-      setAbdominal(existingMeasurement.abdominal_cm?.toString() || '');
-      setThigh(existingMeasurement.thigh_cm?.toString() || '');
       
       // Skinfold
+      setChest(existingMeasurement.chest_mm?.toString() || '');
+      setAbdominal(existingMeasurement.abdominal_mm?.toString() || '');
+      setThigh(existingMeasurement.thigh_mm?.toString() || '');
       setTricep(existingMeasurement.tricep_mm?.toString() || '');
       setSubscapular(existingMeasurement.subscapular_mm?.toString() || '');
       setSuprailiac(existingMeasurement.suprailiac_mm?.toString() || '');
@@ -104,22 +104,38 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
     try {
       switch (calculationMethod) {
         case BFCalculationMethod.JACKSON_POLLOCK_3:
-          if (!chest || !abdominal || !thigh) {
-            setError('Chest, abdominal, and thigh measurements are required for Jackson-Pollock 3-site formula');
-            return;
+          if (gender === 'male') {
+            if (!chest || !abdominal || !thigh) {
+              setError('For males, chest, abdominal, and thigh skinfold measurements (in mm) are required for Jackson-Pollock 3-site formula');
+              return;
+            }
+            bf = calculateJacksonPollock3(
+              gender, 
+              age, 
+              parseFloat(chest), 
+              parseFloat(abdominal), 
+              parseFloat(thigh)
+            );
+          } else { // female
+            if (!tricep || !suprailiac || !thigh) {
+              setError('For females, tricep, suprailiac, and thigh skinfold measurements (in mm) are required for Jackson-Pollock 3-site formula');
+              return;
+            }
+            bf = calculateJacksonPollock3(
+              gender, 
+              age, 
+              0, // chest (not used for females)
+              0, // abdominal (not used for females)
+              parseFloat(thigh),
+              parseFloat(tricep),
+              parseFloat(suprailiac)
+            );
           }
-          bf = calculateJacksonPollock3(
-            gender, 
-            age, 
-            parseFloat(chest), 
-            parseFloat(abdominal), 
-            parseFloat(thigh)
-          );
           break;
           
         case BFCalculationMethod.JACKSON_POLLOCK_4:
           if (!abdominal || !suprailiac || !tricep || !thigh) {
-            setError('Abdominal, suprailiac, tricep, and thigh measurements are required for Jackson-Pollock 4-site formula');
+            setError('Abdominal, suprailiac, tricep, and thigh skinfold measurements (in mm) are required for Jackson-Pollock 4-site formula');
             return;
           }
           bf = calculateJacksonPollock4(
@@ -134,7 +150,7 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
           
         case BFCalculationMethod.JACKSON_POLLOCK_7:
           if (!chest || !midaxillary || !tricep || !subscapular || !abdominal || !suprailiac || !thigh) {
-            setError('All 7 site measurements are required for Jackson-Pollock 7-site formula');
+            setError('All 7 site skinfold measurements (in mm) are required for Jackson-Pollock 7-site formula');
             return;
           }
           bf = calculateJacksonPollock7(
@@ -152,7 +168,7 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
           
         case BFCalculationMethod.DURNIN_WOMERSLEY:
           if (!bicep || !tricep || !subscapular || !suprailiac) {
-            setError('Bicep, tricep, subscapular, and suprailiac measurements are required for Durnin-Womersley formula');
+            setError('Bicep, tricep, subscapular, and suprailiac skinfold measurements (in mm) are required for Durnin-Womersley formula');
             return;
           }
           bf = calculateDurninWomersley(
@@ -167,7 +183,7 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
           
         case BFCalculationMethod.PARRILLO:
           if (!chest || !abdominal || !thigh || !bicep || !tricep || !subscapular || !suprailiac || !lowerBack || !calf) {
-            setError('All 9 site measurements are required for Parrillo formula');
+            setError('All 9 site skinfold measurements (in mm) are required for Parrillo formula');
             return;
           }
           bf = calculateParrillo(
@@ -185,8 +201,12 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
           break;
           
         case BFCalculationMethod.NAVY_TAPE:
-          if (!neck || !waist || (gender === 'female' && !hips)) {
-            setError('Neck and waist measurements are required. Hip measurements are also required for females.');
+          if (!neck || !waist) {
+            setError('Neck and waist circumference measurements (in cm) are required for all genders.');
+            return;
+          }
+          if (gender === 'female' && !hips) {
+            setError('For females, hip circumference measurements (in cm) are also required for Navy Tape method.');
             return;
           }
           bf = calculateNavyTape(
@@ -246,11 +266,11 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
         waist_cm: waist ? parseFloat(waist) : undefined,
         neck_cm: neck ? parseFloat(neck) : undefined,
         hips_cm: hips ? parseFloat(hips) : undefined,
-        chest_cm: chest ? parseFloat(chest) : undefined,
-        abdominal_cm: abdominal ? parseFloat(abdominal) : undefined,
-        thigh_cm: thigh ? parseFloat(thigh) : undefined,
         
         // Skinfold measurements
+        chest_mm: chest ? parseFloat(chest) : undefined,
+        abdominal_mm: abdominal ? parseFloat(abdominal) : undefined,
+        thigh_mm: thigh ? parseFloat(thigh) : undefined,
         tricep_mm: tricep ? parseFloat(tricep) : undefined,
         subscapular_mm: subscapular ? parseFloat(subscapular) : undefined,
         suprailiac_mm: suprailiac ? parseFloat(suprailiac) : undefined,
@@ -419,6 +439,15 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
                 className="block w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
+          </div>
+        </div>
+        
+        {/* Skinfold Measurements */}
+        <div className="p-5 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+          <h3 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-4 pb-2 border-b border-gray-200 dark:border-gray-600">
+            Skinfold Measurements (mm)
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Chest</label>
               <input
@@ -449,15 +478,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
                 className="block w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
-          </div>
-        </div>
-        
-        {/* Skinfold Measurements */}
-        <div className="p-5 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
-          <h3 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-4 pb-2 border-b border-gray-200 dark:border-gray-600">
-            Skinfold Measurements (mm)
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bicep</label>
+              <input
+                type="number"
+                step="0.1"
+                value={bicep}
+                onChange={(e) => setBicep(e.target.value)}
+                className="block w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tricep</label>
               <input
@@ -489,26 +519,6 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Midaxillary</label>
-              <input
-                type="number"
-                step="0.1"
-                value={midaxillary}
-                onChange={(e) => setMidaxillary(e.target.value)}
-                className="block w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bicep</label>
-              <input
-                type="number"
-                step="0.1"
-                value={bicep}
-                onChange={(e) => setBicep(e.target.value)}
-                className="block w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-            </div>
-            <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Lower Back</label>
               <input
                 type="number"
@@ -525,6 +535,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
                 step="0.1"
                 value={calf}
                 onChange={(e) => setCalf(e.target.value)}
+                className="block w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Midaxillary</label>
+              <input
+                type="number"
+                step="0.1"
+                value={midaxillary}
+                onChange={(e) => setMidaxillary(e.target.value)}
                 className="block w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>

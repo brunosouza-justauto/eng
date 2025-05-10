@@ -41,7 +41,12 @@ const ProtectedRoute: React.FC = () => {
   // If authenticated but profile is loaded and onboarding is not complete,
   // redirect to onboarding page (unless already there).
   if (profile && !profile.onboarding_complete && location.pathname !== '/onboarding') {
-      console.log('Redirecting to onboarding...', profile);
+      console.log('ProtectedRoute - Profile found but onboarding not complete. Redirecting to onboarding...', {
+        profileId: profile.id,
+        userId: profile.user_id,
+        email: profile.email,
+        onboardingComplete: profile.onboarding_complete
+      });
       return <Navigate to="/onboarding" replace />;
   }
   // -----------------------

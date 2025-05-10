@@ -20,11 +20,11 @@ export interface BodyMeasurement {
   waist_cm?: number;
   neck_cm?: number;
   hips_cm?: number;
-  chest_cm?: number;
-  abdominal_cm?: number;
-  thigh_cm?: number;
   
   // Skinfold measurements (mm)
+  chest_mm?: number;
+  abdominal_mm?: number;
+  thigh_mm?: number;
   tricep_mm?: number;
   subscapular_mm?: number;
   suprailiac_mm?: number;
@@ -48,17 +48,31 @@ export interface BodyMeasurement {
 
 /**
  * Calculate body fat percentage using Jackson-Pollock 3-site formula
- * Sites: Chest, Abdomen, Thigh
+ * Sites for males: Chest, Abdomen, Thigh
+ * Sites for females: Tricep, Suprailiac, Thigh
  */
 export function calculateJacksonPollock3(
   gender: 'male' | 'female',
   age: number,
   chest_mm: number,
   abdominal_mm: number,
-  thigh_mm: number
+  thigh_mm: number,
+  tricep_mm?: number,
+  suprailiac_mm?: number
 ): number {
-  // Sum of skinfolds
-  const sum = chest_mm + abdominal_mm + thigh_mm;
+  // Sum of skinfolds - different sites based on gender
+  let sum = 0;
+  
+  if (gender === 'male') {
+    // For males: chest, abdominal, thigh
+    sum = chest_mm + abdominal_mm + thigh_mm;
+  } else {
+    // For females: tricep, suprailiac, thigh
+    if (!tricep_mm || !suprailiac_mm) {
+      throw new Error('For females, tricep and suprailiac measurements are required for Jackson-Pollock 3-site formula');
+    }
+    sum = tricep_mm + suprailiac_mm + thigh_mm;
+  }
   
   // Calculate body density
   let bodyDensity = 0;
@@ -215,14 +229,8 @@ export function calculateParrillo(
   const sum = chest_mm + abdominal_mm + thigh_mm + bicep_mm + tricep_mm + 
               subscapular_mm + suprailiac_mm + lower_back_mm + calf_mm;
   
-  // Parrillo calculation (simplified version)
-  let bodyFatPercentage = 0;
-  
-  if (gender === 'male') {
-    bodyFatPercentage = sum * 0.27;
-  } else { // female
-    bodyFatPercentage = sum * 0.27 + 10; // Women typically have ~10% more essential fat
-  }
+  // Parrillo calculation - revised based on standard implementation
+  const bodyFatPercentage = sum * 0.27;
   
   return parseFloat(bodyFatPercentage.toFixed(1));
 }
