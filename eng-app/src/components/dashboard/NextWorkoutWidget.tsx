@@ -302,11 +302,10 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
             <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
               Completed
             </span>
-          ) : workoutData && workoutData.id ? (
-            // TODO: Create a proper WorkoutPlanView page and route to display the complete workout program
-            // Similar to how MealPlanView works for nutrition plans
+          ) : programTemplateId ? (
+            // Show the "View Plan" link regardless of whether it's a rest day or not
             <Link
-              to={`/workout/${programTemplateId}`}
+              to={`/workout-plan/${programTemplateId}`}
               className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm font-medium flex items-center"
             >
               View Plan
