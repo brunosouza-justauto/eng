@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useDrag } from 'react-dnd';
 
 // Define item types for drag and drop
@@ -25,6 +25,9 @@ interface DraggableExerciseCardProps {
 
 // Component for draggable exercise cards
 const DraggableExerciseCard: React.FC<DraggableExerciseCardProps> = ({ exercise, onClick }) => {
+    // Create a ref that React recognizes
+    const elementRef = useRef<HTMLDivElement>(null);
+    
     // Extract the drag logic to its own component
     const [{ isDragging }, dragRef] = useDrag({
         type: ItemTypes.SEARCH_EXERCISE,
@@ -34,6 +37,11 @@ const DraggableExerciseCard: React.FC<DraggableExerciseCardProps> = ({ exercise,
         }),
     });
 
+    // Connect the drag ref to our element ref
+    useEffect(() => {
+        dragRef(elementRef.current);
+    }, [dragRef]);
+
     // Format category display to handle potential long category names
     const formatCategory = (category: string) => {
         return category.length > 15 ? `${category.substring(0, 12)}...` : category;
@@ -41,7 +49,7 @@ const DraggableExerciseCard: React.FC<DraggableExerciseCardProps> = ({ exercise,
 
     return (
         <div
-            ref={dragRef}
+            ref={elementRef}
             className={`flex items-center p-3 mb-2 bg-white border rounded-md cursor-pointer dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 ${
                 isDragging ? 'opacity-50' : 'opacity-100'
             }`}

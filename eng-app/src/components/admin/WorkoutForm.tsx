@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { WorkoutAdminData, ExerciseInstanceAdminData, SetType } from '../../types/adminTypes';
@@ -78,15 +78,18 @@ const ExerciseDropZone = ({
     onDrop, 
     index,
     isOver,
-    isDragging, // New prop to track if any drag operation is in progress
+    isDragging, 
 }: { 
     onDrop: (item: { type: string; exerciseIndex?: number; exercise?: Exercise }, targetIndex: number) => void, 
     index: number,
     isOver: boolean,
-    isDragging: boolean, // New prop to track if any drag operation is in progress
+    isDragging: boolean, 
 }) => {
+    // Create a ref that React recognizes
+    const dropElementRef = useRef<HTMLDivElement>(null);
+    
     const [{ isOverCurrent }, drop] = useDrop(() => ({
-        accept: [ItemTypes.SEARCH_EXERCISE, ItemTypes.WORKOUT_EXERCISE],
+        accept: [ItemTypes.WORKOUT_EXERCISE, ItemTypes.SEARCH_EXERCISE],
         drop: (item) => {
             onDrop(item, index);
             return { dropped: true };
@@ -96,12 +99,17 @@ const ExerciseDropZone = ({
         }),
     }));
 
+    // Connect the drop ref to our element ref
+    useEffect(() => {
+        drop(dropElementRef.current);
+    }, [drop]);
+
     // Only show the drop zone visually when dragging or hovering
     const isActive = isOverCurrent || isOver;
     
     return (
         <div
-            ref={drop}
+            ref={dropElementRef}
             className={`
                 mx-1 transition-all duration-200 
                 ${!isDragging ? 'h-2' : isActive ? 'h-20 py-2 my-2' : 'h-6 my-1'}
@@ -150,6 +158,9 @@ const DraggableWorkoutExercise = ({
     } | null,
     onRemoveFromSuperset: (index: number) => void
 }) => {
+    // Create a ref that React recognizes
+    const dragElementRef = useRef<HTMLDivElement>(null);
+    
     const [{ isDragging }, drag] = useDrag(() => ({
         type: ItemTypes.WORKOUT_EXERCISE,
         item: { 
@@ -163,13 +174,18 @@ const DraggableWorkoutExercise = ({
             isDragging: !!monitor.isDragging(),
         }),
     }));
+    
+    // Connect the drag ref to our element ref
+    useEffect(() => {
+        drag(dragElementRef.current);
+    }, [drag]);
 
     // Determine if this is in a superset
     const isSupersetExercise = supersetInfo !== null;
 
     return (
         <div 
-            ref={drag}
+            ref={dragElementRef}
             className={`overflow-hidden border rounded-lg shadow 
                 ${isDragging ? 'opacity-50' : 'opacity-100'}
                 ${isSupersetExercise ? 'border-indigo-500 dark:border-indigo-600' : 'bg-white dark:bg-gray-800 dark:border-gray-700'}
@@ -760,24 +776,19 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
 
     // Update the drop functionality
     const [{ isOver }, mainDropRef] = useDrop(() => ({
-        accept: [ItemTypes.SEARCH_EXERCISE, ItemTypes.WORKOUT_EXERCISE],
-        drop: (item: { type: string; exerciseIndex?: number; exercise?: Exercise }, monitor) => {
-            // Only process drops directly on the container (not on nested drop targets)
-            if (monitor.didDrop()) return;
-            
-            if (item.type === ItemTypes.WORKOUT_EXERCISE) {
-                // Handle exercise reordering - move to the end
-                handleMoveExercise(item.exerciseIndex!, exercises.length);
-            } else {
-                // This is a new exercise from search
-                handleAddExercise(item.exercise as Exercise);
-            }
-            return { dropped: true };
-        },
+        accept: [ItemTypes.WORKOUT_EXERCISE, ItemTypes.SEARCH_EXERCISE],
         collect: (monitor) => ({
-            isOver: !!monitor.isOver({ shallow: true }),
+            isOver: !!monitor.isOver(),
         }),
     }));
+
+    // Create a ref that React recognizes for the main drop area
+    const mainDropAreaRef = useRef<HTMLDivElement>(null);
+
+    // Connect the drop ref to our element ref
+    useEffect(() => {
+        mainDropRef(mainDropAreaRef.current);
+    }, [mainDropRef]);
 
     // Handler for dropping items between exercises
     const handleExerciseDrop = (item: { 
@@ -1723,7 +1734,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                     
                         {/* Exercise List with Enhanced Drop Zone and Drag Functionality */}
                         <div 
-                            ref={mainDropRef}
+                            ref={mainDropAreaRef}
                             className={`${DROP_ZONE_BASE_CLASS} ${isOver ? DROP_ZONE_HOVER_CLASS : DROP_ZONE_ACTIVE_CLASS}`}
                             onMouseLeave={() => setHoveringIndex(null)}
                         >

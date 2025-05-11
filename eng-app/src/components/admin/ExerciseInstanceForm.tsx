@@ -137,7 +137,7 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
             const setCount = parseInt(exercise.sets, 10);
             if (!isNaN(setCount) && setCount > 0) {
                 const generatedSets: ExerciseSet[] = Array.from({ length: setCount }, (_, i) => ({
-                    order: i + 1,
+                    set_order: i + 1,
                     type: exercise.set_type || SetType.REGULAR,
                     reps: exercise.reps || undefined,
                     rest_seconds: exercise.rest_period_seconds || undefined
@@ -204,7 +204,7 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
     const handleAddSet = () => {
         const currentSets = [...setsData]; // Create a copy
         const newSet: ExerciseSet = {
-            order: currentSets.length + 1,
+            set_order: currentSets.length + 1,
             type: SetType.REGULAR,
             reps: watch('reps') || '',
             rest_seconds: watch('rest_period_seconds') 
@@ -225,7 +225,7 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
         // Reorder the remaining sets
         const reorderedSets = currentSets.map((set, idx) => ({
             ...set,
-            order: idx + 1
+            set_order: idx + 1
         }));
         
         setValue('sets_data', reorderedSets);
