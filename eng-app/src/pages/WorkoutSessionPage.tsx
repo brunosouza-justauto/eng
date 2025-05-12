@@ -1350,12 +1350,10 @@ const WorkoutSessionPage: React.FC = () => {
                 restSeconds = exercise.sets_data[setIndex].rest_seconds;
               }
               // Fall back to exercise rest_period_seconds if no specific rest time
-              if (restSeconds === undefined || restSeconds === null) {
-                restSeconds = exercise.rest_period_seconds;
-              }
+              restSeconds = restSeconds ?? exercise.rest_period_seconds;
               
-              // If rest time is specified, start the timer
-              if (restSeconds) {
+              // If rest time is specified (including 0), start the timer
+              if (restSeconds !== null && restSeconds !== undefined) {
                 startRestTimer(exerciseId, setIndex, restSeconds);
               }
             }
@@ -2974,9 +2972,7 @@ const WorkoutSessionPage: React.FC = () => {
                                           restSeconds = exercise.sets_data[setIndex].rest_seconds;
                                         }
                                         // Fall back to exercise rest_period_seconds if no specific rest time
-                                        if (restSeconds === undefined || restSeconds === null) {
-                                          restSeconds = exercise.rest_period_seconds;
-                                        }
+                                        restSeconds = restSeconds ?? exercise.rest_period_seconds;
                                         
                                         return (
                                           <tr 
@@ -3027,7 +3023,7 @@ const WorkoutSessionPage: React.FC = () => {
                                               </div>
                                             </td>
                                             <td className="px-1 py-2">
-                                              {restSeconds ? (
+                                              {restSeconds !== null && restSeconds !== undefined ? (
                                                 <div className="flex items-center text-blue-600 dark:text-blue-400">
                                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -3191,9 +3187,7 @@ const WorkoutSessionPage: React.FC = () => {
                                 restSeconds = exercise.sets_data[setIndex].rest_seconds;
                               }
                               // Fall back to exercise rest_period_seconds if no specific rest time
-                              if (restSeconds === undefined || restSeconds === null) {
-                                restSeconds = exercise.rest_period_seconds;
-                              }
+                              restSeconds = restSeconds ?? exercise.rest_period_seconds;
                               
                               return (
                                 <tr 
@@ -3244,7 +3238,7 @@ const WorkoutSessionPage: React.FC = () => {
                                     </div>
                                   </td>
                                   <td className="px-1 py-2">
-                                    {restSeconds ? (
+                                    {restSeconds !== null && restSeconds !== undefined ? (
                                       <div className="flex items-center text-blue-600 dark:text-blue-400">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

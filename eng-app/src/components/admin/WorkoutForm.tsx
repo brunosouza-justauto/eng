@@ -386,7 +386,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                         set_order: i + 1, // Use set_order instead of order
                         type: exercise.set_type || SetType.REGULAR,
                         reps: exercise.reps || '',
-                        rest_seconds: exercise.rest_period_seconds || 60
+                        rest_seconds: exercise.rest_period_seconds !== null && exercise.rest_period_seconds !== undefined ? exercise.rest_period_seconds : 60
                     }));
                     
                     return {
@@ -927,17 +927,25 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                             <div className="flex items-center gap-2">
                                 <span className="text-sm text-gray-700 dark:text-gray-300">Rest</span>
                                 <select 
-                                    value={exercise.rest_period_seconds || 60}
+                                    value={exercise.rest_period_seconds ?? 60}
                                     onChange={(e) => {
                                         const restSeconds = parseInt(e.target.value, 10);
                                         handleExerciseDetailChange(index, 'rest_period_seconds', restSeconds);
                                     }}
                                     className="w-28 px-2 py-1 text-sm border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white [&>option]:dark:bg-gray-700 [&>option]:dark:text-white"
                                 >
+                                    <option value={0}>0s</option>
                                     <option value={30}>30s</option>
                                     <option value={60}>60s (1m)</option>
                                     <option value={120}>120s (2m)</option>
                                     <option value={180}>180s (3m)</option>
+                                    <option value={240}>240s (4m)</option>
+                                    <option value={300}>300s (5m)</option>
+                                    <option value={360}>360s (6m)</option>
+                                    <option value={420}>420s (7m)</option>
+                                    <option value={480}>480s (8m)</option>
+                                    <option value={540}>540s (9m)</option>
+                                    <option value={600}>600s (10m)</option>
                                 </select>
                             </div>
                         </div>
@@ -973,10 +981,24 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                 <input 
                                     type="checkbox" 
                                     id={`each-side-${index}`}
+                                    checked={exercise.each_side || false}
+                                    onChange={(e) => handleExerciseDetailChange(index, 'each_side', e.target.checked)}
                                     className="text-indigo-600 rounded focus:ring-indigo-500"
                                 />
                                 <label htmlFor={`each-side-${index}`} className="text-sm text-gray-700 dark:text-gray-300">
                                     Each Side
+                                </label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="checkbox" 
+                                    id={`bodyweight-${index}`}
+                                    checked={exercise.is_bodyweight || false}
+                                    onChange={(e) => handleExerciseDetailChange(index, 'is_bodyweight', e.target.checked)}
+                                    className="text-indigo-600 rounded focus:ring-indigo-500"
+                                />
+                                <label htmlFor={`bodyweight-${index}`} className="text-sm text-gray-700 dark:text-gray-300">
+                                    Bodyweight Exercise
                                 </label>
                             </div>
                             <div className="flex items-center gap-2">
@@ -1059,7 +1081,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             set_order: newSetOrder, // Use set_order instead of order to match the ExerciseSet interface
             type: exercise.set_type || SetType.REGULAR, // Inherit the exercise's default set type
             reps: exercise.reps || '', // Inherit the exercise's default reps
-            rest_seconds: exercise.rest_period_seconds // Inherit the exercise's default rest period
+            rest_seconds: exercise.rest_period_seconds ?? 60 // Inherit the exercise's default rest period
         };
         
         const updatedSetsData = [...currentSetsData, newSet];
@@ -1184,7 +1206,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                         </td>
                         <td className="px-4 py-2 text-center">
                             <select 
-                                value={set.rest_seconds || 60}
+                                value={set.rest_seconds ?? 60}
                                 onChange={(e) => {
                                     const restSeconds = parseInt(e.target.value, 10);
                                     const updatedSetsData = [...exercise.sets_data!];
@@ -1193,10 +1215,18 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                 }}
                                 className="w-full py-1 text-center bg-transparent border-b border-gray-300 dark:border-gray-600 dark:text-white focus:border-indigo-500 focus:outline-none [&>option]:dark:bg-gray-700 [&>option]:dark:text-white"
                             >
+                                <option value={0}>0s</option>
                                 <option value={30}>30s</option>
                                 <option value={60}>60s (1m)</option>
                                 <option value={120}>120s (2m)</option>
                                 <option value={180}>180s (3m)</option>
+                                <option value={240}>240s (4m)</option>
+                                <option value={300}>300s (5m)</option>
+                                <option value={360}>360s (6m)</option>
+                                <option value={420}>420s (7m)</option>
+                                <option value={480}>480s (8m)</option>
+                                <option value={540}>540s (9m)</option>
+                                <option value={600}>600s (10m)</option>
                             </select>
                         </td>
                         <td className="px-1 py-2 text-center">
@@ -1228,7 +1258,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                         set_order: i + 1,
                         type: exercise.set_type || SetType.REGULAR,
                         reps: exercise.reps || '',
-                        rest_seconds: exercise.rest_period_seconds || 60
+                        rest_seconds: exercise.rest_period_seconds ?? 60
                     }));
                     
                     handleExerciseDetailChange(index, 'sets_data', newSetsData);

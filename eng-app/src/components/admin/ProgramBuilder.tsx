@@ -402,11 +402,10 @@ const ProgramBuilder: React.FC = () => {
                 console.log('Inserted exercise instances:', insertedExercises);
                 
                 if (insertedExercises) {
-                    // Create a map of position to ID for referencing when creating sets
-                    insertedExercises.forEach(ex => {
-                        if (ex.order_in_workout !== null) {
-                            newExerciseIds.set(ex.order_in_workout, ex.id);
-                        }
+                    // Create a map of exercise index to ID for referencing when creating sets
+                    // This uses array index instead of order_in_workout which can have duplicates
+                    insertedExercises.forEach((ex, index) => {
+                        newExerciseIds.set(index, ex.id);
                     });
                 }
                 
@@ -415,7 +414,8 @@ const ProgramBuilder: React.FC = () => {
                 
                 for (let i = 0; i < exercises.length; i++) {
                     const exercise = exercises[i];
-                    const exerciseId = newExerciseIds.get(exercise.order_in_workout || 0);
+                    // Use the array index to look up the ID instead of order_in_workout
+                    const exerciseId = newExerciseIds.get(i);
                     
                     console.log(`Processing exercise ${i+1}/${exercises.length}:`, exercise.exercise_name);
                     console.log(`Exercise ID mapped: ${exerciseId}`);
@@ -430,7 +430,7 @@ const ProgramBuilder: React.FC = () => {
                             type: set.type,
                             reps: set.reps || null,
                             weight: set.weight || null,
-                            rest_seconds: set.rest_seconds || null,
+                            rest_seconds: set.rest_seconds ?? null,
                             duration: set.duration || null
                         }));
                         
@@ -520,7 +520,7 @@ const ProgramBuilder: React.FC = () => {
                                 type: set.type as SetType,
                                 reps: set.reps || undefined,
                                 weight: set.weight || undefined,
-                                rest_seconds: set.rest_seconds || undefined,
+                                rest_seconds: set.rest_seconds ?? undefined,
                                 duration: set.duration || undefined
                             });
                         });
@@ -915,7 +915,7 @@ const ProgramBuilder: React.FC = () => {
                                 type: set.type as SetType,
                                 reps: set.reps || undefined,
                                 weight: set.weight || undefined,
-                                rest_seconds: set.rest_seconds || undefined,
+                                rest_seconds: set.rest_seconds ?? undefined,
                                 duration: set.duration || undefined
                             });
                         });
