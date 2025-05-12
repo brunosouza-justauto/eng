@@ -111,17 +111,36 @@
 ## PWA Implementation
 
 - **PWA Configuration:**
-  - Using vite-plugin-pwa for PWA manifest generation
+  - Using custom service worker implementation for maximum control
+  - Manifest.json with complete app metadata
   - Custom SVG icons at 192x192 and 512x512 sizes
   - Offline support with service worker configuration
   - App installation prompts with custom handlers
-  - Update notification system
+  - Update notification system with user-friendly UI
 
 - **Service Worker Features:**
-  - Caching of static assets for offline use
-  - Background synchronization of workout data
-  - Push notification support for reminders
-  - Automatic updates with user notification
+  - Version-based caching with explicit cache naming
+  - Multiple caching strategies based on content type:
+    - Network-first strategy for HTML content
+    - Stale-while-revalidate for static assets
+  - Optimized cache cleanup for proper version management
+  - Enhanced error handling and logging
+  - Skip waiting for immediate activation of new versions
+  - Cache invalidation on service worker updates
+
+- **Installation Experience:**
+  - Smart detection of mobile devices for targeted prompts
+  - Custom React component for installation UI
+  - Delayed prompting to avoid disrupting initial experience
+  - Persistence for user prompt preferences
+  - Clear instructions for installation process
+
+- **Update Notification System:**
+  - Custom React component for update notifications
+  - Time-based cooldown to prevent notification fatigue (24-hour window)
+  - Session-based tracking to prevent duplicate notifications
+  - User-friendly UI with clear update options
+  - localStorage persistence for tracking notification history
 
 ## Technical Constraints
 
