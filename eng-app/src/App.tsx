@@ -32,6 +32,9 @@ import BMRCalculatorPage from './pages/admin/BMRCalculatorPage'; // Import BMRCa
 import FitnessDeviceCallback from './pages/auth/callback/FitnessDeviceCallback';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import VerificationPage from './pages/auth/VerificationPage'; // Import the new VerificationPage
+import PWAInstallPrompt from './components/common/PWAInstallPrompt'; // Import the PWA install prompt
+import UpdateNotification from './components/common/UpdateNotification'; // Import the update notification
+import { initPWA } from './utils/pwaHandler'; // Import PWA initialization
 // Placeholder pages - we will create these properly later
 // const LoginPage = () => <div>Login Page Placeholder - <Link to="/dashboard">Go to Dashboard (temp)</Link></div>;
 const NotFoundPage = () => <div>404 Not Found</div>;
@@ -39,6 +42,12 @@ const NotFoundPage = () => <div>404 Not Found</div>;
 function App() {
   const dispatch = useDispatch();
   const theme = useSelector(selectTheme);
+
+  // Initialize PWA event handlers
+  useEffect(() => {
+    // Initialize PWA functionality
+    initPWA();
+  }, []);
 
   // Apply theme class to html element
   useEffect(() => {
@@ -466,64 +475,72 @@ function App() {
   }, []);
 
   return (
-    <Routes>
-      {/* Routes without MainLayout */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route element={<ProtectedRoute />}>
-          <Route path="/onboarding" element={<OnboardingPage />} />
-      </Route>
-
-      {/* Auth Routes - Publicly accessible */}
-      <Route path="/auth/verify" element={<VerificationPage />} />
-      <Route path="/verify" element={<VerificationPage />} />
-
-      {/* Legal Pages - Accessible without authentication */}
-      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-
-      {/* Routes WITH MainLayout (Authenticated) */}
-      <Route element={<ProtectedRoute />}>
-        <Route element={<MainLayout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            {/* Check-in routes */}
-            <Route path="/check-in/new" element={<CheckInPage />} />
-            <Route path="/check-in/history" element={<CheckInHistoryPage />} />
-            <Route path="/history" element={<Navigate to="/check-in/history" replace />} />
-            <Route path="/workout/:workoutId" element={<WorkoutView />} />
-            <Route path="/workout-session/:workoutId" element={<WorkoutSessionPage />} />
-            <Route path="/meal-plan/:planId" element={<MealPlanView />} />
-            <Route path="/nutrition-plans" element={<NutritionPlansPage />} />
-            <Route path="/workout-programs" element={<WorkoutProgramsPage />} />
-            <Route path="/workout-plan/:programId" element={<WorkoutPlanView />} />
+    <>
+      <Routes>
+        {/* Routes without MainLayout */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<ProtectedRoute />}>
+            <Route path="/onboarding" element={<OnboardingPage />} />
         </Route>
-      </Route>
 
-      {/* Admin Routes (uses AdminLayout, not MainLayout) */}
-      <Route element={<AdminRoute />}>
-          <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="athletes" element={<UserManager />} />
-              <Route path="athletes/:id" element={<AthleteDetailsPage />} />
-              <Route path="coaches" element={<CoachManager />} />
-              <Route path="coaches/:id" element={<CoachDetailsPage />} />
-              <Route path="programs" element={<ProgramBuilder />} />
-              <Route path="mealplans" element={<MealPlanner />} />
-              <Route path="stepgoals" element={<StepGoalSetter />} />
-              <Route path="checkins" element={<CheckInReview />} />
-              <Route path="bmr-calculator" element={<BMRCalculatorPage />} />
-              <Route path="*" element={<div>Admin Section Not Found</div>} />
+        {/* Auth Routes - Publicly accessible */}
+        <Route path="/auth/verify" element={<VerificationPage />} />
+        <Route path="/verify" element={<VerificationPage />} />
+
+        {/* Legal Pages - Accessible without authentication */}
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+
+        {/* Routes WITH MainLayout (Authenticated) */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<MainLayout />}>
+              <Route index element={<DashboardPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              {/* Check-in routes */}
+              <Route path="/check-in/new" element={<CheckInPage />} />
+              <Route path="/check-in/history" element={<CheckInHistoryPage />} />
+              <Route path="/history" element={<Navigate to="/check-in/history" replace />} />
+              <Route path="/workout/:workoutId" element={<WorkoutView />} />
+              <Route path="/workout-session/:workoutId" element={<WorkoutSessionPage />} />
+              <Route path="/meal-plan/:planId" element={<MealPlanView />} />
+              <Route path="/nutrition-plans" element={<NutritionPlansPage />} />
+              <Route path="/workout-programs" element={<WorkoutProgramsPage />} />
+              <Route path="/workout-plan/:programId" element={<WorkoutPlanView />} />
           </Route>
-      </Route>
+        </Route>
 
-      {/* Fitness Device Callback Routes */}
-      <Route path="/auth/callback/fitbit" element={<FitnessDeviceCallback />} />
-      <Route path="/auth/callback/garmin" element={<FitnessDeviceCallback />} />
-      <Route path="/auth/callback/google-fit" element={<FitnessDeviceCallback />} />
-      {/* We'll handle apple-health and samsung-health through native app integrations */}
+        {/* Admin Routes (uses AdminLayout, not MainLayout) */}
+        <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="athletes" element={<UserManager />} />
+                <Route path="athletes/:id" element={<AthleteDetailsPage />} />
+                <Route path="coaches" element={<CoachManager />} />
+                <Route path="coaches/:id" element={<CoachDetailsPage />} />
+                <Route path="programs" element={<ProgramBuilder />} />
+                <Route path="mealplans" element={<MealPlanner />} />
+                <Route path="stepgoals" element={<StepGoalSetter />} />
+                <Route path="checkins" element={<CheckInReview />} />
+                <Route path="bmr-calculator" element={<BMRCalculatorPage />} />
+                <Route path="*" element={<div>Admin Section Not Found</div>} />
+            </Route>
+        </Route>
 
-      {/* Fallback 404 Route (without MainLayout) */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+        {/* Fitness Device Callback Routes */}
+        <Route path="/auth/callback/fitbit" element={<FitnessDeviceCallback />} />
+        <Route path="/auth/callback/garmin" element={<FitnessDeviceCallback />} />
+        <Route path="/auth/callback/google-fit" element={<FitnessDeviceCallback />} />
+        {/* We'll handle apple-health and samsung-health through native app integrations */}
+
+        {/* Fallback 404 Route (without MainLayout) */}
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+      
+      {/* PWA Install Prompt - Shows conditionally based on internal logic */}
+      <PWAInstallPrompt />
+      
+      {/* Update Notification - Shows when service worker has an update */}
+      <UpdateNotification />
+    </>
   );
 }
 
