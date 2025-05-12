@@ -7,9 +7,13 @@ import { selectProfile } from '../../store/slices/authSlice';
 import { supabase } from '../../services/supabaseClient';
 import FormInput from '../ui/FormInput';
 import { v4 as uuidv4 } from 'uuid';
+import { formatDate } from '../../utils/dateUtils';
 
 // Define Zod schema for check-in data (refine as needed)
 const checkInSchema = z.object({
+    // Check-in date
+    check_in_date: z.string().min(1, 'Date is required'),
+    
     // Body Metrics
     weight_kg: z.coerce.number({invalid_type_error: 'Weight must be a number'})
                    .positive('Weight must be greater than 0'),
@@ -50,7 +54,7 @@ type CheckInData = z.infer<typeof checkInSchema>;
 // Define DB table structures (subset, based on form schema)
 interface CheckInInsert {
     user_id: string;
-    check_in_date?: string; // Default to CURRENT_DATE in DB
+    check_in_date: string; // Now required
     photos?: string[]; // Store array of storage paths
     video_url?: string; // Store single storage path
     diet_adherence?: string | null;
@@ -101,7 +105,15 @@ const ADHERENCE_OPTIONS = [
     { value: "Off Track", label: "Off Track - Did Not Follow Plan" }
 ];
 
-const CheckInForm: React.FC = () => {
+interface CheckInFormProps {
+    defaultDate?: string; // YYYY-MM-DD format
+    onSubmitSuccess?: () => void; // Add callback for submission success
+}
+
+const CheckInForm: React.FC<CheckInFormProps> = ({ 
+    defaultDate = formatDate(new Date()),
+    onSubmitSuccess
+}) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [submitSuccess, setSubmitSuccess] = useState<boolean>(false);
@@ -114,6 +126,9 @@ const CheckInForm: React.FC = () => {
     const methods = useForm<CheckInData>({
         resolver: zodResolver(checkInSchema),
         mode: 'onBlur',
+        defaultValues: {
+            check_in_date: defaultDate,
+        }
     });
 
     const { handleSubmit, reset } = methods;
@@ -199,6 +214,7 @@ const CheckInForm: React.FC = () => {
             // 3. Prepare data for DB insertion
             const checkInData: CheckInInsert = {
                 user_id: profile.user_id,
+                check_in_date: formData.check_in_date,
                 photos: uploadedPhotoPaths.length > 0 ? uploadedPhotoPaths : undefined,
                 video_url: uploadedVideoPath,
                 diet_adherence: formData.diet_adherence,
@@ -271,6 +287,11 @@ const CheckInForm: React.FC = () => {
             reset(); // Reset the form
             setPhotoFiles(null);
             setVideoFile(null);
+            
+            // Call the callback if provided
+            if (onSubmitSuccess) {
+                onSubmitSuccess();
+            }
 
         } catch (error: unknown) {
             console.error('Error submitting check-in:', error);
@@ -320,7 +341,8 @@ const CheckInForm: React.FC = () => {
         );
     };
 
-    if (submitSuccess) {
+    // Only show the success message if we're not using the parent's success handling
+    if (submitSuccess && !onSubmitSuccess) {
         return (
             <div className="max-w-xl mx-auto p-6 text-center">
                 <h2 className="text-xl font-semibold mb-4 text-green-600 dark:text-green-400">Check-in Submitted Successfully!</h2>
