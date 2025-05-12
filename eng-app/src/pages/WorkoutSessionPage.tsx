@@ -1358,9 +1358,12 @@ const WorkoutSessionPage: React.FC = () => {
       const exerciseSets = [...(newSets.get(exerciseId) || [])];
       
       if (exerciseSets[setIndex]) {
+        // For empty input or invalid numbers, store as empty string
+        const weightValue = weight === '' ? '' : weight;
+        
         exerciseSets[setIndex] = {
           ...exerciseSets[setIndex],
-          weight
+          weight: weightValue
         };
         newSets.set(exerciseId, exerciseSets);
         
@@ -2808,11 +2811,13 @@ const WorkoutSessionPage: React.FC = () => {
                                             </td>
                                             <td className="px-1 py-2">
                                               <input
-                                                type="text"
+                                                type="number"
                                                 value={set.weight}
                                                 onChange={(e) => updateSetWeight(exercise.id, setIndex, e.target.value)}
                                                 disabled={!isWorkoutStarted || isPaused}
                                                 placeholder="kg"
+                                                step="any"
+                                                min="0"
                                                 className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                               />
                                             </td>
@@ -2979,11 +2984,13 @@ const WorkoutSessionPage: React.FC = () => {
                                   </td>
                                   <td className="px-1 py-2">
                                     <input
-                                      type="text"
+                                      type="number"
                                       value={set.weight}
                                       onChange={(e) => updateSetWeight(exercise.id, setIndex, e.target.value)}
                                       disabled={!isWorkoutStarted || isPaused}
                                       placeholder="kg"
+                                      step="any"
+                                      min="0"
                                       className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                     />
                                   </td>
