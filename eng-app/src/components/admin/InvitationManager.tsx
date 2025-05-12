@@ -52,22 +52,24 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
 
       if (inviteError) throw inviteError;
 
-      // Create a placeholder profile 
-      const newProfileData = {
+      // Create or update a profile record using upsert
+      // Upsert will insert if the email doesn't exist, or update if it does
+      const profileData = {
         email: email.trim(),
         coach_id: coachId,
-        role: userRole, // Use the passed userRole
+        role: userRole,
         onboarding_complete: false,
-        username: email.split('@')[0], // Default username from email, will be updated during onboarding
-        first_name: null, // Will be set during onboarding
-        last_name: null,  // Will be set during onboarding
+        username: email.split('@')[0], // Will be updated during onboarding if it's a new profile
         invitation_status: 'pending',
         invited_at: new Date().toISOString(),
       };
 
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert(newProfileData);
+        .upsert(profileData, { 
+          onConflict: 'email',  // Specify which column has the unique constraint
+          ignoreDuplicates: false // We want to update on conflicts, not ignore
+        });
 
       if (profileError) throw profileError;
       
@@ -125,22 +127,23 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
 
           if (inviteError) continue;
 
-          // Create a placeholder profile
-          const newProfileData = {
+          // Create or update a profile record using upsert
+          const profileData = {
             email: emailAddress,
             coach_id: coachId,
-            role: userRole, // Use the passed userRole
+            role: userRole,
             onboarding_complete: false,
-            username: emailAddress.split('@')[0],
-            first_name: null, // Will be set during onboarding
-            last_name: null,  // Will be set during onboarding
+            username: emailAddress.split('@')[0], // Will be updated during onboarding if it's a new profile
             invitation_status: 'pending',
             invited_at: new Date().toISOString(),
           };
 
           const { error: profileError } = await supabase
             .from('profiles')
-            .insert(newProfileData);
+            .upsert(profileData, {
+              onConflict: 'email',
+              ignoreDuplicates: false
+            });
 
           if (!profileError) {
             successCount++;
