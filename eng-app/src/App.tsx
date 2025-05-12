@@ -142,30 +142,124 @@ function App() {
     // First, explicitly check for hash parameters from magic link redirect
     const handleHashRedirect = async () => {
       try {
-        if (window.location.hash.includes('access_token') || 
+        // Check for auth tokens in both hash fragments and URL parameters
+        const hasAuthInHash = window.location.hash.includes('access_token') || 
             window.location.hash.includes('refresh_token') ||
-            window.location.hash.includes('type=recovery')) {
+            window.location.hash.includes('type=recovery');
+        
+        const hasAuthInSearch = window.location.search.includes('refresh_token') ||
+            window.location.search.includes('type=recovery');
+        
+        if (hasAuthInHash || hasAuthInSearch) {
+          console.log('Auth redirect detected, getting session', {
+            hasAuthInHash,
+            hasAuthInSearch,
+            hash: window.location.hash,
+            search: window.location.search,
+            protocol: window.location.protocol,
+            host: window.location.host,
+            pathname: window.location.pathname
+          });
           
-          console.log('Auth redirect detected, getting session');
           dispatch(setLoading(true));
           
-          // Process the hash fragment
+          // Process the auth information
           const { data, error } = await supabase.auth.getSession();
           
-          if (error) throw error;
+          if (error) {
+            console.error('Error getting session after redirect:', error);
+            throw error;
+          }
           
           if (data?.session) {
-            console.log('Session retrieved after redirect');
+            console.log('Session retrieved after redirect', {
+              userId: data.session.user.id,
+              email: data.session.user.email,
+              expiresAt: data.session.expires_at
+            });
+            
             dispatch(setSession(data.session));
+            
             if (data.session.user) {
-              fetchProfile(data.session.user.id);
+              console.log('User authenticated after redirect, fetching profile:', data.session.user.id);
+              
+              // Important: Await the profile fetch to ensure we have the complete state
+              await fetchProfile(data.session.user.id);
+              
+              // After profile is fetched, check if we need to navigate to onboarding or dashboard
+              const currentPath = window.location.pathname;
+              
+              // Only redirect automatically if we're on the login page or root
+              if (currentPath === '/login' || currentPath === '/') {
+                // Get the updated profile directly from supabase to ensure we have the latest data
+                const { data: profileData, error: profileError } = await supabase
+                  .from('profiles')
+                  .select('id, onboarding_complete')
+                  .eq('user_id', data.session.user.id)
+                  .single();
+                
+                if (profileError && profileError.code !== 'PGRST116') {
+                  console.error('Error fetching profile data for redirect decision:', profileError);
+                }
+                
+                if (profileData) {
+                  console.log('Profile data retrieved for redirect decision:', {
+                    id: profileData.id,
+                    onboardingComplete: profileData.onboarding_complete
+                  });
+                  
+                  // Determine where to redirect based on onboarding status
+                  if (!profileData.onboarding_complete) {
+                    console.log('Redirecting to onboarding page');
+                    window.location.href = '/onboarding';
+                  } else {
+                    console.log('Redirecting to dashboard');
+                    window.location.href = '/dashboard';
+                  }
+                } else {
+                  console.log('No profile found, user may need to be invited');
+                  // If we don't find a profile, stay on the current page
+                  // This lets the Protected/Admin routes handle the redirect appropriately
+                  dispatch(setLoading(false));
+                }
+              } else {
+                // If we're already on a specific page (not login/root), just update the auth state
+                // and let the routing system handle any needed redirects
+                console.log('Already on a specific page, not redirecting automatically:', currentPath);
+                dispatch(setLoading(false));
+              }
+            } else {
+              console.log('Session exists but no user data found');
+              dispatch(setLoading(false));
             }
           } else {
+            console.log('No session found after auth redirect - may need to retry OAuth flow');
+            
+            // If we have auth params but no session, it could be a PKCE verification issue
+            // Try to get the query parameters for error messages
+            const urlParams = new URLSearchParams(window.location.search);
+            const errorParam = urlParams.get('error');
+            const errorDescription = urlParams.get('error_description');
+            
+            if (errorParam || errorDescription) {
+              console.error('Auth error detected in URL:', {
+                error: errorParam,
+                errorDescription: errorDescription
+              });
+              dispatch(setError(`Authentication error: ${errorDescription || errorParam || 'Unknown error'}`));
+            } else {
+              dispatch(setError('Failed to establish session after login. Please try again.'));
+            }
+            
             dispatch(setLoading(false));
+            
+            // Clear any problematic auth state
+            localStorage.removeItem('supabase.auth.token');
+            localStorage.removeItem('supabase.auth.token.refresh');
           }
         }
       } catch (err) {
-        console.error('Error handling hash redirect:', err);
+        console.error('Error handling auth redirect:', err);
         dispatch(setError('Failed to authenticate from redirect'));
         dispatch(setLoading(false));
       }

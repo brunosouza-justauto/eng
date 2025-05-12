@@ -30,6 +30,26 @@ const LoginPage: React.FC = () => {
   // Check for existing session on mount and redirect if authenticated
   useEffect(() => {
     const checkExistingSession = async () => {
+      // Clear any stale PKCE auth state that might be causing issues
+      const hash = window.location.hash;
+      if (!hash.includes('access_token') && !hash.includes('refresh_token')) {
+        // Only clear the PKCE state if we're not in the middle of auth flow
+        localStorage.removeItem('supabase.auth.token');
+        localStorage.removeItem('supabase.auth.token.refresh');
+        // Don't remove the entire eng_supabase_auth - only clear specific problematic keys
+        try {
+          const authData = JSON.parse(localStorage.getItem('eng_supabase_auth') || '{}');
+          if (authData.flowType === 'pkce' && authData.codeVerifier) {
+            // If there's a stale code verifier without an active auth flow, remove it
+            delete authData.codeVerifier;
+            localStorage.setItem('eng_supabase_auth', JSON.stringify(authData));
+          }
+        } catch (e) {
+          console.error('Error cleaning up auth state:', e);
+        }
+      }
+
+      // Now check for a valid session
       const { data } = await supabase.auth.getSession();
       if (data.session) {
         console.log('User already authenticated, redirecting to dashboard');
@@ -46,11 +66,13 @@ const LoginPage: React.FC = () => {
     setMessage('');
     setLoading(true);
     try {
+      // Add some pre-login cleanup
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          // Set redirect URL after successful login from email link
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          // Change redirect URL to the root of the app instead of directly to dashboard
+          // This allows the auth state to be properly captured first
+          emailRedirectTo: `${window.location.origin}`,
         },
       });
 
@@ -85,7 +107,9 @@ const LoginPage: React.FC = () => {
       dispatch(logout()); 
       localStorage.clear();
       sessionStorage.clear();
-      setMessage('Session cleared. Please try login again.');
+      
+      // Force reload the page to ensure a clean state
+      window.location.href = '/login';
     } catch (err) {
       console.error('Error clearing session:', err);
       setError('Failed to clear session');

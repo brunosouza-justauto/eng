@@ -167,7 +167,7 @@ const UserManager: React.FC = () => {
             const { error: inviteError } = await supabase.auth.signInWithOtp({
                 email: user.email,
                 options: {
-                    emailRedirectTo: `${window.location.origin}/onboarding`,
+                    emailRedirectTo: `${window.location.origin}`,
                 }
             });
 

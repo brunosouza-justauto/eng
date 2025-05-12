@@ -46,7 +46,7 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
       const { error: inviteError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/onboarding`,
+          emailRedirectTo: `${window.location.origin}`,
         }
       });
 
@@ -121,7 +121,7 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
           const { error: inviteError } = await supabase.auth.signInWithOtp({
             email: emailAddress,
             options: {
-              emailRedirectTo: `${window.location.origin}/onboarding`,
+              emailRedirectTo: `${window.location.origin}`,
             }
           });
 
