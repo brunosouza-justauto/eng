@@ -150,7 +150,7 @@ const CoachManager: React.FC = () => {
             const { error: inviteError } = await supabase.auth.signInWithOtp({
                 email: coach.email,
                 options: {
-                    emailRedirectTo: `${window.location.origin}`,
+                    emailRedirectTo: `${window.location.origin}/auth/verify`,
                 }
             });
 

@@ -43,14 +43,22 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
     
     try {
       // Send the magic link to the email
+      console.log(`Sending invitation to ${email.trim()} with redirect to ${window.location.origin}/auth/verify`);
       const { error: inviteError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}`,
+          emailRedirectTo: `${window.location.origin}/auth/verify`,
+          shouldCreateUser: true, // Ensure a user is created
         }
       });
 
       if (inviteError) throw inviteError;
+
+      // Log the invitation details (without sensitive data)
+      console.log(`Invitation sent successfully to ${email.trim()}`, {
+        redirectUrl: `${window.location.origin}/auth/verify`,
+        userRole: userRole
+      });
 
       // Create or update a profile record using upsert
       // Upsert will insert if the email doesn't exist, or update if it does
@@ -121,7 +129,8 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
           const { error: inviteError } = await supabase.auth.signInWithOtp({
             email: emailAddress,
             options: {
-              emailRedirectTo: `${window.location.origin}`,
+              emailRedirectTo: `${window.location.origin}/auth/verify`,
+              shouldCreateUser: true, // Ensure a user is created
             }
           });
 

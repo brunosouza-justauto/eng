@@ -31,6 +31,7 @@ import CoachDetailsPage from './pages/admin/CoachDetailsPage'; // Import CoachDe
 import BMRCalculatorPage from './pages/admin/BMRCalculatorPage'; // Import BMRCalculatorPage
 import FitnessDeviceCallback from './pages/auth/callback/FitnessDeviceCallback';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import VerificationPage from './pages/auth/VerificationPage'; // Import the new VerificationPage
 // Placeholder pages - we will create these properly later
 // const LoginPage = () => <div>Login Page Placeholder - <Link to="/dashboard">Go to Dashboard (temp)</Link></div>;
 const NotFoundPage = () => <div>404 Not Found</div>;
@@ -149,11 +150,17 @@ function App() {
         
         const hasAuthInSearch = window.location.search.includes('refresh_token') ||
             window.location.search.includes('type=recovery');
+            
+        // Add a check for email confirmation type
+        const hasConfirmation = window.location.search.includes('type=signup') ||
+            window.location.search.includes('type=magiclink') ||
+            window.location.search.includes('type=invite');
         
-        if (hasAuthInHash || hasAuthInSearch) {
+        if (hasAuthInHash || hasAuthInSearch || hasConfirmation) {
           console.log('Auth redirect detected, getting session', {
             hasAuthInHash,
             hasAuthInSearch,
+            hasConfirmation,
             hash: window.location.hash,
             search: window.location.search,
             protocol: window.location.protocol,
@@ -162,6 +169,67 @@ function App() {
           });
           
           dispatch(setLoading(true));
+          
+          // Handle potential URL parameters for auth flow
+          const urlParams = new URLSearchParams(window.location.search);
+          const errorParam = urlParams.get('error');
+          const errorDescription = urlParams.get('error_description');
+          const type = urlParams.get('type');
+          
+          if (errorParam || errorDescription) {
+            console.error('Auth error detected in URL:', {
+              error: errorParam,
+              errorDescription: errorDescription
+            });
+            dispatch(setError(`Authentication error: ${errorDescription || errorParam || 'Unknown error'}`));
+            dispatch(setLoading(false));
+            return;
+          }
+          
+          // Special handling for confirmation links
+          if (hasConfirmation && (type === 'signup' || type === 'invite' || type === 'magiclink')) {
+            // Check if we're already on the login page
+            if (window.location.pathname === '/login') {
+              console.log('Already on login page with confirmation parameters, leaving as-is');
+              dispatch(setLoading(false));
+              return;
+            }
+            
+            // Otherwise, if we're not at login, we should redirect there with the parameters
+            if (window.location.pathname !== '/login') {
+              console.log('Redirecting to login page with confirmation parameters');
+              window.location.href = `/login${window.location.search}`;
+              return;
+            }
+          }
+          
+          // For email confirmations (signup, magiclink), get the token
+          const token = urlParams.get('token') || 
+                      urlParams.get('access_token') || 
+                      (window.location.hash.match(/access_token=([^&]+)/) || [])[1];
+                      
+          if (token && hasConfirmation) {
+            console.log('Detected auth token from confirmation link, attempting to establish session');
+            try {
+              // Explicitly try to use the token to establish a session
+              // This is especially important for magic links and signup confirmations
+              const { data, error } = await supabase.auth.getSession();
+              
+              if (error) {
+                console.error('Error establishing session from token:', error);
+                throw error;
+              }
+              
+              if (!data?.session) {
+                console.log('No session established from token, redirecting to login with confirmation parameters');
+                // Don't try to reload - redirect to login with the parameters
+                window.location.href = `/login${window.location.search}`;
+                return;
+              }
+            } catch (e) {
+              console.error('Error processing auth token:', e);
+            }
+          }
           
           // Process the auth information
           const { data, error } = await supabase.auth.getSession();
@@ -315,6 +383,88 @@ function App() {
     };
   }, [dispatch]);
 
+  // Add a special case for handling verification URLs directly in useEffect
+  useEffect(() => {
+    const handleVerificationUrls = async () => {
+      // Check if we're on a Supabase verification URL directly
+      const isVerificationUrl = window.location.href.includes('/verify?token=') || 
+                               window.location.href.includes('/verify?code=') ||
+                               window.location.href.includes('/auth/v1/verify?token=') ||
+                               window.location.href.includes('/auth/v1/verify?code=');
+                               
+      if (isVerificationUrl) {
+        console.log('Direct Supabase verification URL detected:', window.location.href);
+        
+        // Extract email parameter if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const email = urlParams.get('email');
+        const emailParam = email ? `&email=${email}` : '';
+        
+        // Instead of handling verification here, redirect to our dedicated verification page
+        window.location.href = `/auth/verify${window.location.search}${emailParam}`;
+        return;
+      }
+    };
+    
+    // Run once on mount
+    handleVerificationUrls();
+  }, []);
+
+  // Add this handler function in addition to the existing handleConfirmationLinks function
+  useEffect(() => {
+    const handleConfirmationLinks = async () => {
+      // Look for invitation or confirmation parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const type = urlParams.get('type');
+      const token = urlParams.get('token') || urlParams.get('access_token');
+      const verified = urlParams.get('verified');
+      
+      // Special handler for verified=true parameter (coming from our own redirects)
+      if (verified === 'true' && type) {
+        console.log(`Special handler for verified=${verified} with type=${type}`);
+        
+        // If we're already on the login page, nothing more to do
+        if (window.location.pathname === '/login') {
+          console.log('Already on login page with verified parameter');
+          return;
+        }
+        
+        // Otherwise, redirect to login
+        window.location.href = `/login?verified=true&type=${type}`;
+        return;
+      }
+      
+      // Only handle confirmation types with tokens
+      if ((type === 'invite' || type === 'signup' || type === 'magiclink') && token) {
+        console.log(`Special handler for ${type} link with token`);
+        
+        try {
+          // Check if we can get an active session
+          const { data, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error(`Error checking session for ${type} link:`, error);
+          } else if (data?.session) {
+            console.log(`Session already established for ${type} link`);
+          } else {
+            // If no session yet, but we have a confirmation token,
+            // we might need to do some special handling
+            
+            // For now, let's add some debugging that might help
+            console.log(`No session yet for ${type} link, token present`);
+
+            // We could potentially try to verify the token directly here
+            // but for now, let App.tsx's handleHashRedirect handle it
+          }
+        } catch (e) {
+          console.error(`Error in confirmation link handler:`, e);
+        }
+      }
+    };
+    
+    handleConfirmationLinks();
+  }, []);
+
   return (
     <Routes>
       {/* Routes without MainLayout */}
@@ -322,6 +472,10 @@ function App() {
       <Route element={<ProtectedRoute />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
       </Route>
+
+      {/* Auth Routes - Publicly accessible */}
+      <Route path="/auth/verify" element={<VerificationPage />} />
+      <Route path="/verify" element={<VerificationPage />} />
 
       {/* Legal Pages - Accessible without authentication */}
       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

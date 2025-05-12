@@ -3,7 +3,7 @@ import { supabase } from '../services/supabaseClient'; // We'll create this clie
 import ThemeToggle from '../components/common/ThemeToggle';
 import { useDispatch } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getEmailProviderInfo, CommonEmailLinks, type EmailProvider } from '../utils/emailUtils';
 
 const LoginPage: React.FC = () => {
@@ -12,24 +12,149 @@ const LoginPage: React.FC = () => {
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [emailProvider, setEmailProvider] = useState<EmailProvider | null>(null);
+  const [processingInvite, setProcessingInvite] = useState<boolean>(false);
+  const [confirmationSuccess, setConfirmationSuccess] = useState<boolean>(false);
+  const [confirmationType, setConfirmationType] = useState<string | null>(null);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Debug: Check URL hash on mount and log for troubleshooting
+  // Check for invitation type or confirmation links in URL
   useEffect(() => {
-    const hash = window.location.hash;
-    const query = new URLSearchParams(window.location.search);
-    console.log('LoginPage mounted', { 
-      hash: hash,
-      hasAuthToken: hash.includes('access_token'),
-      query: Object.fromEntries(query.entries()),
-      hasType: query.has('type')
-    });
-  }, []);
+    const checkForInvitationLink = async () => {
+      // Parse query parameters
+      const searchParams = new URLSearchParams(location.search);
+      const hash = window.location.hash;
+      const queryParams = Object.fromEntries(searchParams.entries());
+      
+      console.log('LoginPage mounted', { 
+        hash,
+        hasAuthToken: hash.includes('access_token'),
+        search: location.search,
+        query: queryParams,
+        hasType: searchParams.has('type'),
+        pathname: location.pathname,
+        href: window.location.href,
+        verified: searchParams.get('verified'),
+        type: searchParams.get('type'),
+        email: searchParams.get('email')
+      });
+      
+      // Check for token, type, or other invitation parameters
+      let token = searchParams.get('token');
+      let type = searchParams.get('type');
+      const verified = searchParams.get('verified') === 'true';
+      const invitationEmail = searchParams.get('email') || '';
+      
+      // Special case for when we're redirected with 'verified=true'
+      if (verified && type) {
+        console.log('Detected verification redirect with type:', type);
+        setConfirmationType(type);
+        setConfirmationSuccess(true);
+        
+        // If an email is provided, use it
+        if (invitationEmail) {
+          console.log('Setting email from verification redirect:', invitationEmail);
+          setEmail(invitationEmail);
+        }
+        
+        // No need to do further processing since this is our own redirect
+        return;
+      }
+      
+      // Check for verification link format directly (could be coming from email)
+      // Supabase verification links have a specific format like /verify?token=xxx&type=signup
+      const isVerificationUrl = window.location.href.includes('/verify?token=') || 
+                                location.search.includes('verify?token=') ||
+                                location.search.includes('token=');
+                                
+      // If we detect a verification URL but don't have the parameters yet, try to extract them
+      if (isVerificationUrl && (!token || !type)) {
+        console.log('Detected verification URL format, extracting parameters');
+        
+        // Try to extract the token from the URL
+        const tokenMatch = window.location.href.match(/token=([^&]+)/);
+        if (tokenMatch && tokenMatch[1]) {
+          token = tokenMatch[1];
+        }
+        
+        // Try to find the type in the URL
+        if (window.location.href.includes('type=signup')) {
+          type = 'signup';
+        } else if (window.location.href.includes('type=invite')) {
+          type = 'invite';
+        } else if (window.location.href.includes('type=magiclink')) {
+          type = 'magiclink';
+        } else if (window.location.href.includes('type=recovery')) {
+          type = 'recovery';
+        } else {
+          // Default to signup if we can't determine the type
+          type = 'signup';
+        }
+      }
+      
+      // If we have a type and token, show confirmation success message
+      if (token && (type === 'invite' || type === 'signup' || type === 'magiclink' || type === 'recovery')) {
+        console.log('Verification detected:', { type, token: token ? `${token.substring(0, 10)}...` : null });
+        setConfirmationType(type);
+        setConfirmationSuccess(true);
+        
+        // If an email is provided in the invitation link, use it
+        if (invitationEmail) {
+          setEmail(invitationEmail);
+        }
+        
+        // The token processing is handled automatically by Supabase,
+        // but we can explicitly try to get the session
+        try {
+          console.log('Processing verification for:', { type });
+          const { data, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error('Error getting session from verification link:', error);
+            // Instead of showing an error, we'll show the confirmation success message
+          } else if (data?.session) {
+            console.log('Session established from verification link, redirecting...');
+            // Session exists, will be handled by app routing
+            navigate('/dashboard');
+            return;
+          } else {
+            // No session but we have a confirmation token - show confirmation message
+            console.log('Email verified but no active session - showing confirmation message');
+          }
+        } catch (e) {
+          console.error('Exception processing verification link:', e);
+        } finally {
+          setProcessingInvite(false);
+        }
+      }
+    };
+    
+    checkForInvitationLink();
+  }, [location, navigate]);
+
+  // Function to get a human-readable description of the confirmation type
+  const getConfirmationTypeText = () => {
+    switch (confirmationType) {
+      case 'signup':
+        return 'registration';
+      case 'invite':
+        return 'invitation';
+      case 'magiclink':
+        return 'login link';
+      case 'recovery':
+        return 'password recovery';
+      default:
+        return 'email';
+    }
+  };
 
   // Check for existing session on mount and redirect if authenticated
   useEffect(() => {
     const checkExistingSession = async () => {
+      // Only run this check if we're not already processing an invitation
+      if (processingInvite) return;
+      
       // Clear any stale PKCE auth state that might be causing issues
       const hash = window.location.hash;
       if (!hash.includes('access_token') && !hash.includes('refresh_token')) {
@@ -50,29 +175,39 @@ const LoginPage: React.FC = () => {
       }
 
       // Now check for a valid session
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        console.log('User already authenticated, redirecting to dashboard');
-        navigate('/dashboard');
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          console.log('User already authenticated, redirecting to dashboard');
+          navigate('/dashboard');
+        }
+      } catch (e) {
+        console.error('Error checking for existing session:', e);
       }
     };
     
     checkExistingSession();
-  }, [navigate]);
+  }, [navigate, processingInvite]);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
     setMessage('');
     setLoading(true);
+    
+    // Reset confirmation state to ensure login messages will be visible
+    setConfirmationSuccess(false);
+    
     try {
       // Add some pre-login cleanup
+      console.log('Sending magic link to:', email);
+      
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
           // Change redirect URL to the root of the app instead of directly to dashboard
           // This allows the auth state to be properly captured first
-          emailRedirectTo: `${window.location.origin}`,
+          emailRedirectTo: `${window.location.origin}/auth/verify`,
         },
       });
 
@@ -134,15 +269,28 @@ const LoginPage: React.FC = () => {
 
         <div className="mt-8 mx-auto w-full sm:max-w-md">
           <div className="bg-white dark:bg-gray-800 py-8 px-6 shadow-lg rounded-lg sm:px-10">
-            <div className="mb-6">
-              <h2 className="text-xl font-medium text-gray-900 dark:text-white">
-                Sign in to your account
-              </h2>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                We'll send you a magic link for a password-free sign in
-              </p>
-            </div>
-
+            {/* Confirmation Success Message */}
+            {confirmationSuccess && (
+              <div className="mb-6 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 rounded-md">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-green-800 dark:text-green-400">
+                      Thank you for confirming your {getConfirmationTypeText()}!
+                    </p>
+                    <p className="mt-2 text-sm text-green-700 dark:text-green-500">
+                      Your email has been verified. Please log in below to continue.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Login Form Success Message */}
             {message && (
               <div className="mb-4 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 rounded-md">
                 <div className="flex">
@@ -185,6 +333,7 @@ const LoginPage: React.FC = () => {
               </div>
             )}
 
+            {/* Error Message */}
             {error && (
               <div className="mb-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-md">
                 <div className="flex">
@@ -201,6 +350,15 @@ const LoginPage: React.FC = () => {
                 </div>
               </div>
             )}
+
+            <div className="mb-6">
+              <h2 className="text-xl font-medium text-gray-900 dark:text-white">
+                Sign in to your account
+              </h2>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                We'll send you a magic link for a password-free sign in
+              </p>
+            </div>
 
             <form className="space-y-6" onSubmit={handleLogin}>
               <div>
@@ -249,14 +407,16 @@ const LoginPage: React.FC = () => {
                 </div>
                 <div className="relative flex justify-center text-sm">
                   <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                    First time here?
+                    {confirmationSuccess ? 'Ready to login' : 'First time here?'}
                   </span>
                 </div>
               </div>
 
               <div className="mt-6 text-center text-sm">
                 <p className="text-gray-600 dark:text-gray-400">
-                  Contact your coach for an invitation link to get started
+                  {confirmationSuccess 
+                    ? "Enter your email address above and click 'Send Magic Link' to receive a login link" 
+                    : "Contact your coach for an invitation link to get started"}
                 </p>
               </div>
             </div>

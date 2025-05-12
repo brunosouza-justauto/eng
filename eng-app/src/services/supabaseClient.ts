@@ -23,5 +23,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: localStorage,
     // Debug to help track issues
     debug: import.meta.env.DEV ? true : false
+  },
+  global: {
+    // Set this to false to ensure reliable token handling
+    headers: {
+      'X-Client-Info': 'eng-app'
+    }
+  },
+  // Increase timeouts for more reliable auth flows
+  realtime: {
+    timeout: 60000
   }
 }); 
