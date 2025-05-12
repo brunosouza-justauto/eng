@@ -687,9 +687,8 @@ const WorkoutSessionPage: React.FC = () => {
         }
       }
       
-          sets.forEach((set, i) => console.log(`    Set ${i+1}: ${set.reps} reps, type=${set.setType}`));
-        }
-      }
+      // Remove this duplicate line that's causing the syntax error
+      // sets.forEach((set, i) => console.log(`    Set ${i+1}: ${set.reps} reps, type=${set.setType}`));
       
       // PRIORITY 2: Fall back to legacy model only if sets_data not available
       if (!hasSetsData) {

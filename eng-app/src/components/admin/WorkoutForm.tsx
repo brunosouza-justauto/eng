@@ -312,6 +312,9 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     const [showFilters, setShowFilters] = useState(false);
     const [highlightSearchPanel, setHighlightSearchPanel] = useState(false);
     
+    // Add state for tracking if all exercises are expanded
+    const [allExercisesExpanded, setAllExercisesExpanded] = useState(false);
+    
     // Add state for supersets
     const [selectedExerciseIndices, setSelectedExerciseIndices] = useState<number[]>([]);
     const [supersetGroups, setSupersetGroups] = useState<Record<string, number[]>>({});
@@ -1795,6 +1798,39 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                             className={`${DROP_ZONE_BASE_CLASS} ${isOver ? DROP_ZONE_HOVER_CLASS : DROP_ZONE_ACTIVE_CLASS}`}
                             onMouseLeave={() => setHoveringIndex(null)}
                         >
+                            {/* Toggle button for expanding/collapsing all exercises */}
+                            {exercises.length > 0 && (
+                                <div className="flex justify-end mb-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (allExercisesExpanded) {
+                                                // Collapse all exercises
+                                                setActiveExerciseIndex(null);
+                                            } else {
+                                                // Expand all exercises (set to a special value that means "all")
+                                                // We'll handle this in the rendering logic
+                                                setAllExercisesExpanded(true);
+                                            }
+                                            setAllExercisesExpanded(!allExercisesExpanded);
+                                        }}
+                                        className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md flex items-center text-gray-700 dark:text-gray-300"
+                                    >
+                                        {allExercisesExpanded ? (
+                                            <>
+                                                <FiChevronUp className="mr-1" /> 
+                                                Collapse All Exercises
+                                            </>
+                                        ) : (
+                                            <>
+                                                <FiChevronDown className="mr-1" /> 
+                                                Expand All Exercises
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+
                             {/* First drop zone at the top */}
                             <ExerciseDropZone 
                                 onDrop={handleExerciseDrop} 
@@ -1808,8 +1844,15 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                                     <DraggableWorkoutExercise
                                                         exercise={exercise}
                                                         index={index}
-                                        activeExerciseIndex={activeExerciseIndex}
-                                        setActiveExerciseIndex={setActiveExerciseIndex}
+                                        activeExerciseIndex={allExercisesExpanded ? index : activeExerciseIndex}
+                                        setActiveExerciseIndex={(idx) => {
+                                            // If we're in "all expanded" mode and trying to collapse one,
+                                            // exit "all expanded" mode
+                                            if (allExercisesExpanded && idx === null) {
+                                                setAllExercisesExpanded(false);
+                                            }
+                                            setActiveExerciseIndex(idx);
+                                        }}
                                                         handleRemoveExercise={handleRemoveExercise}
                                                         renderExerciseDetails={renderExerciseDetails}
                                         isSelected={selectedExerciseIndices.includes(index)}
