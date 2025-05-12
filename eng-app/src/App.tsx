@@ -12,6 +12,7 @@ import CheckInPage from './pages/CheckInPage'; // Import CheckInPage
 import CheckInHistoryPage from './pages/CheckInHistoryPage'; // Import CheckInHistoryPage
 import WorkoutView from './components/workouts/WorkoutView'; // Import WorkoutView
 import WorkoutSessionPage from './pages/WorkoutSessionPage'; // Import WorkoutSessionPage
+import WorkoutHistoryPage from './pages/WorkoutHistoryPage'; // Import WorkoutHistoryPage
 import MealPlanView from './components/nutrition/MealPlanView'; // Import MealPlanView
 import NutritionPlansPage from './pages/NutritionPlansPage'; // Import NutritionPlansPage
 import WorkoutProgramsPage from './pages/WorkoutProgramsPage'; // Import WorkoutProgramsPage
@@ -499,8 +500,10 @@ function App() {
               <Route path="/check-in/new" element={<CheckInPage />} />
               <Route path="/check-in/history" element={<CheckInHistoryPage />} />
               <Route path="/history" element={<Navigate to="/check-in/history" replace />} />
+              {/* Workout routes */}
               <Route path="/workout/:workoutId" element={<WorkoutView />} />
               <Route path="/workout-session/:workoutId" element={<WorkoutSessionPage />} />
+              <Route path="/workouts/history" element={<WorkoutHistoryPage />} />
               <Route path="/meal-plan/:planId" element={<MealPlanView />} />
               <Route path="/nutrition-plans" element={<NutritionPlansPage />} />
               <Route path="/workout-programs" element={<WorkoutProgramsPage />} />

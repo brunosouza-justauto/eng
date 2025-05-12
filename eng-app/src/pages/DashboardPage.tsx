@@ -14,6 +14,12 @@ import { format, startOfWeek, endOfWeek, addWeeks, parseISO } from 'date-fns';
 interface AssignedPlan {
   program_template_id: string | null;
   nutrition_plan_id: string | null;
+  program?: {
+    id: string;
+    name: string;
+    description: string | null;
+    version?: number;
+  };
 }
 
 interface StepGoal {
@@ -88,7 +94,10 @@ const DashboardPage: React.FC = () => {
         console.log("Fetching program for athlete profile ID:", profile.id);
         const { data: programData, error: programError } = await supabase
           .from('assigned_plans')
-          .select('program_template_id')
+          .select(`
+            program_template_id,
+            program:program_templates!program_template_id(id, name, description, version)
+          `)
           .eq('athlete_id', profile.id)
           .not('program_template_id', 'is', null) // Must have program_template_id
           .order('created_at', { ascending: false })
@@ -100,6 +109,23 @@ const DashboardPage: React.FC = () => {
         } else if (programData) {
           console.log("Program assignment found:", programData);
           combinedPlan.program_template_id = programData.program_template_id;
+          // Add program info to the combined plan if available
+          if (programData.program) {
+            // Supabase can return program as an array or an object,
+            // we need to handle both cases
+            const programInfo = Array.isArray(programData.program) 
+              ? programData.program[0] 
+              : programData.program;
+            
+            if (programInfo) {
+              combinedPlan.program = {
+                id: programInfo.id || '',
+                name: programInfo.name || '',
+                description: programInfo.description || null,
+                version: programInfo.version || undefined
+              };
+            }
+          }
         }
 
         // Fetch most recent nutrition plan assignment
@@ -257,7 +283,10 @@ const DashboardPage: React.FC = () => {
       {/* Dashboard widgets */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
         <div className="col-span-1">
-          <NextWorkoutWidget programTemplateId={assignedPlan?.program_template_id} />
+          <NextWorkoutWidget 
+            programTemplateId={assignedPlan?.program_template_id} 
+            program={assignedPlan?.program}
+          />
         </div>
         <div className="col-span-1">
           <DashboardNutritionWidget />

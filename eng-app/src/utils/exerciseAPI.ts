@@ -369,14 +369,17 @@ export const formatExercise = (exercise: Exercise | HeyGainzExercise | Record<st
 
 // Format a HeyGainz exercise to our standard Exercise format
 export const formatHeyGainzExercise = (exercise: HeyGainzExercise): Exercise => {
+  // Check if muscles array exists before using it
+  const muscles = exercise.muscles || [];
+  
   // Extract primary muscles
-  const primaryMuscles = exercise.muscles
+  const primaryMuscles = muscles
     .filter(m => m.pivot?.type === 'primary')
     .map(m => m.name);
 
   // Get the body part from the first muscle or from description
-  const category = exercise.muscles.length > 0 
-    ? exercise.muscles[0].body_part 
+  const category = muscles.length > 0 
+    ? muscles[0].body_part 
     : extractBodyPart(exercise.description);
 
   return {
@@ -400,7 +403,7 @@ export const fetchExerciseById = async (id: string): Promise<Exercise | null> =>
   try {
     // The API doesn't have a direct endpoint for fetching by ID
     // So we'll search for it and filter
-    const response = await axios.get<HeyGainzPaginatedResponse<HeyGainzExercise>>(`${API_BASE_URL}/exercises/${id}`);
+    const response = await axios.get(`${API_BASE_URL}/exercises/${id}`);
 
     const exercise = response.data;
     
@@ -408,7 +411,26 @@ export const fetchExerciseById = async (id: string): Promise<Exercise | null> =>
       return null;
     }
 
-    return formatHeyGainzExercise(exercise as unknown as HeyGainzExercise);
+    // Make sure the exercise has expected properties or provide defaults
+    const formattedExercise: HeyGainzExercise = {
+      id: exercise.id || parseInt(id),
+      name: exercise.name || 'Unknown Exercise',
+      slug: exercise.slug || '',
+      description: exercise.description || '',
+      seo_description: exercise.seo_description || '',
+      type: exercise.type || 'Strength',
+      youtube_link: exercise.youtube_link || null,
+      gif_url: exercise.gif_url || null,
+      instructions: Array.isArray(exercise.instructions) ? exercise.instructions : [],
+      tips: Array.isArray(exercise.tips) ? exercise.tips : [],
+      note: exercise.note || null,
+      user_id: exercise.user_id || null,
+      post_id: exercise.post_id || 0,
+      muscles: Array.isArray(exercise.muscles) ? exercise.muscles : [],
+      pivot: exercise.pivot || undefined
+    };
+
+    return formatHeyGainzExercise(formattedExercise);
   } catch (error) {
     console.error(`Error fetching exercise with ID ${id}:`, error);
     return null;

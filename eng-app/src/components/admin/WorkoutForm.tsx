@@ -719,8 +719,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             category: exercise.category || '',
             primaryMuscle,
             secondaryMuscles,
-            // The Exercise type from exerciseAPI might not have image, but DatabaseExercise should
-            image: (exercise as any).image || null,
+            image: (exercise as { image?: string }).image || null,
         };
     };
 
@@ -1524,6 +1523,24 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         }
     };
 
+    // 1. Add new function to handle direct page navigation
+    const goToPage = (pageNumber: number) => {
+        const totalPages = Math.ceil(totalResults / RESULTS_PER_PAGE) || 1;
+        const targetPage = Math.max(1, Math.min(pageNumber, totalPages));
+        setPage(targetPage);
+    };
+
+    // 2. Add a function to go to first page
+    const goToFirstPage = () => {
+        setPage(1);
+    };
+
+    // 3. Update the search function to reset page to 1
+    const handleSearchQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchQuery(e.target.value);
+        setPage(1); // Reset to page 1 when search query changes
+    };
+
     return (
         <DndProvider backend={HTML5Backend}>
         <div className="flex flex-col h-full bg-white rounded-lg shadow dark:bg-gray-800">
@@ -1562,13 +1579,20 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                         <h3 className="mb-3 font-semibold dark:text-white">Exercises</h3>
                         <div className="flex items-center px-3 py-2 mb-3 bg-gray-100 rounded-md dark:bg-gray-700">
                             <FiSearch className="mr-2 text-gray-500 dark:text-gray-400" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search for exercises..."
-                                className="w-full bg-transparent focus:outline-none dark:text-white"
-                            />
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={handleSearchQueryChange}
+                                    placeholder="Search for exercises..."
+                                    className="w-full bg-transparent focus:outline-none dark:text-white pl-10 pr-4"
+                                />
+                            </div>
                         </div>
                         
                         <div className="mb-3">
@@ -1643,7 +1667,24 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                         </div>
                         
                         {(page > 1 || hasMore) && (
-                            <div className="flex items-center justify-between mt-4">
+                            <div className="flex items-center justify-between mt-4 space-x-2">
+                                <button
+                                    onClick={goToFirstPage}
+                                    disabled={page <= 1}
+                                    className={`px-2 py-1 text-sm rounded ${
+                                        page <= 1 
+                                            ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed' 
+                                            : 'bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-200 hover:bg-gray-400'
+                                    }`}
+                                    title="First Page"
+                                >
+                                    <span className="flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                                        </svg>
+                                    </span>
+                                </button>
+                                
                                 <button
                                     onClick={loadPreviousExercises}
                                     disabled={page <= 1}
@@ -1656,9 +1697,24 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                     Previous
                                 </button>
                                 
-                                <span className="text-sm text-gray-600 dark:text-gray-300">
-                                    Page {page} of {Math.ceil(totalResults / RESULTS_PER_PAGE) || 1}
-                                </span>
+                                <div className="flex items-center space-x-1">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={Math.ceil(totalResults / RESULTS_PER_PAGE) || 1}
+                                        value={page}
+                                        onChange={(e) => {
+                                            const value = parseInt(e.target.value, 10);
+                                            if (!isNaN(value)) {
+                                                goToPage(value);
+                                            }
+                                        }}
+                                        className="w-12 px-1 py-1 text-center text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white"
+                                    />
+                                    <span className="text-sm text-gray-600 dark:text-gray-300">
+                                        of {Math.ceil(totalResults / RESULTS_PER_PAGE) || 1}
+                                    </span>
+                                </div>
                                 
                                 <button
                                     onClick={loadMoreExercises}
@@ -1671,11 +1727,11 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                 >
                                     Next
                                 </button>
-                                            </div>
-                                        )}
-                                </div>
                             </div>
-                            
+                        )}
+                    </div>
+                </div>
+                
                 {/* Right side - Workout Form */}
                 <div className="flex flex-col flex-grow overflow-hidden">
                     <div className="flex-shrink-0 p-4 border-b dark:border-gray-700">

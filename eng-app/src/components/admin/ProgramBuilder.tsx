@@ -25,6 +25,9 @@ interface ProgramTemplateListItem {
     created_at: string;
     description: string | null; // This is the field for template notes
     is_public: boolean;
+    version?: number; // Make optional for backward compatibility
+    parent_template_id?: string | null;
+    is_latest_version?: boolean;
 }
 
 // Define simple form data type (matching input values)
@@ -65,6 +68,8 @@ const ProgramBuilder: React.FC = () => {
     const [editingWorkout, setEditingWorkout] = useState<WorkoutAdminData | null>(null);
     const [selectedWorkout, setSelectedWorkout] = useState<WorkoutAdminData | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    // 1. First, add a state for the version creation modal
+    const [showVersionConfirm, setShowVersionConfirm] = useState<string | null>(null);
 
     const profile = useSelector(selectProfile);
 
@@ -75,42 +80,46 @@ const ProgramBuilder: React.FC = () => {
     });
     const { handleSubmit, reset, setError: setFormError, register } = methods; // Add setFormError and register
 
-    // Fetch existing templates created by the current coach
+    // Extract the fetchTemplates function from the useEffect to make it accessible throughout the component
+    const fetchTemplates = async () => {
+        if (!profile || !profile.id) {
+            setIsLoading(false);
+            return;
+        }
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const { data, error: fetchError } = await supabase
+                .from('program_templates')
+                .select('id, name, phase, weeks, created_at, description, is_public, version, parent_template_id, is_latest_version')
+                .eq('coach_id', profile.id)
+                .order('created_at', { ascending: false });
+            
+            if (fetchError) throw fetchError;
+            
+            // Ensure each template has is_public field, defaulting to false if missing
+            const templatesWithVisibility = data?.map(template => ({
+                ...template,
+                is_public: template.is_public ?? false,
+                version: template.version ?? 1,
+                is_latest_version: template.is_latest_version ?? true
+            })) || [];
+            
+            setTemplates(templatesWithVisibility);
+            setFilteredTemplates(templatesWithVisibility);
+
+        } catch (err: unknown) {
+            console.error("Error fetching program templates:", err);
+            setError('Failed to load templates.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Then modify the useEffect to use the function directly
+    // Replace the existing useEffect with:
     useEffect(() => {
-        const fetchTemplates = async () => {
-            if (!profile || !profile.id) {
-                setIsLoading(false);
-                return;
-            }
-            setIsLoading(true);
-            setError(null);
-
-            try {
-                const { data, error: fetchError } = await supabase
-                    .from('program_templates')
-                    .select('id, name, phase, weeks, created_at, description, is_public')
-                    .eq('coach_id', profile.id)
-                    .order('created_at', { ascending: false });
-                
-                if (fetchError) throw fetchError;
-                
-                // Ensure each template has is_public field, defaulting to false if missing
-                const templatesWithVisibility = data?.map(template => ({
-                    ...template,
-                    is_public: template.is_public ?? false
-                })) || [];
-                
-                setTemplates(templatesWithVisibility);
-                setFilteredTemplates(templatesWithVisibility);
-
-            } catch (err: unknown) {
-                console.error("Error fetching program templates:", err);
-                setError('Failed to load templates.');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         fetchTemplates();
     }, [profile]);
 
@@ -573,7 +582,29 @@ const ProgramBuilder: React.FC = () => {
             
         } catch (err: unknown) {
             console.error("Error saving workout:", err);
-            setError('Failed to save workout.');
+            
+            // 2. Now modify the error handling in handleSaveWorkout to use the modal instead of confirm()
+            // Inside handleSaveWorkout, replace the confirm() dialog block with this:
+
+            // Check if this is a foreign key constraint violation
+            const error = err as any;
+            if (error?.code === '23503' && error?.message?.includes('violates foreign key constraint') && 
+                error?.message?.includes('completed_exercise_sets')) {
+                
+                // This is the specific error we're looking for - suggest creating a new version
+                setError(
+                    'Cannot modify this workout as it has already been used by athletes. ' + 
+                    'Please create a new version of the program to make changes.'
+                );
+                
+                // Show the version creation modal instead of browser confirm
+                if (selectedTemplate?.id) {
+                    setShowVersionConfirm(selectedTemplate.id);
+                }
+            } else {
+                // Handle other errors normally
+                setError('Failed to save workout.');
+            }
         }
     };
 
@@ -1014,6 +1045,171 @@ const ProgramBuilder: React.FC = () => {
         }
     };
 
+    // Function to create a new version of an existing program template
+    const createNewProgramVersion = async (templateId: string) => {
+        // Check if user is logged in
+        if (!profile?.id) {
+            setError('You must be logged in to create a new version.');
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            
+            // First, fetch the original template details
+            const { data: originalTemplate, error: templateError } = await supabase
+                .from('program_templates')
+                .select('*')
+                .eq('id', templateId)
+                .single();
+                
+            if (templateError || !originalTemplate) {
+                throw new Error('Failed to fetch original template details');
+            }
+            
+            // Create a new template with incremented version
+            const newVersion = (originalTemplate.version || 1) + 1;
+            const newTemplateData = {
+                name: originalTemplate.name,
+                description: originalTemplate.description,
+                phase: originalTemplate.phase,
+                weeks: originalTemplate.weeks,
+                is_public: originalTemplate.is_public,
+                coach_id: originalTemplate.coach_id || profile.id,
+                version: newVersion,
+                parent_template_id: templateId // Link to the original template
+            };
+            
+            // Insert the new template
+            const { data: newTemplate, error: insertError } = await supabase
+                .from('program_templates')
+                .insert(newTemplateData)
+                .select()
+                .single();
+                
+            if (insertError || !newTemplate) {
+                throw new Error('Failed to create new template version');
+            }
+            
+            // Now fetch all workouts associated with the original template
+            const { data: originalWorkouts, error: workoutsError } = await supabase
+                .from('workouts')
+                .select('*')
+                .eq('program_template_id', templateId);
+                
+            if (workoutsError) {
+                throw new Error('Failed to fetch original workouts');
+            }
+            
+            // If there are workouts, copy them to the new template
+            if (originalWorkouts && originalWorkouts.length > 0) {
+                // Map to hold the relationship between old and new workout IDs
+                const workoutIdMap = new Map();
+                
+                // Create new workouts for the new template
+                for (const workout of originalWorkouts) {
+                    const newWorkoutData = {
+                        name: workout.name,
+                        description: workout.description,
+                        week: workout.week,
+                        day: workout.day,
+                        day_name: workout.day_name,
+                        program_template_id: newTemplate.id,
+                        // Add these important fields
+                        day_of_week: workout.day_of_week,
+                        order_in_program: workout.order_in_program,
+                        week_number: workout.week_number
+                    };
+                    
+                    const { data: newWorkout, error: newWorkoutError } = await supabase
+                        .from('workouts')
+                        .insert(newWorkoutData)
+                        .select()
+                        .single();
+                        
+                    if (newWorkoutError || !newWorkout) {
+                        throw new Error(`Failed to create new workout: ${workout.name}`);
+                    }
+                    
+                    // Store the mapping from old to new ID
+                    workoutIdMap.set(workout.id, newWorkout.id);
+                    
+                    // Now fetch exercise instances for this workout
+                    const { data: exerciseInstances, error: exerciseError } = await supabase
+                        .from('exercise_instances')
+                        .select('*')
+                        .eq('workout_id', workout.id);
+                        
+                    if (exerciseError) {
+                        throw new Error(`Failed to fetch exercise instances for workout: ${workout.name}`);
+                    }
+                    
+                    // If there are exercise instances, copy them to the new workout
+                    if (exerciseInstances && exerciseInstances.length > 0) {
+                        // Map to hold the relationship between old and new exercise instance IDs
+                        const exerciseIdMap = new Map();
+                        
+                        // Create new exercise instances for the new workout
+                        for (const instance of exerciseInstances) {
+                            // Create a more complete copy of the exercise instance with all required fields
+                            const newInstanceData = {
+                                workout_id: newWorkout.id,
+                                exercise_id: instance.exercise_id,
+                                exercise_db_id: instance.exercise_db_id,
+                                exercise_name: instance.exercise_name, // Add this required field
+                                sets: instance.sets,
+                                reps: instance.reps,
+                                order_in_workout: instance.order_in_workout || instance.order_index, // Handle both field names
+                                rest_period_seconds: instance.rest_period_seconds || instance.rest_time,
+                                tempo: instance.tempo,
+                                notes: instance.notes,
+                                percentage: instance.percentage,
+                                group_id: instance.group_id,
+                                group_type: instance.group_type || 'none',
+                                group_order: instance.group_order || 0,
+                                each_side: instance.each_side || false,
+                                set_type: instance.set_type || 'standard'
+                            };
+                            
+                            const { data: newInstance, error: newInstanceError } = await supabase
+                                .from('exercise_instances')
+                                .insert(newInstanceData)
+                                .select()
+                                .single();
+                                
+                            if (newInstanceError || !newInstance) {
+                                console.error('Error creating exercise instance:', newInstanceError);
+                                throw new Error(`Failed to create new exercise instance: ${instance.exercise_name || 'Unknown exercise'}`);
+                            }
+                            
+                            // Store the mapping from old to new ID
+                            exerciseIdMap.set(instance.id, newInstance.id);
+                        }
+                    }
+                }
+            }
+            
+            // Refresh the template list and select the new template
+            await fetchTemplates();
+            selectTemplate(newTemplate.id);
+            
+            setIsLoading(false);
+            setSuccess(`Created new version (v${newVersion}) of template: ${originalTemplate.name}`);
+        } catch (error) {
+            console.error('Error creating new program version:', error);
+            setIsLoading(false);
+            setError('Failed to create new program version.');
+        }
+    };
+
+    // Helper function to select a template by ID
+    const selectTemplate = (templateId: string) => {
+        const template = templates.find(t => t.id === templateId);
+        if (template) {
+            setSelectedTemplate(template);
+        }
+    };
+
     return (
         <DndProvider backend={HTML5Backend}>
             <div className="container mx-auto py-6 px-4">
@@ -1185,7 +1381,14 @@ const ProgramBuilder: React.FC = () => {
                                     {filteredTemplates.map((template) => (
                                         <tr key={template.id} className="hover:bg-gray-50 dark:hover:bg-indigo-900/30">
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-gray-900 dark:text-white">{template.name}</div>
+                                                <div className="flex flex-col">
+                                                    <div className="font-medium">{template.name}</div>
+                                                    {template.version && template.version > 1 && (
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                            Version {template.version}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm text-gray-500 dark:text-gray-400">{template.phase || '-'}</div>
@@ -1208,25 +1411,43 @@ const ProgramBuilder: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button
-                                                    onClick={() => toggleVisibility(template)}
-                                                    className={`text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3`}
-                                                    title={template.is_public ? "Make Private" : "Make Public"}
-                                                >
-                                                    {template.is_public ? "Make Private" : "Make Public"}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleEdit(template)}
-                                                    className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => setShowDeleteConfirm(template.id)}
-                                                    className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                                                >
-                                                    Delete
-                                                </button>
+                                                <div className="flex justify-end space-x-2">
+                                                    <button
+                                                        onClick={() => toggleVisibility(template)}
+                                                        className={`text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300`}
+                                                        title={template.is_public ? "Make Private" : "Make Public"}
+                                                    >
+                                                        {template.is_public ? "Make Private" : "Make Public"}
+                                                    </button>
+                                                    
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation(); // Prevent selecting the template
+                                                            createNewProgramVersion(template.id);
+                                                        }}
+                                                        className="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                                        title="Create New Version"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                        </svg>
+                                                        New Version
+                                                    </button>
+                                                    
+                                                    <button
+                                                        onClick={() => handleEdit(template)}
+                                                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    
+                                                    <button
+                                                        onClick={() => setShowDeleteConfirm(template.id)}
+                                                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -1329,6 +1550,38 @@ const ProgramBuilder: React.FC = () => {
                                     className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                                 >
                                     Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Version Creation Confirmation Modal */}
+                {showVersionConfirm && (
+                    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center">
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full">
+                            <h3 className="text-lg font-semibold mb-4 dark:text-white">Create New Version</h3>
+                            <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                This workout has been used by athletes and cannot be modified directly. 
+                                Would you like to create a new version of the program instead?
+                            </p>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    onClick={() => setShowVersionConfirm(null)}
+                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (showVersionConfirm) {
+                                            createNewProgramVersion(showVersionConfirm);
+                                            setShowVersionConfirm(null);
+                                        }
+                                    }}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
+                                    Create New Version
                                 </button>
                             </div>
                         </div>

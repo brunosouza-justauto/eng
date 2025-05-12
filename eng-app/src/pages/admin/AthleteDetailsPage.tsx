@@ -19,6 +19,7 @@ interface AthleteProgram {
         id: string;
         name: string;
         description: string | null;
+        version?: number;
     };
 }
 
@@ -55,7 +56,7 @@ interface NutritionPlanDbResult {
 // Helper function to safely transform program assignment data
 function transformProgramData(data: ProgramDbResult): AthleteProgram {
     // Extract program info safely
-    let programInfo: { id: string, name: string, description: string | null } | undefined = undefined;
+    let programInfo: { id: string, name: string, description: string | null, version?: number } | undefined = undefined;
     
     if (data.program) {
         if (Array.isArray(data.program) && data.program.length > 0) {
@@ -63,14 +64,16 @@ function transformProgramData(data: ProgramDbResult): AthleteProgram {
             programInfo = {
                 id: String(firstItem.id || ''),
                 name: String(firstItem.name || ''),
-                description: firstItem.description || null
+                description: firstItem.description || null,
+                version: firstItem.version as number | undefined
             };
         } else if (typeof data.program === 'object' && data.program !== null) {
             const programObj = data.program as Record<string, unknown>;
             programInfo = {
                 id: String(programObj.id || ''),
                 name: String(programObj.name || ''),
-                description: (programObj.description as string) || null
+                description: (programObj.description as string) || null,
+                version: programObj.version as number | undefined
             };
         }
     }
@@ -185,7 +188,7 @@ const AthleteDetailsPage: React.FC = () => {
                         program_template_id,
                         start_date,
                         assigned_at,
-                        program:program_templates!program_template_id(id, name, description)
+                        program:program_templates!program_template_id(id, name, description, version)
                     `)
                     .eq('athlete_id', id)
                     .not('program_template_id', 'is', null)
@@ -346,7 +349,7 @@ const AthleteDetailsPage: React.FC = () => {
                         program_template_id,
                         start_date,
                         assigned_at,
-                        program:program_templates!program_template_id(id, name, description)
+                        program:program_templates!program_template_id(id, name, description, version)
                     `)
                     .eq('athlete_id', id)
                     .not('program_template_id', 'is', null)
@@ -582,7 +585,12 @@ const AthleteDetailsPage: React.FC = () => {
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Training Program</h3>
                         {currentProgram && currentProgram.program ? (
                             <div>
-                                <p className="mb-2 font-medium text-indigo-600 dark:text-indigo-400">{currentProgram.program.name}</p>
+                                <p className="mb-2 font-medium text-indigo-600 dark:text-indigo-400">
+                                    {currentProgram.program.name}
+                                    {currentProgram.program.version && currentProgram.program.version > 1 && 
+                                        <span className="ml-1">v{currentProgram.program.version}</span>
+                                    }
+                                </p>
                                 {currentProgram.program.description && (
                                     <p className="text-gray-600 dark:text-gray-400">{currentProgram.program.description}</p>
                                 )}

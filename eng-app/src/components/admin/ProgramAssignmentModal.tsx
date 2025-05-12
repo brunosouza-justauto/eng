@@ -9,6 +9,9 @@ interface Program {
     name: string;
     description: string | null;
     created_at: string;
+    version: number;
+    parent_template_id: string | null;
+    is_latest_version: boolean;
 }
 
 interface ProgramAssignmentModalProps {
@@ -37,7 +40,7 @@ const ProgramAssignmentModal: React.FC<ProgramAssignmentModalProps> = ({ athlete
                         id,
                         program_template_id,
                         start_date,
-                        program:program_templates!program_template_id(id, name)
+                        program:program_templates!program_template_id(id, name, version)
                     `)
                     .eq('athlete_id', athleteId)
                     .order('created_at', { ascending: false })
@@ -55,9 +58,17 @@ const ProgramAssignmentModal: React.FC<ProgramAssignmentModalProps> = ({ athlete
                         start_date: data.start_date,
                         // Handle the case where program could be returned in different formats
                         program: Array.isArray(data.program) && data.program.length > 0 
-                            ? { id: data.program[0].id, name: data.program[0].name }
+                            ? { 
+                                id: data.program[0].id as string, 
+                                name: data.program[0].name as string,
+                                version: data.program[0].version as number | undefined
+                            }
                             : data.program && typeof data.program === 'object' && 'id' in data.program && 'name' in data.program
-                                ? { id: data.program.id, name: data.program.name }
+                                ? { 
+                                    id: data.program.id as string, 
+                                    name: data.program.name as string,
+                                    version: data.program.version as number | undefined
+                                }
                                 : undefined
                     };
                     setCurrentAssignment(fixedAssignment);
@@ -80,8 +91,9 @@ const ProgramAssignmentModal: React.FC<ProgramAssignmentModalProps> = ({ athlete
             try {
                 const { data, error: fetchError } = await supabase
                     .from('program_templates')
-                    .select('id, name, description, created_at')
-                    .order('name');
+                    .select('id, name, description, created_at, version, parent_template_id, is_latest_version')
+                    .order('name')
+                    .order('version', { ascending: false });
                 
                 if (fetchError) throw fetchError;
                 setPrograms(data || []);
@@ -152,6 +164,9 @@ const ProgramAssignmentModal: React.FC<ProgramAssignmentModalProps> = ({ athlete
                             {currentAssignment && (
                                 <div className="p-3 mb-3 text-sm text-indigo-700 bg-indigo-100 rounded dark:bg-indigo-900/20 dark:text-indigo-300">
                                     <span className="font-medium">Current Program:</span> {currentAssignment.program?.name || "Unknown Program"}
+                                    {currentAssignment.program?.version && currentAssignment.program.version > 1 && (
+                                        <span className="ml-1 font-medium">v{currentAssignment.program.version}</span>
+                                    )}
                                     <p className="mt-1 text-xs">Assigned on {new Date(currentAssignment.start_date).toLocaleDateString()}</p>
                                 </div>
                             )}
@@ -170,6 +185,7 @@ const ProgramAssignmentModal: React.FC<ProgramAssignmentModalProps> = ({ athlete
                                     {programs.map(program => (
                                         <option key={program.id} value={program.id}>
                                             {program.name}
+                                            {program.version && program.version > 1 && ` v${program.version}`}
                                         </option>
                                     ))}
                                 </select>

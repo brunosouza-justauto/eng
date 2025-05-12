@@ -75,7 +75,7 @@ const UserManager: React.FC = () => {
                         program_template_id,
                         start_date,
                         assigned_at,
-                        program:program_templates!program_template_id(id, name)
+                        program:program_templates!program_template_id(id, name, version)
                     )
                 `)
                 .eq('coach_id', profile.id)
@@ -267,6 +267,11 @@ const UserManager: React.FC = () => {
             return 'No active program';
         }
         
+        // Display version if it exists and is greater than 1
+        if (latestAssignment.program.version && latestAssignment.program.version > 1) {
+            return `${latestAssignment.program.name} v${latestAssignment.program.version}`;
+        }
+        
         return latestAssignment.program.name;
     };
 
@@ -285,9 +290,14 @@ const UserManager: React.FC = () => {
             return <span className="inline-flex px-2 text-xs font-semibold leading-5 text-gray-800 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">No Program</span>;
         }
         
+        // Program name with version if applicable
+        const programName = latestAssignment.program.version && latestAssignment.program.version > 1
+            ? `${latestAssignment.program.name} v${latestAssignment.program.version}`
+            : latestAssignment.program.name;
+        
         return (
             <span className="inline-flex px-2 text-xs font-semibold leading-5 text-green-800 bg-green-100 rounded-full dark:bg-green-900/30 dark:text-green-200">
-                {latestAssignment.program.name}
+                {programName}
             </span>
         );
     };

@@ -1976,7 +1976,15 @@ const WorkoutSessionPage: React.FC = () => {
                 {nextExerciseInfo.exerciseName}
               </h3>
               <div className="flex space-x-2 text-sm">
-                <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 rounded-full">
+                <span className={`px-2 py-1 text-xs rounded-full truncate max-w-full ${
+                  nextExerciseInfo.setType === 'Warm-up' 
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+                    : nextExerciseInfo.setType === 'To Failure'
+                    ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+                    : nextExerciseInfo.setType === 'Drop Set'
+                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
+                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                }`}>
                   {nextExerciseInfo.setType}
                 </span>
                 <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 rounded-full">

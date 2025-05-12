@@ -9,6 +9,7 @@ export interface ProgramAssignment {
     program?: {
         id: string;
         name: string;
+        version?: number;
     };
 }
 

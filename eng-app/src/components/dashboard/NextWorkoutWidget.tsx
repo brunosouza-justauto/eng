@@ -10,6 +10,12 @@ import { FiChevronRight, FiExternalLink } from 'react-icons/fi';
 
 interface NextWorkoutWidgetProps {
   programTemplateId: string | null | undefined;
+  program?: {
+    id: string;
+    name: string;
+    description: string | null;
+    version?: number;
+  };
 }
 
 // Define types for fetched data (adjust fields as needed based on your SELECT query)
@@ -40,7 +46,7 @@ interface WorkoutCompletionStatus {
   completionTime: string | null;
 }
 
-const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId }) => {
+const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId, program }) => {
   const profile = useSelector(selectProfile);
   const [workoutData, setWorkoutData] = useState<WorkoutDataWithId | null>(null);
   // allWorkouts is set in useEffect and is used for program state management,
@@ -474,7 +480,12 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
               <div className="space-y-4">
                 {/* Workout header - always show this */}
                 <div className="pb-3 mb-3 border-b border-gray-100 dark:border-gray-700">
-                  <h3 className="font-semibold text-lg text-indigo-600 dark:text-indigo-400">{workoutData.name}</h3>
+                  <h3 className="font-semibold text-lg text-indigo-600 dark:text-indigo-400">
+                    {workoutData.name}
+                    {program?.version && program.version > 1 && (
+                      <span className="ml-1 text-sm font-normal">v{program.version}</span>
+                    )}
+                  </h3>
                   <div className="flex items-center mt-1">
                     {workoutData.day_of_week !== null && (
                       <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
@@ -504,15 +515,15 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
                         Completed at {new Date(completionStatus.completionTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}.
                       </p>
                     )}
-                    <button
-                      onClick={() => window.location.href = "/workouts/history"}
+                    <Link
+                      to="/workouts/history"
                       className="inline-flex items-center px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                       </svg>
                       View Workout History
-                    </button>
+                    </Link>
                   </div>
                 ) : workoutData.exercise_instances.length > 0 ? (
                   // Show exercises and start button for non-completed workouts
