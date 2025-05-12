@@ -1,54 +1,84 @@
-# React + TypeScript + Vite
+# ENG App - Earned Not Given
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A comprehensive bodybuilding and nutrition tracking application built with React, TypeScript, and Vite. Track workouts, meal plans, and fitness goals with a modern, responsive interface.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **User Authentication**: Secure passwordless authentication via Supabase
+- **Workout Tracking**: Log workouts, track sets, reps, and weights
+- **Nutrition Planning**: Plan and log meals, track macronutrients
+- **Step Goals**: Connect with fitness devices (Fitbit, Garmin, Google Fit)
+- **Progressive Web App (PWA)**: Install on any device for an app-like experience
+- **Mobile Responsive**: Optimized for all screen sizes
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Frontend**: React 18, TypeScript, Tailwind CSS
+- **State Management**: Redux Toolkit with Redux Persist
+- **Backend**: Supabase (PostgreSQL, Auth, Storage)
+- **Build Tool**: Vite
+- **Deployment**: Vercel
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## Development
+
+### Prerequisites
+
+- Node.js (version 18+)
+- npm/yarn
+
+### Setup
+
+1. Clone the repository
+```bash
+git clone https://github.com/username/eng-app.git
+cd eng-app
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+2. Install dependencies
+```bash
+npm install
 ```
+
+3. Set up environment variables
+```bash
+cp .env.example .env
+# Fill in your Supabase and other API keys
+```
+
+4. Start the development server
+```bash
+npm run dev
+```
+
+## PWA Support
+
+The application includes full Progressive Web App support:
+
+- **Installable**: Users can install the app on their device
+- **Offline Support**: Basic functionality works offline
+- **Push Notifications**: Support for workout reminders
+- **PWA Assets**: Custom icons and splash screens
+
+To test PWA features in development:
+```bash
+npm run build
+npm run preview
+```
+
+## Deployment to Vercel
+
+The application is configured for easy deployment to Vercel:
+
+1. Push your code to a Git repository
+2. Connect to Vercel and import the repository
+3. Configure environment variables
+4. Deploy!
+
+The deployment configuration uses:
+- Vercel API routes for external service proxies
+- Optimized caching for static assets
+- SPA routing support
+
+## License
+
+MIT

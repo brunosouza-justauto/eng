@@ -4,13 +4,15 @@
 
 *   **Frontend Framework:** React 18 (using Vite for build tooling)
 *   **Language:** TypeScript (with strict mode enforced)
-*   **Routing:** React Router v6
+*   **Routing:** React Router v7
 *   **State Management:** Redux Toolkit
 *   **Styling:** Tailwind CSS
 *   **Forms & Validation:** React Hook Form + Zod
 *   **Backend:** Supabase (PostgreSQL)
 *   **Database:** PostgreSQL (via Supabase)
 *   **Testing:** Vitest + React Testing Library
+*   **PWA Support:** Vite PWA Plugin for Progressive Web App features
+*   **Deployment:** Vercel with API routes for service proxies
 
 ## 2. Development Setup
 
@@ -91,8 +93,35 @@
 
 ## Deployment
 
-- Vercel for production hosting
-- Supabase for backend infrastructure
+- **Vercel for Production Hosting**
+  - Using vercel.json configuration file for:
+    - API routes configuration
+    - Static asset handling
+    - SPA routing
+    - Caching strategies
+  - Serverless functions for API proxies (Fitbit, etc.)
+  - Environment variables for sensitive keys and endpoints
+
+- **Deployment Workflow:**
+  - GitHub integration for automated deployments
+  - Production build includes tree-shaking and code-splitting
+  - Vercel Preview deployments for pull requests
+  - Production analytics and monitoring
+
+## PWA Implementation
+
+- **PWA Configuration:**
+  - Using vite-plugin-pwa for PWA manifest generation
+  - Custom SVG icons at 192x192 and 512x512 sizes
+  - Offline support with service worker configuration
+  - App installation prompts with custom handlers
+  - Update notification system
+
+- **Service Worker Features:**
+  - Caching of static assets for offline use
+  - Background synchronization of workout data
+  - Push notification support for reminders
+  - Automatic updates with user notification
 
 ## Technical Constraints
 
@@ -108,7 +137,8 @@ The application integrates with several fitness device APIs to sync step data:
 1. **Fitbit API**
    - Uses OAuth 2.0 for authentication
    - Requires Basic Authentication with client ID and secret for token exchange
-   - API requests are proxied in development to avoid CORS issues
+   - API requests are proxied through Vercel serverless functions in production
+   - Development environment uses Vite proxy configuration
    - Step data retrieved using the activities/steps endpoint
 
 2. **Google Fit API**

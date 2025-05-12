@@ -351,7 +351,7 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
     {
       id: 'garmin',
       type: 'garmin',
-      name: 'Garmin',
+      name: 'Garmin (Coming Soon)',
       icon: <FiWatch className="text-blue-500" />,
       lastSynced: null,
       status: 'disconnected',
@@ -360,7 +360,7 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
     {
       id: 'apple_health',
       type: 'apple_health',
-      name: 'Apple Health',
+      name: 'Apple Health (Coming Soon)',
       icon: <FiActivity className="text-red-500" />,
       lastSynced: null,
       status: 'disconnected',
@@ -378,7 +378,7 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
     {
       id: 'samsung_health',
       type: 'samsung_health',
-      name: 'Samsung Health',
+      name: 'Samsung Health (Coming Soon)',
       icon: <FiWatch className="text-indigo-500" />,
       lastSynced: null,
       status: 'disconnected',
