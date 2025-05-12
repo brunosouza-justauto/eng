@@ -19,6 +19,7 @@ interface NutritionPlanListItem {
     fat_grams: number | null;
     description: string | null;
     created_at: string;
+    is_public: boolean;
 }
 
 // --- Zod Schema & Types --- 
@@ -32,7 +33,8 @@ const mealPlanSchema = z.object({
                                 z.number().int().nonnegative('Carbs must be non-negative').optional().nullable()),
     fat_grams: z.preprocess((val) => val ? parseInt(String(val), 10) : undefined, 
                        z.number().int().nonnegative('Fat must be non-negative').optional().nullable()),
-    description: z.string().trim().optional().nullable(), 
+    description: z.string().trim().optional().nullable(),
+    is_public: z.boolean().default(false),
 });
 
 interface MealPlanFormData {
@@ -42,6 +44,7 @@ interface MealPlanFormData {
     carbohydrate_grams: string | null;
     fat_grams: string | null;
     description: string | null;
+    is_public: boolean;
 }
 
 // -------------------------
@@ -57,12 +60,13 @@ const MealPlanner: React.FC = () => {
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
     const [showRecipeManager, setShowRecipeManager] = useState<boolean>(false);
+    const [alertMessage, setAlertMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     const profile = useSelector(selectProfile);
 
     // Form methods
     const methods = useForm<MealPlanFormData>({
-        defaultValues: { name: '', total_calories: '', protein_grams: '', carbohydrate_grams: '', fat_grams: '', description: '' }
+        defaultValues: { name: '', total_calories: '', protein_grams: '', carbohydrate_grams: '', fat_grams: '', description: '', is_public: false }
     });
     const { handleSubmit, reset, setError: setFormError } = methods;
 
@@ -74,7 +78,7 @@ const MealPlanner: React.FC = () => {
         try {
             const { data, error: fetchError } = await supabase
                 .from('nutrition_plans')
-                .select('id, name, total_calories, protein_grams, carbohydrate_grams, fat_grams, description, created_at')
+                .select('id, name, total_calories, protein_grams, carbohydrate_grams, fat_grams, description, created_at, is_public')
                 .eq('coach_id', profile.id)
                 .order('created_at', { ascending: false });
             
@@ -112,6 +116,7 @@ const MealPlanner: React.FC = () => {
                 methods.setValue('carbohydrate_grams', data.carbohydrate_grams);
                 methods.setValue('fat_grams', data.fat_grams);
                 methods.setValue('description', data.description);
+                methods.setValue('is_public', data.is_public);
                 
                 console.log("Form values set from BMR Calculator data");
                 
@@ -147,7 +152,8 @@ const MealPlanner: React.FC = () => {
                 protein_grams: selectedPlan.protein_grams?.toString() ?? '',
                 carbohydrate_grams: selectedPlan.carbohydrate_grams?.toString() ?? '',
                 fat_grams: selectedPlan.fat_grams?.toString() ?? '',
-                description: selectedPlan.description ?? ''
+                description: selectedPlan.description ?? '',
+                is_public: selectedPlan.is_public
             });
         }
     }, [selectedPlan, reset]);
@@ -163,6 +169,7 @@ const MealPlanner: React.FC = () => {
         methods.setValue('carbohydrate_grams', '');
         methods.setValue('fat_grams', '');
         methods.setValue('description', '');
+        methods.setValue('is_public', false);
     };
     const handleEdit = (plan: NutritionPlanListItem) => { setSelectedPlan(plan); setIsCreating(false); };
     const handleCancel = () => { setIsCreating(false); setSelectedPlan(null); reset(); };
@@ -215,43 +222,53 @@ const MealPlanner: React.FC = () => {
     };
 
     const handleDeletePlan = async (planId: string) => {
-        if (!profile || !profile.id) return;
-        setError(null);
-        
         try {
-            const { error } = await supabase
-                .from('nutrition_plans')
-                .delete()
-                .eq('id', planId)
-                .eq('coach_id', profile.id); // Safety check
-            
+            const { error } = await supabase.from('nutrition_plans').delete().eq('id', planId);
             if (error) throw error;
-            
-            // Update local state after successful deletion
-            setPlans(prevPlans => prevPlans.filter(plan => plan.id !== planId));
-            setFilteredPlans(prevFilteredPlans => prevFilteredPlans.filter(plan => plan.id !== planId));
-            
-            if (selectedPlan?.id === planId) {
-                setSelectedPlan(null);
-                setIsCreating(false);
-            }
+            setShowDeleteConfirm(null);
+            await fetchPlans();
         } catch (err) {
             console.error("Error deleting nutrition plan:", err);
             setError('Failed to delete plan.');
-        } finally {
-            setShowDeleteConfirm(null);
+        }
+    };
+    
+    const toggleVisibility = async (plan: NutritionPlanListItem) => {
+        if (!profile?.id) return;
+        setError(null);
+        
+        try {
+            const newVisibility = !plan.is_public;
+            
+            const { error } = await supabase
+                .from('nutrition_plans')
+                .update({ is_public: newVisibility })
+                .eq('id', plan.id)
+                .eq('coach_id', profile.id);
+                
+            if (error) throw error;
+            
+            // Refresh plans after update
+            await fetchPlans();
+            
+            // If this is the selected plan, update that too
+            if (selectedPlan?.id === plan.id) {
+                setSelectedPlan({ ...selectedPlan, is_public: newVisibility });
+            }
+            
+            setAlertMessage({
+                message: `Nutrition plan visibility ${newVisibility ? 'made public' : 'made private'}`,
+                type: 'success'
+            });
+            setTimeout(() => setAlertMessage(null), 3000);
+            
+        } catch (err) {
+            console.error('Error updating plan visibility:', err);
+            setError('Failed to update nutrition plan visibility.');
         }
     };
 
-    const handleManageMeals = (planId: string) => {
-        // Find the plan in the list
-        const plan = plans.find(p => p.id === planId);
-        if (plan) {
-            // Set it as the selected plan to edit, which will show the embedded MealManager
-            handleEdit(plan);
-        }
-    };
-
+    // Meal and recipe management
     const handleManageRecipes = () => {
         setShowRecipeManager(true);
     };
@@ -291,8 +308,18 @@ const MealPlanner: React.FC = () => {
                     </div>
 
                     {error && (
-                        <div className="p-4 mb-6 text-red-700 bg-red-100 border-l-4 border-red-500 rounded dark:bg-red-900/20 dark:text-red-400" role="alert">
-                            <p>{error}</p>
+                        <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-md dark:bg-red-900/20 dark:text-red-300">
+                            {error}
+                        </div>
+                    )}
+                    
+                    {alertMessage && (
+                        <div className={`p-4 mb-4 rounded-md ${
+                            alertMessage.type === 'success' 
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                                : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                        }`}>
+                            {alertMessage.message}
                         </div>
                     )}
 
@@ -357,6 +384,23 @@ const MealPlanner: React.FC = () => {
                                 </div>
                                 
                                 <FormInput<MealPlanFormData> name="description" label="Description (Optional)" type="textarea" rows={3}/>
+
+                                <div className="mb-4">
+                                    <div className="flex items-center">
+                                        <input
+                                            id="is_public"
+                                            {...methods.register('is_public')}
+                                            type="checkbox"
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                        />
+                                        <label htmlFor="is_public" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                                            Make this nutrition plan public
+                                        </label>
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Public nutrition plans are visible to all athletes. Private plans are only visible to athletes you assign them to.
+                                    </p>
+                                </div>
 
                                 <div className="flex justify-end pt-3 space-x-3 border-t border-gray-200 dark:border-gray-700">
                                     <button
@@ -435,11 +479,12 @@ const MealPlanner: React.FC = () => {
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead className="bg-gray-50 dark:bg-gray-700">
                                             <tr>
-                                                <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Name</th>
-                                                <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Calories</th>
-                                                <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Macros (P/C/F)</th>
-                                                <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300">Created</th>
-                                                <th className="px-6 py-3 text-xs font-medium tracking-wider text-right text-gray-500 uppercase dark:text-gray-300">Actions</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Calories</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Macros (P/C/F)</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Visibility</th>
+                                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
@@ -448,26 +493,44 @@ const MealPlanner: React.FC = () => {
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="text-sm font-medium text-gray-900 dark:text-white">{plan.name}</div>
                                                         {plan.description && (
-                                                            <div className="max-w-xs mt-1 text-xs text-gray-500 truncate dark:text-gray-400">{plan.description}</div>
+                                                            <div className="text-xs text-gray-500 dark:text-gray-400">{plan.description}</div>
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm text-gray-500 dark:text-gray-300">{plan.total_calories || '-'} kcal</div>
+                                                        <div className="text-sm text-gray-900 dark:text-white">
+                                                            {plan.total_calories ? `${plan.total_calories} kcal` : '-'}
+                                                        </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm text-gray-500 dark:text-gray-300">
+                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
                                                             {plan.protein_grams || '-'}g / {plan.carbohydrate_grams || '-'}g / {plan.fat_grams || '-'}g
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm text-gray-500 dark:text-gray-300">
+                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
                                                             {new Date(plan.created_at).toLocaleDateString()}
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                            plan.is_public 
+                                                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                                                                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
+                                                        }`}>
+                                                            {plan.is_public ? 'Public' : 'Private'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <button
+                                                            onClick={() => toggleVisibility(plan)}
+                                                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"
+                                                            title={plan.is_public ? "Make Private" : "Make Public"}
+                                                        >
+                                                            {plan.is_public ? "Make Private" : "Make Public"}
+                                                        </button>
                                                         <button
                                                             onClick={() => handleEdit(plan)}
-                                                            className="mr-3 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                                                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"
                                                         >
                                                             Edit
                                                         </button>

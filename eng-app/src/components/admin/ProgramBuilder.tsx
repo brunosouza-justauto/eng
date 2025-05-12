@@ -24,6 +24,7 @@ interface ProgramTemplateListItem {
     weeks: number;
     created_at: string;
     description: string | null; // This is the field for template notes
+    is_public: boolean;
 }
 
 // Define simple form data type (matching input values)
@@ -32,6 +33,7 @@ interface TemplateFormData {
     phase: string | null; // Keep nullable if needed
     weeks: string; // Store as string from input
     description: string | null; // This field serves as template notes
+    is_public: boolean;
 }
 
 // Define Zod schema separately for manual validation
@@ -44,6 +46,7 @@ const templateSchema = z.object({
             .transform(Number)
             .refine(val => val > 0, { message: 'Weeks must be greater than 0' }),
     description: z.string().trim().optional().nullable(), // Template notes field (existing)
+    is_public: z.boolean().default(false),
 });
 
 const ProgramBuilder: React.FC = () => {
@@ -68,7 +71,7 @@ const ProgramBuilder: React.FC = () => {
     // React Hook Form methods - remove resolver
     const methods = useForm<TemplateFormData>({
         // resolver: zodResolver(templateSchema),
-        defaultValues: { name: '', phase: '', weeks: '', description: '' } 
+        defaultValues: { name: '', phase: '', weeks: '', description: '', is_public: false } 
     });
     const { handleSubmit, reset, setError: setFormError, register } = methods; // Add setFormError and register
 
@@ -85,12 +88,20 @@ const ProgramBuilder: React.FC = () => {
             try {
                 const { data, error: fetchError } = await supabase
                     .from('program_templates')
-                    .select('id, name, phase, weeks, created_at, description')
+                    .select('id, name, phase, weeks, created_at, description, is_public')
                     .eq('coach_id', profile.id)
                     .order('created_at', { ascending: false });
                 
                 if (fetchError) throw fetchError;
-                setTemplates(data || []);
+                
+                // Ensure each template has is_public field, defaulting to false if missing
+                const templatesWithVisibility = data?.map(template => ({
+                    ...template,
+                    is_public: template.is_public ?? false
+                })) || [];
+                
+                setTemplates(templatesWithVisibility);
+                setFilteredTemplates(templatesWithVisibility);
 
             } catch (err: unknown) {
                 console.error("Error fetching program templates:", err);
@@ -110,10 +121,11 @@ const ProgramBuilder: React.FC = () => {
                 name: selectedTemplate.name,
                 phase: selectedTemplate.phase || '',
                 weeks: selectedTemplate.weeks.toString(),
-                description: selectedTemplate.description || ''
+                description: selectedTemplate.description || '',
+                is_public: selectedTemplate.is_public
             });
         } else {
-             reset({ name: '', phase: '', weeks: '', description: '' });
+             reset({ name: '', phase: '', weeks: '', description: '', is_public: false });
         }
     }, [selectedTemplate, reset]);
 
@@ -141,7 +153,7 @@ const ProgramBuilder: React.FC = () => {
     const handleCreateNew = () => {
         setIsCreating(true);
         setSelectedTemplate(null);
-        reset({ name: '', phase: '', weeks: '', description: '' });
+        reset({ name: '', phase: '', weeks: '', description: '', is_public: false });
     };
 
     const handleEdit = (template: ProgramTemplateListItem) => {
@@ -153,7 +165,7 @@ const ProgramBuilder: React.FC = () => {
         setIsCreating(false);
         setSelectedTemplate(null);
         setCurrentWorkouts([]); // Clear workouts when cancelling
-        reset({ name: '', phase: '', weeks: '', description: '' });
+        reset({ name: '', phase: '', weeks: '', description: '', is_public: false });
     };
 
     // Save handler with manual validation
@@ -732,55 +744,70 @@ const ProgramBuilder: React.FC = () => {
     };
 
     const handleDeleteTemplate = async (templateId: string) => {
+        if (!profile?.id) return;
+        setError(null);
+        
         try {
-            // 1. First get all workouts for this template
-            const { data: workouts, error: workoutsError } = await supabase
-                .from('workouts')
-                .select('id')
-                .eq('program_template_id', templateId);
-                
-            if (workoutsError) throw workoutsError;
-            
-            // 2. Delete all exercise instances for all workouts
-            if (workouts && workouts.length > 0) {
-                const workoutIds = workouts.map(w => w.id);
-                
-                const { error: exercisesError } = await supabase
-                    .from('exercise_instances')
-                    .delete()
-                    .in('workout_id', workoutIds);
-                    
-                if (exercisesError) throw exercisesError;
-                
-                // 3. Delete all workouts
-                const { error: deleteWorkoutsError } = await supabase
-                    .from('workouts')
-                    .delete()
-                    .in('id', workoutIds);
-                    
-                if (deleteWorkoutsError) throw deleteWorkoutsError;
-            }
-            
-            // 4. Finally delete the template
-            const { error: deleteTemplateError } = await supabase
+            const { error } = await supabase
                 .from('program_templates')
                 .delete()
-                .eq('id', templateId);
-                
-            if (deleteTemplateError) throw deleteTemplateError;
+                .eq('id', templateId)
+                .eq('coach_id', profile.id);
             
-            // 5. Update local state
-            setTemplates(prev => prev.filter(t => t.id !== templateId));
+            if (error) throw error;
+            
+            setTemplates(templates.filter(t => t.id !== templateId));
+            setFilteredTemplates(filteredTemplates.filter(t => t.id !== templateId));
             
             if (selectedTemplate?.id === templateId) {
-                handleCancel(); // Reset form & selection
+                setSelectedTemplate(null);
+                setIsCreating(false);
+                setCurrentWorkouts([]);
             }
             
-        } catch (err: unknown) {
-            console.error("Error deleting template:", err);
-            setError('Failed to delete template.');
+        } catch (err) {
+            console.error('Error deleting template:', err);
+            setError('Failed to delete template. Make sure there are no assigned athletes.');
         } finally {
-            setShowDeleteConfirm(null); // Reset confirmation dialog
+            setShowDeleteConfirm(null);
+        }
+    };
+    
+    const toggleVisibility = async (template: ProgramTemplateListItem) => {
+        if (!profile?.id) return;
+        setError(null);
+        
+        try {
+            const newVisibility = !template.is_public;
+            
+            const { error } = await supabase
+                .from('program_templates')
+                .update({ is_public: newVisibility })
+                .eq('id', template.id)
+                .eq('coach_id', profile.id);
+                
+            if (error) throw error;
+            
+            // Update local state
+            const updatedTemplates = templates.map(t => 
+                t.id === template.id ? { ...t, is_public: newVisibility } : t
+            );
+            setTemplates(updatedTemplates);
+            setFilteredTemplates(
+                filteredTemplates.map(t => t.id === template.id ? { ...t, is_public: newVisibility } : t)
+            );
+            
+            // If this is the selected template, update that too
+            if (selectedTemplate?.id === template.id) {
+                setSelectedTemplate({ ...selectedTemplate, is_public: newVisibility });
+            }
+            
+            setSuccess(`Program visibility ${newVisibility ? 'made public' : 'made private'}`);
+            setTimeout(() => setSuccess(null), 3000);
+            
+        } catch (err) {
+            console.error('Error updating template visibility:', err);
+            setError('Failed to update program visibility.');
         }
     };
 
@@ -1004,14 +1031,14 @@ const ProgramBuilder: React.FC = () => {
                 </div>
                 
                 {error && (
-                    <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded" role="alert">
-                        <p>{error}</p>
+                    <div className="p-4 mb-6 text-red-700 bg-red-100 rounded-md dark:bg-red-800/20 dark:text-red-300" role="alert">
+                        {error}
                     </div>
                 )}
                 
                 {success && (
-                    <div className="p-4 mb-4 bg-green-100 border-l-4 border-green-500 text-green-700 dark:bg-green-900/20 dark:text-green-400 dark:border-green-500">
-                        <p>{success}</p>
+                    <div className="p-4 mb-6 text-green-700 bg-green-100 rounded-md dark:bg-green-800/20 dark:text-green-300" role="alert">
+                        {success}
                     </div>
                 )}
                 
@@ -1063,6 +1090,23 @@ const ProgramBuilder: React.FC = () => {
                                         className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         placeholder="Add programming guidance, variations, progression ideas, etc."
                                     ></textarea>
+                                </div>
+                                
+                                <div className="mb-4">
+                                    <div className="flex items-center">
+                                        <input
+                                            id="is_public"
+                                            {...register('is_public')}
+                                            type="checkbox"
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                        />
+                                        <label htmlFor="is_public" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                                            Make this program public
+                                        </label>
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Public programs are visible to all athletes. Private programs are only visible to athletes you assign them to.
+                                    </p>
                                 </div>
                                 
                                 <div className="flex justify-end space-x-3 mt-4">
@@ -1133,6 +1177,7 @@ const ProgramBuilder: React.FC = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Phase</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Weeks</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Visibility</th>
                                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
@@ -1153,7 +1198,23 @@ const ProgramBuilder: React.FC = () => {
                                                     {new Date(template.created_at).toLocaleDateString()}
                                                 </div>
                                             </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                    template.is_public 
+                                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                                                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
+                                                }`}>
+                                                    {template.is_public ? 'Public' : 'Private'}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <button
+                                                    onClick={() => toggleVisibility(template)}
+                                                    className={`text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3`}
+                                                    title={template.is_public ? "Make Private" : "Make Public"}
+                                                >
+                                                    {template.is_public ? "Make Private" : "Make Public"}
+                                                </button>
                                                 <button
                                                     onClick={() => handleEdit(template)}
                                                     className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"

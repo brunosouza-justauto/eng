@@ -82,14 +82,16 @@ export const getAvailableNutritionPlans = async (): Promise<{
     fat_grams?: number;
     created_at: string;
     coach_id: string;
+    is_public: boolean;
   }>;
   error?: string;
 }> => {
   try {
-    // Fetch nutrition plans that are available for athletes
+    // Fetch nutrition plans that are available for athletes (public or assigned)
     const { data: plansData, error: plansError } = await supabase
       .from('nutrition_plans')
-      .select('id, name, description, total_calories, protein_grams, carbohydrate_grams, fat_grams, created_at, coach_id')
+      .select('id, name, description, total_calories, protein_grams, carbohydrate_grams, fat_grams, created_at, coach_id, is_public')
+      .eq('is_public', true)
       .order('name', { ascending: true });
     
     if (plansError) {
@@ -102,6 +104,47 @@ export const getAvailableNutritionPlans = async (): Promise<{
     };
   } catch (err) {
     console.error('Error in getAvailableNutritionPlans:', err);
+    return { nutritionPlans: [], error: "An unexpected error occurred" };
+  }
+};
+
+/**
+ * Get all nutrition plans created by a coach
+ * @param coachId The coach's profile ID
+ * @returns Array of nutrition plans created by the coach
+ */
+export const getCoachNutritionPlans = async (coachId: string): Promise<{
+  nutritionPlans: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    total_calories?: number;
+    protein_grams?: number;
+    carbohydrate_grams?: number;
+    fat_grams?: number;
+    created_at: string;
+    is_public: boolean;
+  }>;
+  error?: string;
+}> => {
+  try {
+    // Fetch nutrition plans created by the coach
+    const { data: plansData, error: plansError } = await supabase
+      .from('nutrition_plans')
+      .select('id, name, description, total_calories, protein_grams, carbohydrate_grams, fat_grams, created_at, is_public')
+      .eq('coach_id', coachId)
+      .order('name', { ascending: true });
+    
+    if (plansError) {
+      console.error("Error fetching coach nutrition plans:", plansError);
+      return { nutritionPlans: [], error: "Failed to fetch nutrition plans" };
+    }
+    
+    return {
+      nutritionPlans: plansData || []
+    };
+  } catch (err) {
+    console.error('Error in getCoachNutritionPlans:', err);
     return { nutritionPlans: [], error: "An unexpected error occurred" };
   }
 };
@@ -136,6 +179,35 @@ export const assignNutritionPlan = async (
     return { 
       success: false, 
       error: "Failed to assign nutrition plan. Please try again." 
+    };
+  }
+};
+
+/**
+ * Toggle the visibility (public/private) of a nutrition plan
+ * @param planId The nutrition plan ID
+ * @param isPublic Boolean indicating if the plan should be public
+ * @returns Success status and any error message
+ */
+export const toggleNutritionPlanVisibility = async (
+  planId: string,
+  isPublic: boolean
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // Update the nutrition plan's visibility
+    const { error } = await supabase
+      .from('nutrition_plans')
+      .update({ is_public: isPublic })
+      .eq('id', planId);
+
+    if (error) throw error;
+    
+    return { success: true };
+  } catch (err) {
+    console.error('Error updating nutrition plan visibility:', err);
+    return { 
+      success: false, 
+      error: "Failed to update nutrition plan visibility. Please try again." 
     };
   }
 }; 

@@ -35,7 +35,9 @@ export interface UserProfileFull extends UserProfileListItem {
     weight_kg?: number | null;
     height_cm?: number | null;
     body_fat_percentage?: number | null;
+    goal_type?: string | null;
     goal_target_fat_loss_kg?: number | null;
+    goal_target_muscle_gain_kg?: number | null;
     goal_timeframe_weeks?: number | null;
     goal_target_weight_kg?: number | null;
     goal_physique_details?: string | null;

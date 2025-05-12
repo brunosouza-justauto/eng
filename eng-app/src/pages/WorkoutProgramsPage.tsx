@@ -9,6 +9,7 @@ interface WorkoutProgram {
   name: string;
   description?: string;
   created_at: string;
+  is_public: boolean;
 }
 
 const WorkoutProgramsPage: React.FC = () => {
@@ -104,9 +105,14 @@ const WorkoutProgramsPage: React.FC = () => {
               className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700"
             >
               <div className="p-5">
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
-                  {program.name}
-                </h3>
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                    {program.name}
+                  </h3>
+                  <div className="text-xs font-medium px-2 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
+                    {program.is_public ? 'Public' : 'Assigned'}
+                  </div>
+                </div>
                 
                 {program.description && (
                   <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">

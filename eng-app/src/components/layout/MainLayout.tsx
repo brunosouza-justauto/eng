@@ -211,7 +211,7 @@ const MainLayout: React.FC = () => {
               onClick={handleNavItemClick}
             >
               <FiArrowLeft className="mr-3" />
-              <span>Back to Athlete Dashboard</span>
+              <span>Athlete Dashboard</span>
             </Link>
           </div>
 

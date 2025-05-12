@@ -10,14 +10,16 @@ export const getAvailableWorkoutPrograms = async (): Promise<{
     name: string;
     description?: string;
     created_at: string;
+    is_public: boolean;
   }>;
   error?: string;
 }> => {
   try {
-    // Fetch workout programs that are available for athletes
+    // Fetch workout programs that are available for athletes (public or assigned)
     const { data: programsData, error: programsError } = await supabase
       .from('program_templates')
-      .select('id, name, description, created_at')
+      .select('id, name, description, created_at, is_public')
+      .eq('is_public', true)
       .order('name', { ascending: true });
     
     if (programsError) {
@@ -30,6 +32,43 @@ export const getAvailableWorkoutPrograms = async (): Promise<{
     };
   } catch (err) {
     console.error('Error in getAvailableWorkoutPrograms:', err);
+    return { programs: [], error: "An unexpected error occurred" };
+  }
+};
+
+/**
+ * Get all workout programs created by a coach
+ * @param coachId The coach's profile ID
+ * @returns Array of workout programs created by the coach
+ */
+export const getCoachWorkoutPrograms = async (coachId: string): Promise<{
+  programs: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    created_at: string;
+    is_public: boolean;
+  }>;
+  error?: string;
+}> => {
+  try {
+    // Fetch workout programs created by the coach
+    const { data: programsData, error: programsError } = await supabase
+      .from('program_templates')
+      .select('id, name, description, created_at, is_public')
+      .eq('coach_id', coachId)
+      .order('name', { ascending: true });
+    
+    if (programsError) {
+      console.error("Error fetching coach workout programs:", programsError);
+      return { programs: [], error: "Failed to fetch workout programs" };
+    }
+    
+    return {
+      programs: programsData || []
+    };
+  } catch (err) {
+    console.error('Error in getCoachWorkoutPrograms:', err);
     return { programs: [], error: "An unexpected error occurred" };
   }
 };
@@ -64,6 +103,35 @@ export const assignWorkoutProgram = async (
     return { 
       success: false, 
       error: "Failed to assign workout program. Please try again." 
+    };
+  }
+};
+
+/**
+ * Toggle the visibility (public/private) of a workout program
+ * @param programId The workout program ID
+ * @param isPublic Boolean indicating if the program should be public
+ * @returns Success status and any error message
+ */
+export const toggleProgramVisibility = async (
+  programId: string,
+  isPublic: boolean
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // Update the program's visibility
+    const { error } = await supabase
+      .from('program_templates')
+      .update({ is_public: isPublic })
+      .eq('id', programId);
+
+    if (error) throw error;
+    
+    return { success: true };
+  } catch (err) {
+    console.error('Error updating program visibility:', err);
+    return { 
+      success: false, 
+      error: "Failed to update program visibility. Please try again." 
     };
   }
 }; 

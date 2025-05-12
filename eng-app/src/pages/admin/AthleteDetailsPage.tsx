@@ -252,9 +252,11 @@ const AthleteDetailsPage: React.FC = () => {
                 
                 // Goals
                 goal_target_fat_loss_kg: formData.goal_target_fat_loss_kg,
+                goal_target_muscle_gain_kg: formData.goal_target_muscle_gain_kg,
                 goal_timeframe_weeks: formData.goal_timeframe_weeks,
                 goal_target_weight_kg: formData.goal_target_weight_kg,
                 goal_physique_details: formData.goal_physique_details,
+                goal_type: formData.goal_type,
                 
                 // Training
                 training_days_per_week: formData.training_days_per_week,
@@ -472,17 +474,17 @@ const AthleteDetailsPage: React.FC = () => {
     }
 
     return (
-        <div className="container px-4 py-8 mx-auto">
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Athlete Details</h1>
-                <Button onClick={() => navigate('/admin/athletes')} variant="secondary">
+        <div className="container px-2 py-4 mx-auto sm:px-4 sm:py-8">
+            <div className="flex flex-col items-start justify-between mb-4 sm:flex-row sm:items-center sm:mb-6">
+                <h1 className="mb-3 text-2xl font-bold text-gray-800 dark:text-white sm:mb-0">Athlete Details</h1>
+                <Button onClick={() => navigate('/admin/athletes')} variant="secondary" className="text-sm">
                     Back to Athletes
                 </Button>
             </div>
 
             {/* Loading State */}
             {isLoading && (
-                <Card className="p-6">
+                <Card className="p-4 sm:p-6">
                     <div className="flex items-center justify-center h-40">
                         <div className="w-12 h-12 border-t-2 border-b-2 border-indigo-500 rounded-full animate-spin"></div>
                     </div>
@@ -491,7 +493,7 @@ const AthleteDetailsPage: React.FC = () => {
 
             {/* Error State */}
             {error && !isLoading && (
-                <Card className="p-6 border-red-300 bg-red-50 dark:bg-red-900/20">
+                <Card className="p-4 sm:p-6 border-red-300 bg-red-50 dark:bg-red-900/20">
                     <div className="text-red-700 dark:text-red-400">
                         <h3 className="mb-2 font-bold">Error</h3>
                         <p>{error}</p>
@@ -508,7 +510,7 @@ const AthleteDetailsPage: React.FC = () => {
 
             {/* Athlete Not Found */}
             {!isLoading && !error && !athleteDetails && (
-                <Card className="p-6">
+                <Card className="p-4 sm:p-6">
                     <div className="text-center">
                         <h3 className="mb-2 font-bold text-gray-800 dark:text-white">Athlete Not Found</h3>
                         <p>The athlete you're looking for could not be found.</p>
@@ -533,24 +535,27 @@ const AthleteDetailsPage: React.FC = () => {
             {/* Athlete Details */}
             {!isLoading && !error && athleteDetails && !isEditing && (
                 <>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex flex-col mb-4 space-y-2 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                         <h2 className="text-xl font-semibold text-gray-800 dark:text-white">{athleteDetails.first_name} {athleteDetails.last_name}</h2>
-                        <div className="space-x-2">
+                        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
                             <Button 
                                 onClick={() => setIsEditing(true)}
                                 variant="primary"
+                                className="w-full sm:w-auto"
                             >
                                 Edit Profile
                             </Button>
                             <Button 
                                 onClick={() => setShowProgramModal(true)}
                                 variant="secondary"
+                                className="w-full sm:w-auto"
                             >
                                 Manage Programs
                             </Button>
                             <Button 
                                 onClick={() => setShowNutritionPlanModal(true)}
                                 variant="secondary"
+                                className="w-full sm:w-auto"
                             >
                                 Manage Nutrition Plan
                             </Button>
@@ -558,7 +563,7 @@ const AthleteDetailsPage: React.FC = () => {
                     </div>
 
                     {/* Body Measurements Tracking */}
-                    <Card className="p-6 mb-6">
+                    <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Body Measurements</h3>
                         <AthleteMeasurementsManager 
                             athleteId={athleteDetails.user_id || ''}
@@ -573,7 +578,7 @@ const AthleteDetailsPage: React.FC = () => {
                     </Card>
 
                     {/* Training Program Card */}
-                    <Card className="p-6 mb-6">
+                    <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Training Program</h3>
                         {currentProgram && currentProgram.program ? (
                             <div>
@@ -605,7 +610,7 @@ const AthleteDetailsPage: React.FC = () => {
                     </Card>
 
                     {/* Nutrition Plan Card */}
-                    <Card className="p-6 mb-6">
+                    <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Nutrition Plan</h3>
                         {currentNutritionPlan && currentNutritionPlan.nutrition_plan ? (
                             <div>
@@ -636,7 +641,7 @@ const AthleteDetailsPage: React.FC = () => {
                         )}
                     </Card>
 
-                    <Card className="p-6 mb-6">
+                    <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Basic Information</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
@@ -662,7 +667,7 @@ const AthleteDetailsPage: React.FC = () => {
                         </div>
                     </Card>
 
-                    <Card className="p-6 mb-6">
+                    <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Physical Details</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <div>
@@ -688,9 +693,21 @@ const AthleteDetailsPage: React.FC = () => {
                         </div>
                     </Card>
 
-                    <Card className="p-6 mb-6">
+                    <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Goals</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Goal Type</p>
+                                <p className="font-medium text-gray-800 dark:text-white">
+                                    {athleteDetails.goal_type ? 
+                                        athleteDetails.goal_type === 'fat_loss' ? 'Fat Loss' :
+                                        athleteDetails.goal_type === 'muscle_gain' ? 'Muscle Gain' :
+                                        athleteDetails.goal_type === 'both' ? 'Both (Fat Loss & Muscle Gain)' :
+                                        athleteDetails.goal_type === 'maintenance' ? 'Maintenance' : 
+                                        athleteDetails.goal_type
+                                    : 'Not provided'}
+                                </p>
+                            </div>
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Target Weight (kg)</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.goal_target_weight_kg || 'Not provided'}</p>
@@ -698,6 +715,10 @@ const AthleteDetailsPage: React.FC = () => {
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Target Fat Loss (kg)</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.goal_target_fat_loss_kg || 'Not provided'}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Target Muscle Gain (kg)</p>
+                                <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.goal_target_muscle_gain_kg || 'Not provided'}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Timeframe (weeks)</p>
@@ -710,7 +731,7 @@ const AthleteDetailsPage: React.FC = () => {
                         </div>
                     </Card>
 
-                    <Card className="p-6 mb-6">
+                    <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Training</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
@@ -736,7 +757,7 @@ const AthleteDetailsPage: React.FC = () => {
                         </div>
                     </Card>
 
-                    <Card className="p-6 mb-6">
+                    <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Nutrition</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
@@ -758,7 +779,7 @@ const AthleteDetailsPage: React.FC = () => {
                         </div>
                     </Card>
 
-                    <Card className="p-6 mb-6">
+                    <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Lifestyle</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
@@ -792,12 +813,13 @@ const AthleteDetailsPage: React.FC = () => {
 
             {/* Edit Athlete Form */}
             {!isLoading && !error && athleteDetails && isEditing && (
-                <Card className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Edit Athlete</h2>
+                <Card className="p-4 sm:p-6">
+                    <div className="flex flex-col mb-4 sm:flex-row sm:items-center sm:justify-between">
+                        <h2 className="mb-2 text-xl font-semibold text-gray-800 dark:text-white sm:mb-0">Edit Athlete</h2>
                         <Button 
                             onClick={() => setIsEditing(false)}
                             variant="secondary"
+                            className="w-full sm:w-auto"
                         >
                             Cancel
                         </Button>
@@ -814,7 +836,7 @@ const AthleteDetailsPage: React.FC = () => {
             {/* Program Assignment Modal */}
             {athleteDetails && showProgramModal && (
                 <ProgramAssignmentModal
-                    athleteId={athleteDetails.user_id || ''}
+                    athleteId={athleteDetails.id || ''}
                     onClose={() => setShowProgramModal(false)}
                     onSuccess={handleProgramAssignmentSuccess}
                 />
@@ -823,7 +845,7 @@ const AthleteDetailsPage: React.FC = () => {
             {/* Nutrition Plan Assignment Modal */}
             {athleteDetails && showNutritionPlanModal && (
                 <NutritionPlanAssignmentModal
-                    athleteId={athleteDetails.user_id || ''}
+                    athleteId={athleteDetails.id || ''}
                     onClose={() => setShowNutritionPlanModal(false)}
                     onSuccess={handleNutritionPlanAssignmentSuccess}
                 />

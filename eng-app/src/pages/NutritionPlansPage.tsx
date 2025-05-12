@@ -14,6 +14,7 @@ interface NutritionPlan {
   fat_grams?: number;
   created_at: string;
   coach_id: string;
+  is_public: boolean;
 }
 
 const NutritionPlansPage: React.FC = () => {
@@ -120,9 +121,14 @@ const NutritionPlansPage: React.FC = () => {
               className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700"
             >
               <div className="p-5">
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
-                  {plan.name}
-                </h3>
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                    {plan.name}
+                  </h3>
+                  <div className="text-xs font-medium px-2 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
+                    {plan.is_public ? 'Public' : 'Assigned'}
+                  </div>
+                </div>
                 
                 <div className="text-sm text-indigo-600 dark:text-indigo-400 mb-3">
                   {formatMacros(plan)}

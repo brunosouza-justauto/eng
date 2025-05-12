@@ -39,9 +39,14 @@ const userEditSchema = z.object({
         z.number().min(0, 'Body fat percentage must be positive').max(100, 'Body fat percentage cannot exceed 100%').nullable().optional()
     ),
     // Goals
+    goal_type: z.enum(['fat_loss', 'muscle_gain', 'both', 'maintenance']).nullable().optional(),
     goal_target_fat_loss_kg: z.preprocess(
         (val) => (val === '' ? null : Number(val)),
         z.number().min(0, 'Target fat loss must be positive').nullable().optional()
+    ),
+    goal_target_muscle_gain_kg: z.preprocess(
+        (val) => (val === '' ? null : Number(val)),
+        z.number().min(0, 'Target muscle gain must be positive').nullable().optional()
     ),
     goal_timeframe_weeks: z.preprocess(
         (val) => (val === '' ? null : Number(val)),
@@ -105,7 +110,9 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
             height_cm: user.height_cm || null,
             body_fat_percentage: user.body_fat_percentage || null,
             // Goals
+            goal_type: (user.goal_type as 'fat_loss' | 'muscle_gain' | 'both' | 'maintenance' | null) || null,
             goal_target_fat_loss_kg: user.goal_target_fat_loss_kg || null,
+            goal_target_muscle_gain_kg: user.goal_target_muscle_gain_kg || null,
             goal_timeframe_weeks: user.goal_timeframe_weeks || null,
             goal_target_weight_kg: user.goal_target_weight_kg || null,
             goal_physique_details: user.goal_physique_details || null,
@@ -259,7 +266,22 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                 </div>
                 
                 <h3 className="text-md font-medium text-gray-800 dark:text-white mt-4 mb-2">Goals</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label htmlFor="goal_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Goal Type</label>
+                        <select 
+                            id="goal_type"
+                            {...register('goal_type')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="">Select Goal Type</option>
+                            <option value="fat_loss">Fat Loss</option>
+                            <option value="muscle_gain">Muscle Gain</option>
+                            <option value="both">Both (Fat Loss & Muscle Gain)</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                        {errors.goal_type && <p className="mt-1 text-sm text-red-600">{errors.goal_type.message}</p>}
+                    </div>
                     <div>
                         <label htmlFor="goal_target_fat_loss_kg" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Fat Loss (kg)</label>
                         <input 
@@ -270,6 +292,17 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                             className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         />
                         {errors.goal_target_fat_loss_kg && <p className="mt-1 text-sm text-red-600">{errors.goal_target_fat_loss_kg.message}</p>}
+                    </div>
+                    <div>
+                        <label htmlFor="goal_target_muscle_gain_kg" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Muscle Gain (kg)</label>
+                        <input 
+                            id="goal_target_muscle_gain_kg"
+                            type="number"
+                            step="0.1"
+                            {...register('goal_target_muscle_gain_kg')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                        {errors.goal_target_muscle_gain_kg && <p className="mt-1 text-sm text-red-600">{errors.goal_target_muscle_gain_kg.message}</p>}
                     </div>
                     <div>
                         <label htmlFor="goal_target_weight_kg" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Weight (kg)</label>
