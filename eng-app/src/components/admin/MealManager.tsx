@@ -10,16 +10,13 @@ import {
     MealFormData,
     mealSchema,
     NutritionPlanWithMeals,
-    DAY_TYPES
+    DAY_TYPES,
+    DayType
 } from '../../types/mealPlanning';
 import { createMeal, updateMeal, deleteMeal, getNutritionPlanById, duplicateMeal, updateMealsOrder } from '../../services/mealPlanningService';
 import { MealFoodItems } from './MealFoodItems';
 import { FoodSelector } from './FoodSelector';
-import EditDayModal from './EditDayModal';
 import DuplicateDayTypeModal from './DuplicateDayTypeModal';
-import { Button } from '../ui/Button';
-import { supabase } from '../../services/supabaseClient';
-import { calculateTotalNutrition } from '../../utils/nutritionUtils';
 
 // Define types for drag and drop
 type DragItem = {
@@ -285,11 +282,11 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
         const existingDayType = lastMeal?.day_type;
 
         // Set default day type based on existing meals or first day type
-        let defaultDayType = DAY_TYPES[0];
+        let defaultDayType: DayType = DAY_TYPES[0];
         if (existingDayType) {
             if (DAY_TYPES.includes(existingDayType as any)) {
-                defaultDayType = existingDayType;
-                setSelectedDayType(existingDayType);
+                defaultDayType = existingDayType as DayType;
+                setSelectedDayType(existingDayType as DayType);
                 setCustomDayType('');
             } else {
                 setSelectedDayType('Custom Day');
@@ -313,7 +310,7 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
         // Set day type state based on meal's day_type
         const mealDayType = meal.day_type || '';
         if (DAY_TYPES.includes(mealDayType as any)) {
-            setSelectedDayType(mealDayType);
+            setSelectedDayType(mealDayType as DayType);
             setCustomDayType('');
         } else if (mealDayType) {
             setSelectedDayType('Custom Day');
@@ -380,8 +377,8 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
                 // Update existing meal
                 await updateMeal(editingMeal.id, {
                     name: data.name,
-                    time_suggestion: data.time_suggestion || null,
-                    notes: data.notes || null,
+                    time_suggestion: data.time_suggestion || undefined,
+                    notes: data.notes || undefined,
                     day_type: finalDayType
                 });
             } else {
@@ -392,8 +389,8 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
                 await createMeal({
                     nutrition_plan_id: nutritionPlanId,
                     name: data.name,
-                    time_suggestion: data.time_suggestion || null,
-                    notes: data.notes || null,
+                    time_suggestion: data.time_suggestion || undefined,
+                    notes: data.notes || undefined,
                     order_in_plan: maxOrder + 1,
                     day_type: finalDayType
                 });
@@ -947,7 +944,7 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
                                     {/* Meals for this day type */}
                                     <div className="p-3">
                                         <div className="meals-container">
-                                            {mealsForDayType.map((meal: MealWithFoodItems, index: number) => (
+                                            {mealsForDayType.map((meal: MealWithFoodItems) => (
                                                 <DraggableMeal
                                                     key={meal.id}
                                                     meal={meal}

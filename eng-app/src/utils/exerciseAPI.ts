@@ -283,7 +283,8 @@ export const fetchExercises = async (
           image: null,
           instructions: [],
           tips: [],
-          type: 'Strength'
+          type: 'Strength',
+          youtube_link: null
         };
       }
     });
@@ -336,39 +337,6 @@ const extractBodyPart = (description: string): string => {
   }
 };
 
-// Format HeyGainz exercise to our Exercise format
-export const formatHeyGainzExercise = (exercise: HeyGainzExercise): Exercise => {
-  // Defensive check to ensure muscles property exists
-  if (!exercise.muscles) {
-    console.warn(`Exercise ${exercise.id} (${exercise.name}) is missing muscles property`);
-    exercise.muscles = [];
-  }
-
-  // Extract primary muscles
-  const primaryMuscles = exercise.muscles
-    .filter(m => m.pivot?.type === 'primary')
-    .map(m => m.name);
-
-  // Get the body part from the first muscle or from description
-  const category = exercise.muscles.length > 0 
-    ? exercise.muscles[0].body_part 
-    : extractBodyPart(exercise.description);
-
-  return {
-    id: exercise.id.toString(),
-    name: exercise.name,
-    description: exercise.seo_description || '',
-    category,
-    categoryId: exercise.id,
-    muscles: primaryMuscles,
-    equipment: extractEquipment(exercise.description),
-    image: exercise.gif_url,
-    instructions: exercise.instructions || [],
-    tips: exercise.tips || [],
-    type: exercise.type
-  };
-};
-
 // Format any exercise object to our standard Exercise format
 export const formatExercise = (exercise: Exercise | HeyGainzExercise | Record<string, unknown>): Exercise => {
   // Check if this matches a HeyGainzExercise structure
@@ -394,7 +362,36 @@ export const formatExercise = (exercise: Exercise | HeyGainzExercise | Record<st
     image: null,
     instructions: [],
     tips: [],
-    type: 'Strength'
+    type: 'Strength',
+    youtube_link: null
+  };
+};
+
+// Format a HeyGainz exercise to our standard Exercise format
+export const formatHeyGainzExercise = (exercise: HeyGainzExercise): Exercise => {
+  // Extract primary muscles
+  const primaryMuscles = exercise.muscles
+    .filter(m => m.pivot?.type === 'primary')
+    .map(m => m.name);
+
+  // Get the body part from the first muscle or from description
+  const category = exercise.muscles.length > 0 
+    ? exercise.muscles[0].body_part 
+    : extractBodyPart(exercise.description);
+
+  return {
+    id: exercise.id.toString(),
+    name: exercise.name,
+    description: exercise.seo_description || '',
+    category,
+    categoryId: exercise.id,
+    muscles: primaryMuscles,
+    equipment: extractEquipment(exercise.description),
+    image: exercise.gif_url,
+    instructions: exercise.instructions || [],
+    tips: exercise.tips || [],
+    type: exercise.type,
+    youtube_link: exercise.youtube_link
   };
 };
 

@@ -257,19 +257,32 @@ const RecipeBuilder: React.FC<RecipeBuilderProps> = ({ recipeId, onSave, onCance
             let result: RecipeWithIngredients;
             
             if (recipeId) {
-                // For updating existing recipes: include ID for existing ingredients
-                const updateIngredientsData = selectedIngredients.map(ingredient => {
-                    const isTemporaryId = ingredient.id.startsWith('temp-');
-                    
-                    return {
-                        // Only include id if it's an existing ingredient (not a temporary ID)
-                        ...(!isTemporaryId ? { id: ingredient.id } : {}),
-                        food_item_id: ingredient.food_item_id,
-                        quantity: ingredient.quantity,
-                        unit: ingredient.unit,
-                        notes: ingredient.notes
-                    };
-                });
+                // Update existing recipe
+                // Filter ingredients to separate existing from new ones
+                const existingIngredients = selectedIngredients
+                    .filter(ing => ing.id && !ing.id.toString().startsWith('temp-'))
+                    .map(ing => ({
+                        id: ing.id,
+                        food_item_id: ing.food_item_id,
+                        quantity: ing.quantity,
+                        unit: ing.unit,
+                        notes: ing.notes
+                    }));
+                
+                const newIngredients = selectedIngredients
+                    .filter(ing => !ing.id || ing.id.toString().startsWith('temp-'))
+                    .map(ing => ({
+                        food_item_id: ing.food_item_id,
+                        quantity: ing.quantity,
+                        unit: ing.unit,
+                        notes: ing.notes
+                    }));
+                
+                // Update existing recipe with all ingredients
+                const updateIngredientsData = [
+                    ...existingIngredients,
+                    ...newIngredients
+                ] as Omit<RecipeIngredient, "created_at" | "recipe_id">[];
                 
                 // Update existing recipe
                 result = await updateRecipe(recipeId, recipeData, updateIngredientsData);

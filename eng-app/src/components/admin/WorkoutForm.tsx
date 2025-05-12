@@ -1,23 +1,20 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
-import { WorkoutAdminData, ExerciseInstanceAdminData, SetType } from '../../types/adminTypes';
-import { FiTrash2, FiMove, FiSearch, FiPlus, FiX, FiChevronDown, FiChevronUp, FiFilter, FiVideo, FiLink } from 'react-icons/fi';
-import { useDrop, useDrag } from 'react-dnd';
-import { DndProvider } from 'react-dnd';
+import { ExerciseInstanceAdminData, WorkoutAdminData, SetType } from '../../types/adminTypes';
+import { FiTrash2, FiSearch, FiPlus, FiX, FiChevronDown, FiChevronUp, FiFilter, FiLink } from 'react-icons/fi';
+import { useDrag, useDrop, DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import ExerciseInstanceForm from './ExerciseInstanceForm';
+import { Exercise as DatabaseExercise } from '../../utils/exerciseDatabase';
+import { v4 as uuidv4 } from 'uuid';
 import { 
     fetchExercises, 
     fetchMuscleGroups, 
-    Exercise,
     HeyGainzMuscle as Category
 } from '../../utils/exerciseAPI';
-import DraggableExerciseCard, { ItemTypes as ExerciseItemTypes } from './DraggableExerciseCard';
-import { v4 as uuidv4 } from 'uuid';
+import DraggableExerciseCard from './DraggableExerciseCard';
 
-// Make sure DraggableExerciseCard can accept Exercise type
-// This modifies the existing LocalExercise interface to be compatible with Exercise
+// Make sure LocalExercise is compatible with Exercise
 interface LocalExercise {
     id: string;
     name: string;
@@ -25,8 +22,6 @@ interface LocalExercise {
     primaryMuscle: string;
     secondaryMuscles: string[];
     image?: string;
-    // Additional fields from Exercise that may be present
-    muscles?: string[];
 }
 
 // Define Zod schema for workout form
@@ -42,6 +37,12 @@ const workoutSchema = z.object({
     order_in_program: z.preprocess((val) => val ? parseInt(String(val), 10) : undefined, 
                               z.number().int().nonnegative('Order must be non-negative').optional().nullable()),
 });
+
+// Define item types for drag and drop
+const ItemTypes = {
+    WORKOUT_EXERCISE: 'workout_exercise',
+    SEARCH_EXERCISE: 'search_exercise'
+};
 
 // Type for form data - needs conversion for number inputs
 interface WorkoutFormData {
@@ -67,10 +68,8 @@ interface WorkoutFormProps {
 
 // We'll use the Exercise type directly from exerciseAPI.ts
 
-// Update the ItemTypes reference to avoid conflict
-const ItemTypes = ExerciseItemTypes;
-
 // Create a draggable exercise item component (search panel exercises)
+// Note: We're now using the DraggableExerciseCard component imported from './DraggableExerciseCard'
 // Note: We're now using the DraggableExerciseCard component imported from './DraggableExerciseCard'
 
 // Create a component for the drop zone between exercises
@@ -80,7 +79,18 @@ const ExerciseDropZone = ({
     isOver,
     isDragging, 
 }: { 
-    onDrop: (item: { type: string; exerciseIndex?: number; exercise?: Exercise }, targetIndex: number) => void, 
+    onDrop: (item: { 
+        type: string; 
+        exerciseIndex?: number; 
+        exercise?: DatabaseExercise;
+        supersetInfo?: { 
+            groupId: string;
+            order: number;
+            totalInGroup: number;
+            isFirst: boolean;
+            isLast: boolean;
+        } | null; 
+    }, targetIndex: number) => void, 
     index: number,
     isOver: boolean,
     isDragging: boolean, 
@@ -90,7 +100,18 @@ const ExerciseDropZone = ({
     
     const [{ isOverCurrent }, drop] = useDrop(() => ({
         accept: [ItemTypes.WORKOUT_EXERCISE, ItemTypes.SEARCH_EXERCISE],
-        drop: (item) => {
+        drop: (item: { 
+            type: string; 
+            exerciseIndex?: number; 
+            exercise?: DatabaseExercise;
+            supersetInfo?: { 
+                groupId: string;
+                order: number;
+                totalInGroup: number;
+                isFirst: boolean;
+                isLast: boolean;
+            } | null; 
+        }) => {
             onDrop(item, index);
             return { dropped: true };
         },
@@ -278,7 +299,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     // State for managing form and exercises
     const [exercises, setExercises] = useState<ExerciseInstanceAdminData[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<Exercise[]>([]);
+    const [searchResults, setSearchResults] = useState<DatabaseExercise[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -416,8 +437,8 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             // Sort each group's indices by the superset_order
             Object.keys(newSupersetGroups).forEach(groupId => {
                 newSupersetGroups[groupId].sort((a, b) => {
-                    const exerciseA = initializedExercises[a] as any;
-                    const exerciseB = initializedExercises[b] as any;
+                    const exerciseA = initializedExercises[a] as ExerciseWithSupersetFields;
+                    const exerciseB = initializedExercises[b] as ExerciseWithSupersetFields;
                     return (exerciseA.superset_order || 0) - (exerciseB.superset_order || 0);
                 });
             });
@@ -467,7 +488,14 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                 console.log('First result sample:', response.results[0]);
             }
             
-            setSearchResults(response.results as Exercise[]);
+            // Convert API exercise type to database exercise type that the component expects
+            const convertedResults = response.results.map(apiExercise => ({
+                ...apiExercise,
+                primaryMuscle: apiExercise.category || '',
+                secondaryMuscles: apiExercise.muscles || []
+            })) as unknown as DatabaseExercise[];
+            
+            setSearchResults(convertedResults);
             setTotalResults(response.count || 0);
             setHasMore(response.next !== null);
         } catch (err) {
@@ -510,7 +538,14 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                     RESULTS_PER_PAGE
                 );
                 
-                setSearchResults(response.results as Exercise[]);
+                // Convert API exercise type to database exercise type
+                const convertedResults = response.results.map(apiExercise => ({
+                    ...apiExercise,
+                    primaryMuscle: apiExercise.category || '',
+                    secondaryMuscles: apiExercise.muscles || []
+                })) as unknown as DatabaseExercise[];
+                
+                setSearchResults(convertedResults);
                 setTotalResults(response.count);
                 setHasMore(response.next !== null);
             } catch (err) {
@@ -650,7 +685,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     };
 
     // --- Exercise Management Handlers ---
-    const handleAddExercise = (exercise: Exercise | LocalExercise) => {
+    const handleAddExercise = (exercise: DatabaseExercise | LocalExercise) => {
         // Create a new exercise instance with proper information
         const newExercise: ExerciseInstanceAdminData = {
             exercise_db_id: 'id' in exercise ? exercise.id.toString() : '',
@@ -673,72 +708,19 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     };
 
     // Helper function to extract muscle information from API exercise
-    const createLocalExerciseFromAPI = (exercise: Exercise): LocalExercise => {
-        let primaryMuscle = 'Unknown';
-        let secondaryMuscles: string[] = [];
-        
-        // First check if the exercise already has a category
-        if (exercise.category) {
-            primaryMuscle = exercise.category;
-        }
-        // Check if muscles array is populated
-        else if (exercise.muscles && exercise.muscles.length > 0) {
-            primaryMuscle = exercise.muscles[0];
-            secondaryMuscles = exercise.muscles.slice(1) || [];
-        } 
-        // Extract muscle info from description field if it exists and appears to be JSON
-        else {
-            try {
-                if (exercise.description && typeof exercise.description === 'string') {
-                    // Check if it starts with a curly brace (potential JSON)
-                    if (exercise.description.trim().startsWith('{')) {
-                        // Parse the JSON string in the description field
-                        const descObj = JSON.parse(exercise.description);
-                        // Use body_part as primaryMuscle if available
-                        if (descObj.body_part) {
-                            primaryMuscle = descObj.body_part;
-                        }
-                        // Use target as a secondary muscle if available
-                        if (descObj.target) {
-                            const targets = descObj.target.split(',').map((t: string) => t.trim()).filter((t: string) => t);
-                            if (targets.length > 0) {
-                                secondaryMuscles = targets;
-                            }
-                        }
-                    } 
-                }
-            } catch (e) {
-                console.error("Error parsing exercise description:", e);
-                // Keep default "Unknown" if parsing fails
-            }
-        }
-        
-        // Handle image URL safely - checking both properties
-        const exerciseAny = exercise as any;
-        const imageUrl = exerciseAny.gif_url || exercise.image || '';
-        
-        // Debug log to see what's happening with categories
-        console.log('Exercise category info:', {
-            name: exercise.name,
-            primaryMuscle,
-            hasCategory: !!exercise.category,
-            hasDescription: !!exercise.description,
-            descriptionStart: exercise.description ? exercise.description.substring(0, 30) + '...' : 'none',
-            hasGifUrl: !!(exerciseAny.gif_url),
-            hasImage: !!exercise.image,
-            category: exercise.category || 'none',
-            muscles: exercise.muscles || []
-        });
+    const createLocalExerciseFromAPI = (exercise: DatabaseExercise): LocalExercise => {
+        // Convert the API exercise to a format our local state can use
+        const primaryMuscle = exercise.primary_muscle_group || '';
+        const secondaryMuscles = exercise.secondary_muscle_groups || [];
         
         return {
             id: exercise.id,
             name: exercise.name,
-            category: primaryMuscle,
+            category: exercise.category || '',
             primaryMuscle,
             secondaryMuscles,
-            // Use image if available as a fallback
-            image: imageUrl,
-            muscles: exercise.muscles || []
+            // The Exercise type from exerciseAPI might not have image, but DatabaseExercise should
+            image: (exercise as any).image || null,
         };
     };
 
@@ -794,7 +776,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     const handleExerciseDrop = (item: { 
         type: string; 
         exerciseIndex?: number; 
-        exercise?: Exercise;
+        exercise?: DatabaseExercise;
         supersetInfo?: { 
             groupId: string;
             order: number;
@@ -829,7 +811,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             handleMoveExercise(sourceIndex, targetIndex);
         } else {
             // This is a new exercise from the search panel
-            handleAddExerciseAt(item.exercise as Exercise, targetIndex);
+            handleAddExerciseAt(item.exercise as DatabaseExercise, targetIndex);
         }
         
         // Clear any hover state
@@ -864,7 +846,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     };
 
     // Function to add an exercise at a specific position
-    const handleAddExerciseAt = (exercise: Exercise, targetIndex: number) => {
+    const handleAddExerciseAt = (exercise: DatabaseExercise, targetIndex: number) => {
         // Create the new exercise instance
         const newExercise: ExerciseInstanceAdminData = {
             exercise_db_id: exercise.id,
@@ -1014,7 +996,6 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                         </label>
                         <textarea
                             id="notes"
-                            {...register('notes')}
                             rows={2}
                             className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             placeholder="Add a note..."
@@ -1332,13 +1313,18 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             
             // Update each selected exercise
             orderedIndices.forEach((exerciseIndex, position) => {
-                // Use type assertion to allow adding superset properties
-                (updated[exerciseIndex] as any) = {
+                // Add superset properties to exercise
+                interface ExerciseWithSupersetFields extends ExerciseInstanceAdminData {
+                    superset_group_id: string;
+                    superset_order: number;
+                }
+                
+                updated[exerciseIndex] = {
                     ...updated[exerciseIndex],
                     superset_group_id: supersetId,
                     superset_order: position + 1,
                     set_type: SetType.SUPERSET
-                };
+                } as ExerciseWithSupersetFields;
             });
             
             return updated;
@@ -1363,19 +1349,25 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             
             // If only one exercise remains, dissolve the superset
             if (updatedGroup.length < 2) {
-                const { [groupId]: removed, ...rest } = prev;
+                const { [groupId]: _, ...rest } = prev;
                 
                 // Also update the remaining exercise to remove superset info
                 if (updatedGroup.length === 1) {
                     setExercises(exercises => {
                         const updated = [...exercises];
-                        // Use type assertion to allow adding superset properties
-                        (updated[updatedGroup[0]] as any) = {
+                        // Add superset properties to exercise
+                        interface ExerciseWithSupersetFields extends ExerciseInstanceAdminData {
+                            superset_group_id?: string;
+                            superset_order?: number;
+                            set_type?: SetType;
+                        }
+                        
+                        updated[updatedGroup[0]] = {
                             ...updated[updatedGroup[0]],
                             superset_group_id: undefined,
                             superset_order: undefined,
                             set_type: SetType.REGULAR
-                        };
+                        } as ExerciseWithSupersetFields;
                         return updated;
                     });
                 }
@@ -1387,11 +1379,15 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             setExercises(exercises => {
                 const updated = [...exercises];
                 updatedGroup.forEach((idx, i) => {
-                    // Use type assertion to allow adding superset properties
-                    (updated[idx] as any) = {
+                    // Add superset properties to exercise
+                    interface ExerciseWithSupersetFields extends ExerciseInstanceAdminData {
+                        superset_order: number;
+                    }
+                    
+                    updated[idx] = {
                         ...updated[idx],
                         superset_order: i + 1
-                    };
+                    } as ExerciseWithSupersetFields;
                 });
                 return updated;
             });
@@ -1405,13 +1401,19 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         // Update the exercise to remove superset info
         setExercises(prev => {
             const updated = [...prev];
-            // Use type assertion to allow adding superset properties
-            (updated[exerciseIndex] as any) = {
+            // Add superset properties to exercise
+            interface ExerciseWithSupersetFields extends ExerciseInstanceAdminData {
+                superset_group_id?: string;
+                superset_order?: number;
+                set_type: SetType;
+            }
+            
+            updated[exerciseIndex] = {
                 ...updated[exerciseIndex],
                 superset_group_id: undefined,
                 superset_order: undefined,
                 set_type: SetType.REGULAR
-            };
+            } as ExerciseWithSupersetFields;
             return updated;
         });
     };
@@ -1474,7 +1476,6 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         // Calculate the adjusted target index based on whether we're moving forward or backward
         // If any exercise in the group is before the target, we need to adjust the target index
         const minIndex = Math.min(...sortedIndices);
-        const maxIndex = Math.max(...sortedIndices);
         
         // If we're moving forward, we need to account for the removed exercises
         const adjustedTargetIndex = minIndex < targetIndex ? 

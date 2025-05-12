@@ -112,7 +112,7 @@ const BMRCalculatorPage: React.FC = () => {
             
             <Card className="mb-6">
                 <div className="p-4">
-                    <h2 className="text-xl font-semibold mb-4">Goal Selection</h2>
+                    <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Goal Selection</h2>
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Select Goal:</label>
                         <select value={goal} onChange={(e) => setGoal(e.target.value)} className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -164,7 +164,7 @@ const BMRCalculatorPage: React.FC = () => {
             
             <Card className="mb-6">
                 <div className="p-4">
-                    <h2 className="text-xl font-semibold mb-4">Athlete Data</h2>
+                    <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Athlete Data</h2>
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Select Athlete:</label>
                         <select value={selectedAthlete?.id || ''} onChange={(e) => {
@@ -241,7 +241,7 @@ const BMRCalculatorPage: React.FC = () => {
             
             <Card className="mb-6">
                 <div className="p-4">
-                    <h2 className="text-xl font-semibold mb-4">Activity Guidelines</h2>
+                    <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Activity Guidelines</h2>
                     <div className="mb-4">
                         <h4 className="text-lg font-semibold text-gray-800 dark:text-white">Guidelines</h4>
                         <ul className="text-sm text-gray-700 list-disc list-inside dark:text-gray-300">
@@ -255,7 +255,7 @@ const BMRCalculatorPage: React.FC = () => {
             
             <Card>
                 <div className="p-4">
-                    <h2 className="text-xl font-semibold mb-4">Calculated Results</h2>
+                    <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Calculated Results</h2>
                     <div className="mt-4">
                         <h4 className="text-lg font-semibold text-gray-800 dark:text-white">Energy Expenditure</h4>
                         <table className="min-w-full mt-2 divide-y divide-gray-200 dark:divide-gray-700">

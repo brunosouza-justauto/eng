@@ -56,8 +56,8 @@ const ProgramAssignmentModal: React.FC<ProgramAssignmentModalProps> = ({ athlete
                         // Handle the case where program could be returned in different formats
                         program: Array.isArray(data.program) && data.program.length > 0 
                             ? { id: data.program[0].id, name: data.program[0].name }
-                            : data.program && typeof data.program === 'object'
-                                ? data.program
+                            : data.program && typeof data.program === 'object' && 'id' in data.program && 'name' in data.program
+                                ? { id: data.program.id, name: data.program.name }
                                 : undefined
                     };
                     setCurrentAssignment(fixedAssignment);

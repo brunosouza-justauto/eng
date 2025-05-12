@@ -9,7 +9,7 @@ import { searchExercises, Exercise } from '../../utils/exerciseDatabase';
 // Define schema for ExerciseSet
 const exerciseSetSchema = z.object({
     id: z.string().optional(),
-    order: z.number().int().nonnegative(),
+    set_order: z.number().int().nonnegative(),
     type: z.nativeEnum(SetType),
     reps: z.string().trim().optional(),
     weight: z.string().trim().optional(),

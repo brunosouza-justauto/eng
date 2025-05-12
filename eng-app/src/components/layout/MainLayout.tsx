@@ -6,7 +6,7 @@ import { selectProfile, logout, ProfileData } from '../../store/slices/authSlice
 import { supabase } from '../../services/supabaseClient';
 import Footer from './Footer';
 import ThemeToggle from '../common/ThemeToggle';
-import { FiHome, FiPlusCircle, FiGrid, FiLogOut, FiX } from 'react-icons/fi';
+import { FiLogOut, FiX } from 'react-icons/fi';
 
 // NavItem component for sidebar navigation
 const NavItem = ({ to, icon, label, active, onClick }: { to: string; icon: React.ReactNode; label: string; active: boolean; onClick?: () => void }) => {

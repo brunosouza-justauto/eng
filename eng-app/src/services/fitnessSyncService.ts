@@ -514,10 +514,10 @@ const syncFitbitSteps = async (connection: DeviceConnection, userId: string, dat
   // Format date for Fitbit API (yyyy-MM-dd)
   const today = date;
   
-  // Use the proxy path instead of direct API URL to avoid CORS issues
-  const apiUrl = `/api/fitbit/1/user/-/activities/steps/date/${today}/1d.json`;
+  // Use the Vercel API route for production
+  const apiUrl = `${window.location.origin}/api/fitbit/1/user/-/activities/steps/date/${today}/1d.json`;
   
-  console.log(`Fetching Fitbit steps for date ${today} through proxy`);
+  console.log(`Fetching Fitbit steps for date ${today}`);
   
   // Make API request to get step data
   const response = await fetch(apiUrl, {

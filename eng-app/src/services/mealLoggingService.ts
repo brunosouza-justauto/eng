@@ -1,13 +1,77 @@
 import { supabase } from './supabaseClient';
 import { 
-    LoggedMeal, 
     LoggedMealWithNutrition, 
     DailyNutritionLog,
-    ExtraMealFormData,
-    MealWithFoodItems
+    ExtraMealFormData
 } from '../types/mealPlanning';
 import { getNutritionPlanById } from './mealPlanningService';
 import { calculateNutrition } from '../types/mealPlanning';
+
+// Define the interfaces that were previously imported from '../types/mealLogging'
+interface LoggedMeal {
+    id: string;
+    user_id: string;
+    meal_id?: string;
+    nutrition_plan_id: string;
+    name: string;
+    date: string;
+    time: string;
+    day_type?: string;
+    notes?: string;
+    is_extra_meal: boolean;
+    total_calories?: number;
+    total_protein?: number;
+    total_carbs?: number;
+    total_fat?: number;
+    food_items?: LoggedFoodItem[];
+    meal?: MealData;
+}
+
+interface LoggedFoodItem {
+    id: string;
+    meal_log_id: string;
+    food_item_id: string;
+    quantity: number;
+    unit: string;
+    food_item?: FoodItemData;
+    calories?: number;
+    protein_grams?: number;
+    carbs_grams?: number;
+    fat_grams?: number;
+}
+
+interface MealLogDay {
+    log_date: string;
+    day_type: string | null;
+    total_calories: number;
+    total_protein: number;
+    total_carbs: number;
+    total_fat: number;
+    meals: LoggedMeal[];
+}
+
+// Define types for the meal data and food item data
+interface MealData {
+    id: string;
+    name: string;
+    time_suggestion?: string;
+    food_items?: LoggedFoodItem[];
+    [key: string]: unknown;
+}
+
+interface FoodItemData {
+    food_name?: string;
+    [key: string]: unknown;
+}
+
+// Use the interface by changing the comment to indicate its usage
+// Type for the raw meal log data from Supabase, used implicitly through Record<string, any> currently
+interface MealLogRaw {
+    id: string;
+    log_date: string;
+    day_type: string | null;
+    meal: MealData;
+}
 
 /**
  * Log a meal from the meal plan as eaten
@@ -291,7 +355,7 @@ export const getLoggedMealsForDate = async (
                 let totalCarbs = 0;
                 let totalFat = 0;
                 
-                meal.food_items?.forEach(item => {
+                meal.food_items?.forEach((item: { food_item: FoodItemData; quantity: number; unit: string }) => {
                     if (item.food_item) {
                         const nutrition = calculateNutrition(
                             item.food_item,
@@ -431,4 +495,174 @@ export const checkIfMealLogged = async (
         console.error('Error checking if meal logged:', error);
         throw error;
     }
-}; 
+};
+
+// Function to get all logged meal days for user
+export const getUserMealLogs = async (userId: string): Promise<MealLogDay[]> => {
+    try {
+        // Fetch user's meal logs
+        const { data: mealLogData, error } = await supabase
+            .from('meal_logs')
+            .select(`
+                id,
+                date as log_date,
+                day_type,
+                meal:meals(
+                    id,
+                    name,
+                    time_suggestion,
+                    food_items:meal_food_items(
+                        id,
+                        quantity,
+                        unit,
+                        food_item:food_items(*)
+                    )
+                )
+            `)
+            .eq('user_id', userId)
+            .order('date', { ascending: false });
+            
+        if (error) throw error;
+        
+        if (!mealLogData || mealLogData.length === 0) {
+            return [];
+        }
+                
+        // Process meals and food items 
+        return processDaysWithMeals(mealLogData);
+    } catch (error) {
+        console.error("Error fetching user meal logs:", error);
+        throw error;
+    }
+}
+
+// Fix the processDaysWithMeals function with better typings for any
+export function processDaysWithMeals(days: Record<string, unknown>[]): MealLogDay[] {
+    if (!days || days.length === 0) return [];
+    
+    // Group by date
+    const groupedByDate: Record<string, Record<string, unknown>[]> = {};
+    
+    days.forEach((day) => {
+        const date = day.log_date;
+        if (!groupedByDate[date]) {
+            groupedByDate[date] = [];
+        }
+        groupedByDate[date].push(day);
+    });
+    
+    // Create a day object for each date
+    return Object.entries(groupedByDate).map(([date, mealsForDay]) => {
+        // Sort meals by their suggested time if available
+        mealsForDay.sort((a, b) => {
+            const timeA = a.meal?.time_suggestion || '';
+            const timeB = b.meal?.time_suggestion || '';
+            return timeA.localeCompare(timeB);
+        });
+
+        const meals: LoggedMeal[] = [];
+        const dayType = mealsForDay[0]?.day_type || null;
+
+        const dailyTotals = {
+            calories: 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+        };
+
+        // Process each meal for this date
+        mealsForDay.forEach((mealData) => {
+            if (!mealData.meal) return;
+
+            const { id: mealLogId, meal } = mealData;
+            
+            const foodItems: LoggedFoodItem[] = [];
+            const mealTotals = {
+                calories: 0,
+                protein: 0,
+                carbs: 0,
+                fat: 0,
+            };
+
+            // Process food items in the meal
+            if (meal.food_items && Array.isArray(meal.food_items)) {
+                meal.food_items.forEach((item: Record<string, unknown>) => {
+                    if (!item || !item.food_item) return;
+                    
+                    // Convert to FoodItem compatible structure for calculateNutrition
+                    const foodItem = {
+                        id: String(item.food_item.id || ''),
+                        food_name: String(item.food_item.food_name || ''),
+                        calories_per_100g: Number(item.food_item.calories_per_100g || 0),
+                        protein_per_100g: Number(item.food_item.protein_per_100g || 0), 
+                        carbs_per_100g: Number(item.food_item.carbs_per_100g || 0),
+                        fat_per_100g: Number(item.food_item.fat_per_100g || 0),
+                        nutrient_basis: String(item.food_item.nutrient_basis || 'per_100g'),
+                        created_at: '', // Default empty string for required fields
+                        updated_at: ''  // Default empty string for required fields
+                    };
+                    
+                    // Calculate nutrition for this food item
+                    const nutrition = calculateNutrition(foodItem, item.quantity, item.unit);
+                    
+                    // Add to food items for this meal
+                    const loggedFoodItem: LoggedFoodItem = {
+                        id: item.id,
+                        food_item: item.food_item,
+                        quantity: item.quantity,
+                        unit: item.unit,
+                        calories: nutrition.calories,
+                        protein_grams: nutrition.protein,
+                        carbs_grams: nutrition.carbs,
+                        fat_grams: nutrition.fat
+                    };
+                    
+                    foodItems.push(loggedFoodItem);
+                    
+                    // Update meal totals
+                    mealTotals.calories += nutrition.calories;
+                    mealTotals.protein += nutrition.protein;
+                    mealTotals.carbs += nutrition.carbs;
+                    mealTotals.fat += nutrition.fat;
+                });
+            }
+            
+            // Create the logged meal with nutrition totals
+            const loggedMeal: LoggedMeal = {
+                id: mealLogId,
+                user_id: '',
+                nutrition_plan_id: '',
+                meal_id: meal.id,
+                name: meal.name,
+                date: date,
+                time: meal.time_suggestion || '',
+                day_type: dayType || undefined,
+                is_extra_meal: false,
+                food_items: foodItems,
+                total_calories: mealTotals.calories,
+                total_protein: mealTotals.protein,
+                total_carbs: mealTotals.carbs,
+                total_fat: mealTotals.fat
+            };
+            
+            meals.push(loggedMeal);
+            
+            // Update daily totals
+            dailyTotals.calories += mealTotals.calories;
+            dailyTotals.protein += mealTotals.protein;
+            dailyTotals.carbs += mealTotals.carbs;
+            dailyTotals.fat += mealTotals.fat;
+        });
+        
+        // Return the processed day
+        return {
+            log_date: date,
+            day_type: dayType,
+            total_calories: dailyTotals.calories,
+            total_protein: dailyTotals.protein,
+            total_carbs: dailyTotals.carbs,
+            total_fat: dailyTotals.fat,
+            meals: meals
+        };
+    });
+}
