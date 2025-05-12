@@ -59,6 +59,7 @@ export interface ExerciseInstanceAdminData {
     group_id?: string | null; // UUID that links related exercises in a group
     group_type?: ExerciseGroupType; // The type of group this exercise belongs to
     group_order?: number; // Order within the group
+    is_bodyweight?: boolean; // Whether this exercise uses bodyweight instead of external weights
 }
 
 export interface WorkoutAdminData {

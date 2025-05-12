@@ -375,6 +375,7 @@ const ProgramBuilder: React.FC = () => {
                         group_id: exerciseWithSuperset.superset_group_id || exercise.group_id || null,
                         group_type: exercise.set_type === SetType.SUPERSET ? ExerciseGroupType.SUPERSET : (exercise.group_type || ExerciseGroupType.NONE),
                         group_order: exerciseWithSuperset.superset_order || exercise.group_order || 0,
+                        is_bodyweight: exercise.is_bodyweight || false,
                         workout_id: savedWorkoutId
                     };
                     
@@ -1168,7 +1169,8 @@ const ProgramBuilder: React.FC = () => {
                                 group_type: instance.group_type || 'none',
                                 group_order: instance.group_order || 0,
                                 each_side: instance.each_side || false,
-                                set_type: instance.set_type || 'standard'
+                                set_type: instance.set_type || 'standard',
+                                is_bodyweight: instance.is_bodyweight || false
                             };
                             
                             const { data: newInstance, error: newInstanceError } = await supabase

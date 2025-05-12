@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectProfile } from '../store/slices/authSlice';
@@ -6,6 +6,7 @@ import { supabase } from '../services/supabaseClient';
 import { SetType, ExerciseSet } from '../types/adminTypes';
 import { fetchExerciseById } from '../utils/exerciseAPI';
 import BackButton from '../components/common/BackButton';
+import { v4 as uuidv4 } from 'uuid';
 
 // Helper function to sanitize text with encoding issues
 const sanitizeText = (text: string | null | undefined): string | null => {
@@ -39,6 +40,8 @@ interface ExerciseInstanceData {
   set_type?: SetType | null;
   sets_data?: ExerciseSet[]; // Add support for individual set data
   superset_group_id?: string | null; // Added field for superset group ID
+  is_bodyweight?: boolean; // Added field for bodyweight exercises
+  each_side?: boolean; // Added field for each side exercises
 }
 
 // Interface for database exercise set
@@ -495,7 +498,9 @@ const WorkoutSessionPage: React.FC = () => {
               notes,
               order_in_workout,
               set_type,
-              sets_data
+              sets_data,
+              is_bodyweight,
+              each_side
             )
           `)
           .eq('id', workoutId)
@@ -627,6 +632,12 @@ const WorkoutSessionPage: React.FC = () => {
       console.log(`Processing exercise ${exIndex+1}: ${exercise.exercise_name}`);
       let hasSetsData = false;
       
+      // Check if this is a bodyweight exercise (from the flag added to the database)
+      const isBodyweightExercise = exercise.is_bodyweight === true;
+      if (isBodyweightExercise) {
+        console.log(`Exercise ${exercise.exercise_name} is marked as bodyweight`);
+      }
+      
       // Handle cases where sets_data might be stored as a JSON string instead of parsed object
       let setsData = exercise.sets_data;
       if (typeof setsData === 'string') {
@@ -658,7 +669,8 @@ const WorkoutSessionPage: React.FC = () => {
           sets.push({
             exerciseInstanceId: exercise.id,
             setOrder: setIndex + 1,
-            weight: setData.weight || '',
+            // If the exercise is marked as bodyweight, set weight to "BW"
+            weight: isBodyweightExercise ? 'BW' : (setData.weight || ''),
             reps: repsValue, // Use the extracted rep count from individual set data
             isCompleted: false,
             notes: '',
@@ -671,6 +683,10 @@ const WorkoutSessionPage: React.FC = () => {
           console.log(`  Created ${sets.length} sets from sets_data`);
           
           // Debug - log each set's reps
+          sets.forEach((set, i) => console.log(`    Set ${i+1}: ${set.reps} reps, type=${set.setType}, weight=${set.weight}`));
+        }
+      }
+      
           sets.forEach((set, i) => console.log(`    Set ${i+1}: ${set.reps} reps, type=${set.setType}`));
         }
       }
@@ -689,7 +705,8 @@ const WorkoutSessionPage: React.FC = () => {
             sets.push({
               exerciseInstanceId: exercise.id,
               setOrder: i + 1,
-              weight: '',
+              // If the exercise is marked as bodyweight, set weight to "BW"
+              weight: isBodyweightExercise ? 'BW' : '',
               reps: defaultReps,
               isCompleted: false,
               notes: '',
@@ -2568,6 +2585,87 @@ const WorkoutSessionPage: React.FC = () => {
     });
   };
 
+  // Function to initialize exercise sets for a workout session
+  const initializeExerciseSets = useCallback((exerciseInstances: ExerciseInstance[], existingSets: Map<string, CompletedSet[]> = new Map()) => {
+    const initializedSets = new Map<string, CompletedSet[]>();
+    
+    exerciseInstances.forEach(exercise => {
+      // Check if we already have sets for this exercise in existingSets
+      if (existingSets.has(exercise.id)) {
+        initializedSets.set(exercise.id, existingSets.get(exercise.id) || []);
+        return; // Skip initialization if we already have sets for this exercise
+      }
+      
+      // Create number of sets specified in the exercise
+      const numSets = parseInt(exercise.sets || '1', 10) || 1;
+      const sets: CompletedSet[] = [];
+      
+      for (let i = 0; i < numSets; i++) {
+        sets.push({
+          id: uuidv4(),
+          exercise_instance_id: exercise.id,
+          set_order: i + 1,
+          // If the exercise is marked as bodyweight, set weight to "BW" automatically
+          weight: exercise.is_bodyweight ? 'BW' : '',
+          reps: exercise.reps || '',
+          isCompleted: false
+        });
+      }
+      
+      initializedSets.set(exercise.id, sets);
+    });
+    
+    return initializedSets;
+  }, []);
+  
+  // Function to load existing completed sets for a workout session
+  const loadCompletedSets = useCallback(async (sessionId: string) => {
+    try {
+      setIsLoadingSets(true);
+      
+      const { data: completedSetsData, error } = await supabase
+        .from('completed_exercise_sets')
+        .select('*')
+        .eq('workout_session_id', sessionId)
+        .order('set_order', { ascending: true });
+        
+      if (error) {
+        console.error('Error loading completed sets:', error);
+        return new Map<string, CompletedSet[]>();
+      }
+      
+      const loadedSets = new Map<string, CompletedSet[]>();
+      
+      // Group by exercise_instance_id
+      completedSetsData?.forEach(set => {
+        const exerciseId = set.exercise_instance_id;
+        
+        if (!loadedSets.has(exerciseId)) {
+          loadedSets.set(exerciseId, []);
+        }
+        
+        const sets = loadedSets.get(exerciseId);
+        if (sets) {
+          sets.push({
+            id: set.id,
+            exercise_instance_id: set.exercise_instance_id,
+            set_order: set.set_order,
+            weight: set.weight || '',
+            reps: set.reps?.toString() || '',
+            isCompleted: set.is_completed || false
+          });
+        }
+      });
+      
+      return loadedSets;
+    } catch (err) {
+      console.error('Error in loadCompletedSets:', err);
+      return new Map<string, CompletedSet[]>();
+    } finally {
+      setIsLoadingSets(false);
+    }
+  }, []);
+
   return (
     <>
       {/* Absolute positioned toast container that doesn't interfere with layout */}
@@ -2773,6 +2871,12 @@ const WorkoutSessionPage: React.FC = () => {
                                       </span>
                                       <span className="text-gray-800 dark:text-white">
                                         {exercise.exercise_name}
+                                        {/* Add "Each Side" indicator */}
+                                        {exercise.each_side && (
+                                          <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full">
+                                            Each Side
+                                          </span>
+                                        )}
                                       </span>
                                     </h3>
                                     
@@ -2781,6 +2885,18 @@ const WorkoutSessionPage: React.FC = () => {
                                       <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
                                         {exercise.notes}
                                       </p>
+                                    )}
+                                    
+                                    {/* Tempo display */}
+                                    {exercise.tempo && (
+                                      <div className="mt-1 ml-9 flex items-center">
+                                        <span className="text-xs bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 px-2 py-0.5 rounded-full flex items-center">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                          </svg>
+                                          Tempo: {exercise.tempo}
+                                        </span>
+                                      </div>
                                     )}
                                   </div>
                                   
@@ -2972,6 +3088,12 @@ const WorkoutSessionPage: React.FC = () => {
                             </span>
                             <span className="text-gray-800 dark:text-white">
                               {exercise.exercise_name}
+                              {/* Add "Each Side" indicator */}
+                              {exercise.each_side && (
+                                <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full">
+                                  Each Side
+                                </span>
+                              )}
                             </span>
                           </h3>
                           
@@ -2980,6 +3102,18 @@ const WorkoutSessionPage: React.FC = () => {
                             <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
                               {exercise.notes}
                             </p>
+                          )}
+                          
+                          {/* Tempo display */}
+                          {exercise.tempo && (
+                            <div className="mt-1 ml-9 flex items-center">
+                              <span className="text-xs bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 px-2 py-0.5 rounded-full flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Tempo: {exercise.tempo}
+                              </span>
+                            </div>
                           )}
                         </div>
                         

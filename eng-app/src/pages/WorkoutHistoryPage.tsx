@@ -24,6 +24,8 @@ interface CompletedSet {
   weight: string;
   reps: number;
   is_completed: boolean;
+  each_side?: boolean;
+  tempo?: string | null;
 }
 
 const WorkoutHistoryPage: React.FC = () => {
@@ -61,7 +63,11 @@ const WorkoutHistoryPage: React.FC = () => {
           weight,
           reps,
           is_completed,
-          exercise_instances:exercise_instances(exercise_name)
+          exercise_instances:exercise_instances(
+            exercise_name,
+            each_side,
+            tempo
+          )
         `)
         .eq('workout_session_id', sessionId)
         .order('set_order', { ascending: true });
@@ -81,14 +87,20 @@ const WorkoutHistoryPage: React.FC = () => {
       // Process the data into a more usable format
       const processedSets = setData.map(set => {
         // Handle exercise_instances property properly with type assertion
-        const exerciseInstances = set.exercise_instances as { exercise_name?: string } | null;
+        const exerciseInstances = set.exercise_instances as { 
+          exercise_name?: string;
+          each_side?: boolean;
+          tempo?: string | null;
+        } | null;
         
         return {
           exercise_name: exerciseInstances?.exercise_name || 'Unknown Exercise',
           set_order: set.set_order,
           weight: set.weight || '',
           reps: set.reps,
-          is_completed: set.is_completed
+          is_completed: set.is_completed,
+          each_side: exerciseInstances?.each_side || false,
+          tempo: exerciseInstances?.tempo || null
         };
       });
 
@@ -381,6 +393,9 @@ const WorkoutHistoryPage: React.FC = () => {
                           <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             Reps
                           </th>
+                          <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Details
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -397,6 +412,23 @@ const WorkoutHistoryPage: React.FC = () => {
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap">
                               {set.reps}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex flex-col space-y-1">
+                                {set.each_side && (
+                                  <span className="px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full inline-flex items-center w-fit">
+                                    Each Side
+                                  </span>
+                                )}
+                                {set.tempo && (
+                                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 text-xs rounded-full inline-flex items-center w-fit">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Tempo: {set.tempo}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
