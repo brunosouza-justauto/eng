@@ -15,13 +15,96 @@ interface WorkoutSession {
   workout_name: string;
   workout_description: string | null;
   completed_sets_count: number;
+  completed_sets?: CompletedSet[];
+}
+
+interface CompletedSet {
+  exercise_name: string;
+  set_order: number;
+  weight: string;
+  reps: number;
+  is_completed: boolean;
 }
 
 const WorkoutHistoryPage: React.FC = () => {
   const [workoutSessions, setWorkoutSessions] = useState<WorkoutSession[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const profile = useSelector(selectProfile);
+
+  // Toggle session expansion
+  const toggleSessionExpansion = (sessionId: string) => {
+    if (expandedSession === sessionId) {
+      setExpandedSession(null);
+    } else {
+      setExpandedSession(sessionId);
+      fetchSessionDetails(sessionId);
+    }
+  };
+
+  // Fetch detailed set information for a session
+  const fetchSessionDetails = async (sessionId: string) => {
+    try {
+      // Check if the session already has details loaded
+      const existingSession = workoutSessions.find(s => s.id === sessionId);
+      if (existingSession?.completed_sets) {
+        console.log('Session details already loaded');
+        return;
+      }
+
+      const { data: setData, error: setError } = await supabase
+        .from('completed_exercise_sets')
+        .select(`
+          exercise_instance_id,
+          set_order,
+          weight,
+          reps,
+          is_completed,
+          exercise_instances:exercise_instances(exercise_name)
+        `)
+        .eq('workout_session_id', sessionId)
+        .order('set_order', { ascending: true });
+
+      if (setError) {
+        console.error('Error fetching session details:', setError);
+        return;
+      }
+
+      if (!setData || setData.length === 0) {
+        console.log('No sets found for session', sessionId);
+        return;
+      }
+
+      console.log('Fetched session details:', setData);
+
+      // Process the data into a more usable format
+      const processedSets = setData.map(set => {
+        // Handle exercise_instances property properly with type assertion
+        const exerciseInstances = set.exercise_instances as { exercise_name?: string } | null;
+        
+        return {
+          exercise_name: exerciseInstances?.exercise_name || 'Unknown Exercise',
+          set_order: set.set_order,
+          weight: set.weight || '',
+          reps: set.reps,
+          is_completed: set.is_completed
+        };
+      });
+
+      // Update the session with the completed sets data
+      setWorkoutSessions(prev => 
+        prev.map(session => 
+          session.id === sessionId 
+            ? { ...session, completed_sets: processedSets } 
+            : session
+        )
+      );
+
+    } catch (err) {
+      console.error('Error in fetchSessionDetails:', err);
+    }
+  };
 
   useEffect(() => {
     const fetchWorkoutHistory = async () => {
@@ -169,6 +252,13 @@ const WorkoutHistoryPage: React.FC = () => {
     return `${minutes}m`;
   };
 
+  // Helper function to format weight (to handle bodyweight exercises)
+  const formatWeight = (weight: string): string => {
+    if (weight === 'BW') return 'Bodyweight';
+    if (!weight || weight === '') return '-';
+    return `${weight} kg`;
+  };
+
   const renderWorkoutSessions = () => {
     if (workoutSessions.length === 0) {
       return (
@@ -185,13 +275,23 @@ const WorkoutHistoryPage: React.FC = () => {
             key={session.id} 
             className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition-shadow"
           >
-            <div className="flex justify-between items-start mb-2">
+            <div className="flex justify-between items-start mb-2 cursor-pointer" onClick={() => toggleSessionExpansion(session.id)}>
               <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                 {session.workout_name || 'Unnamed Workout'}
               </h3>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {format(new Date(session.start_time), 'MMM d, yyyy')}
-              </span>
+              <div className="flex items-center">
+                <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">
+                  {format(new Date(session.start_time), 'MMM d, yyyy')}
+                </span>
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className={`h-5 w-5 transition-transform duration-200 ${expandedSession === session.id ? 'transform rotate-180' : ''}`} 
+                  viewBox="0 0 20 20" 
+                  fill="currentColor"
+                >
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-3 text-sm">
@@ -246,6 +346,64 @@ const WorkoutHistoryPage: React.FC = () => {
               <div className="mt-3 text-sm">
                 <span className="block text-gray-500 dark:text-gray-400">Workout Description</span>
                 <p className="text-gray-700 dark:text-gray-300">{session.workout_description}</p>
+              </div>
+            )}
+
+            {/* Completed Sets Detail */}
+            {expandedSession === session.id && (
+              <div className="mt-4 animate-fadeIn">
+                <h4 className="text-md font-medium mb-2 text-gray-800 dark:text-white">
+                  Completed Sets
+                </h4>
+                
+                {!session.completed_sets ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
+                  </div>
+                ) : session.completed_sets.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No detailed set information available
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Exercise
+                          </th>
+                          <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Set
+                          </th>
+                          <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Weight
+                          </th>
+                          <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Reps
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {session.completed_sets.map((set, index) => (
+                          <tr key={`${session.id}-set-${index}`} className={set.is_completed ? '' : 'opacity-50'}>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {set.exercise_name}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {set.set_order}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {formatWeight(set.weight)}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {set.reps}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -1351,7 +1351,7 @@ const WorkoutSessionPage: React.FC = () => {
     });
   };
 
-  // Modify updateSetWeight to save changes immediately
+  // Modify updateSetWeight to handle bodyweight exercises
   const updateSetWeight = (exerciseId: string, setIndex: number, weight: string) => {
     setCompletedSets(prevSets => {
       const newSets = new Map(prevSets);
@@ -1359,6 +1359,7 @@ const WorkoutSessionPage: React.FC = () => {
       
       if (exerciseSets[setIndex]) {
         // For empty input or invalid numbers, store as empty string
+        // 'BW' is a special value for bodyweight exercises
         const weightValue = weight === '' ? '' : weight;
         
         exerciseSets[setIndex] = {
@@ -1371,6 +1372,34 @@ const WorkoutSessionPage: React.FC = () => {
         if (workoutSessionId && isWorkoutStarted) {
           saveCompletedSet(workoutSessionId, exerciseSets[setIndex]);
         }
+      }
+      
+      return newSets;
+    });
+  };
+
+  // New function to toggle bodyweight for all sets of an exercise
+  const toggleBodyweightForExercise = (exerciseId: string) => {
+    setCompletedSets(prevSets => {
+      const newSets = new Map(prevSets);
+      const exerciseSets = [...(newSets.get(exerciseId) || [])];
+      
+      // Determine if any sets are already bodyweight
+      const hasBodyweightSets = exerciseSets.some(set => set.weight === 'BW');
+      
+      // Toggle all sets between bodyweight and regular
+      const updatedSets = exerciseSets.map(set => ({
+        ...set,
+        weight: hasBodyweightSets ? '' : 'BW'
+      }));
+      
+      newSets.set(exerciseId, updatedSets);
+      
+      // Save changes to the database if workout is in progress
+      if (workoutSessionId && isWorkoutStarted) {
+        updatedSets.forEach(set => {
+          saveCompletedSet(workoutSessionId, set);
+        });
       }
       
       return newSets;
@@ -2512,6 +2541,33 @@ const WorkoutSessionPage: React.FC = () => {
     );
   };
 
+  // Individual set bodyweight toggle - keeping for reference but not used anymore
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const toggleBodyweight = (exerciseId: string, setIndex: number) => {
+    setCompletedSets(prevSets => {
+      const newSets = new Map(prevSets);
+      const exerciseSets = [...(newSets.get(exerciseId) || [])];
+      
+      if (exerciseSets[setIndex]) {
+        // Toggle between "BW" and empty string
+        const newWeight = exerciseSets[setIndex].weight === 'BW' ? '' : 'BW';
+        
+        exerciseSets[setIndex] = {
+          ...exerciseSets[setIndex],
+          weight: newWeight
+        };
+        newSets.set(exerciseId, exerciseSets);
+        
+        // Save this change to the database immediately
+        if (workoutSessionId && isWorkoutStarted) {
+          saveCompletedSet(workoutSessionId, exerciseSets[setIndex]);
+        }
+      }
+      
+      return newSets;
+    });
+  };
+
   return (
     <>
       {/* Absolute positioned toast container that doesn't interfere with layout */}
@@ -2706,48 +2762,71 @@ const WorkoutSessionPage: React.FC = () => {
                                   }}></div>
                                 )}
                                 
-                                <div className="flex justify-between items-center">
-                                  <h3 className="text-lg font-semibold flex items-center">
-                                    <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-2">
-                                      {groupExercisesBySuperset(workout.exercise_instances)
-                                        .slice(0, groupIndex)
-                                        .flatMap(g => g.group)
-                                        .length + idx + 1}
-                                    </span>
-                                    <span className="text-gray-800 dark:text-white">
-                                      {exercise.exercise_name}
-                                    </span>
-                                  </h3>
-                                  
-                                  {/* Toggle button for demonstration */}
-                                  <button 
-                                    onClick={() => toggleDemonstration(exercise.id)}
-                                    className="flex text-center items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-xs"
-                                  >
-                                    {showDemonstration ? (
-                                      <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                          <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
-                                        </svg>
-                                        Hide Demo
-                                      </>
-                                    ) : (
-                                      <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                          <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                        </svg>
-                                        View Demo
-                                      </>
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <h3 className="text-lg font-semibold flex items-center">
+                                      <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-2">
+                                        {groupExercisesBySuperset(workout.exercise_instances)
+                                          .slice(0, groupIndex)
+                                          .flatMap(g => g.group)
+                                          .length + idx + 1}
+                                      </span>
+                                      <span className="text-gray-800 dark:text-white">
+                                        {exercise.exercise_name}
+                                      </span>
+                                    </h3>
+                                    
+                                    {/* Exercise notes */}
+                                    {exercise.notes && (
+                                      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
+                                        {exercise.notes}
+                                      </p>
                                     )}
-                                  </button>
+                                  </div>
+                                  
+                                  <div className="flex items-center space-x-3">
+                                    {/* Bodyweight toggle button - moved to header area */}
+                                    <button
+                                      onClick={() => toggleBodyweightForExercise(exercise.id)}
+                                      disabled={!isWorkoutStarted || isPaused}
+                                      className={`flex items-center px-2 py-1 text-xs rounded-md ${
+                                        (completedSets.get(exercise.id) || []).some(set => set.weight === 'BW')
+                                          ? 'bg-indigo-600 text-white'
+                                          : 'bg-gray-600 text-white'
+                                      }`}
+                                      title="Toggle bodyweight exercise"
+                                    >
+                                      <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                      </svg>
+                                      Bodyweight
+                                    </button>
+                                    
+                                    {/* Toggle button for demonstration */}
+                                    <button 
+                                      onClick={() => toggleDemonstration(exercise.id)}
+                                      className="flex text-center items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-xs"
+                                    >
+                                      {showDemonstration ? (
+                                        <>
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
+                                          </svg>
+                                          Hide Demo
+                                        </>
+                                      ) : (
+                                        <>
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                          </svg>
+                                          View Demo
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
                                 </div>
                                 
-                                {/* Exercise notes */}
-                                {exercise.notes && (
-                                  <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
-                                    {exercise.notes}
-                                  </p>
-                                )}
+                                {/* Exercise notes - moved into the title div */}
                                 
                                 {/* Exercise Demonstration - Collapsible */}
                                 {showDemonstration && (
@@ -2764,10 +2843,10 @@ const WorkoutSessionPage: React.FC = () => {
                                   <table className="w-full text-xs text-left table-auto">
                                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                                       <tr>
-                                        <th scope="col" className="px-1 py-2 w-[10%] hidden sm:table-cell">Set</th>
-                                        <th scope="col" className="px-1 py-2 w-[22%]">Type</th>
+                                        <th scope="col" className="px-1 py-2 w-[8%] hidden sm:table-cell">Set</th>
+                                        <th scope="col" className="px-1 py-2 w-[20%]">Type</th>
                                         <th scope="col" className="px-1 py-2 w-[15%]">Reps</th>
-                                        <th scope="col" className="px-1 py-2 w-[18%]">Weight</th>
+                                        <th scope="col" className="px-1 py-2 w-[22%]">Weight</th>
                                         <th scope="col" className="px-1 py-2 w-[15%]">Rest</th>
                                         <th scope="col" className="px-1 py-2 w-[20%] text-center">Done</th>
                                       </tr>
@@ -2818,16 +2897,19 @@ const WorkoutSessionPage: React.FC = () => {
                                               />
                                             </td>
                                             <td className="px-1 py-2">
-                                              <input
-                                                type="number"
-                                                value={set.weight}
-                                                onChange={(e) => updateSetWeight(exercise.id, setIndex, e.target.value)}
-                                                disabled={!isWorkoutStarted || isPaused}
-                                                placeholder="kg"
-                                                step="any"
-                                                min="0"
-                                                className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                              />
+                                              <div className="flex items-center">
+                                                <input
+                                                  type="text"
+                                                  value={set.weight === 'BW' ? 'BW' : set.weight}
+                                                  onChange={(e) => updateSetWeight(exercise.id, setIndex, e.target.value)}
+                                                  disabled={!isWorkoutStarted || isPaused || set.weight === 'BW'}
+                                                  placeholder="kg"
+                                                  className={`w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                                                    set.weight === 'BW' ? 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-medium' : ''
+                                                  }`}
+                                                  readOnly={set.weight === 'BW'}
+                                                />
+                                              </div>
                                             </td>
                                             <td className="px-1 py-2">
                                               {restSeconds ? (
@@ -2847,7 +2929,7 @@ const WorkoutSessionPage: React.FC = () => {
                                                 checked={set.isCompleted}
                                                 onChange={() => toggleSetCompletion(exercise.id, setIndex)}
                                                 disabled={!isWorkoutStarted || isPaused}
-                                                className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+                                                className="w-6 h-6 text-indigo-600 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
                                               />
                                             </td>
                                           </tr>
@@ -2879,48 +2961,71 @@ const WorkoutSessionPage: React.FC = () => {
                           : 'bg-white dark:bg-gray-800'
                       }`}
                     >
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-semibold flex items-center">
-                          <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-2">
-                              {groupExercisesBySuperset(workout.exercise_instances)
-                                .slice(0, groupIndex)
-                                .flatMap(g => g.group)
-                                .length + 1}
-                          </span>
-                          <span className="text-gray-800 dark:text-white">
-                            {exercise.exercise_name}
-                          </span>
-                        </h3>
-                        
-                        {/* Toggle button for demonstration */}
-                        <button 
-                          onClick={() => toggleDemonstration(exercise.id)}
-                          className="flex text-center items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-xs"
-                        >
-                          {showDemonstration ? (
-                            <>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
-                              </svg>
-                              Hide Demo
-                            </>
-                          ) : (
-                            <>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                              </svg>
-                              View Demo
-                            </>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="text-lg font-semibold flex items-center">
+                            <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-2">
+                                {groupExercisesBySuperset(workout.exercise_instances)
+                                  .slice(0, groupIndex)
+                                  .flatMap(g => g.group)
+                                  .length + 1}
+                            </span>
+                            <span className="text-gray-800 dark:text-white">
+                              {exercise.exercise_name}
+                            </span>
+                          </h3>
+                          
+                          {/* Exercise notes */}
+                          {exercise.notes && (
+                            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
+                              {exercise.notes}
+                            </p>
                           )}
-                        </button>
+                        </div>
+                        
+                        <div className="flex items-center space-x-3">
+                          {/* Bodyweight toggle button - moved to header area */}
+                          <button
+                            onClick={() => toggleBodyweightForExercise(exercise.id)}
+                            disabled={!isWorkoutStarted || isPaused}
+                            className={`flex items-center px-2 py-1 text-xs rounded-md ${
+                              (completedSets.get(exercise.id) || []).some(set => set.weight === 'BW')
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-gray-600 text-white'
+                            }`}
+                            title="Toggle bodyweight exercise"
+                          >
+                            <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            Bodyweight
+                          </button>
+                          
+                          {/* Toggle button for demonstration */}
+                          <button 
+                            onClick={() => toggleDemonstration(exercise.id)}
+                            className="flex text-center items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-xs"
+                          >
+                            {showDemonstration ? (
+                              <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
+                                </svg>
+                                Hide Demo
+                              </>
+                            ) : (
+                              <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                                View Demo
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                       
-                      {/* Exercise notes */}
-                      {exercise.notes && (
-                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
-                          {exercise.notes}
-                        </p>
-                      )}
+                      {/* Exercise notes - moved into the title div */}
                       
                       {/* Exercise Demonstration - Collapsible */}
                       {showDemonstration && (
@@ -2937,10 +3042,10 @@ const WorkoutSessionPage: React.FC = () => {
                         <table className="w-full text-xs text-left table-auto">
                           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                             <tr>
-                              <th scope="col" className="px-1 py-2 w-[10%] hidden sm:table-cell">Set</th>
-                              <th scope="col" className="px-1 py-2 w-[22%]">Type</th>
+                              <th scope="col" className="px-1 py-2 w-[8%] hidden sm:table-cell">Set</th>
+                              <th scope="col" className="px-1 py-2 w-[20%]">Type</th>
                               <th scope="col" className="px-1 py-2 w-[15%]">Reps</th>
-                              <th scope="col" className="px-1 py-2 w-[18%]">Weight</th>
+                              <th scope="col" className="px-1 py-2 w-[22%]">Weight</th>
                               <th scope="col" className="px-1 py-2 w-[15%]">Rest</th>
                               <th scope="col" className="px-1 py-2 w-[20%] text-center">Done</th>
                             </tr>
@@ -2991,16 +3096,19 @@ const WorkoutSessionPage: React.FC = () => {
                                     />
                                   </td>
                                   <td className="px-1 py-2">
-                                    <input
-                                      type="number"
-                                      value={set.weight}
-                                      onChange={(e) => updateSetWeight(exercise.id, setIndex, e.target.value)}
-                                      disabled={!isWorkoutStarted || isPaused}
-                                      placeholder="kg"
-                                      step="any"
-                                      min="0"
-                                      className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                    />
+                                    <div className="flex items-center">
+                                      <input
+                                        type="text"
+                                        value={set.weight === 'BW' ? 'BW' : set.weight}
+                                        onChange={(e) => updateSetWeight(exercise.id, setIndex, e.target.value)}
+                                        disabled={!isWorkoutStarted || isPaused || set.weight === 'BW'}
+                                        placeholder="kg"
+                                        className={`w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                                          set.weight === 'BW' ? 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-medium' : ''
+                                        }`}
+                                        readOnly={set.weight === 'BW'}
+                                      />
+                                    </div>
                                   </td>
                                   <td className="px-1 py-2">
                                     {restSeconds ? (
@@ -3020,7 +3128,7 @@ const WorkoutSessionPage: React.FC = () => {
                                       checked={set.isCompleted}
                                       onChange={() => toggleSetCompletion(exercise.id, setIndex)}
                                       disabled={!isWorkoutStarted || isPaused}
-                                      className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+                                      className="w-6 h-6 text-indigo-600 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
                                     />
                                   </td>
                                 </tr>
