@@ -771,3 +771,35 @@ When working with the Supabase client and mapping values for database operations
    // UI display with sensible defaults
    const displayValue = value ?? defaultValue;
    ``` 
+
+## UI Component Patterns
+
+### Meal Plan & Logging Components
+- Meal cards use dark-themed cards with clear content separation
+- Nutritional content displays with consistent order: calories, P/C/F
+- Macronutrient displays follow P/C/F order with consistent color coding (protein=red, carbs=yellow, fat=blue)
+- Logged meal status indicated with checkmark icon (FiCheckCircle) in the meal title
+- Log/unlog action buttons positioned at the bottom of meal cards as full-width buttons
+- Clear text labels on action buttons ("Log this meal", "Remove from log") with appropriate icons
+- Button colors follow semantics: green for positive actions (logging), red for removal actions
+- Loading states displayed with animated spinner during async operations
+- Meal table layouts maintain consistent spacing with proper column alignment
+
+### Navigation Patterns
+- URL parameters maintain context across navigation boundaries (e.g., day_type in meal plans)
+- Query parameters preserve user selections when navigating between components
+- Dashboard widgets link to detailed views with preserved context
+- Scroll-to functionality with element IDs for targeted navigation (e.g., "#todays-meals")
+
+### Form Components
+- React Hook Form for form handling and validation
+- Consistent error message styling below input fields
+- Support for various input types including time picker
+- Dark mode compatible form elements with appropriate contrast
+
+### Data Fetching Patterns
+- Supabase queries for data retrieval with proper error handling
+- Loading states during data fetching operations
+- Error states with user-friendly messages
+- Optimistic UI updates for immediate feedback
+- Debounced inputs to prevent excessive API calls 

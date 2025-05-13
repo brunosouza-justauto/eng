@@ -312,7 +312,7 @@ We've been enhancing the meal planning and nutrition tracking features of the EN
 ### Rest Period 0-Second Value Fix
 - Fixed critical issue with rest periods set to 0 seconds being converted to nulls in the database
 - Modified code in ProgramBuilder.tsx to use nullish coalescing (??) operator instead of logical OR (||)
-- Updated `rest_seconds: set.rest_seconds || null` to `rest_seconds: set.rest_seconds ?? null` to correctly handle 0 values
+- Updated `rest_seconds: set.rest_seconds ?? null` to correctly handle 0 values
 - Applied same fix to set data attachment logic during workout fetching
 - Ensured 0-second rest times are properly saved and displayed instead of defaulting to 60 seconds
 - Enhanced workout experience by allowing coaches to specify immediate transitions between exercises
@@ -326,3 +326,39 @@ We've been enhancing the meal planning and nutrition tracking features of the EN
 - Added "Each Side" badge for exercises performed on each side with amber/yellow styling
 - Added tempo indicator with clock icon for exercises with specific tempo requirements
 - Enhanced workout history page to display "Each Side" and tempo information
+
+## Active Development Focus
+
+### Current Focus
+- Enhancing meal logging functionality on the meal plan page
+- Improving UI/UX for meal logging actions
+- Fixing data fetching issues with logged meals
+- Optimizing the dashboard for better meal tracking
+
+### Recent Changes
+
+#### Meal Plan View Improvements
+- Fixed meal log status detection by changing database table query from 'logged_meals' to 'meal_logs'
+- Added error logging for meal logs queries to help with debugging
+- Moved the meal logging buttons from the header to the bottom of each meal card
+- Improved button UI with explicit text labels ("Log this meal" and "Remove from log")
+- Enhanced visual feedback with better button styling (green for logging, red for removing)
+- Maintained the logged meal checkmark indicator in the meal title section
+
+#### Missed Meals Notification System
+- Added MissedMealsAlert component to the dashboard
+- Implemented debugging tools to ensure proper rendering
+- Added notification system for missed meals
+- Fixed issues with duplicate alerts on the dashboard
+
+### Active Technical Decisions
+- Using Supabase meal_logs table (not logged_meals) for storing user's meal logging data
+- Following consistent UI patterns for action buttons (full-width at the bottom of cards with clear labeling)
+- Using icon + text combinations for better user feedback
+- Implementing proper loading states during async operations
+
+### Current Workflow Considerations
+- Ensuring all meal logging components share consistent UI patterns
+- Maintaining clear visual indicators for logged vs. unlogged meals
+- Optimizing data fetching to reduce redundant queries
+- Prioritizing mobile-friendly interfaces with adequate touch targets

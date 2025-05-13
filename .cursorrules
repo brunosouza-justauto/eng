@@ -58,4 +58,22 @@
 - Some column spacing in tables requires fine-tuning for optimal readability
 - Daily nutrition calculations need to account for unlogged days
 
+## Database Tables
+
+### Nutrition & Meal Logging
+- Meal logs are stored in the `meal_logs` table (NOT `logged_meals`)
+- Meal logging queries should filter by `user_id`, `log_date`, and `is_extra_meal` flag
+- Nutrition plans are stored in `nutrition_plans` table with nested meals and food items
+
+## UI/UX Patterns
+
+### Meal Logging Components
+- Always provide clear visual feedback for logged meals (checkmark icon)
+- Position action buttons at the bottom of meal cards as full-width buttons
+- Use explicit text labels with icons for action buttons
+- Follow semantic color coding: green for logging actions, red for removal actions
+- Display loading spinners during async operations
+- Maintain consistent nutritional information display order: P/C/F
+- Use ID anchors (e.g., `id="todays-meals"`) for scroll navigation from other components
+
 This file serves as a learning journal and will be updated as new patterns and decisions emerge. 
