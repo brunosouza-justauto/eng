@@ -717,3 +717,57 @@ The meal planning and nutrition tracking components follow established UI patter
    * Dashboard widgets link to detailed views with context preserved
    * "View Plan" buttons include current day type as a parameter
    * Consistent back navigation patterns to return to previous context 
+
+## Handling Falsy Values in Database Operations
+
+### Nullish Coalescing vs Logical OR
+
+When handling numeric values that could legitimately be zero (0), it's critical to use the nullish coalescing operator (??) instead of logical OR (||) for default values:
+
+```typescript
+// INCORRECT: Will convert 0 to null because 0 is falsy
+rest_seconds: set.rest_seconds || null  
+
+// CORRECT: Only converts undefined/null to null, preserves 0
+rest_seconds: set.rest_seconds ?? null
+```
+
+This pattern is especially important in:
+- Database operations where 0 is a valid input (e.g., rest periods, weights)
+- Form handling where users might intentionally set values to 0
+- Data transformation functions that map between UI state and database models
+
+When retrieving data, the same principle applies:
+
+```typescript
+// INCORRECT: Will default to 60 when rest_seconds is 0
+const restTime = set.rest_seconds || 60;  
+
+// CORRECT: Only defaults when rest_seconds is null/undefined
+const restTime = set.rest_seconds ?? 60;
+```
+
+Practical examples of this pattern can be found in:
+- `ProgramBuilder.tsx` when mapping exercise sets data
+- `WorkoutForm.tsx` when handling rest period selections
+- `WorkoutSessionPage.tsx` when displaying rest times
+
+### Database Value Mapping
+
+When working with the Supabase client and mapping values for database operations, follow these patterns:
+
+1. Use explicit null for database nulls:
+   ```typescript
+   rest_seconds: value ?? null  // Use null for SQL NULL
+   ```
+
+2. Use undefined for optional JavaScript object properties:
+   ```typescript
+   rest_seconds: value ?? undefined  // Use undefined for omitted properties
+   ```
+
+3. For UI display, provide actual default values:
+   ```typescript
+   // UI display with sensible defaults
+   const displayValue = value ?? defaultValue;
+   ``` 

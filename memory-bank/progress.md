@@ -153,6 +153,8 @@
 - Type safety enhancements completed in key service files
 - PWA update notification system fixed and improved
 - Manifest and service worker implemented for offline support
+- Fixed issue with 0-second rest times being incorrectly converted to nulls in database
+- Enhanced workout session interface with improved UI elements and exercise information
 
 ## Recent Improvements
 - Added automatic detection of when all sets are completed (100% progress)
@@ -176,6 +178,13 @@
 - Implemented improved service worker caching strategy
 - Added proper mobile detection for PWA installation prompts
 - Enhanced offline capabilities with optimized cache management
+- Fixed critical bug with 0-second rest times being converted to nulls in database
+- Modified ProgramBuilder.tsx to use nullish coalescing (??) operator for proper 0 value handling
+- Improved workout session UI with better column widths and larger checkboxes
+- Added collapsible exercise toggle button in WorkoutForm for easier program management
+- Improved bodyweight toggle button with better positioning and styling
+- Added visual indicators for "Each Side" exercises and tempo information
+- Enhanced workout history page to display complete exercise parameters
 
 ## In Progress
 - Comprehensive testing of all fitness device integrations

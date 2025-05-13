@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { supabase } from './services/supabaseClient';
+import { supabase, wasTriggeredByVisibilityChange } from './services/supabaseClient';
 import { setSession, setProfile, setLoading, setError, ProfileData } from './store/slices/authSlice';
 import { selectTheme } from './store/slices/uiSlice';
 import LoginPage from './pages/LoginPage'; // Import the actual LoginPage component
@@ -367,16 +367,32 @@ function App() {
 
     // Subscribe to auth state changes with debounce for better stability
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state change detected:', event);
+        // Log all events for debugging
+        console.log('Auth state change detected:', event, {
+            visibilityState: document.visibilityState,
+            wasTriggeredByVisibility: wasTriggeredByVisibilityChange()
+        });
         
-        // Skip processing certain non-critical events that can happen on window focus
-        if (event === 'TOKEN_REFRESHED') {
-            console.log('Token refresh - not updating state to prevent unnecessary redirects');
+        // Ignore all events that happen immediately after visibility change
+        // This is the key to preventing unwanted refreshes
+        if (wasTriggeredByVisibilityChange()) {
+            console.log('Ignoring auth event due to recent visibility change');
             return;
         }
         
-        // Only update Redux state for significant auth changes
+        // Skip processing certain non-critical events
+        if (event === 'TOKEN_REFRESHED') {
+            // Only update the session object, but don't trigger profile fetches or redirects
+            if (session) {
+                dispatch(setSession(session));
+            }
+            console.log('Token refresh event - only updating session object');
+            return;
+        }
+        
+        // Handle auth events that require full state updates
         if (['SIGNED_IN', 'SIGNED_OUT', 'USER_UPDATED'].includes(event)) {
+            console.log('Auth event detected, updating state:', event);
             dispatch(setSession(session));
             
             if (session?.user) {

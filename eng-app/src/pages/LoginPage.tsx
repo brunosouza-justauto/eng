@@ -416,7 +416,7 @@ const LoginPage: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400">
                   {confirmationSuccess 
                     ? "Enter your email address above and click 'Send Magic Link' to receive a login link" 
-                    : "Contact your coach for an invitation link to get started"}
+                    : "If you haven't received an invitation link, contact us to get started"}
                 </p>
               </div>
             </div>

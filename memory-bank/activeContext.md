@@ -21,6 +21,7 @@ We are enhancing deployment capabilities and progressive web app features while 
    - Adding voice announcements for next exercises
    - Implementing vibration feedback for mobile devices
    - Enhancing user experience during workouts
+   - Fixing rest period handling for 0-second rest times
 
 4. **Meal Planning System** 🚧
    - Adding ability to manage meals within nutrition plans
@@ -307,3 +308,21 @@ We've been enhancing the meal planning and nutrition tracking features of the EN
 - Added type definitions for PWA-related interfaces
 - Enhanced type safety in service worker implementation
 - Removed usage of 'any' type in favor of specific interfaces
+
+### Rest Period 0-Second Value Fix
+- Fixed critical issue with rest periods set to 0 seconds being converted to nulls in the database
+- Modified code in ProgramBuilder.tsx to use nullish coalescing (??) operator instead of logical OR (||)
+- Updated `rest_seconds: set.rest_seconds || null` to `rest_seconds: set.rest_seconds ?? null` to correctly handle 0 values
+- Applied same fix to set data attachment logic during workout fetching
+- Ensured 0-second rest times are properly saved and displayed instead of defaulting to 60 seconds
+- Enhanced workout experience by allowing coaches to specify immediate transitions between exercises
+- Fixed dropdown support for selecting 0 seconds in the WorkoutForm and WorkoutSession pages
+
+### WorkoutForm and WorkoutSession Improvements
+- Added toggle button for expanding or collapsing all exercises at once
+- Improved bodyweight toggle UI with better positioning and clearer active state
+- Reduced width of weight column in exercise table for better space utilization
+- Increased checkbox size for improved usability and touch targets
+- Added "Each Side" badge for exercises performed on each side with amber/yellow styling
+- Added tempo indicator with clock icon for exercises with specific tempo requirements
+- Enhanced workout history page to display "Each Side" and tempo information
