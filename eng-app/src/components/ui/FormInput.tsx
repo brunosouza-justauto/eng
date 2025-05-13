@@ -4,7 +4,7 @@ import { useFormContext, FieldValues, Path, FieldError } from 'react-hook-form';
 interface FormInputProps<T extends FieldValues> {
     name: Path<T>; // Use Path for type safety
     label: string;
-    type?: 'text' | 'number' | 'email' | 'tel' | 'textarea' | 'date';
+    type?: 'text' | 'number' | 'email' | 'tel' | 'textarea' | 'date' | 'time';
     placeholder?: string;
     step?: string; // For number inputs
     min?: string; // For number inputs

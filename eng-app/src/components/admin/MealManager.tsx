@@ -226,6 +226,9 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
     const [mealToDelete, setMealToDelete] = useState<string | null>(null);
     const [selectedDayTypeFilter, setSelectedDayTypeFilter] = useState<string | null>(null);
     
+    // Reference to the edit form section
+    const editFormRef = useRef<HTMLDivElement>(null);
+    
     // Day Duplication state
     const [showDuplicateDayTypeModal, setShowDuplicateDayTypeModal] = useState(false);
     const [duplicatingDayType, setDuplicatingDayType] = useState<string | null>(null);
@@ -326,6 +329,16 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
             notes: meal.notes || '',
             day_type: meal.day_type || ''
         });
+
+        // Use setTimeout to ensure the form is rendered before scrolling
+        setTimeout(() => {
+            if (editFormRef.current) {
+                editFormRef.current.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }
+        }, 100);
     };
 
     // Handle form day type changes
@@ -772,13 +785,17 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
                 {/* Add/Edit Meal Form */}
                 {showAddMealForm && (
                     <FormProvider {...mealFormMethods}>
-                        <form onSubmit={handleMealSubmit(handleMealFormSubmit)} className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <form 
+                            ref={editFormRef}
+                            onSubmit={handleMealSubmit(handleMealFormSubmit)} 
+                            className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                        >
                             <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">
                                 {editingMeal ? 'Edit Meal' : 'Add New Meal'}
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 <FormInput<MealFormData> name="name" label="Meal Name" required />
-                                <FormInput<MealFormData> name="time_suggestion" label="Time Suggestion (optional)" />
+                                <FormInput<MealFormData> name="time_suggestion" label="Time Suggestion (optional)" type="time" />
                             </div>
                             
                             <div className="mb-4">

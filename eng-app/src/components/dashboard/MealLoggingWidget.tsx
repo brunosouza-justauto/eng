@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { FiCheck, FiX, FiPlus, FiClock, FiExternalLink, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiCheck, FiX, FiPlus, FiClock, FiExternalLink, FiChevronDown, FiChevronUp, FiAlertCircle } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { 
     DailyNutritionLog, 
@@ -52,6 +52,8 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
     const [loadingMeals, setLoadingMeals] = useState<Record<string, boolean>>({});
     // Add state to track expanded meals
     const [expandedMeals, setExpandedMeals] = useState<Record<string, boolean>>({});
+    // Add state to track missed meals with timestamps
+    const [missedMeals, setMissedMeals] = useState<{id: string, name: string, time: string}[]>([]);
 
     // Fetch nutrition plan data
     useEffect(() => {
@@ -268,6 +270,49 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
         }
     }, [selectedDayType, onDayTypeChange]);
 
+    // Check for missed meals based on time suggestions
+    const checkForMissedMeals = () => {
+        if (!nutritionPlan || !selectedDayType || !dailyLog) return;
+        
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+        
+        const meals = getPlannedMeals();
+        const newMissedMeals = meals.filter(meal => {
+            // Only check meals that have a time suggestion and are not logged
+            if (!meal.time_suggestion || isMealLogged(meal.id)) return false;
+            
+            // Compare current time with meal's suggested time
+            return meal.time_suggestion < currentTime;
+        }).map(meal => ({
+            id: meal.id,
+            name: meal.name,
+            time: meal.time_suggestion as string
+        }));
+        
+        setMissedMeals(newMissedMeals);
+    };
+    
+    // Check for missed meals periodically
+    useEffect(() => {
+        // Initial check
+        checkForMissedMeals();
+        
+        // Set up interval to check every 5 minutes
+        const intervalId = setInterval(checkForMissedMeals, 5 * 60 * 1000);
+        
+        return () => clearInterval(intervalId); // Clean up on unmount
+    }, [nutritionPlan, selectedDayType, dailyLog]);
+    
+    // Also check for missed meals when the daily log is updated
+    useEffect(() => {
+        if (dailyLog) {
+            checkForMissedMeals();
+        }
+    }, [dailyLog]);
+
     // Define the header for the Card component
     const header = !hideHeader ? (
         <div className="flex items-center justify-between">
@@ -343,6 +388,23 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
                     Today's Meals
                 </h3>
+
+                {/* Missed Meal Notifications - Moved to top for prominence */}
+                {missedMeals.length > 0 && (
+                    <div className="p-3 mb-4 text-amber-700 bg-amber-100 rounded dark:bg-amber-900/20 dark:text-amber-300 border-l-4 border-amber-500">
+                        <div className="flex items-center mb-2">
+                            <FiAlertCircle className="mr-2 w-5 h-5" />
+                            <h4 className="font-medium">Missed Meals</h4>
+                        </div>
+                        <ul className="list-disc list-inside pl-2 space-y-1">
+                            {missedMeals.map(meal => (
+                                <li key={meal.id} className="text-sm">
+                                    {meal.name} - Suggested time: {meal.time} has passed
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
 
                 {/* Day Type Tabs */}
                 {nutritionPlan?.dayTypes && nutritionPlan.dayTypes.length > 0 && (
@@ -576,7 +638,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
                 </div>
 
                 {/* Planned Meals */}
-                <div className="mb-6">
+                <div className="mb-6" id="todays-meals">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-medium text-gray-800 dark:text-white">
                             Planned Meals

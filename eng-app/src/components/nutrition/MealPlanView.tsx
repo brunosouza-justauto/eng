@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import BackButton from '../common/BackButton';
-import { FiInfo, FiCheckCircle } from 'react-icons/fi';
-import { checkIfMealLogged } from '../../services/mealLoggingService';
+import { FiInfo, FiCheckCircle, FiPlusCircle, FiXCircle } from 'react-icons/fi';
+import { logPlannedMeal, deleteLoggedMeal } from '../../services/mealLoggingService';
 import { getCurrentDate } from '../../utils/dateUtils';
 import { selectProfile } from '../../store/slices/authSlice';
 import { useSelector } from 'react-redux';
@@ -92,6 +92,9 @@ const MealPlanView: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [selectedDayType, setSelectedDayType] = useState<string | "all">("all");
     const [loggedMeals, setLoggedMeals] = useState<Record<string, boolean>>({});
+    const [loadingMeals, setLoadingMeals] = useState<Record<string, boolean>>({});
+    const [loggedMealIds, setLoggedMealIds] = useState<Record<string, string>>({});
+    const todayDate = getCurrentDate();
 
     // Get unique day types from meals
     const dayTypes = useMemo(() => {
@@ -187,24 +190,76 @@ const MealPlanView: React.FC = () => {
             
             const today = getCurrentDate();
             const mealStatus: Record<string, boolean> = {};
+            const mealLogIds: Record<string, string> = {};
             
-            for (const meal of plan.meals) {
-                if (meal.id && typeof meal.id === 'string') {
-                    try {
-                        const isLogged = await checkIfMealLogged(userProfile.id, meal.id, today);
-                        mealStatus[meal.id] = isLogged;
-                    } catch (error) {
-                        console.error(`Error checking if meal ${meal.id} is logged:`, error);
-                        mealStatus[meal.id] = false;
-                    }
+            try {
+                // Get all logged meals for today
+                const { data: loggedMealsData, error: logsError } = await supabase
+                    .from('meal_logs')
+                    .select('id, meal_id')
+                    .eq('user_id', userProfile.id)
+                    .eq('log_date', today)
+                    .not('is_extra_meal', 'eq', true);
+                
+                console.log('Fetched logged meals:', loggedMealsData, 'Errors:', logsError);
+                
+                if (loggedMealsData) {
+                    // Create lookup maps
+                    loggedMealsData.forEach(loggedMeal => {
+                        if (loggedMeal.meal_id) {
+                            mealStatus[loggedMeal.meal_id] = true;
+                            mealLogIds[loggedMeal.meal_id] = loggedMeal.id;
+                        }
+                    });
                 }
+            } catch (error) {
+                console.error('Error fetching logged meals:', error);
             }
             
             setLoggedMeals(mealStatus);
+            setLoggedMealIds(mealLogIds);
         };
         
         checkLoggedMeals();
     }, [plan, userProfile]);
+
+    // Handle log meal action
+    const handleLogMeal = async (meal: MealData) => {
+        if (!userProfile?.id) return;
+        
+        setLoadingMeals(prev => ({ ...prev, [meal.id]: true }));
+        try {
+            // Check if the meal is already logged
+            if (loggedMeals[meal.id]) {
+                // Find the log entry ID and delete it
+                const loggedMealId = loggedMealIds[meal.id];
+                if (loggedMealId) {
+                    await deleteLoggedMeal(loggedMealId);
+                    
+                    // Update state
+                    setLoggedMeals(prev => ({ ...prev, [meal.id]: false }));
+                    setLoggedMealIds(prev => {
+                        const newState = { ...prev };
+                        delete newState[meal.id];
+                        return newState;
+                    });
+                }
+            } else {
+                // Log the meal
+                const result = await logPlannedMeal(userProfile.id, meal.id, todayDate);
+                
+                if (result.id) {
+                    // Update state
+                    setLoggedMeals(prev => ({ ...prev, [meal.id]: true }));
+                    setLoggedMealIds(prev => ({ ...prev, [meal.id]: result.id }));
+                }
+            }
+        } catch (error) {
+            console.error("Error toggling meal log:", error);
+        } finally {
+            setLoadingMeals(prev => ({ ...prev, [meal.id]: false }));
+        }
+    };
 
     // Filter meals by selected day type
     const filteredMeals = useMemo(() => {
@@ -267,7 +322,7 @@ const MealPlanView: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="space-y-6">
+                    <div id="todays-meals" className="space-y-6">
                         {filteredMeals.length === 0 && 
                             <p className="text-center p-4 text-gray-500 dark:text-gray-400">
                                 No meals available for the selected day type.
@@ -295,10 +350,12 @@ const MealPlanView: React.FC = () => {
                                                     </h2>
                                                 </div>
                                                 
-                                                <div className="text-right">
-                                                    <p className="text-lg font-medium text-white">
-                                                        {mealNutrition.calories} kcal
-                                                    </p>
+                                                <div className="flex items-center">
+                                                    <div className="text-right">
+                                                        <p className="text-lg font-medium text-white">
+                                                            {mealNutrition.calories} kcal
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
                                             
@@ -358,6 +415,32 @@ const MealPlanView: React.FC = () => {
                                                     )}
                                                 </tbody>
                                             </table>
+                                            
+                                            <div className="mt-4">
+                                                <button 
+                                                    onClick={() => handleLogMeal(meal)}
+                                                    disabled={loadingMeals[meal.id]}
+                                                    className={`w-full py-2 px-4 rounded-md transition-colors flex justify-center items-center ${
+                                                        isLogged 
+                                                            ? 'bg-red-600 hover:bg-red-700 text-white' 
+                                                            : 'bg-green-600 hover:bg-green-700 text-white'
+                                                    }`}
+                                                >
+                                                    {loadingMeals[meal.id] ? (
+                                                        <span className="block h-5 w-5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2" />
+                                                    ) : isLogged ? (
+                                                        <>
+                                                            <FiXCircle size={18} className="mr-2" />
+                                                            Remove from log
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <FiPlusCircle size={18} className="mr-2" />
+                                                            Log this meal
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 );

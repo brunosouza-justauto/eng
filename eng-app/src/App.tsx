@@ -15,6 +15,7 @@ import WorkoutSessionPage from './pages/WorkoutSessionPage'; // Import WorkoutSe
 import WorkoutHistoryPage from './pages/WorkoutHistoryPage'; // Import WorkoutHistoryPage
 import MealPlanView from './components/nutrition/MealPlanView'; // Import MealPlanView
 import NutritionPlansPage from './pages/NutritionPlansPage'; // Import NutritionPlansPage
+import NutritionRouteHandler from './components/nutrition/NutritionRouteHandler'; // Import NutritionRouteHandler
 import WorkoutProgramsPage from './pages/WorkoutProgramsPage'; // Import WorkoutProgramsPage
 import WorkoutPlanView from './pages/WorkoutPlanView'; // Import WorkoutPlanView
 import AdminRoute from './components/AdminRoute'; // Import AdminRoute
@@ -521,6 +522,7 @@ function App() {
               <Route path="/workout-session/:workoutId" element={<WorkoutSessionPage />} />
               <Route path="/workouts/history" element={<WorkoutHistoryPage />} />
               <Route path="/meal-plan/:planId" element={<MealPlanView />} />
+              <Route path="/nutrition" element={<NutritionRouteHandler />} />
               <Route path="/nutrition-plans" element={<NutritionPlansPage />} />
               <Route path="/workout-programs" element={<WorkoutProgramsPage />} />
               <Route path="/workout-plan/:programId" element={<WorkoutPlanView />} />

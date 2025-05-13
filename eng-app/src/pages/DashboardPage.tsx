@@ -8,6 +8,7 @@ import DashboardNutritionWidget from '../components/dashboard/DashboardNutrition
 import StepGoalWidget from '../components/dashboard/StepGoalWidget';
 import CheckInReminderWidget from '../components/dashboard/CheckInReminderWidget';
 import LatestCheckInWidget from '../components/dashboard/LatestCheckInWidget'; // Import the new widget
+import MissedMealsAlert from '../components/dashboard/MissedMealsAlert'; // Import the MissedMealsAlert
 import { format, startOfWeek, endOfWeek, addWeeks, parseISO } from 'date-fns';
 
 // Define types for the fetched data
@@ -201,6 +202,11 @@ const DashboardPage: React.FC = () => {
     fetchDashboardData();
   }, [user, profile, currentWeekStart, currentWeekEnd]);
 
+  // Effect for debug logging
+  useEffect(() => {
+    console.log("DashboardPage - Nutrition Plan ID:", assignedPlan?.nutrition_plan_id);
+  }, [assignedPlan?.nutrition_plan_id]);
+
   // Combine loading states
   const isLoading = !profile || isLoadingData;
 
@@ -239,30 +245,41 @@ const DashboardPage: React.FC = () => {
         <p className="text-gray-600 dark:text-gray-400 mb-4">
           Here's your day overview for today.
         </p>
-        <Link 
-          to="/check-in/new" 
-          className="flex justify-center items-center w-full px-4 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-sm font-medium transition-colors"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-          </svg>
-          Weekly Check-in
-        </Link>
-        <div className="mt-2 text-center text-sm font-medium">
-          {isLoadingData ? (
-            <span className="text-gray-400">Loading check-in status...</span>
-          ) : hasWeeklyCheckIn ? (
-            <span className="text-green-600 dark:text-green-400">
-              Next check-in: {getNextCheckInDayDisplay()}, {getNextCheckInDateDisplay()}
-            </span>
-          ) : (
-            <span className="text-yellow-600 dark:text-yellow-400">
-              Check-in due this week.<br />Please complete by {format(currentWeekEnd, 'EEEE, MMMM d')}
-            </span>
-          )}
-        </div>
       </div>
-
+      
+      {!hasWeeklyCheckIn && (
+        <div className="mb-4 p-3 text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/20 dark:text-amber-300 border-l-4 border-amber-500 flex items-start">
+          <svg className="mt-0.5 mr-3 flex-shrink-0 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+          <div>
+            <h4 className="font-medium">Weekly Check-in Reminder</h4>
+            <p className="text-sm mt-1">
+              Weekly check-in is due!
+            </p>
+            <p className="text-sm mt-1">
+              <button className="inline-block mt-2 text-sm text-amber-800 dark:text-amber-200 font-medium hover:underline" 
+                      onClick={() => {
+                const todaysMealsElement = document.getElementById('check-in-due');
+                if (todaysMealsElement) {
+                    todaysMealsElement.scrollIntoView({ behavior: 'smooth' });
+                }
+            }}>
+                Click here to log your check-in!
+              </button>
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {/* Missed Meals Alert */}
+      {assignedPlan?.nutrition_plan_id && (
+        <MissedMealsAlert 
+          nutritionPlanId={assignedPlan.nutrition_plan_id} 
+          testMode={false} 
+        />
+      )}
+      
       {fetchError && (
         <div className="p-4 mb-6 border-l-4 border-red-500 rounded shadow-sm bg-red-50 dark:bg-red-900/20">
           <div className="flex">

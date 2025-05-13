@@ -455,6 +455,11 @@ const WorkoutSessionPage: React.FC = () => {
   // Add a debounce map at top level component to prevent duplicate saves
   const saveDebounceMap = useRef<Map<string, number>>(new Map());
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // Check for saved speech preference on component mount
   useEffect(() => {
     const savedSpeechPreference = localStorage.getItem('workout-speech-enabled');
@@ -578,6 +583,12 @@ const WorkoutSessionPage: React.FC = () => {
           
           setWorkout(data as WorkoutData);
           initializeCompletedSets(data as WorkoutData);
+          
+          // Load previous workout data immediately when the page loads
+          if (profile?.user_id) {
+            console.log('Loading previous workout data immediately on page load');
+            fetchPreviousWorkoutData();
+          }
         } else {
           setError('Workout not found');
         }
@@ -590,7 +601,7 @@ const WorkoutSessionPage: React.FC = () => {
     };
 
     fetchWorkout();
-  }, [workoutId]);
+  }, [workoutId, profile?.user_id]);
 
   // Helper to get a friendly name for the set type
   const getSetTypeName = (setType: SetType | null | undefined): string => {
@@ -743,6 +754,24 @@ const WorkoutSessionPage: React.FC = () => {
 
     try {
       console.log('Checking for existing session, current sessionStorage value:', sessionStorage.getItem('workout_session_start_time'));
+      
+      // First, clean up stale sessions (incomplete sessions older than 24 hours)
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      
+      const { error: cleanupError } = await supabase
+        .from('workout_sessions')
+        .delete()
+        .eq('user_id', profile.user_id)
+        .is('end_time', null)
+        .lt('start_time', oneDayAgo.toISOString());
+        
+      if (cleanupError) {
+        console.error('Error cleaning up stale sessions:', cleanupError);
+        // Continue anyway, not critical
+      } else {
+        console.log('Successfully cleaned up any stale sessions');
+      }
       
       // Look for incomplete sessions (no end_time) for this workout and user
       const { data, error } = await supabase
@@ -920,12 +949,13 @@ const WorkoutSessionPage: React.FC = () => {
     try {
       console.log('Fetching previous workout data...');
       
-      // First get the most recent workout session for this workout
+      // Get the most recent COMPLETED workout session for this workout (with end_time not null)
       const { data: sessionData, error: sessionError } = await supabase
         .from('workout_sessions')
         .select('id')
         .eq('user_id', profile.user_id)
         .eq('workout_id', workoutId)
+        .not('end_time', 'is', null) // Only get completed sessions
         .order('start_time', { ascending: false })
         .limit(1);
       
@@ -935,12 +965,12 @@ const WorkoutSessionPage: React.FC = () => {
       }
       
       if (!sessionData || sessionData.length === 0) {
-        console.log('No previous workout sessions found');
+        console.log('No previous completed workout sessions found');
         return;
       }
       
       const prevSessionId = sessionData[0].id;
-      console.log('Found previous session:', prevSessionId);
+      console.log('Found previous completed session:', prevSessionId);
       
       // Now fetch the completed sets for that session
       const { data: setsData, error: setsError } = await supabase
@@ -961,7 +991,6 @@ const WorkoutSessionPage: React.FC = () => {
       console.log('Found completed sets:', setsData);
       
       // Update the completedSets state with previous data
-      // Note: We'll only use the weight values as a starting point
       setCompletedSets(prevSets => {
         const newSets = new Map(prevSets);
         
@@ -973,7 +1002,8 @@ const WorkoutSessionPage: React.FC = () => {
             const exerciseSets = [...(newSets.get(exerciseId) || [])];
             
             if (exerciseSets[setIndex]) {
-              // Only update the weight from previous session
+              // Only update the weight from previous session, NOT completion status
+              // We don't want previously completed sets to appear completed in a new session
               exerciseSets[setIndex] = {
                 ...exerciseSets[setIndex],
                 weight: prevSet.weight || ''
@@ -1307,7 +1337,31 @@ const WorkoutSessionPage: React.FC = () => {
       const exerciseSets = [...(newSets.get(exerciseId) || [])];
       
       if (exerciseSets[setIndex]) {
-        const newIsCompleted = !exerciseSets[setIndex].isCompleted;
+        // Only allow toggling to completed if weight is provided or set to BW
+        const currentWeight = exerciseSets[setIndex].weight;
+        const currentlyCompleted = exerciseSets[setIndex].isCompleted;
+        const newIsCompleted = !currentlyCompleted;
+        
+        // Only validate weight when trying to mark a set as completed, not when unchecking
+        if (newIsCompleted && currentWeight === '') {
+          // Show notification
+          showAnnouncementToast("Please enter a weight value or set to Bodyweight (BW) before marking as complete.");
+          return prevSets; // Return previous state without changes
+        }
+        
+        // If user is unchecking a set and there's an active rest timer for this set,
+        // stop the timer (user doesn't want to rest after an incomplete set)
+        if (!newIsCompleted && activeRestTimer && 
+            activeRestTimer.exerciseId === exerciseId && 
+            activeRestTimer.setIndex === setIndex) {
+          // Clear the timer interval
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+          }
+          // Reset the timer state
+          setActiveRestTimer(null);
+        }
         
         exerciseSets[setIndex] = {
           ...exerciseSets[setIndex],
@@ -2471,7 +2525,7 @@ const WorkoutSessionPage: React.FC = () => {
         .from('workout_sessions')
         .delete()
         .eq('id', sessionId);
-      
+
       if (sessionError) {
         console.error('Error deleting workout session:', sessionError);
         
@@ -2503,8 +2557,10 @@ const WorkoutSessionPage: React.FC = () => {
         
         if (countError) {
           console.error('Error verifying session deletion:', countError);
+          return false;
         } else if (count && count > 0) {
           console.warn('Session still exists after deletion attempts, but proceeding anyway');
+          return false;
         } else {
           console.log('Deletion verified: session no longer exists in database');
         }
@@ -2663,8 +2719,39 @@ const WorkoutSessionPage: React.FC = () => {
     }
   }, []);
 
+  // Add state for notifications
+  const [notification, setNotification] = useState<{message: string, visible: boolean}>({
+    message: '',
+    visible: false
+  });
+
+  // Simple toast function
+  const showNotification = (message: string) => {
+    setNotification({
+      message,
+      visible: true
+    });
+    
+    // Auto hide after 3 seconds
+    setTimeout(() => {
+      setNotification(prev => ({
+        ...prev,
+        visible: false
+      }));
+    }, 3000);
+  };
+
   return (
-    <>
+    <div className="relative min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Custom toast notification */}
+      {notification.visible && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 
+                        bg-yellow-500 text-white px-4 py-2 rounded-md shadow-lg
+                        animate-fadeIn">
+          {notification.message}
+        </div>
+      )}
+      
       {/* Absolute positioned toast container that doesn't interfere with layout */}
       {toastMessage && (
         <div className="fixed inset-0 flex items-start justify-center pt-5 pointer-events-none z-[9999]">
@@ -3313,7 +3400,7 @@ const WorkoutSessionPage: React.FC = () => {
         <RestTimerDisplay />
         <SpeechPermissionPrompt />
       </div>
-    </>
+    </div>
   );
 };
 
