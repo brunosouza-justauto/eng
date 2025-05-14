@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectProfile } from '../store/slices/authSlice';
@@ -6,7 +6,6 @@ import { supabase } from '../services/supabaseClient';
 import { SetType, ExerciseSet } from '../types/adminTypes';
 import { fetchExerciseById } from '../utils/exerciseAPI';
 import BackButton from '../components/common/BackButton';
-import { v4 as uuidv4 } from 'uuid';
 
 // Helper function to sanitize text with encoding issues
 const sanitizeText = (text: string | null | undefined): string | null => {
@@ -2948,109 +2947,6 @@ const WorkoutSessionPage: React.FC = () => {
     });
   };
 
-  // Function to initialize exercise sets for a workout session
-  const initializeExerciseSets = useCallback((exerciseInstances: ExerciseInstance[], existingSets: Map<string, CompletedSet[]> = new Map()) => {
-    const initializedSets = new Map<string, CompletedSet[]>();
-    
-    exerciseInstances.forEach(exercise => {
-      // Check if we already have sets for this exercise in existingSets
-      if (existingSets.has(exercise.id)) {
-        initializedSets.set(exercise.id, existingSets.get(exercise.id) || []);
-        return; // Skip initialization if we already have sets for this exercise
-      }
-      
-      // Create number of sets specified in the exercise
-      const numSets = parseInt(exercise.sets || '1', 10) || 1;
-      const sets: CompletedSet[] = [];
-      
-      for (let i = 0; i < numSets; i++) {
-        sets.push({
-          id: uuidv4(),
-          exercise_instance_id: exercise.id,
-          set_order: i + 1,
-          // If the exercise is marked as bodyweight, set weight to "BW" automatically
-          weight: exercise.is_bodyweight ? 'BW' : '',
-          reps: exercise.reps || '',
-          isCompleted: false
-        });
-      }
-      
-      initializedSets.set(exercise.id, sets);
-    });
-    
-    return initializedSets;
-  }, []);
-  
-  // Function to load existing completed sets for a workout session
-  const loadCompletedSets = useCallback(async (sessionId: string) => {
-    try {
-      setIsLoadingSets(true);
-      
-      const { data: completedSetsData, error } = await supabase
-        .from('completed_exercise_sets')
-        .select('*')
-        .eq('workout_session_id', sessionId)
-        .order('set_order', { ascending: true });
-        
-      if (error) {
-        console.error('Error loading completed sets:', error);
-        return new Map<string, CompletedSet[]>();
-      }
-      
-      const loadedSets = new Map<string, CompletedSet[]>();
-      
-      // Group by exercise_instance_id
-      completedSetsData?.forEach(set => {
-        const exerciseId = set.exercise_instance_id;
-        
-        if (!loadedSets.has(exerciseId)) {
-          loadedSets.set(exerciseId, []);
-        }
-        
-        const sets = loadedSets.get(exerciseId);
-        if (sets) {
-          sets.push({
-            id: set.id,
-            exercise_instance_id: set.exercise_instance_id,
-            set_order: set.set_order,
-            weight: set.weight || '',
-            reps: set.reps?.toString() || '',
-            isCompleted: set.is_completed || false
-          });
-        }
-      });
-      
-      return loadedSets;
-    } catch (err) {
-      console.error('Error in loadCompletedSets:', err);
-      return new Map<string, CompletedSet[]>();
-    } finally {
-      setIsLoadingSets(false);
-    }
-  }, []);
-
-  // Add state for notifications
-  const [notification, setNotification] = useState<{message: string, visible: boolean}>({
-    message: '',
-    visible: false
-  });
-
-  // Simple toast function
-  const showNotification = (message: string) => {
-    setNotification({
-      message,
-      visible: true
-    });
-    
-    // Auto hide after 3 seconds
-    setTimeout(() => {
-      setNotification(prev => ({
-        ...prev,
-        visible: false
-      }));
-    }, 3000);
-  };
-
   // Add state for navigation confirmation dialog
   const [showNavigationDialog, setShowNavigationDialog] = useState<boolean>(false);
   // Add a ref to track if we're handling a history action
@@ -3437,16 +3333,7 @@ const WorkoutSessionPage: React.FC = () => {
   });
 
   return (
-    <div className="relative min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Custom toast notification */}
-      {notification.visible && (
-        <div className="fixed top-28 left-1/2 transform -translate-x-1/2 z-50 
-                        bg-yellow-500 text-white px-4 py-2 rounded-md shadow-lg
-                        animate-fadeIn">
-          {notification.message}
-        </div>
-      )}
-      
+    <div className="relative min-h-screen bg-gray-50 dark:bg-gray-900">     
       {/* Absolute positioned toast container that doesn't interfere with layout */}
       {toastMessage && (
         <div className="fixed inset-x-0 top-28 flex items-start justify-center pt-0 pointer-events-none z-[9999]">

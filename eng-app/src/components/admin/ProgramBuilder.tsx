@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { useSelector } from 'react-redux';
 import { selectProfile } from '../../store/slices/authSlice';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { v4 as uuidv4 } from 'uuid';
-import { RiPlayListAddLine, RiEdit2Line, RiDeleteBin6Line, RiSave3Line } from 'react-icons/ri';
-import { FaDumbbell } from 'react-icons/fa';
 import FormInput from '../ui/FormInput';
 import { WorkoutAdminData, ExerciseInstanceAdminData, SetType, ExerciseGroupType, ExerciseSet } from '../../types/adminTypes';
 import WorkoutForm from './WorkoutForm';
@@ -588,6 +585,7 @@ const ProgramBuilder: React.FC = () => {
             // Inside handleSaveWorkout, replace the confirm() dialog block with this:
 
             // Check if this is a foreign key constraint violation
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const error = err as any;
             if (error?.code === '23503' && error?.message?.includes('violates foreign key constraint') && 
                 error?.message?.includes('completed_exercise_sets')) {

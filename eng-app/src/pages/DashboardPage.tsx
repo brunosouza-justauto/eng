@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
 import { selectUser, selectProfile } from '../store/slices/authSlice';
 import { supabase } from '../services/supabaseClient'; // Import supabase client
 import NextWorkoutWidget from '../components/dashboard/NextWorkoutWidget';
@@ -9,7 +8,7 @@ import StepGoalWidget from '../components/dashboard/StepGoalWidget';
 import CheckInReminderWidget from '../components/dashboard/CheckInReminderWidget';
 import LatestCheckInWidget from '../components/dashboard/LatestCheckInWidget'; // Import the new widget
 import MissedMealsAlert from '../components/dashboard/MissedMealsAlert'; // Import the MissedMealsAlert
-import { format, startOfWeek, endOfWeek, addWeeks, parseISO } from 'date-fns';
+import { startOfWeek, endOfWeek } from 'date-fns';
 
 // Define types for the fetched data
 interface AssignedPlan {
@@ -37,7 +36,6 @@ const DashboardPage: React.FC = () => {
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [hasWeeklyCheckIn, setHasWeeklyCheckIn] = useState<boolean>(false);
-  const [lastCheckInDate, setLastCheckInDate] = useState<string | null>(null);
 
   // Memoize the date calculations to prevent re-renders
   const { currentWeekStart, currentWeekEnd } = useMemo(() => {
@@ -46,37 +44,6 @@ const DashboardPage: React.FC = () => {
     return { currentWeekStart: start, currentWeekEnd: end };
   }, []);
   
-  // Calculate the next check-in date
-  const getNextCheckInDate = (): Date => {
-    const today = new Date();
-    
-    if (lastCheckInDate) {
-      // If there's a previous check-in, calculate next date based on that
-      const lastDate = parseISO(lastCheckInDate);
-      
-      // If we already submitted for this week, next check-in is next week
-      if (hasWeeklyCheckIn) {
-        return addWeeks(lastDate, 1);
-      }
-    }
-    
-    // If we don't have a last check-in date or it wasn't in this week,
-    // the next check-in is today
-    return today;
-  };
-
-  // Get formatted date display
-  const getNextCheckInDayDisplay = (): string => {
-    const nextDate = getNextCheckInDate();
-    return format(nextDate, 'EEEE');
-  };
-
-  // Format the next check-in date for display
-  const getNextCheckInDateDisplay = (): string => {
-    const nextDate = getNextCheckInDate();
-    return format(nextDate, 'MMMM d, yyyy');
-  };
-
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user || !profile) return; // Don't fetch if user is not available
@@ -163,6 +130,7 @@ const DashboardPage: React.FC = () => {
         setStepGoal(goalData); // Will be null if no active goal
 
         // Get the most recent check-in
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { data: recentData, error: recentError } = await supabase
           .from('check_ins')
           .select('check_in_date')
@@ -185,11 +153,6 @@ const DashboardPage: React.FC = () => {
         // Set the check-in status
         const hasCheckInThisWeek = weeklyData && weeklyData.length > 0;
         setHasWeeklyCheckIn(hasCheckInThisWeek);
-        
-        // Set the most recent check-in date if available
-        if (recentData && recentData.length > 0) {
-          setLastCheckInDate(recentData[0].check_in_date);
-        }
 
       } catch (err) {
         console.error("Error fetching dashboard data:", err);

@@ -16,6 +16,8 @@ export const MealFoodItems: React.FC<MealFoodItemsProps> = ({ mealId, foodItems,
     const [error, setError] = useState<string | null>(null);
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
+    console.log('MEAL FOOD ITEMS', mealId, foodItems);
+
     if (foodItems.length === 0) {
         return (
             <div className="p-6 text-center border border-gray-200 dark:border-gray-700 border-dashed rounded-md">

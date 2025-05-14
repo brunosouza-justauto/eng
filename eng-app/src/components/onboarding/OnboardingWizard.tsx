@@ -47,8 +47,10 @@ const OnboardingWizard: React.FC = () => {
 
     // Initialize form with current profile data if available
     const methods = useForm<OnboardingData>({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         resolver: zodResolver(onboardingSchema) as any,
         mode: 'onBlur',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         defaultValues: currentProfile as any || {}
     });
 
@@ -124,6 +126,7 @@ const OnboardingWizard: React.FC = () => {
         
         if (isValid) {
             // Then manually call handleSubmit with our onSubmit function
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             handleSubmit(onSubmit as any)();
         }
     };

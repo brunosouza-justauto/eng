@@ -67,14 +67,15 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/fitbit/, ''),
         configure: (proxy, _options) => {
+          console.log('options', _options);
           proxy.on('error', (err, _req, _res) => {
-            console.log('proxy error', err);
+            console.log('proxy error', err, _req, _res);
           });
           proxy.on('proxyReq', (_proxyReq, req, _res) => {
-            console.log('Sending Request to the Target:', req.method, req.url);
+            console.log('Sending Request to the Target:', req.method, req.url, _res);
           });
           proxy.on('proxyRes', (proxyRes, req, _res) => {
-            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            console.log('Received Response from the Target:', proxyRes.statusCode, req.url, _res);
           });
         }
       },

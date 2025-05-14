@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { ExerciseInstanceAdminData, WorkoutAdminData, SetType } from '../../types/adminTypes';
-import { FiTrash2, FiSearch, FiPlus, FiX, FiChevronDown, FiChevronUp, FiFilter, FiLink } from 'react-icons/fi';
+import { FiTrash2, FiPlus, FiX, FiChevronDown, FiChevronUp, FiFilter, FiLink } from 'react-icons/fi';
 import { useDrag, useDrop, DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { Exercise as DatabaseExercise } from '../../utils/exerciseDatabase';
@@ -332,7 +332,6 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     const [hoveringIndex, setHoveringIndex] = useState<number | null>(null);
     // Add state to track if any drag operation is in progress
     const [isDraggingAny, setIsDraggingAny] = useState<boolean>(false);
-    const [draggedOverIndex, setDraggedOverIndex] = useState<number | null>(null);
 
     const methods = useForm<WorkoutFormData>({
         defaultValues: {
@@ -1410,7 +1409,8 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             
             // If only one exercise remains, dissolve the superset
             if (updatedGroup.length < 2) {
-                const { [groupId]: _, ...rest } = prev;
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { [groupId]: ignored, ...rest } = prev;
                 
                 // Also update the remaining exercise to remove superset info
                 if (updatedGroup.length === 1) {
@@ -1486,7 +1486,8 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
 
     // Function to get superset group ID and info
     const getSupersetInfo = (exerciseIndex: number) => {
-        const entry = Object.entries(supersetGroups).find(([_, indices]) => 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const entry = Object.entries(supersetGroups).find(([key, indices]) => 
             indices.includes(exerciseIndex)
         );
         

@@ -287,7 +287,7 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
         // Set default day type based on existing meals or first day type
         let defaultDayType: DayType = DAY_TYPES[0];
         if (existingDayType) {
-            if (DAY_TYPES.includes(existingDayType as any)) {
+            if (DAY_TYPES.includes(existingDayType as DayType)) {
                 defaultDayType = existingDayType as DayType;
                 setSelectedDayType(existingDayType as DayType);
                 setCustomDayType('');
@@ -312,7 +312,7 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
 
         // Set day type state based on meal's day_type
         const mealDayType = meal.day_type || '';
-        if (DAY_TYPES.includes(mealDayType as any)) {
+        if (DAY_TYPES.includes(mealDayType as DayType)) {
             setSelectedDayType(mealDayType as DayType);
             setCustomDayType('');
         } else if (mealDayType) {
@@ -343,7 +343,7 @@ const MealManager: React.FC<MealManagerProps> = ({ nutritionPlanId, onClose, isE
 
     // Handle form day type changes
     const handleDayTypeChange = (value: string) => {
-        if (value === 'Custom Day' || DAY_TYPES.includes(value as any)) {
+        if (value === 'Custom Day' || DAY_TYPES.includes(value as DayType)) {
             setSelectedDayType(value as typeof DAY_TYPES[number] | 'Custom Day');
             setValue('day_type', value === 'Custom Day' ? customDayType : value);
         }

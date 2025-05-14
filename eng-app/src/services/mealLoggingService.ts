@@ -64,15 +64,6 @@ interface FoodItemData {
     [key: string]: unknown;
 }
 
-// Use the interface by changing the comment to indicate its usage
-// Type for the raw meal log data from Supabase, used implicitly through Record<string, any> currently
-interface MealLogRaw {
-    id: string;
-    log_date: string;
-    day_type: string | null;
-    meal: MealData;
-}
-
 /**
  * Log a meal from the meal plan as eaten
  * @param userId User ID
