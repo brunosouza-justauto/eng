@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "build:with-types": "tsc -b && vite build",
-    "vercel-build": "vite build",
+    "build": "npm run build",
+    "build:with-types": "tsc -b && npm run build:with-types",
+    "vercel-build": "npm run build",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "npm run preview",
     "test": "vitest"
   },
   "dependencies": {
