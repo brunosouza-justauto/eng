@@ -589,13 +589,15 @@ const WorkoutHistoryPage: React.FC = () => {
                                   acc[key].count++;
                                   return acc;
                                 }, {} as Record<string, { weight: string, reps: number, count: number }>);
+
+                                console.log('SUMMARY', summary);
                                 
                                 // Use join with a string delimiter to prevent [object Object] from appearing
                                 return Object.values(summary).map((group, i) => (
                                   <span key={i} className="mr-2">
                                     {group.count > 1 ? `${group.count}×` : ""}{group.reps} reps @ {formatWeight(group.weight)}
                                   </span>
-                                )).join(" | ");
+                                ));
                               })()}
                             </div>
                           </div>
