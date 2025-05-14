@@ -389,6 +389,105 @@ const ExerciseDemonstration = React.memo(({ exerciseName, exerciseDbId, expanded
   );
 });
 
+// Add a completely isolated component for the rest time dialog
+// The component is defined outside the main component to prevent re-renders
+const IsolatedRestTimeDialog = ({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  onClear, 
+  initialValue, 
+  hasCustomValue 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSave: (time: number) => void;
+  onClear: () => void;
+  initialValue: string;
+  hasCustomValue: boolean;
+}) => {
+  const [inputValue, setInputValue] = React.useState(initialValue);
+  
+  // Reset input value when dialog opens with a new initialValue
+  React.useEffect(() => {
+    if (isOpen) {
+      setInputValue(initialValue);
+    }
+  }, [isOpen, initialValue]);
+  
+  if (!isOpen) return null;
+  
+  const handleSave = () => {
+    const time = parseInt(inputValue, 10);
+    if (!isNaN(time) && time >= 0) {
+      onSave(time);
+    }
+  };
+  
+  // Prevent clicks from propagating outside the dialog
+  const handleContainerClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+  
+  return (
+    <div 
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[99999]"
+      // Prevent interaction with anything behind the dialog
+      style={{ touchAction: 'none' }}
+    >
+      <div 
+        className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md mx-4"
+        onClick={handleContainerClick}
+      >
+        <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+          Set Custom Rest Time
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          This will override the default rest time for all exercises in this workout.
+        </p>
+        
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Rest Time (seconds)
+          </label>
+          <input
+            type="number"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            min="0"
+            // Auto focus the input when dialog opens for better UX
+            autoFocus
+          />
+        </div>
+        
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+          {hasCustomValue && (
+            <button
+              onClick={onClear}
+              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+            >
+              Clear Custom
+            </button>
+          )}
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const WorkoutSessionPage: React.FC = () => {
   const { workoutId } = useParams<WorkoutSessionParams>();
   const profile = useSelector(selectProfile);
@@ -449,6 +548,9 @@ const WorkoutSessionPage: React.FC = () => {
 
   // State to track if speech is enabled
   const [isSpeechEnabled, setIsSpeechEnabled] = useState<boolean>(false);
+
+  // State for custom rest time override
+  const [customRestTime, setCustomRestTime] = useState<number | null>(null);
 
   // State to track which exercise demonstrations are shown
   const [shownDemonstrations, setShownDemonstrations] = useState<Record<string, boolean>>({});
@@ -1204,10 +1306,11 @@ const WorkoutSessionPage: React.FC = () => {
         window.scrollTo(0, 0);
         navigate('/dashboard');
       }
-    } else if (completionMessage.includes('Failed to delete workout')) {
-      // For error cases, just close the dialog
+    } else if (completionMessage.includes('offline')) {
+      // For offline cases, just close the dialog
       setShowCompletionDialog(false);
-    } else if (completionMessage.includes('Warning:') || 
+    } else if (completionMessage.includes('Failed to delete workout') ||
+               completionMessage.includes('Warning:') || 
                completionMessage.includes('An error occurred')) {
       // For error cases, just close the dialog and navigate away
       // User has chosen to continue despite the error
@@ -1364,7 +1467,7 @@ const WorkoutSessionPage: React.FC = () => {
     }
   };
 
-  // Modify the toggleSetCompletion function to save completed sets immediately
+  // Modify the toggleSetCompletion function to use custom rest time when available
   const toggleSetCompletion = (exerciseId: string, setIndex: number) => {
     setCompletedSets(prevSets => {
       const newSets = new Map(prevSets);
@@ -1432,17 +1535,22 @@ const WorkoutSessionPage: React.FC = () => {
             // Not complete yet, handle rest timer as usual
             const exercise = workout?.exercise_instances.find(ex => ex.id === exerciseId);
             if (exercise) {
-              // Get the rest time for this specific set
-              let restSeconds = null;
-              if (exercise.sets_data && exercise.sets_data[setIndex]) {
-                restSeconds = exercise.sets_data[setIndex].rest_seconds;
-              }
-              // Fall back to exercise rest_period_seconds if no specific rest time
-              restSeconds = restSeconds ?? exercise.rest_period_seconds;
-              
-              // If rest time is specified (including 0), start the timer
-              if (restSeconds !== null && restSeconds !== undefined) {
-                startRestTimer(exerciseId, setIndex, restSeconds);
+              // Use custom rest time if available, otherwise get from exercise
+              if (customRestTime !== null) {
+                startRestTimer(exerciseId, setIndex, customRestTime);
+              } else {
+                // Get the rest time for this specific set
+                let restSeconds = null;
+                if (exercise.sets_data && exercise.sets_data[setIndex]) {
+                  restSeconds = exercise.sets_data[setIndex].rest_seconds;
+                }
+                // Fall back to exercise rest_period_seconds if no specific rest time
+                restSeconds = restSeconds ?? exercise.rest_period_seconds;
+                
+                // If rest time is specified (including 0), start the timer
+                if (restSeconds !== null && restSeconds !== undefined) {
+                  startRestTimer(exerciseId, setIndex, restSeconds);
+                }
               }
             }
           }
@@ -2059,72 +2167,65 @@ const WorkoutSessionPage: React.FC = () => {
     };
     
     return (
-      <div className="fixed bottom-4 right-4 z-50">
-        {/* Timer Display */}
-        <div className={`${isCountingDown ? 'bg-red-600 scale-105 transition-all' : 'bg-indigo-600'} text-white p-4 rounded-lg shadow-lg flex flex-col items-center`}>
-          <div className="text-sm font-medium mb-1">
-            {isCountingDown ? 'Get Ready!' : 'Rest Timer'}
-          </div>
-          <div className={`text-2xl font-bold mb-2 ${isCountingDown ? 'animate-pulse' : ''}`}>
-            {isCountingDown 
-              ? <span className="text-3xl">{activeRestTimer.timeLeft}</span> 
-              : formatRestTime(activeRestTimer.timeLeft)
-            }
-          </div>
-          <div className="w-full bg-indigo-800 rounded-full h-2">
-            <div 
-              className={`h-2 rounded-full transition-all duration-200 ${isCountingDown ? 'bg-red-300' : 'bg-white'}`}
-              style={{ width: `${progress}%` }}
-            ></div>
-          </div>
-          <div className="mt-2 flex justify-between w-full">
-            <button 
-              onClick={handleSkipTimer}
-              className="text-xs text-indigo-200 hover:text-white"
-            >
-              Skip
-            </button>
+      <div className="fixed top-0 inset-x-0 z-50">
+        {/* Timer Display - Full width on mobile, centered with max-width on desktop */}
+        <div className={`${isCountingDown ? 'bg-red-600' : 'bg-indigo-600'} 
+          text-white p-3 shadow-lg flex flex-col items-center w-full
+          transition-all ${isCountingDown ? 'scale-105' : ''}`}>
+          
+          <div className="w-full max-w-screen-sm mx-auto px-3">
+            <div className="flex justify-between items-center mb-1">
+              <div className="text-sm font-medium">
+                {isCountingDown ? 'Get Ready!' : 'Rest Timer'}
+              </div>
+              
+              <div className={`text-2xl font-bold ${isCountingDown ? 'animate-pulse' : ''}`}>
+                {isCountingDown 
+                  ? <span className="text-3xl">{activeRestTimer.timeLeft}</span> 
+                  : formatRestTime(activeRestTimer.timeLeft)
+                }
+              </div>
+              
+              <button 
+                onClick={handleSkipTimer}
+                className="text-xs text-white/80 hover:text-white rounded px-2 py-1 bg-white/10"
+              >
+                Skip
+              </button>
+            </div>
             
-            {/* Display which exercise is next */}
-            {activeRestTimer.timeLeft <= 3 && workout && (
-              <div className="text-xs animate-pulse">
-                Get Ready!
+            {/* Progress bar */}
+            <div className="w-full bg-indigo-800/50 rounded-full h-2 mb-1">
+              <div 
+                className={`h-2 rounded-full transition-all duration-200 ${isCountingDown ? 'bg-red-300' : 'bg-white'}`}
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+            
+            {/* Next exercise info - inline on mobile */}
+            {nextExerciseInfo && (
+              <div className="flex items-center justify-between text-xs text-white/90 py-1">
+                <div className="flex items-center">
+                  <span className="mr-2">
+                    {nextExerciseInfo.isSameExercise ? 'Next Set:' : 'Next Exercise:'}
+                  </span>
+                  <span className="font-medium text-white">
+                    {nextExerciseInfo.exerciseName}
+                  </span>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <span className="px-2 py-0.5 bg-white/20 rounded-full">
+                    {nextExerciseInfo.setType}
+                  </span>
+                  <span className="px-2 py-0.5 bg-green-500/30 rounded-full">
+                    {nextExerciseInfo.reps} reps
+                  </span>
+                </div>
               </div>
             )}
           </div>
         </div>
-        
-        {/* Next Exercise Preview - Simplified with no GIF */}
-        {nextExerciseInfo && (
-          <div className="mt-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-64 animate-fadeIn">
-            <h4 className="font-medium text-sm mb-2 text-indigo-600 dark:text-indigo-400">
-              {nextExerciseInfo.isSameExercise ? 'Next Set' : 'Next Exercise'}
-            </h4>
-            
-            {/* Exercise Details - no image to prevent refresh issues */}
-            <div className="flex flex-col">
-              <h3 className="font-bold text-gray-800 dark:text-white mb-1">
-                {nextExerciseInfo.exerciseName}
-              </h3>
-              <div className="flex space-x-2 text-sm">
-                <span className={`px-2 py-1 text-xs rounded-full truncate max-w-full ${
-                  nextExerciseInfo.setType === 'Warm-up' 
-                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
-                    : nextExerciseInfo.setType === 'To Failure'
-                    ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
-                    : nextExerciseInfo.setType === 'Drop Set'
-                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
-                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                }`}>
-                  {nextExerciseInfo.setType}
-                </span>
-                <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 rounded-full">
-                  {nextExerciseInfo.reps} reps
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   });
@@ -2858,11 +2959,77 @@ const WorkoutSessionPage: React.FC = () => {
     }
   };
 
+  // Completely pause all timers and app updates during dialog
+  const [isRestDialogOpen, setIsRestDialogOpen] = useState(false);
+  const [tempRestTime, setTempRestTime] = useState('60');
+  
+  // Update the openRestTimeDialog function
+  const openRestTimeDialog = () => {
+    // Preserve the current timer state
+    if (activeRestTimer) {
+      // Completely stop the interval timer
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    }
+    
+    // Set the initial input value
+    setTempRestTime(customRestTime?.toString() || '60');
+    
+    // Show the isolated dialog
+    setIsRestDialogOpen(true);
+  };
+  
+  // Handle saving the custom rest time
+  const handleSaveRestTime = (time: number) => {
+    setCustomRestTime(time);
+    setIsRestDialogOpen(false);
+    
+    // Show confirmation toast
+    showAnnouncementToast(`Custom rest time set to ${time} seconds for all exercises`);
+    
+    // Resume the timer if it was active
+    resumeTimerIfNeeded();
+  };
+  
+  // Handle clearing the custom rest time
+  const handleClearRestTime = () => {
+    setCustomRestTime(null);
+    setIsRestDialogOpen(false);
+    
+    // Show confirmation toast
+    showAnnouncementToast('Using default rest times for each exercise');
+    
+    // Resume the timer if it was active
+    resumeTimerIfNeeded();
+  };
+  
+  // Handle closing the dialog without changes
+  const handleCloseRestDialog = () => {
+    setIsRestDialogOpen(false);
+    
+    // Resume the timer if it was active
+    resumeTimerIfNeeded();
+  };
+  
+  // Helper to resume timer if needed
+  const resumeTimerIfNeeded = () => {
+    if (activeRestTimer && !timerIntervalRef.current && isWorkoutStarted && !isPaused) {
+      // Restart the timer with the current state
+      startRestTimer(
+        activeRestTimer.exerciseId,
+        activeRestTimer.setIndex,
+        activeRestTimer.timeLeft
+      );
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Custom toast notification */}
       {notification.visible && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 
+        <div className="fixed top-28 left-1/2 transform -translate-x-1/2 z-50 
                         bg-yellow-500 text-white px-4 py-2 rounded-md shadow-lg
                         animate-fadeIn">
           {notification.message}
@@ -2871,7 +3038,7 @@ const WorkoutSessionPage: React.FC = () => {
       
       {/* Absolute positioned toast container that doesn't interfere with layout */}
       {toastMessage && (
-        <div className="fixed inset-0 flex items-start justify-center pt-5 pointer-events-none z-[9999]">
+        <div className="fixed inset-x-0 top-28 flex items-start justify-center pt-0 pointer-events-none z-[9999]">
           <div className="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg max-w-[90%]">
             {toastMessage}
           </div>
@@ -2886,6 +3053,16 @@ const WorkoutSessionPage: React.FC = () => {
       
       {/* Session Resume Dialog */}
       <SessionResumeDialog />
+      
+      {/* Rest Time Override Dialog */}
+      <IsolatedRestTimeDialog 
+        isOpen={isRestDialogOpen}
+        onClose={handleCloseRestDialog}
+        onSave={handleSaveRestTime}
+        onClear={handleClearRestTime}
+        initialValue={tempRestTime}
+        hasCustomValue={customRestTime !== null}
+      />
       
       <div className="container px-2 mx-auto">
         {isLoading ? (
@@ -2912,32 +3089,49 @@ const WorkoutSessionPage: React.FC = () => {
                     <p className="mt-1 text-gray-600 dark:text-gray-400">{workout.description}</p>
                   )}
                 </div>
-                {isWorkoutStarted && window.speechSynthesis && (
-                  <button
-                    onClick={isSpeechEnabled ? disableSpeech : enableSpeech}
-                    className={`flex items-center px-2 py-1 rounded-md text-sm ${
-                      isSpeechEnabled 
-                        ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' 
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {isSpeechEnabled ? (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828a1 1 0 010-1.415z" clipRule="evenodd" />
-                        </svg>
-                        Voice On
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.415L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                        Voice Off
-                      </>
-                    )}
-                  </button>
-                )}
+                <div className="flex space-x-2">
+                  {isWorkoutStarted && (
+                    <button
+                      onClick={openRestTimeDialog}
+                      className={`flex items-center px-2 py-1 rounded-md text-sm ${
+                        customRestTime !== null
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {customRestTime !== null ? `${customRestTime}s Rest` : 'Set Rest'}
+                    </button>
+                  )}
+                  {isWorkoutStarted && window.speechSynthesis && (
+                    <button
+                      onClick={isSpeechEnabled ? disableSpeech : enableSpeech}
+                      className={`flex items-center px-2 py-1 rounded-md text-sm ${
+                        isSpeechEnabled 
+                          ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' 
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      {isSpeechEnabled ? (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828a1 1 0 010-1.415z" clipRule="evenodd" />
+                          </svg>
+                          Voice On
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.415L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                          Voice Off
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
