@@ -488,6 +488,89 @@ const IsolatedRestTimeDialog = ({
   );
 };
 
+// Add a completely isolated component for the countdown timer dialog
+// Placed outside the main component to prevent re-renders
+const IsolatedCountdownDialog = ({ 
+  isOpen, 
+  onClose, 
+  onStart
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onStart: (seconds: number) => void;
+}) => {
+  const [inputValue, setInputValue] = React.useState('60');
+  
+  // Reset input value when dialog opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setInputValue('60');
+    }
+  }, [isOpen]);
+  
+  if (!isOpen) return null;
+  
+  const handleStart = () => {
+    const seconds = parseInt(inputValue, 10);
+    if (!isNaN(seconds) && seconds > 0) {
+      onStart(seconds);
+    }
+  };
+  
+  // Prevent clicks from propagating outside the dialog
+  const handleContainerClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+  
+  return (
+    <div 
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[99999]"
+      style={{ touchAction: 'none' }}
+    >
+      <div 
+        className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md mx-4"
+        onClick={handleContainerClick}
+      >
+        <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+          Set Countdown Timer
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          Set a custom countdown timer in seconds.
+        </p>
+        
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Countdown Time (seconds)
+          </label>
+          <input
+            type="number"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            min="1"
+            autoFocus
+          />
+        </div>
+        
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleStart}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          >
+            Start Countdown
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const WorkoutSessionPage: React.FC = () => {
   const { workoutId } = useParams<WorkoutSessionParams>();
   const profile = useSelector(selectProfile);
@@ -3025,6 +3108,242 @@ const WorkoutSessionPage: React.FC = () => {
     }
   };
 
+  // Add this to the WorkoutSessionPage component, near other state variables
+  const [isCountdownDialogOpen, setIsCountdownDialogOpen] = useState(false);
+  const [customCountdown, setCustomCountdown] = useState<{
+    timeLeft: number;
+    totalTime: number;
+    isActive: boolean;
+  } | null>(null);
+  const customCountdownRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Add this near other handlers
+  const openCountdownDialog = () => {
+    // If there's an active countdown, pause it
+    if (customCountdown?.isActive && customCountdownRef.current) {
+      clearInterval(customCountdownRef.current);
+      customCountdownRef.current = null;
+    }
+    
+    setIsCountdownDialogOpen(true);
+  };
+
+  const handleStartCountdown = (seconds: number) => {
+    // Clear any existing countdown
+    if (customCountdownRef.current) {
+      clearInterval(customCountdownRef.current);
+      customCountdownRef.current = null;
+    }
+    
+    // Set initial countdown state
+    setCustomCountdown({
+      timeLeft: seconds,
+      totalTime: seconds,
+      isActive: true
+    });
+    
+    setIsCountdownDialogOpen(false);
+    
+    // Start the countdown interval
+    customCountdownRef.current = setInterval(() => {
+      setCustomCountdown(prev => {
+        if (!prev) return null;
+        
+        const newTimeLeft = prev.timeLeft - 1;
+        
+        // Handle countdown completion
+        if (newTimeLeft <= 0) {
+          // Clear interval
+          if (customCountdownRef.current) {
+            clearInterval(customCountdownRef.current);
+            customCountdownRef.current = null;
+          }
+          
+          // Play alert sound
+          if (alertSoundRef.current) {
+            alertSoundRef.current.play().catch(err => 
+              console.error('Failed to play timer sound:', err)
+            );
+          }
+          
+          // Vibrate if supported
+          if (navigator.vibrate && window.matchMedia('(max-width: 768px)').matches) {
+            navigator.vibrate([300, 100, 300]);
+          }
+          
+          // Show completion toast
+          showAnnouncementToast('Countdown completed!');
+          
+          // Reset countdown
+          return null;
+        }
+        
+        // Normal countdown tick
+        return {
+          ...prev,
+          timeLeft: newTimeLeft
+        };
+      });
+    }, 1000);
+  };
+
+  const pauseResumeCountdown = () => {
+    if (!customCountdown) return;
+    
+    if (customCountdown.isActive) {
+      // Pause
+      if (customCountdownRef.current) {
+        clearInterval(customCountdownRef.current);
+        customCountdownRef.current = null;
+      }
+      
+      setCustomCountdown(prev => prev ? {
+        ...prev,
+        isActive: false
+      } : null);
+    } else {
+      // Resume
+      setCustomCountdown(prev => prev ? {
+        ...prev,
+        isActive: true
+      } : null);
+      
+      // Restart interval
+      customCountdownRef.current = setInterval(() => {
+        setCustomCountdown(prev => {
+          if (!prev) return null;
+          
+          const newTimeLeft = prev.timeLeft - 1;
+          
+          if (newTimeLeft <= 0) {
+            // Clear interval
+            if (customCountdownRef.current) {
+              clearInterval(customCountdownRef.current);
+              customCountdownRef.current = null;
+            }
+            
+            // Play alert sound
+            if (alertSoundRef.current) {
+              alertSoundRef.current.play().catch(err => 
+                console.error('Failed to play timer sound:', err)
+              );
+            }
+            
+            // Vibrate if supported
+            if (navigator.vibrate && window.matchMedia('(max-width: 768px)').matches) {
+              navigator.vibrate([300, 100, 300]);
+            }
+            
+            // Show completion toast
+            showAnnouncementToast('Countdown completed!');
+            
+            // Reset countdown
+            return null;
+          }
+          
+          return {
+            ...prev,
+            timeLeft: newTimeLeft
+          };
+        });
+      }, 1000);
+    }
+  };
+
+  const cancelCountdown = () => {
+    if (customCountdownRef.current) {
+      clearInterval(customCountdownRef.current);
+      customCountdownRef.current = null;
+    }
+    
+    setCustomCountdown(null);
+    showAnnouncementToast('Countdown canceled');
+  };
+
+  // Add this to the cleanup effect
+  useEffect(() => {
+    return () => {
+      if (customCountdownRef.current) {
+        clearInterval(customCountdownRef.current);
+        customCountdownRef.current = null;
+      }
+    };
+  }, []);
+
+  // Custom countdown timer display component
+  const CustomCountdownDisplay = () => {
+    if (!customCountdown) return null;
+    
+    const progress = (customCountdown.timeLeft / customCountdown.totalTime) * 100;
+    const isAlmostDone = customCountdown.timeLeft <= 5 && customCountdown.timeLeft > 0;
+    
+    // Format time
+    const formatCountdownTime = (seconds: number): string => {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+    
+    return (
+      <div className="fixed top-0 inset-x-0 z-50">
+        <div className={`${isAlmostDone ? 'bg-red-600' : 'bg-blue-600'} 
+          text-white p-3 shadow-lg flex flex-col items-center w-full
+          transition-all ${isAlmostDone ? 'scale-105' : ''}`}>
+          
+          <div className="w-full max-w-screen-sm mx-auto px-3">
+            <div className="flex justify-between items-center mb-1">
+              <div className="text-sm font-medium">
+                {isAlmostDone ? 'Almost Done!' : 'Custom Countdown'}
+              </div>
+              
+              <div className={`text-2xl font-bold ${isAlmostDone ? 'animate-pulse' : ''}`}>
+                {formatCountdownTime(customCountdown.timeLeft)}
+              </div>
+              
+              <div className="flex space-x-2">
+                <button 
+                  onClick={pauseResumeCountdown}
+                  className="text-xs text-white/80 hover:text-white rounded px-2 py-1 bg-white/10"
+                >
+                  {customCountdown.isActive ? 'Pause' : 'Resume'}
+                </button>
+                <button 
+                  onClick={cancelCountdown}
+                  className="text-xs text-white/80 hover:text-white rounded px-2 py-1 bg-white/10"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+            
+            {/* Progress bar */}
+            <div className="w-full bg-blue-800/50 rounded-full h-2 mb-1">
+              <div 
+                className={`h-2 rounded-full transition-all duration-200 ${isAlmostDone ? 'bg-red-300' : 'bg-white'}`}
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Add a countdown button component that can be reused in each exercise card
+  const CountdownButton = React.memo(() => {
+    return (
+      <button
+        onClick={openCountdownDialog}
+        className="flex items-center justify-center px-3 py-1.5 text-sm bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Start Countdown
+      </button>
+    );
+  });
+
   return (
     <div className="relative min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Custom toast notification */}
@@ -3062,6 +3381,13 @@ const WorkoutSessionPage: React.FC = () => {
         onClear={handleClearRestTime}
         initialValue={tempRestTime}
         hasCustomValue={customRestTime !== null}
+      />
+      
+      {/* Countdown Timer Dialog */}
+      <IsolatedCountdownDialog
+        isOpen={isCountdownDialogOpen}
+        onClose={() => setIsCountdownDialogOpen(false)}
+        onStart={handleStartCountdown}
       />
       
       <div className="container px-2 mx-auto">
@@ -3131,6 +3457,16 @@ const WorkoutSessionPage: React.FC = () => {
                       )}
                     </button>
                   )}
+                  {/* Add this button next to the rest time button in the workout header */}
+                  <button
+                    onClick={openCountdownDialog}
+                    className="flex items-center px-2 py-1 rounded-md text-sm bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Countdown
+                  </button>
                 </div>
               </div>
             </div>
@@ -3356,8 +3692,8 @@ const WorkoutSessionPage: React.FC = () => {
                                       <tr>
                                         <th scope="col" className="px-1 py-2 w-[8%] hidden sm:table-cell">Set</th>
                                         <th scope="col" className="px-1 py-2 w-[20%]">Type</th>
-                                        <th scope="col" className="px-1 py-2 w-[15%]">Reps</th>
                                         <th scope="col" className="px-1 py-2 w-[22%]">Weight</th>
+                                        <th scope="col" className="px-1 py-2 w-[15%]">Reps</th>
                                         <th scope="col" className="px-1 py-2 w-[15%]">Rest</th>
                                         <th scope="col" className="px-1 py-2 w-[20%] text-center">Done</th>
                                       </tr>
@@ -3396,16 +3732,6 @@ const WorkoutSessionPage: React.FC = () => {
                                               </span>
                                             </td>
                                             <td className="px-1 py-2">
-                                              <input
-                                                type="number"
-                                                value={set.reps || ''}
-                                                onChange={(e) => updateSetReps(exercise.id, setIndex, e.target.value)}
-                                                disabled={!isWorkoutStarted || isPaused}
-                                                className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                                min="0"
-                                              />
-                                            </td>
-                                            <td className="px-1 py-2">
                                               <div className="flex items-center">
                                                 <input
                                                   type="text"
@@ -3419,6 +3745,16 @@ const WorkoutSessionPage: React.FC = () => {
                                                   readOnly={set.weight === 'BW'}
                                                 />
                                               </div>
+                                            </td>
+                                            <td className="px-1 py-2">
+                                              <input
+                                                type="number"
+                                                value={set.reps || ''}
+                                                onChange={(e) => updateSetReps(exercise.id, setIndex, e.target.value)}
+                                                disabled={!isWorkoutStarted || isPaused}
+                                                className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                min="0"
+                                              />
                                             </td>
                                             <td className="px-1 py-2">
                                               {restSeconds !== null && restSeconds !== undefined ? (
@@ -3446,6 +3782,10 @@ const WorkoutSessionPage: React.FC = () => {
                                       })}
                                     </tbody>
                                   </table>
+                                </div>
+                                {/* Add countdown button after the sets table */}
+                                <div className="mt-4 flex justify-center">
+                                  <CountdownButton />
                                 </div>
                               </div>
                             );
@@ -3571,8 +3911,8 @@ const WorkoutSessionPage: React.FC = () => {
                             <tr>
                               <th scope="col" className="px-1 py-2 w-[8%] hidden sm:table-cell">Set</th>
                               <th scope="col" className="px-1 py-2 w-[20%]">Type</th>
-                              <th scope="col" className="px-1 py-2 w-[15%]">Reps</th>
                               <th scope="col" className="px-1 py-2 w-[22%]">Weight</th>
+                              <th scope="col" className="px-1 py-2 w-[15%]">Reps</th>
                               <th scope="col" className="px-1 py-2 w-[15%]">Rest</th>
                               <th scope="col" className="px-1 py-2 w-[20%] text-center">Done</th>
                             </tr>
@@ -3611,16 +3951,6 @@ const WorkoutSessionPage: React.FC = () => {
                                     </span>
                                   </td>
                                   <td className="px-1 py-2">
-                                    <input
-                                      type="number"
-                                      value={set.reps || ''}
-                                      onChange={(e) => updateSetReps(exercise.id, setIndex, e.target.value)}
-                                      disabled={!isWorkoutStarted || isPaused}
-                                      className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                      min="0"
-                                    />
-                                  </td>
-                                  <td className="px-1 py-2">
                                     <div className="flex items-center">
                                       <input
                                         type="text"
@@ -3634,6 +3964,16 @@ const WorkoutSessionPage: React.FC = () => {
                                         readOnly={set.weight === 'BW'}
                                       />
                                     </div>
+                                  </td>
+                                  <td className="px-1 py-2">
+                                    <input
+                                      type="number"
+                                      value={set.reps || ''}
+                                      onChange={(e) => updateSetReps(exercise.id, setIndex, e.target.value)}
+                                      disabled={!isWorkoutStarted || isPaused}
+                                      className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                      min="0"
+                                    />
                                   </td>
                                   <td className="px-1 py-2">
                                     {restSeconds !== null && restSeconds !== undefined ? (
@@ -3661,6 +4001,10 @@ const WorkoutSessionPage: React.FC = () => {
                             })}
                           </tbody>
                         </table>
+                      </div>
+                      {/* Add countdown button after the sets table */}
+                      <div className="mt-4 flex justify-center">
+                        <CountdownButton />
                       </div>
                     </div>
                   );
@@ -3710,6 +4054,7 @@ const WorkoutSessionPage: React.FC = () => {
         {/* Render only the timer component, which now includes the next exercise info */}
         <RestTimerDisplay />
         <SpeechPermissionPrompt />
+        <CustomCountdownDisplay />
       </div>
       
       {/* Navigation Confirmation Dialog */}
