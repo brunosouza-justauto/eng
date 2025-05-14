@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectProfile } from '../store/slices/authSlice';
 import { supabase } from '../services/supabaseClient';
@@ -393,6 +393,7 @@ const WorkoutSessionPage: React.FC = () => {
   const { workoutId } = useParams<WorkoutSessionParams>();
   const profile = useSelector(selectProfile);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // State for workout data
   const [workout, setWorkout] = useState<WorkoutData | null>(null);
@@ -1050,6 +1051,14 @@ const WorkoutSessionPage: React.FC = () => {
     if (!workoutSessionId) return;
     
     try {
+      // Check for network connection first
+      if (!navigator.onLine) {
+        console.error('No internet connection detected');
+        setCompletionMessage('Unable to save workout - you appear to be offline. Your data will be preserved until you reconnect. Please try again when you have an internet connection.');
+        setShowCompletionDialog(true);
+        return;
+      }
+      
       // Update the workout session with end time and duration
       const { error } = await supabase
         .from('workout_sessions')
@@ -1100,7 +1109,18 @@ const WorkoutSessionPage: React.FC = () => {
       
     } catch (err) {
       console.error('Error completing workout:', err);
-      setCompletionMessage('Failed to save workout data');
+      
+      // Determine if this is a network error
+      let errorMessage = 'Failed to save workout data';
+      
+      if (!navigator.onLine || (err instanceof Error && err.message && 
+          (err.message.includes('network') || 
+           err.message.includes('fetch') || 
+           err.message.includes('connection')))) {
+        errorMessage = 'Network error: You appear to be offline. Your workout data will be preserved until you reconnect. Please try again when you have an internet connection.';
+      }
+      
+      setCompletionMessage(errorMessage);
       setShowCompletionDialog(true);
     }
   };
@@ -1160,6 +1180,9 @@ const WorkoutSessionPage: React.FC = () => {
             
             // Hide dialog and navigate back to dashboard
             setShowCompletionDialog(false);
+            
+            // Ensure scroll to top before navigation
+            window.scrollTo(0, 0);
             navigate('/dashboard');
           } else {
             // Show error message if deletion failed but allow user to continue anyway
@@ -1176,10 +1199,15 @@ const WorkoutSessionPage: React.FC = () => {
       } else {
         // No session ID to delete, just navigate back
         setShowCompletionDialog(false);
+        
+        // Ensure scroll to top before navigation
+        window.scrollTo(0, 0);
         navigate('/dashboard');
       }
-    } else if (completionMessage.includes('Failed to delete workout') || 
-               completionMessage.includes('Warning:') || 
+    } else if (completionMessage.includes('Failed to delete workout')) {
+      // For error cases, just close the dialog
+      setShowCompletionDialog(false);
+    } else if (completionMessage.includes('Warning:') || 
                completionMessage.includes('An error occurred')) {
       // For error cases, just close the dialog and navigate away
       // User has chosen to continue despite the error
@@ -1193,10 +1221,16 @@ const WorkoutSessionPage: React.FC = () => {
       setActiveRestTimer(null);
       setInitialCountdown(null);
       
+      // Ensure scroll to top before navigation
+      window.scrollTo(0, 0);
       navigate('/dashboard');
-    } else {
+    }
+    else {
       // Normal completion behavior - hide dialog and navigate to dashboard
       setShowCompletionDialog(false);
+      
+      // Ensure scroll to top before navigation
+      window.scrollTo(0, 0);
       navigate('/dashboard');
     }
   };
@@ -2741,6 +2775,89 @@ const WorkoutSessionPage: React.FC = () => {
     }, 3000);
   };
 
+  // Add state for navigation confirmation dialog
+  const [showNavigationDialog, setShowNavigationDialog] = useState<boolean>(false);
+  // Add a ref to track if we're handling a history action
+  const handlingHistoryAction = useRef<boolean>(false);
+  
+  // Add this useEffect to handle browser back button
+  useEffect(() => {
+    // Handler for browser's back navigation
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isWorkoutStarted && !showCompletionDialog) {
+        // Cancel the event and show standard browser dialog
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    
+    // Function to handle popstate (browser back/forward)
+    const handlePopState = (e: PopStateEvent) => {
+      // Only handle this event if workout is started and not already handling a history action
+      if (isWorkoutStarted && !handlingHistoryAction.current) {
+        e.preventDefault();
+        
+        // Set flag that we're handling a history event
+        handlingHistoryAction.current = true;
+        
+        // Push the current location back to history to prevent navigating away
+        window.history.pushState(null, '', location.pathname);
+        
+        // Show our custom navigation dialog
+        setShowNavigationDialog(true);
+        
+        // Reset the flag after a small delay
+        setTimeout(() => {
+          handlingHistoryAction.current = false;
+        }, 100);
+      }
+    };
+    
+    // Push an entry to the history stack when workout starts
+    // This is needed to ensure we have something to "go back" to
+    if (isWorkoutStarted) {
+      window.history.pushState(null, '', location.pathname);
+    }
+    
+    // Add event listeners
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isWorkoutStarted, showCompletionDialog, location.pathname]);
+  
+  // Function to handle back button click
+  const handleBackButtonClick = () => {
+    if (isWorkoutStarted) {
+      // Show confirmation dialog instead of navigating
+      setShowNavigationDialog(true);
+    } else {
+      // If workout not started, just navigate back
+      navigate(-1);
+    }
+  };
+  
+  // Function to handle confirmation dialog responses
+  const handleNavigationConfirm = (confirmed: boolean) => {
+    setShowNavigationDialog(false);
+    
+    if (confirmed) {
+      // If workout is active, pause it before navigating
+      if (isWorkoutStarted && !isPaused) {
+        pauseWorkout();
+      }
+      
+      // Set the flag to prevent the popstate handler from triggering again
+      handlingHistoryAction.current = true;
+      
+      // Navigate back
+      navigate(-1);
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Custom toast notification */}
@@ -2783,7 +2900,7 @@ const WorkoutSessionPage: React.FC = () => {
           <div>
             {/* Back Button */}
             <div className="mb-3 flex justify-end">
-              <BackButton onClick={() => navigate(-1)} />
+              <BackButton onClick={handleBackButtonClick} />
             </div>
 
             {/* Workout Header */}
@@ -3400,6 +3517,34 @@ const WorkoutSessionPage: React.FC = () => {
         <RestTimerDisplay />
         <SpeechPermissionPrompt />
       </div>
+      
+      {/* Navigation Confirmation Dialog */}
+      {showNavigationDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+              Confirm Navigation
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Are you sure you want to navigate away from this page? Your workout progress will be saved but marked as incomplete.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => handleNavigationConfirm(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              >
+                Stay on Page
+              </button>
+              <button
+                onClick={() => handleNavigationConfirm(true)}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                Leave Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
