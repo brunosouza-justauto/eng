@@ -304,20 +304,22 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
               View available programs
               <FiChevronRight className="ml-1" />
             </Link>
-          ) : completionStatus.isCompleted ? (
-            <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-              Completed
-            </span>
-          ) : programTemplateId ? (
-            // Show the "View Plan" link regardless of whether it's a rest day or not
-            <Link
-              to={`/workout-plan/${programTemplateId}`}
-              className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm font-medium flex items-center"
-            >
-              View Plan
-              <FiExternalLink className="ml-1 w-3.5 h-3.5" />
-            </Link>
-          ) : null}
+          ) : (
+            <div className="flex items-center gap-2">
+              {completionStatus.isCompleted && (
+                <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                  Completed
+                </span>
+              )}
+              <Link
+                to={`/workout-plan/${programTemplateId}`}
+                className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm font-medium flex items-center"
+              >
+                View Plan
+                <FiExternalLink className="ml-1 w-3.5 h-3.5" />
+              </Link>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -414,19 +416,33 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
             </div>
           )}
           
-          <ButtonLink 
-            to={`/workout-session/${workoutData.id}`}
-            variant="primary"
-            color="indigo"
-            fullWidth
-            icon={
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+          {/* Stacked button layout (always two lines) */}
+          <div className="flex flex-col gap-2">
+            <ButtonLink 
+              to={`/workout-session/${workoutData.id}`}
+              variant="primary"
+              color="indigo"
+              fullWidth
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                </svg>
+              }
+            >
+              Start Workout
+            </ButtonLink>
+            
+            {/* Full-width History button */}
+            <Link
+              to="/workouts/history"
+              className="flex items-center justify-center w-full px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white rounded-md hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
               </svg>
-            }
-          >
-            Start Workout
-          </ButtonLink>
+              <span>View History</span>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -497,7 +513,7 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
                 
                 {/* Show different content based on completion status */}
                 {completionStatus.isCompleted ? (
-                  // Show only the completion message when workout is completed
+                  // Show completion message with both "View History" and "View Plan" buttons
                   <div className="text-center py-8">
                     <div className="flex items-center justify-center">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-green-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -515,15 +531,28 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
                         Completed at {new Date(completionStatus.completionTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}.
                       </p>
                     )}
-                    <Link
-                      to="/workouts/history"
-                      className="inline-flex items-center px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                      </svg>
-                      View Workout History
-                    </Link>
+                    <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-4">
+                      <Link
+                        to="/workouts/history"
+                        className="inline-flex items-center justify-center px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                        </svg>
+                        View Workout History
+                      </Link>
+                      {workoutData && (
+                        <Link
+                          to={`/workout-session/${workoutData.id}`}
+                          className="inline-flex items-center justify-center px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-md hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                          </svg>
+                          Start Again
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 ) : workoutData.exercise_instances.length > 0 ? (
                   // Show exercises and start button for non-completed workouts

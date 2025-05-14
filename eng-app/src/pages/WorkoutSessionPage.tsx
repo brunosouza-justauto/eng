@@ -774,6 +774,7 @@ const WorkoutSessionPage: React.FC = () => {
           if (profile?.user_id) {
             console.log('Loading previous workout data immediately on page load');
             fetchPreviousWorkoutData();
+            checkAndAutoResumeSession();
           }
         } else {
           setError('Workout not found');
@@ -1009,6 +1010,7 @@ const WorkoutSessionPage: React.FC = () => {
       const hasExistingSession = await checkForExistingSession();
       if (hasExistingSession) {
         // We'll handle this through the session dialog
+        showAnnouncementToast('Your workout session is already in progress');
         return;
       }
       
@@ -1125,6 +1127,96 @@ const WorkoutSessionPage: React.FC = () => {
       console.error('Error starting workout session:', err);
       setCompletionMessage('Failed to start workout session');
       setShowCompletionDialog(true);
+    }
+  };
+
+  // Add a new function to check for existing session and auto-resume if found
+  const checkAndAutoResumeSession = async () => {
+    if (!profile?.user_id || !workoutId) return;
+
+    try {
+      console.log('Checking for existing session for auto-resume');
+      
+      // First, clean up stale sessions (incomplete sessions older than 24 hours)
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      
+      const { error: cleanupError } = await supabase
+        .from('workout_sessions')
+        .delete()
+        .eq('user_id', profile.user_id)
+        .is('end_time', null)
+        .lt('start_time', oneDayAgo.toISOString());
+        
+      if (cleanupError) {
+        console.error('Error cleaning up stale sessions:', cleanupError);
+      } else {
+        console.log('Successfully cleaned up any stale sessions');
+      }
+      
+      // Look for incomplete sessions (no end_time) for this workout and user
+      const { data, error } = await supabase
+        .from('workout_sessions')
+        .select('id, start_time')
+        .eq('user_id', profile.user_id)
+        .eq('workout_id', workoutId)
+        .is('end_time', null)
+        .order('start_time', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking for existing session:', error);
+        return;
+      }
+
+      // If we found an incomplete session
+      if (data && data.length > 0) {
+        console.log('Found incomplete session to auto-resume:', data[0]);
+        
+        // Auto-resume the session
+        const sessionId = data[0].id;
+        const startTimeStr = data[0].start_time;
+        
+        // Store the start time in sessionStorage
+        sessionStorage.setItem('workout_session_start_time', startTimeStr);
+        console.log('Stored start_time in sessionStorage:', startTimeStr);
+        
+        // Set session ID for later use
+        setWorkoutSessionId(sessionId);
+        
+        // Try to load previous completed sets from this session
+        await loadCompletedSetsFromSession(sessionId);
+        
+        // Calculate elapsed time between original start time and now
+        const originalStartTime = new Date(startTimeStr);
+        const now = new Date();
+        const elapsedSeconds = Math.floor((now.getTime() - originalStartTime.getTime()) / 1000);
+        
+        console.log('Auto-resuming workout with elapsed time from original start:', elapsedSeconds, 'seconds');
+        
+        // Set the elapsed time to the time since the original start
+        pausedTimeRef.current = elapsedSeconds;
+        setElapsedTime(elapsedSeconds);
+        
+        // Skip the countdown and start immediately
+        startTimeRef.current = new Date();
+        setIsWorkoutStarted(true);
+        setIsPaused(false);
+        
+        // Show notification that we resumed the session
+        showAnnouncementToast('Resumed your previous workout session');
+        
+        // Start tracking elapsed time
+        timerRef.current = setInterval(() => {
+          if (startTimeRef.current) {
+            const now = new Date();
+            const elapsed = Math.floor((now.getTime() - startTimeRef.current.getTime()) / 1000) + pausedTimeRef.current;
+            setElapsedTime(elapsed);
+          }
+        }, 1000);
+      }
+    } catch (err) {
+      console.error('Error in checkAndAutoResumeSession:', err);
     }
   };
   

@@ -297,7 +297,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                 )}
                                 
                                 {searchQuery.trim() && searchResults.length > 0 && (
-                                    <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-md max-h-40 overflow-y-auto">
+                                    <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-md max-h-40 overflow-y-auto overflow-x-hidden touch-auto -webkit-overflow-scrolling-touch overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
                                         {searchResults.map((food) => (
                                             <div 
                                                 key={food.id}
