@@ -33,6 +33,9 @@ const WorkoutHistoryPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const profile = useSelector(selectProfile);
 
   // Toggle session expansion
@@ -271,6 +274,73 @@ const WorkoutHistoryPage: React.FC = () => {
     return `${weight} kg`;
   };
 
+  const deleteWorkoutSession = async (sessionId: string) => {
+    if (!sessionId) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      // First delete all completed exercise sets for this session
+      const { error: setsError } = await supabase
+        .from('completed_exercise_sets')
+        .delete()
+        .eq('workout_session_id', sessionId);
+      
+      if (setsError) {
+        console.error('Error deleting completed sets:', setsError);
+        throw setsError;
+      }
+      
+      // Then delete the workout session
+      const { error: sessionError } = await supabase
+        .from('workout_sessions')
+        .delete()
+        .eq('id', sessionId);
+      
+      if (sessionError) {
+        console.error('Error deleting workout session:', sessionError);
+        throw sessionError;
+      }
+      
+      // Remove the deleted session from state
+      setWorkoutSessions(prevSessions => 
+        prevSessions.filter(session => session.id !== sessionId)
+      );
+      
+      // Reset delete state
+      setSessionToDelete(null);
+      setShowDeleteConfirm(false);
+      
+      // Show success message
+      setError('Workout session deleted successfully');
+      setTimeout(() => setError(null), 3000);
+    } catch (err) {
+      console.error('Error in deleteWorkoutSession:', err);
+      setError('Failed to delete workout session');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Add handlers for delete operations
+
+  const handleDeleteClick = (sessionId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent expanding the session when clicking delete
+    setSessionToDelete(sessionId);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (sessionToDelete) {
+      await deleteWorkoutSession(sessionToDelete);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setSessionToDelete(null);
+    setShowDeleteConfirm(false);
+  };
+
   const renderWorkoutSessions = () => {
     if (workoutSessions.length === 0) {
       return (
@@ -287,19 +357,34 @@ const WorkoutHistoryPage: React.FC = () => {
             key={session.id} 
             className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition-shadow"
           >
-            <div className="flex justify-between items-start mb-2 cursor-pointer" onClick={() => toggleSessionExpansion(session.id)}>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                {session.workout_name || 'Unnamed Workout'}
-              </h3>
+            <div className="flex justify-between items-start mb-2">
+              <div 
+                className="flex items-start cursor-pointer flex-1" 
+                onClick={() => toggleSessionExpansion(session.id)}
+              >
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  {session.workout_name || 'Unnamed Workout'}
+                </h3>
+              </div>
               <div className="flex items-center">
                 <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">
                   {format(new Date(session.start_time), 'MMM d, yyyy')}
                 </span>
+                <button
+                  onClick={(e) => handleDeleteClick(session.id, e)}
+                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors mr-2"
+                  title="Delete workout session"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
                   className={`h-5 w-5 transition-transform duration-200 ${expandedSession === session.id ? 'transform rotate-180' : ''}`} 
                   viewBox="0 0 20 20" 
                   fill="currentColor"
+                  onClick={() => toggleSessionExpansion(session.id)}
                 >
                   <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
@@ -377,69 +462,191 @@ const WorkoutHistoryPage: React.FC = () => {
                     No detailed set information available
                   </p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                      <thead className="bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                          <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Exercise
-                          </th>
-                          <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Set
-                          </th>
-                          <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Weight
-                          </th>
-                          <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Reps
-                          </th>
-                          <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Details
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {session.completed_sets.map((set, index) => (
-                          <tr key={`${session.id}-set-${index}`} className={set.is_completed ? '' : 'opacity-50'}>
-                            <td className="px-3 py-2 whitespace-nowrap">
-                              {set.exercise_name}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap">
-                              {set.set_order}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap">
-                              {formatWeight(set.weight)}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap">
-                              {set.reps}
-                            </td>
-                            <td className="px-3 py-2">
-                              <div className="flex flex-col space-y-1">
-                                {set.each_side && (
-                                  <span className="px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full inline-flex items-center w-fit">
-                                    Each Side
+                  // First group sets by exercise name and deduplicate
+                  (() => {
+                    // Create a map to group sets by exercise and deduplicate by set_order
+                    const groupedSets = session.completed_sets.reduce((acc, set) => {
+                      if (!acc[set.exercise_name]) {
+                        acc[set.exercise_name] = new Map(); // Use a map to ensure unique set_order values
+                      }
+                      // Only store the set if we don't already have this set_order or if this one is completed and the existing one isn't
+                      const existingSet = acc[set.exercise_name].get(set.set_order);
+                      if (!existingSet || (set.is_completed && !existingSet.is_completed)) {
+                        acc[set.exercise_name].set(set.set_order, set);
+                      }
+                      return acc;
+                    }, {} as Record<string, Map<number, CompletedSet>>);
+
+                    // Convert the maps back to arrays for rendering
+                    const processedGroupedSets: Record<string, CompletedSet[]> = {};
+                    Object.entries(groupedSets).forEach(([exerciseName, setsMap]) => {
+                      processedGroupedSets[exerciseName] = Array.from(setsMap.values());
+                    });
+
+                    return (
+                      <div className="space-y-4">
+                        {Object.entries(processedGroupedSets).map(([exerciseName, sets], exerciseIndex) => (
+                          <div key={`${session.id}-exercise-${exerciseIndex}`} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                            <h5 className="font-medium text-sm mb-2 text-gray-900 dark:text-white flex items-center">
+                              <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-xs font-medium text-indigo-800 dark:text-indigo-300 mr-2">
+                                {exerciseIndex + 1}
+                              </span>
+                              {exerciseName}
+                              {sets[0]?.each_side && (
+                                <span className="ml-2 px-2 py-0.5 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 rounded-full">
+                                  Each Side
+                                </span>
+                              )}
+                              {sets[0]?.tempo && (
+                                <span className="ml-2 px-2 py-0.5 text-xs bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 rounded-full flex items-center">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Tempo: {sets[0].tempo}
+                                </span>
+                              )}
+                            </h5>
+
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full bg-white dark:bg-gray-800 rounded-md overflow-hidden shadow-sm">
+                                <thead className="bg-gray-100 dark:bg-gray-700">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Set
+                                    </th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Weight
+                                    </th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Reps
+                                    </th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Status
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                  {sets.sort((a, b) => a.set_order - b.set_order).map((set) => {
+                                    // Verify that all needed properties exist (to avoid [object Object] display)
+                                    if (!set || typeof set !== 'object') return null;
+                                    
+                                    return (
+                                      <tr key={`${session.id}-${exerciseName}-set-${set.set_order}`}
+                                        className={`transition-colors ${!set.is_completed ? 'text-gray-400 dark:text-gray-500' : ''}`}
+                                      >
+                                        <td className="px-3 py-2">
+                                          {set.set_order}
+                                        </td>
+                                        <td className="px-3 py-2 font-medium">
+                                          {formatWeight(set.weight || '')}
+                                        </td>
+                                        <td className="px-3 py-2 font-medium">
+                                          {set.reps ?? 0}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                          {set.is_completed ? (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                              <svg className="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                              </svg>
+                                              Completed
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                              <svg className="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                              </svg>
+                                              Skipped
+                                            </span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                            
+                            {/* Add a summary for the exercise */}
+                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                              {(() => {
+                                const completedSets = sets.filter(s => s.is_completed);
+                                if (completedSets.length === 0) return "No sets completed";
+                                
+                                // Group by weight and reps for a concise summary
+                                const summary = completedSets.reduce((acc, set) => {
+                                  const key = `${set.weight}-${set.reps}`;
+                                  if (!acc[key]) {
+                                    acc[key] = { weight: set.weight, reps: set.reps, count: 0 };
+                                  }
+                                  acc[key].count++;
+                                  return acc;
+                                }, {} as Record<string, { weight: string, reps: number, count: number }>);
+                                
+                                return Object.values(summary).map((group, i) => (
+                                  <span key={i} className="mr-2">
+                                    {group.count > 1 ? `${group.count}×` : ""}{group.reps} reps @ {formatWeight(group.weight)}
                                   </span>
-                                )}
-                                {set.tempo && (
-                                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 text-xs rounded-full inline-flex items-center w-fit">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    Tempo: {set.tempo}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
+                                )).join(" | ");
+                              })()}
+                            </div>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      </div>
+                    );
+                  })()
                 )}
               </div>
             )}
           </div>
         ))}
+      </div>
+    );
+  };
+
+  // Add the delete confirmation dialog
+  const DeleteConfirmationDialog = () => {
+    if (!showDeleteConfirm) return null;
+    
+    const session = workoutSessions.find(s => s.id === sessionToDelete);
+    const sessionName = session?.workout_name || 'this workout session';
+    
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            Delete Workout Session
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Are you sure you want to delete {sessionName}? This action cannot be undone.
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={handleCancelDelete}
+              disabled={isDeleting}
+              className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center"
+            >
+              {isDeleting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </button>
+          </div>
+        </div>
       </div>
     );
   };
@@ -464,6 +671,8 @@ const WorkoutHistoryPage: React.FC = () => {
       ) : (
         renderWorkoutSessions()
       )}
+      
+      <DeleteConfirmationDialog />
     </div>
   );
 };
