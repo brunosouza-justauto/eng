@@ -803,3 +803,166 @@ When working with the Supabase client and mapping values for database operations
 - Error states with user-friendly messages
 - Optimistic UI updates for immediate feedback
 - Debounced inputs to prevent excessive API calls 
+
+# Timer Components and Patterns
+
+## Timer System Architecture
+
+### Key Components
+- `RestTimerDisplay`: Fixed position component for displaying exercise rest timers
+- `CustomCountdownDisplay`: Independent timer component for general timing needs
+- `IsolatedRestTimeDialog`: Modal dialog for setting custom rest times
+- `IsolatedCountdownDialog`: Modal dialog for configuring countdown timers
+
+### Timer Isolation Patterns
+- Timer dialogs are defined outside main components to prevent re-renders
+- Modal dialogs use `z-index: 99999` to ensure they appear above all other UI elements
+- Timers pause automatically when related dialogs are opened
+- Input elements autofocus when dialogs open for immediate keyboard input
+
+### Timer State Management
+```typescript
+// Example timer state structure
+const [customCountdown, setCustomCountdown] = useState<{
+  timeLeft: number;
+  totalTime: number;
+  isActive: boolean;
+} | null>(null);
+```
+
+### Timer Feedback Patterns
+- Visual: Color changes (blue → red) for last 5 seconds
+- Audio: Different tones for countdown vs. completion
+- Haptic: Vibration patterns for mobile devices using `navigator.vibrate()`
+- Toast: Visual notifications for timer events
+
+### Common Timer Methods
+```typescript
+// Pause/resume pattern
+const pauseResumeTimer = () => {
+  if (timer.isActive) {
+    // Clear interval and mark as paused
+    clearInterval(timerRef.current);
+    timerRef.current = null;
+    setTimer(prev => prev ? { ...prev, isActive: false } : null);
+  } else {
+    // Mark as active and restart interval
+    setTimer(prev => prev ? { ...prev, isActive: true } : null);
+    startTimerInterval();
+  }
+};
+
+// Timer cleanup pattern
+useEffect(() => {
+  return () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+}, []);
+```
+
+# Workout History Patterns
+
+## Data Organization
+
+### Set Grouping and Deduplication
+```typescript
+// Pattern for grouping and deduplicating sets by exercise
+const groupedSets = session.completed_sets.reduce((acc, set) => {
+  if (!acc[set.exercise_name]) {
+    acc[set.exercise_name] = new Map(); // Map ensures unique set_order
+  }
+  // Keep completed sets over non-completed ones for same set_order
+  const existingSet = acc[set.exercise_name].get(set.set_order);
+  if (!existingSet || (set.is_completed && !existingSet.is_completed)) {
+    acc[set.exercise_name].set(set.set_order, set);
+  }
+  return acc;
+}, {} as Record<string, Map<number, CompletedSet>>);
+
+// Convert maps back to arrays for rendering
+const processedGroupedSets: Record<string, CompletedSet[]> = {};
+Object.entries(groupedSets).forEach(([exerciseName, setsMap]) => {
+  processedGroupedSets[exerciseName] = Array.from(setsMap.values());
+});
+```
+
+### Set Summary Generation
+```typescript
+// Pattern for generating concise set summaries
+const summary = completedSets.reduce((acc, set) => {
+  const key = `${set.weight}-${set.reps}`;
+  if (!acc[key]) {
+    acc[key] = { weight: set.weight, reps: set.reps, count: 0 };
+  }
+  acc[key].count++;
+  return acc;
+}, {} as Record<string, { weight: string, reps: number, count: number }>);
+
+// Convert summary to readable format
+return Object.values(summary).map((group, i) => (
+  <span key={i} className="mr-2">
+    {group.count > 1 ? `${group.count}×` : ""}{group.reps} reps @ {formatWeight(group.weight)}
+  </span>
+)).join(" | ");
+```
+
+## Data Deletion Patterns
+
+### Cascade Deletion
+```typescript
+// Pattern for cascading deletion of related records
+const deleteWorkoutSession = async (sessionId: string) => {
+  // First delete child records
+  const { error: setsError } = await supabase
+    .from('completed_exercise_sets')
+    .delete()
+    .eq('workout_session_id', sessionId);
+  
+  // Then delete parent record
+  const { error: sessionError } = await supabase
+    .from('workout_sessions')
+    .delete()
+    .eq('id', sessionId);
+    
+  // Update local state to reflect deletion
+  setWorkoutSessions(prevSessions => 
+    prevSessions.filter(session => session.id !== sessionId)
+  );
+};
+```
+
+### Confirmation Dialog Pattern
+```tsx
+// Pattern for confirmation dialogs
+const DeleteConfirmationDialog = () => {
+  if (!showDeleteConfirm) return null;
+  
+  const session = workoutSessions.find(s => s.id === sessionToDelete);
+  const sessionName = session?.workout_name || 'this workout session';
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+        <h3 className="text-lg font-medium mb-4">Delete Confirmation</h3>
+        <p className="mb-6">Are you sure you want to delete {sessionName}?</p>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={handleCancelDelete}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirmDelete}
+            className="px-4 py-2 bg-red-600 text-white rounded-md"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}; 

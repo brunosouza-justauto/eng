@@ -327,6 +327,40 @@ We've been enhancing the meal planning and nutrition tracking features of the EN
 - Added tempo indicator with clock icon for exercises with specific tempo requirements
 - Enhanced workout history page to display "Each Side" and tempo information
 
+### Workout Session UI Enhancements
+- Added custom rest time override functionality that allows athletes to set a specific rest time for all exercises
+- Created countdown timer functionality for timed activities like warmups or stretching independent of the exercise rest timer
+- Improved the position of notifications to prevent overlapping with the rest timer
+- Reordered weight and reps columns in the exercise sets table to put weight before reps, matching common weightlifting notation
+- Enhanced the countdown timer interface with progress bar, pause/resume controls, and visual feedback
+- Added countdown buttons to individual exercise cards for easier access during workouts
+- Fixed issues with timer interfaces refreshing too quickly during user input
+
+### Workout History Improvements
+- Completely redesigned the workout history view to group completed sets by exercise
+- Added visual exercise cards with clear exercise names and set details
+- Implemented intelligent deduplication of sets to prevent duplicate display
+- Added concise exercise summaries showing patterns (e.g., "3× 10 reps @ 20kg | 8 reps @ 25kg")
+- Enhanced visual hierarchy with exercise numbering and consistent styling
+- Improved status indicators for completed and skipped sets
+- Added ability to delete workout sessions with confirmation dialog
+- Implemented cascade deletion that removes both session data and associated completed sets
+
+### User Experience Refinements
+- Added haptic feedback (vibration) for mobile devices during countdown events
+- Enhanced audio alerts with customized sounds for different timer events
+- Improved visual indication of active timers with color changes and animations
+- Added fallback mechanisms for handling missing or malformed data in history views
+- Implemented progress indicators during deletion operations
+- Enhanced confirmation dialogs to clearly identify the session being deleted
+
+### Code Quality Improvements
+- Added proper error handling for workout session deletion
+- Implemented data validation to prevent display of malformed set data
+- Enhanced state management for timer components
+- Fixed various TypeScript errors and improved type safety
+- Improved component isolation to prevent unwanted re-renders
+
 ## Active Development Focus
 
 ### Current Focus
