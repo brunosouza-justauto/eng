@@ -309,7 +309,8 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     const [page, setPage] = useState(1);
     const [totalResults, setTotalResults] = useState(0);
     const [hasMore, setHasMore] = useState(false);
-    const [showFilters, setShowFilters] = useState(false);
+    const [showFilters, setShowFilters] = useState<boolean>(false);
+    const [showFemaleExercises, setShowFemaleExercises] = useState<boolean>(false);
     const [highlightSearchPanel, setHighlightSearchPanel] = useState(false);
     
     // Add state for tracking if all exercises are expanded
@@ -330,7 +331,8 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     // Add state to track if we're hovering over any drop zone
     const [hoveringIndex, setHoveringIndex] = useState<number | null>(null);
     // Add state to track if any drag operation is in progress
-    const [isDraggingAny, setIsDraggingAny] = useState(false);
+    const [isDraggingAny, setIsDraggingAny] = useState<boolean>(false);
+    const [draggedOverIndex, setDraggedOverIndex] = useState<number | null>(null);
 
     const methods = useForm<WorkoutFormData>({
         defaultValues: {
@@ -498,9 +500,22 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                 secondaryMuscles: apiExercise.muscles || []
             })) as unknown as DatabaseExercise[];
             
-            setSearchResults(convertedResults);
-            setTotalResults(response.count || 0);
-            setHasMore(response.next !== null);
+            // Filter for female exercises if the option is selected
+            let filteredResults = convertedResults;
+            if (showFemaleExercises) {
+
+                console.log('Filtered results:', filteredResults);
+
+                filteredResults = convertedResults.filter(exercise => 
+                    exercise.name.toLowerCase().includes('female')
+                );
+
+                console.log('Filtered results:', filteredResults);
+            }
+            
+            setSearchResults(filteredResults);
+            setTotalResults(showFemaleExercises ? filteredResults.length : (response.count || 0));
+            setHasMore(showFemaleExercises ? false : (response.next !== null));
         } catch (err) {
             console.error("Error searching exercises:", err);
             setError("Failed to search exercises. Please try again later.");
@@ -508,12 +523,12 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         } finally {
             setIsLoading(false);
         }
-    }, [searchQuery, selectedCategory, page]);
+    }, [searchQuery, selectedCategory, page, showFemaleExercises]);
     
     // Search exercises with debounce
     useEffect(() => {
         // Only search if query is provided or a category is selected
-        if (!searchQuery && selectedCategory === null) {
+        if (!searchQuery && selectedCategory === null && !showFemaleExercises) {
             // Load initial exercises without specific search
             const timer = setTimeout(() => {
                 searchExercisesFromAPI();
@@ -526,7 +541,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         }, 500);
         
         return () => clearTimeout(timer);
-    }, [searchQuery, selectedCategory, page, searchExercisesFromAPI]);
+    }, [searchQuery, selectedCategory, page, searchExercisesFromAPI, showFemaleExercises]);
     
     // Initial load of exercises
     useEffect(() => {
@@ -548,9 +563,17 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                     secondaryMuscles: apiExercise.muscles || []
                 })) as unknown as DatabaseExercise[];
                 
-                setSearchResults(convertedResults);
-                setTotalResults(response.count);
-                setHasMore(response.next !== null);
+                // Filter for female exercises if the option is selected
+                let filteredResults = convertedResults;
+                if (showFemaleExercises) {
+                    filteredResults = convertedResults.filter(exercise => 
+                        exercise.name.toLowerCase().includes('(female)')
+                    );
+                }
+                
+                setSearchResults(filteredResults);
+                setTotalResults(showFemaleExercises ? filteredResults.length : response.count);
+                setHasMore(showFemaleExercises ? false : (response.next !== null));
             } catch (err) {
                 console.error("Error loading initial exercises:", err);
                 setError("Failed to load exercises. Please try again later.");
@@ -560,7 +583,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         };
         
         loadInitialExercises();
-    }, []);
+    }, [showFemaleExercises]);
     
     // Get day name
     const getDayName = (day: string | null): string => {
@@ -1036,6 +1059,12 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     const handleCategoryChange = (categoryId: number | null) => {
         setSelectedCategory(categoryId);
         setPage(1); // Reset to first page on category change
+    };
+    
+    // Function to handle female exercises filter toggle
+    const handleFemaleExercisesToggle = () => {
+        setShowFemaleExercises(!showFemaleExercises);
+        setPage(1); // Reset to first page when filter changes
     };
     
     // Function to handle pagination
@@ -1611,7 +1640,6 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                     <div className="p-4 border-b dark:border-gray-700">
                         <h3 className="mb-3 font-semibold dark:text-white">Exercises</h3>
                         <div className="flex items-center px-3 py-2 mb-3 bg-gray-100 rounded-md dark:bg-gray-700">
-                            <FiSearch className="mr-2 text-gray-500 dark:text-gray-400" />
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                     <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1665,6 +1693,21 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                             </label>
                                         </div>
                                     ))}
+                                    
+                                    <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                                        <div className="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                id="female-exercises"
+                                                checked={showFemaleExercises}
+                                                onChange={handleFemaleExercisesToggle}
+                                                className="mr-2"
+                                            />
+                                            <label htmlFor="female-exercises" className="text-sm dark:text-white">
+                                                Female Exercises
+                                            </label>
+                                        </div>
+                                    </div>
                     </div>
                 )}
             </div>
