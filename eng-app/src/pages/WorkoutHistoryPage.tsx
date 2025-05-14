@@ -96,14 +96,15 @@ const WorkoutHistoryPage: React.FC = () => {
           tempo?: string | null;
         } | null;
         
+        // Ensure we have proper values for all properties
         return {
           exercise_name: exerciseInstances?.exercise_name || 'Unknown Exercise',
-          set_order: set.set_order,
-          weight: set.weight || '',
-          reps: set.reps,
-          is_completed: set.is_completed,
-          each_side: exerciseInstances?.each_side || false,
-          tempo: exerciseInstances?.tempo || null
+          set_order: Number(set.set_order) || 0,
+          weight: String(set.weight || ''),
+          reps: Number(set.reps) || 0,
+          is_completed: Boolean(set.is_completed),
+          each_side: Boolean(exerciseInstances?.each_side),
+          tempo: exerciseInstances?.tempo ? String(exerciseInstances.tempo) : null
         };
       });
 
@@ -491,7 +492,7 @@ const WorkoutHistoryPage: React.FC = () => {
                               <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-xs font-medium text-indigo-800 dark:text-indigo-300 mr-2">
                                 {exerciseIndex + 1}
                               </span>
-                              {exerciseName}
+                              <span>{exerciseName}</span>
                               {sets[0]?.each_side && (
                                 <span className="ml-2 px-2 py-0.5 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 rounded-full">
                                   Each Side
@@ -530,21 +531,27 @@ const WorkoutHistoryPage: React.FC = () => {
                                     // Verify that all needed properties exist (to avoid [object Object] display)
                                     if (!set || typeof set !== 'object') return null;
                                     
+                                    // Ensure all set properties are properly stringified or formatted
+                                    const setOrder = typeof set.set_order === 'number' ? set.set_order : '';
+                                    const weight = typeof set.weight === 'string' ? set.weight : '';
+                                    const reps = typeof set.reps === 'number' ? set.reps : 0;
+                                    const isCompleted = Boolean(set.is_completed);
+                                    
                                     return (
-                                      <tr key={`${session.id}-${exerciseName}-set-${set.set_order}`}
-                                        className={`transition-colors ${!set.is_completed ? 'text-gray-400 dark:text-gray-500' : ''}`}
+                                      <tr key={`${session.id}-${exerciseName}-set-${setOrder}`}
+                                        className={`transition-colors ${!isCompleted ? 'text-gray-400 dark:text-gray-500' : ''}`}
                                       >
                                         <td className="px-3 py-2">
-                                          {set.set_order}
+                                          {setOrder}
                                         </td>
                                         <td className="px-3 py-2 font-medium">
-                                          {formatWeight(set.weight || '')}
+                                          {formatWeight(weight)}
                                         </td>
                                         <td className="px-3 py-2 font-medium">
-                                          {set.reps ?? 0}
+                                          {reps}
                                         </td>
                                         <td className="px-3 py-2">
-                                          {set.is_completed ? (
+                                          {isCompleted ? (
                                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
                                               <svg className="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -583,6 +590,7 @@ const WorkoutHistoryPage: React.FC = () => {
                                   return acc;
                                 }, {} as Record<string, { weight: string, reps: number, count: number }>);
                                 
+                                // Use join with a string delimiter to prevent [object Object] from appearing
                                 return Object.values(summary).map((group, i) => (
                                   <span key={i} className="mr-2">
                                     {group.count > 1 ? `${group.count}×` : ""}{group.reps} reps @ {formatWeight(group.weight)}
