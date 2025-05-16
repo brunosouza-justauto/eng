@@ -33,6 +33,34 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
     date,
     dayType
 }) => {
+    // Add the style for mobile scrolling
+    const mobileScrollStyle = `
+        .mobile-scroll-container {
+            -webkit-overflow-scrolling: touch;
+            overflow-y: scroll;
+            touch-action: pan-y;
+            scroll-behavior: smooth;
+            position: relative;
+            z-index: 10;
+        }
+        
+        @media (max-width: 640px) {
+            .mobile-scroll-container {
+                max-height: 200px !important;
+                padding-bottom: 40px; /* Add padding to ensure last items are visible */
+            }
+            
+            .mobile-scroll-container > div {
+                padding: 10px; /* Increase tap target size */
+            }
+        }
+        
+        /* Prevent parent scrolling when touching the results container */
+        .mobile-scroll-container:focus {
+            outline: none;
+        }
+    `;
+
     // Get user from Redux store
     const user = useSelector(selectUser);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -185,6 +213,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <style dangerouslySetInnerHTML={{ __html: mobileScrollStyle }} />
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
                 <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -297,7 +326,11 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                 )}
                                 
                                 {searchQuery.trim() && searchResults.length > 0 && (
-                                    <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-md max-h-40 overflow-y-auto overflow-x-hidden touch-auto -webkit-overflow-scrolling-touch overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                    <div 
+                                        className="mt-2 border border-gray-200 dark:border-gray-700 rounded-md max-h-60 sm:max-h-40 overflow-y-scroll overflow-x-hidden mobile-scroll-container" 
+                                        style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
+                                        tabIndex={0}
+                                    >
                                         {searchResults.map((food) => (
                                             <div 
                                                 key={food.id}

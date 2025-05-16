@@ -306,11 +306,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
             </Link>
           ) : (
             <div className="flex items-center gap-2">
-              {completionStatus.isCompleted && (
-                <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                  Completed
-                </span>
-              )}
               <Link
                 to={`/workout-plan/${programTemplateId}`}
                 className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm font-medium flex items-center"

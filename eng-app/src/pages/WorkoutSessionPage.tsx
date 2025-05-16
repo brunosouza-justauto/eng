@@ -25,6 +25,15 @@ const sanitizeText = (text: string | null | undefined): string | null => {
     .replace(/Ã¢â‚¬Â/g, "\"");
 };
 
+// Add this helper function after the sanitizeText function (near the top of the file)
+// Helper function to clean exercise names from gender and version indicators
+const cleanExerciseName = (name: string): string => {
+  // Remove gender indicators, version numbers, and other common parenthetical notes
+  return name.replace(/\s*\((male|female|version \d+|v\d+)\)\s*/gi, ' ')
+            .replace(/\s+/g, ' ')  // Remove multiple spaces
+            .trim();
+};
+
 // Define types for the component
 interface ExerciseInstanceData {
   id: string;
@@ -2213,24 +2222,47 @@ const WorkoutSessionPage: React.FC = () => {
     showAnnouncementToast('Voice feedback disabled');
   };
 
+  // Add a new state variable for tracking if the voice prompt has been dismissed
+  const [speechPromptDismissed, setSpeechPromptDismissed] = useState<boolean>(false);
+
   // Component to prompt user for speech permission
   const SpeechPermissionPrompt = () => {
-    // Only show when workout is started and speech isn't enabled yet
-    if (!isWorkoutStarted || isSpeechEnabled || !window.speechSynthesis) return null;
+    // Only show when workout is started, speech isn't enabled yet, and the prompt hasn't been dismissed
+    if (!isWorkoutStarted || isSpeechEnabled || !window.speechSynthesis || speechPromptDismissed) return null;
+
+    // Function to dismiss the prompt
+    const dismissPrompt = () => {
+      setSpeechPromptDismissed(true);
+    };
 
     return (
-      <div className="fixed top-5 right-5 z-50 bg-indigo-600 text-white p-4 rounded-lg shadow-lg max-w-sm">
-        <div className="flex flex-col items-center">
-          <h3 className="font-medium text-lg mb-2">Enable Voice Feedback?</h3>
-          <p className="text-sm mb-3 text-center">
-            Click the button below to enable voice announcements for exercises and rest timers.
-          </p>
-          <button
-            onClick={enableSpeech}
-            className="px-4 py-2 bg-white text-indigo-600 rounded-md font-medium hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-white"
-          >
-            Enable Voice
-          </button>
+      <div className="fixed inset-y-0 right-5 z-50 flex items-center">
+        <div className="bg-indigo-600 text-white p-4 rounded-lg shadow-lg max-w-sm">
+          <div className="relative">
+            {/* Add close button in the top-right corner */}
+            <button 
+              onClick={dismissPrompt}
+              className="absolute -top-2 -right-2 bg-white text-indigo-600 rounded-full p-1 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white"
+              aria-label="Dismiss notification"
+            >
+              <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            
+            <div className="flex flex-col items-center">
+              <h3 className="font-medium text-lg mb-2">Enable Voice Feedback?</h3>
+              <p className="text-sm mb-3 text-center">
+                Click the button below to enable voice announcements for exercises and rest timers.
+              </p>
+              <button
+                onClick={enableSpeech}
+                className="px-4 py-2 bg-white text-indigo-600 rounded-md font-medium hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-white"
+              >
+                Enable Voice
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -2261,7 +2293,7 @@ const WorkoutSessionPage: React.FC = () => {
         const setType = nextSet.setType ? getSetTypeName(nextSet.setType) : 'Regular';
         
         return {
-          exerciseName: currentExercise.exercise_name,
+          exerciseName: cleanExerciseName(currentExercise.exercise_name),
           reps: nextSet.reps,
           setType,
           isSameExercise: true,
@@ -2281,16 +2313,16 @@ const WorkoutSessionPage: React.FC = () => {
             const setType = firstSet.setType ? getSetTypeName(firstSet.setType) : 'Regular';
             
             return {
-              exerciseName: nextExercise.exercise_name,
+              exerciseName: cleanExerciseName(nextExercise.exercise_name),
               reps: firstSet.reps,
               setType,
               isSameExercise: false,
               exerciseDbId: nextExercise.exercise_db_id
             };
           } else {
-            // Fall back to general exercise data
+            // Fall back to general exercise data if sets aren't initialized
             return {
-              exerciseName: nextExercise.exercise_name,
+              exerciseName: cleanExerciseName(nextExercise.exercise_name),
               reps: nextExercise.reps || 'Unknown',
               setType: nextExercise.set_type ? getSetTypeName(nextExercise.set_type) : 'Regular',
               isSameExercise: false,
@@ -2376,23 +2408,29 @@ const WorkoutSessionPage: React.FC = () => {
               ></div>
             </div>
             
-            {/* Next exercise info - inline on mobile */}
+            {/* Next exercise info - improved layout with grid for consistent alignment */}
             {nextExerciseInfo && (
-              <div className="flex items-center justify-between text-xs text-white/90 py-1">
-                <div className="flex items-center">
-                  <span className="mr-2">
+              <div className="grid grid-cols-12 gap-2 text-xs text-white/90 py-1">
+                {/* Left column - Next Set/Exercise Label */}
+                <div className="col-span-3 sm:col-span-2 flex items-center">
+                  <span className="whitespace-nowrap">
                     {nextExerciseInfo.isSameExercise ? 'Next Set:' : 'Next Exercise:'}
                   </span>
-                  <span className="font-medium text-white">
+                </div>
+                
+                {/* Middle column - Exercise Name (with truncation for very long names) */}
+                <div className="col-span-5 sm:col-span-6 flex items-center">
+                  <span className="font-medium text-white truncate max-w-full">
                     {nextExerciseInfo.exerciseName}
                   </span>
                 </div>
                 
-                <div className="flex space-x-2">
-                  <span className="px-2 py-0.5 bg-white/20 rounded-full">
+                {/* Right column - Set Type and Reps Badges (always on the same line) */}
+                <div className="col-span-4 sm:col-span-4 flex items-center justify-end space-x-2 whitespace-nowrap">
+                  <span className="px-2 py-0.5 bg-white/20 rounded-full inline-block">
                     {nextExerciseInfo.setType}
                   </span>
-                  <span className="px-2 py-0.5 bg-green-500/30 rounded-full">
+                  <span className="px-2 py-0.5 bg-green-500/30 rounded-full inline-block">
                     {nextExerciseInfo.reps} reps
                   </span>
                 </div>
@@ -3332,13 +3370,44 @@ const WorkoutSessionPage: React.FC = () => {
     );
   });
 
+  // Add a new state variable to track if the description is expanded
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState<boolean>(false);
+
+  // Add a new state to track expanded notes (near the other state declarations, around line 3360)
+  const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
+
+  // Add a helper function to truncate text to two lines (after the isDescriptionExpanded state)
+  const truncateNotes = (notes: string, maxLength = 120): string => {
+    if (!notes || notes.length <= maxLength) return notes;
+    
+    // Simple approach: truncate to a character limit that approximates two lines
+    return notes.substring(0, maxLength) + '...';
+  };
+
+  // Toggle function for notes expansion (near the toggleDemonstration function)
+  const toggleNotesExpansion = (exerciseId: string) => {
+    setExpandedNotes(prev => ({
+      ...prev,
+      [exerciseId]: !prev[exerciseId]
+    }));
+  };
+
   return (
     <div className="relative min-h-screen bg-gray-50 dark:bg-gray-900">     
       {/* Absolute positioned toast container that doesn't interfere with layout */}
       {toastMessage && (
-        <div className="fixed inset-x-0 top-28 flex items-start justify-center pt-0 pointer-events-none z-[9999]">
-          <div className="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg max-w-[90%]">
-            {toastMessage}
+        <div className="fixed inset-x-0 top-28 flex items-start justify-center pt-0 z-[9999]">
+          <div className="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg max-w-[90%] flex items-center">
+            <span className="pointer-events-none">{toastMessage}</span>
+            <button 
+              className="ml-3 text-white/80 hover:text-white focus:outline-none"
+              onClick={() => setToastMessage(null)}
+              aria-label="Dismiss notification"
+            >
+              <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
           </div>
         </div>
       )}
@@ -3387,14 +3456,39 @@ const WorkoutSessionPage: React.FC = () => {
 
             {/* Workout Header */}
             <div className="mb-4">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col space-y-2">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{workout.name}</h1>
+                  
                   {workout.description && (
-                    <p className="mt-1 text-gray-600 dark:text-gray-400">{workout.description}</p>
+                    <div className="mt-1">
+                      <p className="text-gray-600 dark:text-gray-400 text-sm">
+                        {isDescriptionExpanded ? workout.description : truncateNotes(workout.description, 80)}
+                      </p>
+                      
+                      {workout.description.length > 80 && (
+                        <div 
+                          onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                          className="flex items-center text-indigo-600 dark:text-indigo-400 cursor-pointer hover:text-indigo-800 dark:hover:text-indigo-500 text-xs font-medium mt-1"
+                        >
+                          <span className="mr-1">{isDescriptionExpanded ? 'Show less' : 'See more'}</span>
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className={`h-4 w-4 transition-transform ${isDescriptionExpanded ? 'transform rotate-180' : ''}`} 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-                <div className="flex space-x-2">
+                
+                {/* Action buttons - moved below the title */}
+                <div className="flex flex-wrap gap-2">
                   {isWorkoutStarted && (
                     <button
                       onClick={openRestTimeDialog}
@@ -3422,7 +3516,7 @@ const WorkoutSessionPage: React.FC = () => {
                       {isSpeechEnabled ? (
                         <>
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828a1 1 0 010-1.415z" clipRule="evenodd" />
+                            <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071a1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243a1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828a1 1 0 010-1.415z" clipRule="evenodd" />
                           </svg>
                           Voice On
                         </>
@@ -3580,7 +3674,7 @@ const WorkoutSessionPage: React.FC = () => {
                                           .length + idx + 1}
                                       </span>
                                       <span className="text-gray-800 dark:text-white">
-                                        {exercise.exercise_name}
+                                        {cleanExerciseName(exercise.exercise_name)}
                                         {/* Add "Each Side" indicator */}
                                         {exercise.each_side && (
                                           <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full">
@@ -3592,9 +3686,19 @@ const WorkoutSessionPage: React.FC = () => {
                                     
                                     {/* Exercise notes */}
                                     {exercise.notes && (
-                                      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
-                                        {exercise.notes}
-                                      </p>
+                                      <div className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
+                                        <p>
+                                          {expandedNotes[exercise.id] ? exercise.notes : truncateNotes(exercise.notes)}
+                                        </p>
+                                        {exercise.notes.length > 120 && (
+                                          <button 
+                                            onClick={() => toggleNotesExpansion(exercise.id)}
+                                            className="text-indigo-600 dark:text-indigo-400 hover:underline mt-1 text-xs font-medium"
+                                          >
+                                            {expandedNotes[exercise.id] ? 'Show less' : 'See more'}
+                                          </button>
+                                        )}
+                                      </div>
                                     )}
                                     
                                     {/* Tempo display */}
@@ -3722,6 +3826,7 @@ const WorkoutSessionPage: React.FC = () => {
                                                     set.weight === 'BW' ? 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-medium' : ''
                                                   }`}
                                                   readOnly={set.weight === 'BW'}
+                                                  inputMode="decimal"
                                                 />
                                               </div>
                                             </td>
@@ -3799,7 +3904,7 @@ const WorkoutSessionPage: React.FC = () => {
                                   .length + 1}
                             </span>
                             <span className="text-gray-800 dark:text-white">
-                              {exercise.exercise_name}
+                              {cleanExerciseName(exercise.exercise_name)}
                               {/* Add "Each Side" indicator */}
                               {exercise.each_side && (
                                 <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full">
@@ -3811,9 +3916,19 @@ const WorkoutSessionPage: React.FC = () => {
                           
                           {/* Exercise notes */}
                           {exercise.notes && (
-                            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
-                              {exercise.notes}
-                            </p>
+                            <div className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
+                              <p>
+                                {expandedNotes[exercise.id] ? exercise.notes : truncateNotes(exercise.notes)}
+                              </p>
+                              {exercise.notes.length > 120 && (
+                                <button 
+                                  onClick={() => toggleNotesExpansion(exercise.id)}
+                                  className="text-indigo-600 dark:text-indigo-400 hover:underline mt-1 text-xs font-medium"
+                                >
+                                  {expandedNotes[exercise.id] ? 'Show less' : 'See more'}
+                                </button>
+                              )}
+                            </div>
                           )}
                           
                           {/* Tempo display */}
@@ -3941,6 +4056,7 @@ const WorkoutSessionPage: React.FC = () => {
                                           set.weight === 'BW' ? 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-medium' : ''
                                         }`}
                                         readOnly={set.weight === 'BW'}
+                                        inputMode="decimal"
                                       />
                                     </div>
                                   </td>
