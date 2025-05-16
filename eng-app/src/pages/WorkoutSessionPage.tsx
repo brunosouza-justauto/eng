@@ -1664,29 +1664,53 @@ const WorkoutSessionPage: React.FC = () => {
         
         // Only validate weight when trying to mark a set as completed, not when unchecking
         if (newIsCompleted && currentWeight === '') {
-          // Show notification
-          showAnnouncementToast("Please enter a weight value or set to Bodyweight (BW) before marking as complete.");
-          return prevSets; // Return previous state without changes
-        }
-        
-        // If user is unchecking a set and there's an active rest timer for this set,
-        // stop the timer (user doesn't want to rest after an incomplete set)
-        if (!newIsCompleted && activeRestTimer && 
-            activeRestTimer.exerciseId === exerciseId && 
-            activeRestTimer.setIndex === setIndex) {
-          // Clear the timer interval
-          if (timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current);
-            timerIntervalRef.current = null;
+          // Check if there's a previous set with weight that we can copy
+          let previousWeight = '';
+          
+          // Look for the most recent completed set of this exercise
+          for (let i = setIndex - 1; i >= 0; i--) {
+            if (exerciseSets[i] && exerciseSets[i].weight) {
+              previousWeight = exerciseSets[i].weight;
+              break;
+            }
           }
-          // Reset the timer state
-          setActiveRestTimer(null);
+          
+          if (previousWeight) {
+            // Copy the previous weight to this set
+            exerciseSets[setIndex] = {
+              ...exerciseSets[setIndex],
+              weight: previousWeight,
+              isCompleted: newIsCompleted
+            };
+            
+            // Show notification that weight was copied
+            showAnnouncementToast(`Using previous weight: ${previousWeight}`);
+          } else {
+            // No previous weight found, show the original error
+            showAnnouncementToast("Please enter a weight value or set to Bodyweight (BW) before marking as complete.");
+            return prevSets; // Return previous state without changes
+          }
+        } else {
+          // If user is unchecking a set and there's an active rest timer for this set,
+          // stop the timer (user doesn't want to rest after an incomplete set)
+          if (!newIsCompleted && activeRestTimer && 
+              activeRestTimer.exerciseId === exerciseId && 
+              activeRestTimer.setIndex === setIndex) {
+            // Clear the timer interval
+            if (timerIntervalRef.current) {
+              clearInterval(timerIntervalRef.current);
+              timerIntervalRef.current = null;
+            }
+            // Reset the timer state
+            setActiveRestTimer(null);
+          }
+          
+          exerciseSets[setIndex] = {
+            ...exerciseSets[setIndex],
+            isCompleted: newIsCompleted
+          };
         }
         
-        exerciseSets[setIndex] = {
-          ...exerciseSets[setIndex],
-          isCompleted: newIsCompleted
-        };
         newSets.set(exerciseId, exerciseSets);
         
         // Save this set to the database immediately

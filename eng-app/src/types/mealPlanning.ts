@@ -249,5 +249,11 @@ export interface ExtraMealFormData {
         food_item_id: string;
         quantity: number;
         unit: string;
+        custom_macros?: {
+            calories: number;
+            protein_g: number;
+            carbs_g: number;
+            fat_g: number;
+        };
     }>;
 } 

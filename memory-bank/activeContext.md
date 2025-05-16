@@ -361,6 +361,17 @@ We've been enhancing the meal planning and nutrition tracking features of the EN
 - Fixed various TypeScript errors and improved type safety
 - Improved component isolation to prevent unwanted re-renders
 
+### Workout Weight Auto-Copying Feature
+- The WorkoutSessionPage component has a smart feature for automatically carrying forward weights from previous sets
+- When a user attempts to mark a set as completed with an empty weight field, the system:
+  - Checks previous sets for the same exercise to find the most recent weight used
+  - Automatically applies that weight to the current set
+  - Shows a notification to the user: "Using previous weight: X"
+  - Marks the set as completed
+  - If no previous weight exists, it shows an error asking the user to enter a weight or mark as bodyweight
+
+This feature improves the user experience by reducing repetitive data entry during workouts, making it faster to log sets with the same weight.
+
 ## Active Development Focus
 
 ### Current Focus
@@ -396,3 +407,13 @@ We've been enhancing the meal planning and nutrition tracking features of the EN
 - Maintaining clear visual indicators for logged vs. unlogged meals
 - Optimizing data fetching to reduce redundant queries
 - Prioritizing mobile-friendly interfaces with adequate touch targets
+
+## Next Steps
+
+Continue identifying and implementing quality-of-life improvements for workout tracking that reduce friction and make the app more intuitive to use during active workouts.
+
+## Active Decisions
+
+- The app should intelligently assist users during workout sessions by reducing manual data entry when possible
+- Clear user feedback should be provided when automatic actions are taken
+- The UI should be optimized for quick interactions during workouts

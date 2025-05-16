@@ -181,4 +181,19 @@ The application integrates with several fitness device APIs to sync step data:
 2. Callback handled in `FitnessDeviceCallback` component
 3. Token exchange performed with provider-specific authentication requirements
 4. Connection stored in the `device_connections` table in Supabase
-5. Token refresh handled automatically when expired 
+5. Token refresh handled automatically when expired
+
+## Workout Tracking State Management
+
+The workout tracking functionality shows sophisticated state management:
+
+- Uses React's setState with functional updates to safely modify complex nested structures
+- Map data structures for efficient lookup and update of exercise sets
+- Optimistic UI updates combined with immediate database synchronization
+- Conditional toast notifications for user feedback
+- Smart defaulting of values from previous entries
+
+The codebase maintains usability through:
+- Presenting actionable error messages when automated processes fail
+- Maintaining UI consistency across state changes
+- Preserving state integrity with immutable update patterns 

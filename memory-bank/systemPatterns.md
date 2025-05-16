@@ -966,3 +966,22 @@ const DeleteConfirmationDialog = () => {
     </div>
   );
 }; 
+```
+
+## Data Handling Patterns
+
+### State Persistence and Auto-fill
+- Weight values automatically carry forward between sets of the same exercise
+- The system looks backwards through previous sets to find weights to use
+- This creates a smoother logging experience during intense workouts
+- Implementation in `toggleSetCompletion` function checks for empty weight fields and applies previous weights intelligently
+
+### User Notification System
+- Uses `showAnnouncementToast` to provide clear feedback to users
+- Notifies users when values are automatically applied
+- Shows appropriate error messages when automatic actions fail
+
+### Progressive Form Validation
+- Weight fields are required when marking sets as complete
+- System attempts to fill required fields from previous data before showing errors
+- Validates only when trying to complete an action, not when canceling 
