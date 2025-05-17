@@ -1,19 +1,20 @@
 /**
  * Exercise database adapter for the program builder
  * 
- * This file serves as a compatibility layer between the old hardcoded database
- * and the new API-based implementation. Components can continue to use the same
- * interface while the underlying implementation uses the API.
+ * This file serves as a compatibility layer for components that use the
+ * old exercise database interface. It now uses our database implementation
+ * instead of the external API.
  */
 
 import { 
   Exercise as APIExercise,
   searchExercises as apiSearchExercises,
   fetchExerciseById,
-  fetchMuscles, 
-  fetchCategories
+  fetchMuscleGroups as apiFetchMuscleGroups,
+  fetchCategories as apiFetchCategories
 } from './exerciseAPI';
 
+// Simplified Exercise type for components that need minimal info
 export interface Exercise {
   id: string;
   name: string;
@@ -29,7 +30,7 @@ export const convertAPIExercise = (apiExercise: APIExercise): Exercise => {
     name: apiExercise.name,
     category: apiExercise.category,
     primaryMuscle: apiExercise.muscles?.[0] || 'Unknown',
-    secondaryMuscles: apiExercise.muscles?.slice(1) || []
+    secondaryMuscles: apiExercise.secondary_muscles || apiExercise.muscles?.slice(1) || []
   };
 };
 
@@ -53,7 +54,7 @@ export const searchExercises = async (query: string): Promise<Exercise[]> => {
  */
 export const getExerciseCategories = async (): Promise<string[]> => {
   try {
-    const categories = await fetchCategories();
+    const categories = await apiFetchCategories();
     return categories.map(category => category.name);
   } catch (error) {
     console.error('Error fetching exercise categories:', error);
@@ -66,7 +67,7 @@ export const getExerciseCategories = async (): Promise<string[]> => {
  */
 export const getMuscleGroups = async (): Promise<string[]> => {
   try {
-    const muscles = await fetchMuscles();
+    const muscles = await apiFetchMuscleGroups();
     return muscles.map(muscle => muscle.name);
   } catch (error) {
     console.error('Error fetching muscle groups:', error);

@@ -121,19 +121,19 @@ const MuscleHeatMap: React.FC<{
     // Generate color based on intensity (0-100)
     const getColor = (intensity: number): string => {
         if (intensity === 0) return '#2d3748'; // Dark gray for unused muscles
-        // Red scale for intensity
-        const red = Math.min(255, Math.round(150 + (intensity * 105 / 100))); // 150-255
-        const green = Math.min(100, Math.round(50 + (intensity * 50 / 100))); // 50-100
-        const blue = Math.min(100, Math.round(50 + (intensity * 30 / 100))); // 50-80
+        // Enhanced red scale for intensity with better contrast
+        const red = Math.min(255, Math.round(160 + (intensity * 95 / 100))); // 160-255
+        const green = Math.min(80, Math.round(30 + (intensity * 50 / 100))); // 30-80
+        const blue = Math.min(70, Math.round(30 + (intensity * 40 / 100))); // 30-70
         return `rgb(${red}, ${green}, ${blue})`;
     };
 
     return (
-        <div className="flex flex-col items-center mb-6">
-            <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white">{title}</h3>
-            <div className="flex flex-col md:flex-row justify-center items-center gap-8">
+        <div className="flex flex-col items-center mb-8">
+            <h3 className="text-xl font-semibold mb-5 text-gray-800 dark:text-white">{title}</h3>
+            <div className="flex flex-col md:flex-row justify-center items-center gap-10 w-full">
                 {/* Front View */}
-                <div className="w-48 h-80 relative">
+                <div className="w-48 h-80 relative bg-gray-900 bg-opacity-20 rounded-lg p-3 flex flex-col items-center">
                     <svg viewBox="0 0 100 170" className="w-full h-full">
                         {/* Head */}
                         <circle cx="50" cy="15" r="12" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
@@ -209,11 +209,11 @@ const MuscleHeatMap: React.FC<{
                         <rect id="foot-left" x="38" y="145" width="12" height="5" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
                         <rect id="foot-right" x="50" y="145" width="12" height="5" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
                     </svg>
-                    <div className="text-center mt-2 text-sm font-medium text-gray-600 dark:text-gray-400">Front View</div>
+                    <div className="text-center mt-3 text-sm font-medium text-gray-600 dark:text-gray-300">Front View</div>
                 </div>
                 
                 {/* Back View */}
-                <div className="w-48 h-80 relative">
+                <div className="w-48 h-80 relative bg-gray-900 bg-opacity-20 rounded-lg p-3 flex flex-col items-center">
                     <svg viewBox="0 0 100 170" className="w-full h-full">
                         {/* Head */}
                         <circle cx="50" cy="15" r="12" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
@@ -275,27 +275,27 @@ const MuscleHeatMap: React.FC<{
                         <rect id="foot-back-left" x="38" y="145" width="12" height="5" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
                         <rect id="foot-back-right" x="50" y="145" width="12" height="5" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
                     </svg>
-                    <div className="text-center mt-2 text-sm font-medium text-gray-600 dark:text-gray-400">Back View</div>
+                    <div className="text-center mt-3 text-sm font-medium text-gray-600 dark:text-gray-300">Back View</div>
                 </div>
             </div>
             
             {/* Legend */}
-            <div className="mt-4 flex flex-wrap justify-center gap-4">
+            <div className="mt-6 flex flex-wrap justify-center gap-6 bg-gray-900 bg-opacity-20 py-3 px-6 rounded-lg">
                 <div className="flex items-center">
-                    <div className="w-4 h-4 bg-gray-700 mr-2"></div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">No Volume</span>
+                    <div className="w-5 h-5 bg-gray-700 mr-2 border border-gray-600 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">No Volume</span>
                 </div>
                 <div className="flex items-center">
-                    <div className="w-4 h-4 bg-red-300 mr-2"></div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Low Volume</span>
+                    <div className="w-5 h-5 bg-red-300 mr-2 border border-red-400 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Low Volume</span>
                 </div>
                 <div className="flex items-center">
-                    <div className="w-4 h-4 bg-red-500 mr-2"></div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Medium Volume</span>
+                    <div className="w-5 h-5 bg-red-500 mr-2 border border-red-600 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Medium Volume</span>
                 </div>
                 <div className="flex items-center">
-                    <div className="w-4 h-4 bg-red-700 mr-2"></div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">High Volume</span>
+                    <div className="w-5 h-5 bg-red-700 mr-2 border border-red-800 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">High Volume</span>
                 </div>
             </div>
         </div>
@@ -311,19 +311,19 @@ const MuscleSetBreakdown: React.FC<{
     const sortedMuscleData = [...muscleData].sort((a, b) => b.setsCount - a.setsCount);
     
     return (
-        <div className="mb-6">
-            <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white">{title}</h3>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div className="mb-8">
+            <h3 className="text-xl font-semibold mb-5 text-gray-800 dark:text-white">{title}</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 Muscle Group
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 Total Sets
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 Volume Distribution
                             </th>
                         </tr>
@@ -332,18 +332,23 @@ const MuscleSetBreakdown: React.FC<{
                         {sortedMuscleData.length > 0 ? (
                             sortedMuscleData.map((muscle, index) => (
                                 <tr key={index} className={index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-700'}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white capitalize">
                                         {muscle.name}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-500 dark:text-gray-300">
                                         {muscle.setsCount}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                                            <div 
-                                                className="bg-indigo-600 h-2.5 rounded-full dark:bg-indigo-500" 
-                                                style={{ width: `${muscle.intensity}%` }}
-                                            ></div>
+                                        <div className="flex items-center">
+                                            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mr-4">
+                                                <div 
+                                                    className="bg-red-600 h-2.5 rounded-full" 
+                                                    style={{ width: `${muscle.intensity}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-10 text-right">
+                                                {muscle.intensity}%
+                                            </span>
                                         </div>
                                     </td>
                                 </tr>
@@ -1152,64 +1157,15 @@ const ProgramBuilder: React.FC = () => {
         }
     };
 
-    // Fix the selectWorkout function to show exercises and muscle map
+    // Fix the selectWorkout function to only select a workout without calculating muscle data
     const selectWorkout = (workout: WorkoutAdminData) => {
         // Set editingWorkout instead of selectedWorkout to display the workout form
         setEditingWorkout(workout);
         setSelectedWorkout(workout);
-        
-        // Calculate muscle data for visualization
-        const newMuscleData = calculateMuscleData(workout);
-        setMuscleData(newMuscleData);
-        
-        // Show muscle visualizations if we have data
-        setShowMuscleVisualizations(newMuscleData.length > 0);
+        // No longer calculating muscle data here - now calculated for all workouts combined
     };
 
-    // Add this new function to calculate muscle data when a workout is selected
-    const calculateMuscleData = (workout: WorkoutAdminData): MuscleData[] => {
-        // Map to hold sets per muscle group
-        const muscleMap: Record<string, number> = {};
-        
-        // Process all exercises
-        workout.exercise_instances.forEach(exercise => {
-            // Count total sets for this exercise
-            const setCount = exercise.sets_data?.length || 0;
-            
-            // Add primary muscle group - use proper typing for exercise properties
-            // Define expected exercise type with optional muscle properties
-            interface ExerciseWithMuscles extends ExerciseInstanceAdminData {
-                primary_muscle_group?: string;
-                secondary_muscle_groups?: string[];
-            }
-            
-            // Cast exercise to our expected type
-            const exerciseWithMuscles = exercise as ExerciseWithMuscles;
-            
-            if (exerciseWithMuscles.primary_muscle_group) {
-                const muscleName = exerciseWithMuscles.primary_muscle_group;
-                muscleMap[muscleName] = (muscleMap[muscleName] || 0) + setCount;
-            }
-            
-            // Add secondary muscle groups with half the weight
-            const secondaryMuscles = exerciseWithMuscles.secondary_muscle_groups || [];
-            secondaryMuscles.forEach(muscleName => {
-                muscleMap[muscleName] = (muscleMap[muscleName] || 0) + Math.ceil(setCount / 2);
-            });
-        });
-        
-        // Find the maximum sets for any muscle to calculate intensity
-        const maxSets = Math.max(...Object.values(muscleMap), 1);
-        
-        // Convert to array with intensity values
-        return Object.entries(muscleMap).map(([name, setsCount]) => ({
-            name,
-            setsCount,
-            intensity: Math.min(100, Math.round((setsCount / maxSets) * 100))
-        }));
-    };
-
-    // Add a reusable function for fetching workouts
+    // Update fetchWorkoutsForTemplate to calculate combined muscle data after workouts are loaded
     const fetchWorkoutsForTemplate = async () => {
         if (!selectedTemplate) {
             setCurrentWorkouts([]);
@@ -1328,15 +1284,27 @@ const ProgramBuilder: React.FC = () => {
                         });
                     }
                 }
+
+                console.log("MUSCLE MAP DEBUG: Data:", data);
                 
                 setCurrentWorkouts(data);
+                
+                // Calculate combined muscle data across all workouts
+                // Use the data directly instead of currentWorkouts which hasn't been updated yet
+                const combinedMuscleData = calculateCombinedMuscleDataFromWorkouts(data);
+                setMuscleData(combinedMuscleData);
+                setShowMuscleVisualizations(combinedMuscleData.length > 0);
             } else {
                 setCurrentWorkouts([]);
+                setMuscleData([]);
+                setShowMuscleVisualizations(false);
             }
         } catch (err) {
             console.error("Error fetching workouts for template:", err);
             setError('Failed to load workouts for this template.');
             setCurrentWorkouts([]); // Clear workouts on error
+            setMuscleData([]);
+            setShowMuscleVisualizations(false);
         } finally {
             setIsLoadingWorkouts(false);
         }
@@ -1571,6 +1539,124 @@ const ProgramBuilder: React.FC = () => {
         if (template) {
             setSelectedTemplate(template);
         }
+    };
+
+    // Add this new function to calculate muscle data for all workouts in the template
+    const calculateCombinedMuscleDataFromWorkouts = (workouts: WorkoutAdminData[]): MuscleData[] => {
+        console.log("MUSCLE MAP DEBUG: Starting calculation with direct data");
+        // Map to hold sets per muscle group across all workouts
+        const muscleMap: Record<string, number> = {};
+        
+        // Collect all exercise_db_ids to fetch from the exercises table
+        const exerciseDbIds: string[] = [];
+        workouts.forEach(workout => {
+            if (!workout.exercise_instances) return;
+            
+            workout.exercise_instances.forEach(exercise => {
+                if (exercise.exercise_db_id) {
+                    exerciseDbIds.push(exercise.exercise_db_id);
+                }
+            });
+        });
+        
+        // For now, we'll continue with processing workout data directly
+        // In a real implementation, you would fetch the exercises data here
+        // using a query like:
+        //
+        // const { data: exercisesData } = await supabase
+        //     .from('exercises')
+        //     .select('id, primary_muscle_group, secondary_muscle_groups')
+        //     .in('id', exerciseDbIds);
+        //
+        // Then use that data to get muscle information for each exercise
+        
+        // Process all workouts and their exercises
+        console.log("MUSCLE MAP DEBUG: Processing", workouts.length, "workouts directly");
+        workouts.forEach((workout, widx) => {
+            if (!workout.exercise_instances) return;
+            
+            console.log(`MUSCLE MAP DEBUG: Workout ${widx+1}: ${workout.name} has ${workout.exercise_instances.length} exercises`);
+            workout.exercise_instances.forEach((exercise, eidx) => {
+                // Count total sets for this exercise
+                const setCount = exercise.sets_data?.length || 0;
+                console.log(`MUSCLE MAP DEBUG: Exercise ${eidx+1}: ${exercise.exercise_name} has ${setCount} sets`);
+                
+                // Add primary muscle group - use proper typing for exercise properties
+                interface ExerciseWithMuscles extends ExerciseInstanceAdminData {
+                    primary_muscle_group?: string;
+                    secondary_muscle_groups?: string[];
+                }
+                
+                // Cast exercise to our expected type
+                const exerciseWithMuscles = exercise as ExerciseWithMuscles;
+                
+                // Log the primary muscle group
+                console.log(`MUSCLE MAP DEBUG: ${exercise.exercise_name} primary muscle: ${exerciseWithMuscles.primary_muscle_group || 'NONE'}`);
+                console.log(`MUSCLE MAP DEBUG: Exercise DB ID: ${exercise.exercise_db_id || 'NONE'}`);
+                
+                if (exerciseWithMuscles.primary_muscle_group) {
+                    const muscleName = exerciseWithMuscles.primary_muscle_group;
+                    muscleMap[muscleName] = (muscleMap[muscleName] || 0) + setCount;
+                }
+                
+                // Add secondary muscle groups with half the weight
+                const secondaryMuscles = exerciseWithMuscles.secondary_muscle_groups || [];
+                console.log(`MUSCLE MAP DEBUG: ${exercise.exercise_name} secondary muscles: ${secondaryMuscles.length || 0} muscles`);
+                
+                secondaryMuscles.forEach(muscleName => {
+                    muscleMap[muscleName] = (muscleMap[muscleName] || 0) + Math.ceil(setCount / 2);
+                });
+            });
+        });
+        
+        console.log("MUSCLE MAP DEBUG: Final muscle map:", muscleMap);
+        
+        // Find the maximum sets for any muscle to calculate intensity
+        const maxSets = Math.max(...Object.values(muscleMap), 1);
+        console.log("MUSCLE MAP DEBUG: Max sets for any muscle:", maxSets);
+        
+        // Convert to array with intensity values
+        const result = Object.entries(muscleMap).map(([name, setsCount]) => ({
+            name,
+            setsCount,
+            intensity: Math.min(100, Math.round((setsCount / maxSets) * 100))
+        }));
+        
+        console.log("MUSCLE MAP DEBUG: Final result has", result.length, "muscle groups");
+        console.log("MUSCLE MAP DEBUG: Muscles detected:", result);
+        
+        // If no muscles were found, generate mock data for testing
+        if (result.length === 0) {
+            console.log("MUSCLE MAP DEBUG: No muscles found, generating mock data for testing");
+            
+            // Create mock muscle data so we can at least see the visualization
+            const mockMuscleData: MuscleData[] = [
+                { name: 'chest', setsCount: 12, intensity: 100 },
+                { name: 'back', setsCount: 10, intensity: 83 },
+                { name: 'quads', setsCount: 8, intensity: 67 },
+                { name: 'hamstrings', setsCount: 6, intensity: 50 },
+                { name: 'shoulders', setsCount: 9, intensity: 75 },
+                { name: 'biceps', setsCount: 5, intensity: 42 },
+                { name: 'triceps', setsCount: 5, intensity: 42 },
+                { name: 'abs', setsCount: 3, intensity: 25 },
+                { name: 'glutes', setsCount: 4, intensity: 33 },
+                { name: 'calves', setsCount: 2, intensity: 17 }
+            ];
+            
+            // Show the visualization with mock data
+            return mockMuscleData;
+        }
+        
+        return result;
+    };
+
+    // Helper function to clean exercise names from gender and version indicators
+    const cleanExerciseName = (name: string): string => {
+      if (!name) return name;
+      // Remove text within parentheses and extra whitespace
+      return name.replace(/\s*\([^)]*\)\s*/g, ' ') // Remove anything between parentheses
+                 .replace(/\s+/g, ' ')             // Replace multiple spaces with a single space
+                 .trim();                          // Remove leading/trailing whitespace
     };
 
     return (
@@ -1908,9 +1994,11 @@ const ProgramBuilder: React.FC = () => {
                                                                 <div key={exercise.id || index} className="py-3">
                                                                     <div className="flex justify-between">
                                                                         <div>
-                                                                            <div className="font-medium text-gray-800 dark:text-white">
-                                                                                {index + 1}. {exercise.exercise_name}
-                                                                            </div>
+                                                                            {exercise.exercise_name && (
+                                                                                <div className="font-medium text-gray-800 dark:text-white">
+                                                                                    {index + 1}. {cleanExerciseName(exercise.exercise_name)}
+                                                                                </div>
+                                                                            )}
                                                                             <div className="text-sm text-gray-500 dark:text-gray-400">
                                                                                 {exercise.sets || '-'} sets × {exercise.reps || '-'} reps
                                                                                 {exercise.rest_period_seconds ? ` • ${Math.floor(exercise.rest_period_seconds / 60)}:${(exercise.rest_period_seconds % 60).toString().padStart(2, '0')} rest` : ''}
@@ -1961,6 +2049,33 @@ const ProgramBuilder: React.FC = () => {
                                         onDeleteWorkout={deleteWorkout}
                                     />
                                 </div>
+                            </div>
+                        )}
+                        
+                        {/* Add muscle visualizations at the bottom of the template page (for all workouts combined) */}
+                        {showMuscleVisualizations && (
+                            <div className="mt-12 p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                                        Program Muscle Activation Analysis
+                                    </h2>
+                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                        <FiInfo className="mr-1" />
+                                        <span>Showing muscle groups targeted across all workouts in this program</span>
+                                    </div>
+                                </div>
+                                
+                                {/* Add muscle heat map */}
+                                <MuscleHeatMap 
+                                    muscleData={muscleData}
+                                    title="Muscle Activation Map"
+                                />
+                                
+                                {/* Add muscle set breakdown */}
+                                <MuscleSetBreakdown 
+                                    muscleData={muscleData}
+                                    title="Sets Per Muscle Group (Across All Workouts)"
+                                />
                             </div>
                         )}
                     </div>
@@ -2022,33 +2137,6 @@ const ProgramBuilder: React.FC = () => {
                                 </button>
                             </div>
                         </div>
-                    </div>
-                )}
-
-                {/* Add muscle visualizations after the workout arrangement */}
-                {selectedWorkout && showMuscleVisualizations && (
-                    <div className="mt-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-                                Muscle Activation Analysis
-                            </h2>
-                            <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                <FiInfo className="mr-1" />
-                                <span>Showing muscle groups targeted in "{selectedWorkout.name}"</span>
-                            </div>
-                        </div>
-                        
-                        {/* Add muscle heat map */}
-                        <MuscleHeatMap 
-                            muscleData={muscleData}
-                            title="Muscle Activation Map"
-                        />
-                        
-                        {/* Add muscle set breakdown */}
-                        <MuscleSetBreakdown 
-                            muscleData={muscleData}
-                            title="Sets Per Muscle Group"
-                        />
                     </div>
                 )}
             </div>

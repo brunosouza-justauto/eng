@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { selectProfile } from '../store/slices/authSlice';
 import { supabase } from '../services/supabaseClient';
 import { SetType, ExerciseSet } from '../types/adminTypes';
-import { fetchExerciseById } from '../utils/exerciseAPI';
+import { fetchExerciseById, searchExercises } from '../utils/exerciseAPI';
 import BackButton from '../components/common/BackButton';
 
 // Helper function to sanitize text with encoding issues
@@ -190,7 +190,7 @@ const ExerciseDemonstration = React.memo(({ exerciseName, exerciseDbId, expanded
       setImageError(false);
       
       try {
-        // Try to fetch from HeyGainz API if we have an exercise DB ID
+        // Try to fetch from exercise database if we have an exercise DB ID
         if (exerciseDbId) {
           console.log(`Fetching exercise image for ID: ${exerciseDbId}`);
           const exercise = await fetchExerciseById(exerciseDbId);
@@ -234,38 +234,42 @@ const ExerciseDemonstration = React.memo(({ exerciseName, exerciseDbId, expanded
         console.log(`Searching for exercise by name: ${exerciseName}`);
         
         // Try to find a close match in the exercises database
-        const searchResponse = await fetch(`https://svc.heygainz.com/api/exercises?search=${encodeURIComponent(exerciseName)}&page=1&per_page=1`);
-        const searchData = await searchResponse.json();
+        const results = await searchExercises(exerciseName);
         
-        if (searchData && searchData.data && searchData.data.length > 0 && isMounted.current) {
-          const matchedExercise = searchData.data[0];
-          console.log(`Found exercise match: ${matchedExercise.name} with image: ${matchedExercise.gif_url}`);
+        if (results.results && results.results.length > 0 && isMounted.current) {
+          const matchedExercise = results.results[0];
+          console.log(`Found exercise match: ${matchedExercise.name} with image: ${matchedExercise.image}`);
           console.log(`Instructions: ${matchedExercise.instructions || 'None available'}`);
           console.log(`Tips: ${matchedExercise.tips || 'None available'}`);
           console.log(`YouTube Link: ${matchedExercise.youtube_link || 'None available'}`);
           
-          // Store in cache
-          exerciseImageCache.set(cacheKey, {
-            url: matchedExercise.gif_url,
-            isAnimation: matchedExercise.gif_url.toLowerCase().endsWith('.gif'),
-            instructions: Array.isArray(matchedExercise.instructions) 
+          if (matchedExercise.image) {
+            // Store in cache
+            exerciseImageCache.set(cacheKey, {
+              url: matchedExercise.image,
+              isAnimation: matchedExercise.image.toLowerCase().endsWith('.gif'),
+              instructions: Array.isArray(matchedExercise.instructions) 
+                ? sanitizeText(matchedExercise.instructions.join('\n')) 
+                : sanitizeText(typeof matchedExercise.instructions === 'string' ? matchedExercise.instructions : null),
+              tips: Array.isArray(matchedExercise.tips) 
+                ? sanitizeText(matchedExercise.tips.join('\n')) 
+                : sanitizeText(typeof matchedExercise.tips === 'string' ? matchedExercise.tips : null),
+              youtubeLink: matchedExercise.youtube_link || null
+            });
+            
+            setImageUrl(matchedExercise.image);
+            setIsAnimation(matchedExercise.image.toLowerCase().endsWith('.gif'));
+            setInstructions(Array.isArray(matchedExercise.instructions) 
               ? sanitizeText(matchedExercise.instructions.join('\n')) 
-              : sanitizeText(typeof matchedExercise.instructions === 'string' ? matchedExercise.instructions : null),
-            tips: Array.isArray(matchedExercise.tips) 
+              : sanitizeText(typeof matchedExercise.instructions === 'string' ? matchedExercise.instructions : null));
+            setTips(Array.isArray(matchedExercise.tips) 
               ? sanitizeText(matchedExercise.tips.join('\n')) 
-              : sanitizeText(typeof matchedExercise.tips === 'string' ? matchedExercise.tips : null),
-            youtubeLink: matchedExercise.youtube_link || null
-          });
-          
-          setImageUrl(matchedExercise.gif_url);
-          setIsAnimation(matchedExercise.gif_url.toLowerCase().endsWith('.gif'));
-          setInstructions(Array.isArray(matchedExercise.instructions) 
-            ? sanitizeText(matchedExercise.instructions.join('\n')) 
-            : sanitizeText(typeof matchedExercise.instructions === 'string' ? matchedExercise.instructions : null));
-          setTips(Array.isArray(matchedExercise.tips) 
-            ? sanitizeText(matchedExercise.tips.join('\n')) 
-            : sanitizeText(typeof matchedExercise.tips === 'string' ? matchedExercise.tips : null));
-          setYoutubeLink(matchedExercise.youtube_link || null);
+              : sanitizeText(typeof matchedExercise.tips === 'string' ? matchedExercise.tips : null));
+            setYoutubeLink(matchedExercise.youtube_link || null);
+          } else {
+            console.log(`No image found for exercise: ${matchedExercise.name}`);
+            setImageUrl(null);
+          }
         } else if (isMounted.current) {
           console.log(`No exercise found for name: ${exerciseName}`);
           setImageUrl(null);

@@ -16,8 +16,8 @@
 *   **Component-Based UI:** Leverage React's component model.
 *   **Utility-First CSS:** Use Tailwind CSS for styling.
 *   **Schema-Driven Forms:** Employ Zod for robust form validation.
-*   **API Integration:** Connect to external APIs (HeyGainz Exercise API) and ingest data from external sources (AFCD Excel file).
 *   **Database:** Supabase PostgreSQL with Row Level Security (RLS) enforced.
+*   **Exercise Data:** Local Supabase database instead of external HeyGainz API, providing better reliability and control.
 *   **Authentication:** Supabase Auth using Email Magic Link.
 *   **Data Ingestion:** One-time script (`scripts/ingest-afcd.js`) used to populate `food_items` from the AFCD Excel source.
 

@@ -13,7 +13,7 @@ The **ENG App** is a full‑stack web application built with **React 18 + Vite**
 | # | Objective                                                                                                                                                                   |
 | - | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1 | **Admin CMS** – manage users, program templates, nutrition plans & step‑goal assignments.                                                                                   |
-| 2 | **Exercise & Food DB integration** – pull exercises from a public API; pull food & nutrient data from the **Australian Food Composition Database (AFCD, formerly NUTTAB)**. |
+| 2 | **Exercise & Food Data Integration** – use local database for exercise data management; pull food & nutrient data from the **Australian Food Composition Database (AFCD, formerly NUTTAB)**. |
 | 3 | **Athlete Dashboard** – users log in to view their profile, assigned training block, meal plan, step goals, and current stats.                                              |
 | 4 | **Onboarding Workflow** – collect detailed lifestyle & training info (see §3) and store it in the user profile.                                                             |
 | 5 | **Weekly Check‑Ins** – upload progress photos/videos, body measurements, wellness metrics and program adherence.                                                            |
@@ -94,7 +94,7 @@ CheckIn
 
 ## 6 · APIs & Data Sources
 
-- **Exercise DB**: `https://svc.heygainz.com/api/exercises` (extensive exercise database with detailed data and search capabilities). Cache locally for offline.
+- **Exercise Database**: Local Supabase database containing exercise data (names, categories, instructions, images, etc.)
 - **AFCD/NUTTAB**: download latest CSV → ingest into backend (table `food_items`).
 - **Image/Video Storage**: Supabase Storage or S3 bucket.
 

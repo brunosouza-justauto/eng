@@ -372,42 +372,42 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
                         />
                         <FormInput 
                             name="body_fat_percentage"
-                            label="Body Fat (% - optional)"
+                            label="Body Fat (%) *"
                             type="number"
                             placeholder="e.g., 15.0"
                             step="0.1"
                         />
                         <FormInput 
                             name="waist_cm"
-                            label="Waist (cm - optional)"
+                            label="Waist (cm) *"
                             type="number"
                             placeholder="e.g., 80.5"
                             step="0.1"
                         />
                         <FormInput 
                             name="hip_cm"
-                            label="Hips (cm - optional)"
+                            label="Hips (cm) *"
                             type="number"
                             placeholder="e.g., 95.0"
                             step="0.1"
                         />
                         <FormInput 
                             name="arm_cm"
-                            label="Arms (cm - optional)"
+                            label="Arms (cm) *"
                             type="number"
                             placeholder="e.g., 35.0"
                             step="0.1"
                         />
                         <FormInput 
                             name="chest_cm"
-                            label="Chest (cm - optional)"
+                            label="Chest (cm) *"
                             type="number"
                             placeholder="e.g., 100.0"
                             step="0.1"
                         />
                         <FormInput 
                             name="thigh_cm"
-                            label="Thighs (cm - optional)"
+                            label="Thighs (cm) *"
                             type="number"
                             placeholder="e.g., 60.0"
                             step="0.1"

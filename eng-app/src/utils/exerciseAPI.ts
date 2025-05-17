@@ -1,302 +1,86 @@
-import axios from 'axios';
+/**
+ * Exercise API
+ * 
+ * This file has been updated to use the local database instead of the HeyGainz API.
+ * It maintains the same interface for backward compatibility with existing code.
+ */
 
-// HeyGainz API base URL
-const API_BASE_URL = 'https://svc.heygainz.com/api';
+import {
+  Exercise,
+  PaginatedResponse,
+  Muscle,
+  ExerciseCategory
+} from './exerciseTypes';
 
-// Define interfaces for API responses
-export interface HeyGainzMuscle {
-  id: number;
-  body_part: string;
-  name: string;
-  region: string | null;
-  slug: string;
-  created_at: string;
-  updated_at: string;
-  pivot?: {
-    exercise_id: number;
-    muscle_id: number;
-    type: 'primary' | 'synergist';
-  };
-}
+import * as dbAdapter from './exerciseDatabaseAdapter';
 
-export interface HeyGainzExercise {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  seo_description: string;
-  type: string;
-  youtube_link: string | null;
-  gif_url: string;
-  instructions: string[];
-  tips: string[];
-  note: string | null;
-  user_id: number | null;
-  post_id: number;
-  muscles: HeyGainzMuscle[];
-  __tntSearchScore__?: number;
-  pivot?: {
-    muscle_id: number;
-    exercise_id: number;
-    type: 'primary' | 'synergist';
-  };
-}
+// Re-export the Exercise interface for backward compatibility
+export type { Exercise, PaginatedResponse, Muscle, ExerciseCategory };
 
-export interface HeyGainzPaginatedResponse<T> {
-  current_page: number;
-  data: T[];
-  first_page_url: string;
-  from: number;
-  last_page: number;
-  last_page_url: string;
-  links: Array<{
-    url: string | null;
-    label: string;
-    active: boolean;
-  }>;
-  next_page_url: string | null;
-  path: string;
-  per_page: number;
-  prev_page_url: string | null;
-  to: number;
-  total: number;
-}
-
-// Simplified Exercise type for our application
-export interface Exercise {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  categoryId?: number;
-  muscles: string[];
-  equipment: string[];
-  image: string | null;
-  instructions: string[];
-  tips: string[];
-  youtube_link: string | null;
-  type: string;
-}
-
-// Base response interface for paginated data
-export interface PaginatedResponse<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-}
-
-// Function to fetch all muscle groups
-export const fetchMuscleGroups = async (): Promise<HeyGainzMuscle[]> => {
-  try {
-    const response = await axios.get<HeyGainzMuscle[]>(`${API_BASE_URL}/muscles`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching muscle groups:', error);
-    throw error;
-  }
+// Fetch muscle groups (formerly from HeyGainz API, now from our database)
+export const fetchMuscleGroups = async (): Promise<Muscle[]> => {
+  return dbAdapter.getMuscleGroups();
 };
 
-// Basic typings for backward compatibility
-export interface ExerciseBase {
-  id: number;
-  name: string;
-  category?: number;
-}
-
-export interface ExerciseCategory {
-  id: number;
-  name: string;
-}
-
-export interface ExerciseImage {
-  id: number;
-  image: string;
-  is_main: boolean;
-}
-
-export interface ExerciseTranslation {
-  id: number;
-  name: string;
-  description: string;
-}
-
-export interface Equipment {
-  id: number;
-  name: string;
-}
-
-export interface Muscle {
-  id: number;
-  name: string;
-  is_front: boolean;
-}
-
-// Function to fetch categories (based on body parts)
+// Fetch categories
 export const fetchCategories = async (): Promise<ExerciseCategory[]> => {
-  try {
-    // Use body parts as categories
-    const muscles = await fetchMuscleGroups();
-    // Get unique body parts
-    const bodyParts = Array.from(new Set(muscles.map(m => m.body_part)));
-    
-    return bodyParts.map((bodyPart, index) => ({
-      id: index + 1,
-      name: bodyPart
-    }));
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    return [];
-  }
+  return dbAdapter.getCategories();
 };
 
-// Function to fetch muscles
-export const fetchMuscles = async (): Promise<Muscle[]> => {
-  try {
-    const muscles = await fetchMuscleGroups();
-    
-    return muscles.map(muscle => ({
-      id: muscle.id,
-      name: muscle.name,
-      is_front: muscle.region === 'abs' || muscle.region === 'chest' || muscle.region === 'quads'
-    }));
-  } catch (error) {
-    console.error('Error fetching muscles:', error);
-    return [];
-  }
+// Fetch equipment options
+export const fetchEquipmentOptions = async (): Promise<string[]> => {
+  return dbAdapter.getEquipmentOptions();
 };
 
-// Function to fetch equipment
-export const fetchEquipment = async (): Promise<Equipment[]> => {
-  // HeyGainz doesn't have a direct equipment endpoint
-  // We could parse it from exercise descriptions, but for now return a default set
-  return [
-    { id: 1, name: 'Barbell' },
-    { id: 2, name: 'Dumbbell' },
-    { id: 3, name: 'Kettlebell' },
-    { id: 4, name: 'Bodyweight' },
-    { id: 5, name: 'Machine' },
-    { id: 6, name: 'Cable' }
-  ];
+// Fetch gender options
+export const fetchGenderOptions = async (): Promise<string[]> => {
+  return dbAdapter.getGenderOptions();
 };
 
-// Function to fetch detailed exercise info
+// Fetch exercise information by ID
 export const fetchExerciseInfo = async (exerciseId: number): Promise<Exercise | null> => {
-  try {
-    // The API doesn't have a direct endpoint for fetching by ID
-    // So we'll search for it
-    const response = await axios.get<HeyGainzPaginatedResponse<HeyGainzExercise>>(`${API_BASE_URL}/exercises`, {
-      params: {
-        page: 1,
-        per_page: 100
-      }
-    });
-
-    const exercise = response.data.data.find(ex => ex.id === exerciseId);
-    
-    if (!exercise) {
-      return null;
-    }
-
-    return formatHeyGainzExercise(exercise);
-  } catch (error) {
-    console.error(`Error fetching exercise info for ID ${exerciseId}:`, error);
-    return null;
-  }
+  return dbAdapter.getExerciseById(exerciseId);
 };
 
 // Function to fetch exercises with pagination
 export const fetchExercises = async (
-  pageOrSearch?: number | string,
-  searchOrCategory?: string | number | null,
-  categoryOrLimit?: number | null,
-  limitOrOffset?: number
-): Promise<{ count: number, next: string | null, results: Exercise[] }> => {
+  search?: string | null,
+  category?: string | null,
+  gender?: string | null,
+  equipment?: string | null,
+  page?: number,
+  limit?: number
+): Promise<PaginatedResponse<Exercise>> => {
+  console.log('fetchExercises called with params:', { 
+    search, 
+    category, 
+    gender,
+    equipment,
+    page,
+    limit
+  });
+  
   try {
-    let endpoint = `${API_BASE_URL}/exercises`;
-    let page: number;
-    let search: string | undefined;
-    let category: number | null | undefined;
-    let limit: number;
-    let actualOffset: number;
-
-    // Handle flexible parameter order based on types
-    if (typeof pageOrSearch === 'number') {
-      // Called with (page, search, category, perPage) format
-      page = pageOrSearch;
-      search = typeof searchOrCategory === 'string' ? searchOrCategory : undefined;
-      category = typeof searchOrCategory === 'number' ? searchOrCategory : 
-                 (typeof categoryOrLimit === 'number' ? categoryOrLimit : null);
-      limit = typeof limitOrOffset === 'number' ? limitOrOffset : 20;
-      actualOffset = 0; // Default offset
-    } else {
-      // Called with (search, category, limit, offset) format
-      search = typeof pageOrSearch === 'string' ? pageOrSearch : undefined;
-      category = typeof searchOrCategory === 'number' ? searchOrCategory : null;
-      limit = typeof categoryOrLimit === 'number' ? categoryOrLimit : 20;
-      actualOffset = typeof limitOrOffset === 'number' ? limitOrOffset : 0;
-      page = Math.floor(actualOffset / limit) + 1;
-    }
-
-    const params: Record<string, string | number> = {
-      page,
-      per_page: limit
-    };
-
-    // Add search term if provided
-    if (search && typeof search === 'string' && search.trim() !== '') {
-      params.search = search.trim();
-    }
-
-    // If category is specified, use the muscle-specific endpoint
-    if (category) {
-      endpoint = `${API_BASE_URL}/muscles/${category}/exercises`;
-    }
-
-    console.log(`Fetching exercises from: ${endpoint}`, params);
-    const response = await axios.get<HeyGainzPaginatedResponse<HeyGainzExercise>>(endpoint, { params });
-    console.log('API Response:', response.data);
-
-    // Process and format the exercises
-    if (!response.data.data || !Array.isArray(response.data.data)) {
-      console.error('Invalid API response format:', response.data);
-      return {
-        count: 0,
-        next: null,
-        results: []
-      };
-    }
-
-    const exercises = response.data.data.map(exercise => {
-      try {
-        return formatHeyGainzExercise(exercise);
-      } catch (formatError) {
-        console.error('Error formatting exercise:', exercise, formatError);
-        // Return a minimal valid exercise object if formatting fails
-        return {
-          id: exercise.id?.toString() || '0',
-          name: exercise.name || 'Unknown Exercise',
-          description: '',
-          category: 'Uncategorized',
-          muscles: [],
-          equipment: [],
-          image: null,
-          instructions: [],
-          tips: [],
-          type: 'Strength',
-          youtube_link: null
-        };
-      }
-    });
-
-    return {
-      count: response.data.total,
-      next: response.data.next_page_url,
-      results: exercises
-    };
+    // Call our database adapter with normalized parameters
+    const result = await dbAdapter.searchExercises(
+      search || '', 
+      page || 1,
+      limit || 20,
+      category,
+      gender,
+      equipment
+    );
+    console.log('Exercise API: search returned', result.results.length, 'results');
+    return result;
   } catch (error) {
-    console.error('Error fetching exercises:', error);
-    throw error;
+    console.error('Error in fetchExercises:', error);
+    // Return empty result set on error
+    return {
+      count: 0,
+      next: null,
+      previous: null,
+      results: []
+    };
   }
 };
 
@@ -304,52 +88,41 @@ export const fetchExercises = async (
 export const searchExercises = async (
   query: string,
   page = 1,
-  per_page = 20
-): Promise<{ count: number, next: string | null, results: Exercise[] }> => {
-  return fetchExercises(query, undefined, per_page, (page - 1) * per_page);
-};
-
-// Helper function to extract equipment from the description
-const extractEquipment = (description: string): string[] => {
+  per_page = 20,
+  genderFilter?: string | null,
+  equipmentFilter?: string | null
+): Promise<PaginatedResponse<Exercise>> => {
+  console.log('searchExercises called with:', { 
+    query, 
+    page, 
+    per_page,
+    genderFilter,
+    equipmentFilter
+  });
   try {
-    // Check if the description is a valid JSON string that might contain equipment data
-    if (description && description.trim().startsWith('{') && description.trim().endsWith('}') && description.includes('"equipment":')) {
-      const parsedDesc = JSON.parse(description);
-      return parsedDesc.equipment ? [parsedDesc.equipment] : [];
-    }
-
-    return [];
+    const results = await dbAdapter.searchExercises(
+      query, 
+      page, 
+      per_page, 
+      null, // No category filter
+      genderFilter,
+      equipmentFilter
+    );
+    console.log('Exercise API: direct search returned', results.results.length, 'results');
+    return results;
   } catch (error) {
-    console.error('Failed to parse exercise description:', error);
-    return [];
-  }
-};
-
-// Helper function to extract body part from the description
-const extractBodyPart = (description: string): string => {
-  try {
-    // First check if the description is a valid JSON string
-    if (description && description.trim().startsWith('{') && description.trim().endsWith('}')) {
-      const parsedDesc = JSON.parse(description);
-      return parsedDesc.body_part || 'Uncategorized';
-    } else {
-      // Handle plain text descriptions
-      return 'Uncategorized';
-    }
-  } catch (error) {
-    console.error('Failed to parse exercise description:', error);
-    return 'Uncategorized';
+    console.error('Error in searchExercises:', error);
+    return {
+      count: 0,
+      next: null,
+      previous: null,
+      results: []
+    };
   }
 };
 
 // Format any exercise object to our standard Exercise format
-export const formatExercise = (exercise: Exercise | HeyGainzExercise | Record<string, unknown>): Exercise => {
-  // Check if this matches a HeyGainzExercise structure
-  if ('slug' in exercise && 'gif_url' in exercise) {
-    // This is a HeyGainzExercise
-    return formatHeyGainzExercise(exercise as HeyGainzExercise);
-  }
-
+export const formatExercise = (exercise: Exercise | Record<string, unknown>): Exercise => {
   // Check if this is already in our Exercise format
   if ('id' in exercise && 'name' in exercise && 'description' in exercise && 'category' in exercise) {
     // This seems to already be in our Exercise format
@@ -372,99 +145,16 @@ export const formatExercise = (exercise: Exercise | HeyGainzExercise | Record<st
   };
 };
 
-// Format a HeyGainz exercise to our standard Exercise format
-export const formatHeyGainzExercise = (exercise: HeyGainzExercise): Exercise => {
-  // Check if muscles array exists before using it
-  const muscles = exercise.muscles || [];
-  
-  // Extract primary muscles
-  const primaryMuscles = muscles
-    .filter(m => m.pivot?.type === 'primary')
-    .map(m => m.name);
-
-  // Get the body part from the first muscle or from description
-  const category = muscles.length > 0 
-    ? muscles[0].body_part 
-    : extractBodyPart(exercise.description);
-
-  return {
-    id: exercise.id.toString(),
-    name: exercise.name,
-    description: exercise.seo_description || '',
-    category,
-    categoryId: exercise.id,
-    muscles: primaryMuscles,
-    equipment: extractEquipment(exercise.description),
-    image: exercise.gif_url,
-    instructions: exercise.instructions || [],
-    tips: exercise.tips || [],
-    type: exercise.type,
-    youtube_link: exercise.youtube_link
-  };
-};
-
-// Function to fetch exercise by ID
+// Fetch exercise by ID
 export const fetchExerciseById = async (id: string): Promise<Exercise | null> => {
-  try {
-    // The API doesn't have a direct endpoint for fetching by ID
-    // So we'll search for it and filter
-    const response = await axios.get(`${API_BASE_URL}/exercises/${id}`);
-
-    const exercise = response.data;
-    
-    if (!exercise) {
-      return null;
-    }
-
-    // Make sure the exercise has expected properties or provide defaults
-    const formattedExercise: HeyGainzExercise = {
-      id: exercise.id || parseInt(id),
-      name: exercise.name || 'Unknown Exercise',
-      slug: exercise.slug || '',
-      description: exercise.description || '',
-      seo_description: exercise.seo_description || '',
-      type: exercise.type || 'Strength',
-      youtube_link: exercise.youtube_link || null,
-      gif_url: exercise.gif_url || null,
-      instructions: Array.isArray(exercise.instructions) ? exercise.instructions : [],
-      tips: Array.isArray(exercise.tips) ? exercise.tips : [],
-      note: exercise.note || null,
-      user_id: exercise.user_id || null,
-      post_id: exercise.post_id || 0,
-      muscles: Array.isArray(exercise.muscles) ? exercise.muscles : [],
-      pivot: exercise.pivot || undefined
-    };
-
-    return formatHeyGainzExercise(formattedExercise);
-  } catch (error) {
-    console.error(`Error fetching exercise with ID ${id}:`, error);
-    return null;
-  }
+  return dbAdapter.getExerciseById(id);
 };
 
-// Function to fetch exercises by category
+// Fetch exercises by category
 export const fetchExercisesByCategory = async (
   category: string,
   page = 1,
   per_page = 20
-): Promise<{ count: number, next: string | null, results: Exercise[] }> => {
-  try {
-    // Find the muscle ID that corresponds to the category
-    const muscles = await fetchMuscleGroups();
-    const matchingMuscles = muscles.filter(m => 
-      m.body_part.toLowerCase() === category.toLowerCase() ||
-      m.name.toLowerCase() === category.toLowerCase()
-    );
-
-    if (matchingMuscles.length === 0) {
-      // If no matching muscle is found, just search by the category name
-      return fetchExercises(category, undefined, per_page, (page - 1) * per_page);
-    }
-
-    // Otherwise use the first matching muscle ID
-    return fetchExercises(undefined, matchingMuscles[0].id, per_page, (page - 1) * per_page);
-  } catch (error) {
-    console.error(`Error fetching exercises for category ${category}:`, error);
-    throw error;
-  }
+): Promise<PaginatedResponse<Exercise>> => {
+  return dbAdapter.searchExercises('', page, per_page, category);
 }; 

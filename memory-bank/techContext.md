@@ -34,7 +34,7 @@
 
 ## 4. External Dependencies & Integrations
 
-*   **Exercise Database API:** `https://svc.heygainz.com/api/exercises` API for accessing exercise data. The API provides endpoints for listing exercises, searching exercises, and filtering by muscle groups. Requires caching strategy for performance and offline use.
+*   **Exercise Database:** The app now uses its own local database for exercise data instead of the external HeyGainz API. Exercise data is stored in the `exercises` table in the Supabase database, eliminating an external dependency and improving reliability.
 *   **Australian Food Composition Database (AFCD):** Data ingested from the official Excel file (`afcd_data.xlsx`) using a one-time Node.js script (`scripts/ingest-afcd.js`). The script processes sheets for both 'per 100g' and 'per 100mL', setting the `nutrient_basis` column accordingly.
 *   **Image/Video Storage:** Supabase Storage.
 *   **Deployment Platform:** TBD (Vercel or Netlify via GitHub Actions).

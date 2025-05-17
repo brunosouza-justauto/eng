@@ -3,7 +3,25 @@ import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { ExerciseInstanceAdminData, SetType, ExerciseSet } from '../../types/adminTypes';
 import { FiX, FiSearch, FiChevronDown, FiChevronUp, FiPlus, FiTrash } from 'react-icons/fi';
-import { searchExercises, Exercise } from '../../utils/exerciseDatabase';
+import { searchExercises, Exercise } from '../../utils/exerciseAPI';
+
+// Legacy adapter interface to maintain compatibility with existing component
+interface ExerciseDisplayAdapter {
+  id: string;
+  name: string;
+  primaryMuscle: string;
+  secondaryMuscles: string[];
+}
+
+// Helper to convert new Exercise format to the legacy format needed by the component
+const adaptExerciseForDisplay = (exercise: Exercise): ExerciseDisplayAdapter => {
+  return {
+    id: exercise.id,
+    name: exercise.name,
+    primaryMuscle: exercise.category || '',
+    secondaryMuscles: exercise.secondary_muscles || exercise.muscles || []
+  };
+};
 
 // --- Zod Schema for Exercise Instance --- 
 // Define schema for ExerciseSet
@@ -20,7 +38,7 @@ const exerciseSetSchema = z.object({
 // Note: exercise_db_id might need specific validation if fetched from HeyGainz API
 const exerciseInstanceSchema = z.object({
     exercise_name: z.string().min(1, 'Exercise name is required'),
-    exercise_db_id: z.string().trim().optional().nullable(), // HeyGainz API ID (might be number depending on HeyGainz API service)
+    exercise_db_id: z.string().trim().optional().nullable(), // Exercise database ID
     sets: z.string().trim().optional().nullable(),
     reps: z.string().trim().optional().nullable(),
     rest_period_seconds: z.preprocess((val) => val ? parseInt(String(val), 10) : undefined, 
@@ -90,7 +108,7 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
             const performSearch = async () => {
                 try {
                     const results = await searchExercises(searchQuery);
-                    setSearchResults(results);
+                    setSearchResults(results.results);
                 } catch (error) {
                     console.error('Error searching exercises:', error);
                     setSearchResults([]);
@@ -295,18 +313,21 @@ const ExerciseInstanceForm: React.FC<ExerciseInstanceFormProps> = ({ exercise, o
                             <div className="absolute z-10 w-full mt-1 overflow-auto bg-white rounded-md shadow-lg dark:bg-gray-800 max-h-60">
                                 {searchResults.length > 0 ? (
                                     <ul className="py-1">
-                                        {searchResults.map((exercise) => (
-                                            <li 
-                                                key={exercise.id}
-                                                className="px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                                                onClick={() => handleSelectExercise(exercise)}
-                                            >
-                                                <div className="font-medium">{exercise.name}</div>
-                                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                    {exercise.primaryMuscle} {exercise.secondaryMuscles.length > 0 && `• ${exercise.secondaryMuscles.join(', ')}`}
-                                                </div>
-                                            </li>
-                                        ))}
+                                        {searchResults.map((exercise) => {
+                                            const adaptedExercise = adaptExerciseForDisplay(exercise);
+                                            return (
+                                                <li 
+                                                    key={exercise.id}
+                                                    className="px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                    onClick={() => handleSelectExercise(exercise)}
+                                                >
+                                                    <div className="font-medium">{exercise.name}</div>
+                                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {adaptedExercise.primaryMuscle} {adaptedExercise.secondaryMuscles.length > 0 && `• ${adaptedExercise.secondaryMuscles.join(', ')}`}
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 ) : (
                                     <div className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">

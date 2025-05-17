@@ -163,7 +163,7 @@ const CheckInReminderWidget: React.FC = () => {
                 </p>
                 <ButtonLink
                   to="/history"
-                  variant="secondary"
+                  variant="primary"
                   color="indigo"
                   icon={
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -172,6 +172,18 @@ const CheckInReminderWidget: React.FC = () => {
                   }
                 >
                   View Check-in History
+                </ButtonLink>
+                <ButtonLink
+                  to="/check-in/new"
+                  variant="secondary"
+                  color="indigo"
+                  icon={
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  }
+                >
+                  Submit Check-in
                 </ButtonLink>
               </div>
             ) : (

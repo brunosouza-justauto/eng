@@ -58,6 +58,15 @@ const WorkoutPlanView: React.FC = () => {
     return days[(dayOfWeek - 1) % 7];
   };
   
+  // Helper function to clean exercise names from gender and version indicators
+  const cleanExerciseName = (name: string): string => {
+    if (!name) return name;
+    // Remove text within parentheses and extra whitespace
+    return name.replace(/\s*\([^)]*\)\s*/g, ' ') // Remove anything between parentheses
+               .replace(/\s+/g, ' ')             // Replace multiple spaces with a single space
+               .trim();                          // Remove leading/trailing whitespace
+  };
+  
   // Fetch program data including all workouts
   useEffect(() => {
     const fetchProgramData = async () => {
@@ -255,9 +264,9 @@ const WorkoutPlanView: React.FC = () => {
                       className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700 last:border-0"
                     >
                       <div className="flex-1">
-                        <span className="text-sm font-medium text-gray-800 dark:text-white block">
-                          {exercise.exercise_name}
-                        </span>
+                        <div className="font-medium text-gray-800 dark:text-gray-100">
+                          {cleanExerciseName(exercise.exercise_name)}
+                        </div>
                       </div>
                     </div>
                   ))}

@@ -10,7 +10,8 @@
     "vercel-build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "ingest-exercises": "node scripts/ingest-exercises.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",

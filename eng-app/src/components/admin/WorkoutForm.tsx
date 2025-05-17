@@ -10,9 +10,27 @@ import { v4 as uuidv4 } from 'uuid';
 import { 
     fetchExercises, 
     fetchMuscleGroups, 
-    HeyGainzMuscle as Category
+    fetchEquipmentOptions,
+    fetchCategories,
+    fetchGenderOptions,
+    Muscle as Category
 } from '../../utils/exerciseAPI';
 import DraggableExerciseCard from './DraggableExerciseCard';
+
+// Define ExerciseWithSupersetFields interface
+interface ExerciseWithSupersetFields extends ExerciseInstanceAdminData {
+    superset_group_id?: string | null;
+    superset_order?: number;
+}
+
+// Helper function to clean exercise names from gender and version indicators
+const cleanExerciseName = (name: string): string => {
+  if (!name) return name;
+  // Remove text within parentheses and extra whitespace
+  return name.replace(/\s*\([^)]*\)\s*/g, ' ') // Remove anything between parentheses
+             .replace(/\s+/g, ' ')             // Replace multiple spaces with a single space
+             .trim();                          // Remove leading/trailing whitespace
+};
 
 // Make sure LocalExercise is compatible with Exercise
 interface LocalExercise {
@@ -254,7 +272,7 @@ const DraggableWorkoutExercise = ({
                                 {supersetInfo?.order}
                             </span>
                         )}
-                        <h3 className="font-medium dark:text-white">{exercise.exercise_name}</h3>
+                        <h3 className="font-medium dark:text-white">{cleanExerciseName(exercise.exercise_name)}</h3>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -302,7 +320,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     const [searchResults, setSearchResults] = useState<DatabaseExercise[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [categories, setCategories] = useState<Category[]>([]);
     const [selectedExerciseDetails, setSelectedExerciseDetails] = useState<ExerciseInstanceAdminData | null>(null);
     const [activeExerciseIndex, setActiveExerciseIndex] = useState<number | null>(null);
@@ -332,6 +350,14 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     const [hoveringIndex, setHoveringIndex] = useState<number | null>(null);
     // Add state to track if any drag operation is in progress
     const [isDraggingAny, setIsDraggingAny] = useState<boolean>(false);
+
+    // Add a new state for equipment filter
+    const [selectedEquipment, setSelectedEquipment] = useState<string | null>(null);
+    const [equipmentOptions, setEquipmentOptions] = useState<string[]>([]);
+
+    // Add a new state for gender options
+    const [genderOptions, setGenderOptions] = useState<string[]>([]);
+    const [selectedGender, setSelectedGender] = useState<string | null>(null);
 
     const methods = useForm<WorkoutFormData>({
         defaultValues: {
@@ -470,51 +496,60 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                 query: searchQuery,
                 category: selectedCategory,
                 page: page,
-                perPage: RESULTS_PER_PAGE
+                perPage: RESULTS_PER_PAGE,
+                gender: selectedGender,
+                equipment: selectedEquipment
+            });
+            
+            // Add additional debugging info
+            console.log('Current state before search:', {
+                isLoading,
+                showFemaleExercises,
+                searchResults: searchResults?.length || 0
             });
             
             const response = await fetchExercises(
-                page,
                 searchQuery, 
                 selectedCategory,
-                RESULTS_PER_PAGE
+                selectedGender,
+                selectedEquipment,
+                page,
+                RESULTS_PER_PAGE,
             );
             
+            // More detailed logging of the response
             console.log('Search results received:', {
                 count: response.count,
                 hasNext: response.next !== null,
-                results: response.results.length
+                results: response.results?.length || 0,
+                status: response.results?.length ? 'Has Results' : 'Empty Results'
             });
             
-            if (response.results.length === 0) {
+            if (!response.results || response.results.length === 0) {
                 console.warn('No exercise results found');
+                
+                // Check if this is the initial load
+                if (page === 1 && !searchQuery && selectedCategory === null) {
+                    console.warn('This is the initial load - database might be empty or not accessible');
+                }
             } else {
                 console.log('First result sample:', response.results[0]);
             }
             
+            // Make sure results is always an array even if the API returns null
+            const safeResults = response.results || [];
+            
             // Convert API exercise type to database exercise type that the component expects
-            const convertedResults = response.results.map(apiExercise => ({
+            const convertedResults = safeResults.map(apiExercise => ({
                 ...apiExercise,
                 primaryMuscle: apiExercise.category || '',
                 secondaryMuscles: apiExercise.muscles || []
             })) as unknown as DatabaseExercise[];
             
-            // Filter for female exercises if the option is selected
-            let filteredResults = convertedResults;
-            if (showFemaleExercises) {
-
-                console.log('Filtered results:', filteredResults);
-
-                filteredResults = convertedResults.filter(exercise => 
-                    exercise.name.toLowerCase().includes('female')
-                );
-
-                console.log('Filtered results:', filteredResults);
-            }
-            
-            setSearchResults(filteredResults);
-            setTotalResults(showFemaleExercises ? filteredResults.length : (response.count || 0));
-            setHasMore(showFemaleExercises ? false : (response.next !== null));
+            // We no longer need to filter for female exercises here since it's handled by the API
+            setSearchResults(convertedResults);
+            setTotalResults(response.count || 0);
+            setHasMore(response.next !== null);
         } catch (err) {
             console.error("Error searching exercises:", err);
             setError("Failed to search exercises. Please try again later.");
@@ -522,7 +557,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         } finally {
             setIsLoading(false);
         }
-    }, [searchQuery, selectedCategory, page, showFemaleExercises]);
+    }, [searchQuery, selectedCategory, page, showFemaleExercises, selectedEquipment, selectedGender]);
     
     // Search exercises with debounce
     useEffect(() => {
@@ -551,8 +586,10 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                 const response = await fetchExercises(
                     1, // First page
                     "", // No search term
-                    null, // No category filter
-                    RESULTS_PER_PAGE
+                    "", // No category filter
+                    RESULTS_PER_PAGE,
+                    "", // No gender filter
+                    "" // No equipment filter
                 );
                 
                 // Convert API exercise type to database exercise type
@@ -735,8 +772,8 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     // Helper function to extract muscle information from API exercise
     const createLocalExerciseFromAPI = (exercise: DatabaseExercise): LocalExercise => {
         // Convert the API exercise to a format our local state can use
-        const primaryMuscle = exercise.primary_muscle_group || '';
-        const secondaryMuscles = exercise.secondary_muscle_groups || [];
+        const primaryMuscle = exercise.category || '';
+        const secondaryMuscles = exercise.muscles || [];
         
         return {
             id: exercise.id,
@@ -744,7 +781,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             category: exercise.category || '',
             primaryMuscle,
             secondaryMuscles,
-            image: (exercise as { image?: string }).image || null,
+            image: exercise.image === null ? undefined : exercise.image,
         };
     };
 
@@ -1056,15 +1093,9 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
     };
 
     // Function to handle category selection
-    const handleCategoryChange = (categoryId: number | null) => {
-        setSelectedCategory(categoryId);
+    const handleCategoryChange = (categoryName: string | null) => {
+        setSelectedCategory(categoryName);
         setPage(1); // Reset to first page on category change
-    };
-    
-    // Function to handle female exercises filter toggle
-    const handleFemaleExercisesToggle = () => {
-        setShowFemaleExercises(!showFemaleExercises);
-        setPage(1); // Reset to first page when filter changes
     };
     
     // Function to handle pagination
@@ -1606,6 +1637,45 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         setPage(1); // Reset to page 1 when search query changes
     };
 
+    // Add a function to fetch equipment options
+    const fetchEquipmentOptionsFromAPI = useCallback(async () => {
+        try {
+            const equipmentOptions = await fetchEquipmentOptions();
+            setEquipmentOptions(equipmentOptions);
+        } catch (err) {
+            console.error('Error in fetchEquipmentOptions:', err);
+        }
+    }, []);
+
+    // Fetch equipment options when component mounts
+    useEffect(() => {
+        fetchEquipmentOptionsFromAPI();
+    }, [fetchEquipmentOptionsFromAPI]);
+
+    // Add effect to fetch gender options
+    useEffect(() => {
+        const loadGenderOptions = async () => {
+            try {
+                const options = await fetchGenderOptions();
+                setGenderOptions(options);
+            } catch (err) {
+                console.error('Error loading gender options:', err);
+            }
+        };
+        
+        loadGenderOptions();
+    }, []);
+    
+    // Add handler for gender selection
+    const handleGenderChange = (gender: string | null) => {
+        setSelectedGender(gender);
+        
+        // Keep the female checkbox in sync
+        setShowFemaleExercises(gender === 'Female');
+        
+        setPage(1); // Reset to page 1 when filter changes
+    };
+
     return (
         <DndProvider backend={HTML5Backend}>
         <div className="flex flex-col h-full bg-white rounded-lg shadow dark:bg-gray-800">
@@ -1665,52 +1735,104 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                                 className="flex items-center text-sm text-gray-700 dark:text-gray-300"
                             >
                                 <FiFilter className="mr-2" />
-                                Filter by Category
+                                Filter
                                 {showFilters ? <FiChevronUp className="ml-2" /> : <FiChevronDown className="ml-2" />}
                             </button>
                             
                             {showFilters && (
                                 <div className="p-2 mt-2 rounded-md bg-gray-50 dark:bg-gray-700">
-                                    <div className="flex items-center mb-2">
-                                        <input
-                                            type="radio"
-                                            id="all-categories"
-                                            checked={selectedCategory === null}
-                                            onChange={() => handleCategoryChange(null)}
-                                            className="mr-2"
-                                        />
-                                        <label htmlFor="all-categories" className="text-sm dark:text-white">All Categories</label>
-                        </div>
-                                    
-                                    {categories.map((category) => (
-                                        <div key={category.id} className="flex items-center mb-2">
+                                    <div className="border-gray-200 dark:border-gray-600">
+                                        <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Muscle Group</h4>
+                                        <div className="flex items-center mb-2">
                                             <input
                                                 type="radio"
-                                                id={`category-${category.id}`}
-                                                checked={selectedCategory === category.id}
-                                                onChange={() => handleCategoryChange(category.id)}
+                                                id="all-categories"
+                                                checked={selectedCategory === null}
+                                                onChange={() => handleCategoryChange(null)}
                                                 className="mr-2"
                                             />
-                                            <label htmlFor={`category-${category.id}`} className="text-sm dark:text-white">
-                                                {category.name}
-                                            </label>
+                                            <label htmlFor="all-categories" className="text-sm dark:text-white">All Muscle Groups</label>
                                         </div>
-                                    ))}
                                     
-                                    <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                                        <div className="flex items-center">
-                                            <input
-                                                type="checkbox"
-                                                id="female-exercises"
-                                                checked={showFemaleExercises}
-                                                onChange={handleFemaleExercisesToggle}
-                                                className="mr-2"
-                                            />
-                                            <label htmlFor="female-exercises" className="text-sm dark:text-white">
-                                                Female Exercises
-                                            </label>
-                                        </div>
+                                        {categories.map((category) => (
+                                            <div key={category.name} className="flex items-center mb-2">
+                                                <input
+                                                    type="radio"
+                                                    id={`category-${category.name}`}
+                                                    checked={selectedCategory === category.name}
+                                                    onChange={() => handleCategoryChange(category.name)}
+                                                    className="mr-2"
+                                                />
+                                                <label htmlFor={`category-${category.name}`} className="text-sm dark:text-white">
+                                                    {category.name}
+                                                </label>
+                                            </div>
+                                        ))}
                                     </div>
+                                    
+                                    {/* Equipment Filter Section */}
+                                    {equipmentOptions.length > 0 && (
+                                        <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                                            <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Equipment</h4>
+                                            <div className="flex items-center mb-2">
+                                                <input
+                                                    type="radio"
+                                                    id="all-equipment"
+                                                    checked={selectedEquipment === null}
+                                                    onChange={() => setSelectedEquipment(null)}
+                                                    className="mr-2"
+                                                />
+                                                <label htmlFor="all-equipment" className="text-sm dark:text-white">All Equipment</label>
+                                            </div>
+                                            
+                                            {equipmentOptions.map((equipment, idx) => (
+                                                <div key={`equipment-${idx}`} className="flex items-center mb-2">
+                                                    <input
+                                                        type="radio"
+                                                        id={`equipment-${idx}`}
+                                                        checked={selectedEquipment === equipment}
+                                                        onChange={() => setSelectedEquipment(equipment)}
+                                                        className="mr-2"
+                                                    />
+                                                    <label htmlFor={`equipment-${idx}`} className="text-sm capitalize dark:text-white">
+                                                        {equipment}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Gender Filter Section */}
+                                    {genderOptions.length > 0 && (
+                                        <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                                            <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Gender</h4>
+                                            <div className="flex items-center mb-2">
+                                                <input
+                                                    type="radio"
+                                                    id="all-genders"
+                                                    checked={selectedGender === null}
+                                                    onChange={() => handleGenderChange(null)}
+                                                    className="mr-2"
+                                                />
+                                                <label htmlFor="all-genders" className="text-sm dark:text-white">All Genders</label>
+                                            </div>
+                                            
+                                            {genderOptions.map((gender, idx) => (
+                                                <div key={`gender-${idx}`} className="flex items-center mb-2">
+                                                    <input
+                                                        type="radio"
+                                                        id={`gender-${idx}`}
+                                                        checked={selectedGender === gender}
+                                                        onChange={() => handleGenderChange(gender)}
+                                                        className="mr-2"
+                                                    />
+                                                    <label htmlFor={`gender-${idx}`} className="text-sm capitalize dark:text-white">
+                                                        {gender}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                     </div>
                 )}
             </div>

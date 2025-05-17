@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom'; // Re-enable useParams
 import { supabase } from '../../services/supabaseClient';
-// Update import to use the new function
-import { getExercisesByIds, Exercise } from '../../services/exerciseService';
+// Update import to use the new exercise database adapter
+import { getExercisesByIds } from '../../utils/exerciseDatabaseAdapter';
+import { Exercise } from '../../utils/exerciseTypes';
 import { SetType, ExerciseSet } from '../../types/adminTypes';
 import BackButton from '../common/BackButton';
 
@@ -35,13 +36,23 @@ interface WorkoutViewParams extends Record<string, string | undefined> {
   workoutId: string;
 }
 
+// Helper function to clean exercise names from gender and version indicators
+const cleanExerciseName = (name: string): string => {
+  if (!name) return name;
+  // Remove text within parentheses and extra whitespace
+  return name.replace(/\s*\([^)]*\)\s*/g, ' ') // Remove anything between parentheses
+             .replace(/\s+/g, ' ')             // Replace multiple spaces with a single space
+             .trim();                          // Remove leading/trailing whitespace
+};
+
 const WorkoutView: React.FC = () => {
     const { workoutId } = useParams<WorkoutViewParams>(); // Get ID from route params
     // Removed placeholder ID
     // const workoutId = 'dummy-id'; 
 
     const [workout, setWorkout] = useState<WorkoutData | null>(null);
-    const [exercisesMap, setExercisesMap] = useState<Map<number, Exercise>>(new Map());
+    // Update map to use string keys instead of number keys
+    const [exercisesMap, setExercisesMap] = useState<Map<string, Exercise>>(new Map());
     const [isLoading, setIsLoading] = useState<boolean>(true); // Combined loading state
     const [error, setError] = useState<string | null>(null);
 
@@ -95,14 +106,13 @@ const WorkoutView: React.FC = () => {
                 // Extract exercise IDs that we need to fetch
                 const exerciseIds = typedWorkoutData.exercise_instances
                     .map(ex => ex.exercise_db_id)
-                    .filter((id): id is string => id !== null) // Filter out nulls
-                    .map(id => parseInt(id, 10)) // Convert to numbers
-                    .filter(id => !isNaN(id)); // Filter out invalid numbers
+                    .filter((id): id is string => id !== null); // Filter out nulls
 
                 // Only fetch exercises if we have valid IDs
                 if (exerciseIds.length > 0) {
                     console.log(`Fetching ${exerciseIds.length} specific exercises...`);
                     const exercises = await getExercisesByIds(exerciseIds);
+                    // Use id as string for the map key
                     const exerciseMap = new Map(exercises.map(ex => [ex.id, ex]));
                     setExercisesMap(exerciseMap);
                     console.log(`Loaded ${exerciseMap.size} exercises into map.`);
@@ -127,9 +137,8 @@ const WorkoutView: React.FC = () => {
     // Helper to get exercise details based on DB ID
     const getExerciseDetails = (dbId: string | null): Exercise | undefined => {
         if (!dbId) return undefined;
-        // IDs are numbers, ensure conversion if needed (assuming db_id is stored correctly)
-        const numericId = parseInt(dbId, 10);
-        return isNaN(numericId) ? undefined : exercisesMap.get(numericId);
+        // Use string ID directly without conversion
+        return exercisesMap.get(dbId);
     };
 
     // Helper to get a friendly name for the set type
@@ -254,7 +263,7 @@ const WorkoutView: React.FC = () => {
                                                 {exerciseGroup.group.map((ex, index) => {
                                 // Look up exercise data
                                 const exerciseData = getExerciseDetails(ex.exercise_db_id);
-                                const displayName = ex.exercise_name || exerciseData?.name || 'Unnamed Exercise';
+                                const displayName = cleanExerciseName(ex.exercise_name || exerciseData?.name || 'Unnamed Exercise');
                                 
                                 return (
                                                         <div 
@@ -335,9 +344,9 @@ const WorkoutView: React.FC = () => {
                                             <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">
                                                     (Exercise ID: {exerciseData.id})
-                                                    {exerciseData.gif_url && (
+                                                    {exerciseData.image && (
                                                         <a 
-                                                            href={exerciseData.gif_url} 
+                                                            href={exerciseData.image} 
                                                             target="_blank" 
                                                             rel="noopener noreferrer" 
                                                             className="ml-2 text-indigo-500 hover:underline"
@@ -358,7 +367,7 @@ const WorkoutView: React.FC = () => {
                                     // Render a single exercise
                                     const ex = exerciseGroup.group[0];
                                     const exerciseData = getExerciseDetails(ex.exercise_db_id);
-                                    const displayName = ex.exercise_name || exerciseData?.name || 'Unnamed Exercise';
+                                    const displayName = cleanExerciseName(ex.exercise_name || exerciseData?.name || 'Unnamed Exercise');
                                     
                                     return (
                                         <div key={ex.exercise_db_id || `ex-${groupIndex}`} className="p-3 bg-gray-100 rounded shadow dark:bg-gray-700">
@@ -426,9 +435,9 @@ const WorkoutView: React.FC = () => {
                                                 <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
                                                     <p className="text-xs text-gray-500 dark:text-gray-400">
                                                         (Exercise ID: {exerciseData.id})
-                                                        {exerciseData.gif_url && (
+                                                        {exerciseData.image && (
                                                             <a 
-                                                                href={exerciseData.gif_url} 
+                                                                href={exerciseData.image} 
                                                                 target="_blank" 
                                                                 rel="noopener noreferrer" 
                                                                 className="ml-2 text-indigo-500 hover:underline"
@@ -451,4 +460,4 @@ const WorkoutView: React.FC = () => {
     );
 };
 
-export default WorkoutView; 
+export default WorkoutView;

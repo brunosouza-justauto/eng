@@ -46,6 +46,15 @@ interface WorkoutCompletionStatus {
   completionTime: string | null;
 }
 
+// Helper function to clean exercise names from gender and version indicators
+const cleanExerciseName = (name: string): string => {
+  if (!name) return name;
+  // Remove text within parentheses and extra whitespace
+  return name.replace(/\s*\([^)]*\)\s*/g, ' ') // Remove anything between parentheses
+             .replace(/\s+/g, ' ')             // Replace multiple spaces with a single space
+             .trim();                          // Remove leading/trailing whitespace
+};
+
 const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId, program }) => {
   const profile = useSelector(selectProfile);
   const [workoutData, setWorkoutData] = useState<WorkoutDataWithId | null>(null);
@@ -380,8 +389,8 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
                     className="flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-700 last:border-0"
                   >
                     <div className="flex items-center">
-                      <span className="text-sm font-medium text-gray-800 dark:text-white">
-                        {exercise.exercise_name}
+                      <span className="text-gray-800 dark:text-white font-medium">
+                        {cleanExerciseName(exercise.exercise_name)}
                       </span>
                     </div>
                   </div>
