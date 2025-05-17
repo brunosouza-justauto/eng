@@ -25,6 +25,65 @@ const TRAINING_PHASE_OPTIONS = [
     { value: 'Any', label: 'Any' }
 ];
 
+// Define the muscle group mapping for broader categorization
+const MUSCLE_GROUP_MAPPING: Record<string, string> = {
+    // Arms
+    'biceps brachii': 'Arms',
+    'biceps': 'Arms',
+    'brachialis': 'Arms',
+    'forearms': 'Arms',
+    'triceps brachii': 'Arms',
+    'triceps': 'Arms',
+    
+    // Shoulders
+    'deltoid anterior': 'Shoulders',
+    'deltoid lateral': 'Shoulders',
+    'deltoid posterior': 'Shoulders',
+    'front deltoid': 'Shoulders', 
+    'lateral deltoid': 'Shoulders',
+    'rear deltoid': 'Shoulders',
+    'rotator cuff': 'Shoulders',
+    'shoulders': 'Shoulders',
+    
+    // Chest
+    'pectoralis major': 'Chest',
+    'pectoralis minor': 'Chest',
+    'serratus anterior': 'Chest',
+    'chest': 'Chest',
+    'upper chest': 'Chest',
+    'lower chest': 'Chest',
+    
+    // Back
+    'latissimus dorsi': 'Back',
+    'lats': 'Back',
+    'lower back': 'Back',
+    'rhomboids': 'Back',
+    'teres major': 'Back',
+    'trapezius': 'Back',
+    'traps': 'Back',
+    'back': 'Back',
+    
+    // Core
+    'obliques': 'Core',
+    'rectus abdominis': 'Core',
+    'transverse abdominis': 'Core',
+    'abs': 'Core',
+    
+    // Glutes
+    'glutes': 'Glutes',
+    
+    // Legs
+    'calves': 'Legs',
+    'hamstrings': 'Legs',
+    'hip adductors': 'Legs',
+    'hip flexors': 'Legs',
+    'quadriceps': 'Legs',
+    'quads': 'Legs',
+    
+    // Neck
+    'neck': 'Neck'
+};
+
 const FITNESS_LEVEL_OPTIONS = [
     { value: 'Beginner', label: 'Beginner' },
     { value: 'Intermediate', label: 'Intermediate' },
@@ -83,39 +142,46 @@ const MuscleHeatMap: React.FC<{
     muscleData: MuscleData[];
     title: string;
 }> = ({ muscleData, title }) => {
-    // Map muscle names to body parts on the SVG
-    // This mapping is for future enhancements to dynamically color specific SVG parts
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const muscleToSvgPart: Record<string, string[]> = {
-        'chest': ['chest-left', 'chest-right'],
-        'upper chest': ['chest-upper-left', 'chest-upper-right'],
-        'lower chest': ['chest-lower-left', 'chest-lower-right'],
-        'back': ['back-upper', 'back-lower'],
-        'lats': ['lats-left', 'lats-right'],
-        'traps': ['traps'],
-        'shoulders': ['shoulder-left', 'shoulder-right'],
-        'front deltoid': ['shoulder-front-left', 'shoulder-front-right'],
-        'lateral deltoid': ['shoulder-side-left', 'shoulder-side-right'],
-        'rear deltoid': ['shoulder-rear-left', 'shoulder-rear-right'],
-        'biceps': ['bicep-left', 'bicep-right'],
-        'triceps': ['tricep-left', 'tricep-right'],
-        'forearms': ['forearm-left', 'forearm-right'],
-        'abs': ['abs-upper', 'abs-lower'],
-        'obliques': ['oblique-left', 'oblique-right'],
-        'quads': ['quad-left', 'quad-right'],
-        'hamstrings': ['hamstring-left', 'hamstring-right'],
-        'glutes': ['glute-left', 'glute-right'],
-        'calves': ['calf-left', 'calf-right'],
-    };
-
     // Get color intensity for a muscle
     const getColorIntensity = (muscleName: string): number => {
+        // First try exact match
         const muscle = muscleData.find(m => 
             m.name.toLowerCase() === muscleName.toLowerCase() ||
             muscleName.toLowerCase().includes(m.name.toLowerCase()) ||
             m.name.toLowerCase().includes(muscleName.toLowerCase())
         );
-        return muscle ? muscle.intensity : 0;
+        
+        if (muscle) return muscle.intensity;
+        
+        // Try to find common categories
+        const muscleCategories: Record<string, string[]> = {
+            'Arms': ['biceps', 'triceps', 'forearms', 'brachialis'],
+            'Shoulders': ['deltoid', 'shoulder'],
+            'Chest': ['chest', 'pectoralis'],
+            'Back': ['back', 'lats', 'trapezius', 'traps', 'rhomboids'],
+            'Core': ['abs', 'obliques', 'rectus abdominis'],
+            'Glutes': ['glutes'],
+            'Legs': ['quads', 'hamstrings', 'calves']
+        };
+        
+        // Find if this muscle belongs to any category
+        let category = '';
+        const lowerCaseName = muscleName.toLowerCase();
+        
+        for (const [cat, muscles] of Object.entries(muscleCategories)) {
+            if (muscles.some(m => lowerCaseName.includes(m))) {
+                category = cat;
+                break;
+            }
+        }
+        
+        if (category) {
+            // Find category in muscle data
+            const categoryData = muscleData.find(m => m.name === category);
+            if (categoryData) return categoryData.intensity;
+        }
+        
+        return 0; // No match found
     };
 
     // Generate color based on intensity (0-100)
@@ -133,7 +199,7 @@ const MuscleHeatMap: React.FC<{
             <h3 className="text-xl font-semibold mb-5 text-gray-800 dark:text-white">{title}</h3>
             <div className="flex flex-col md:flex-row justify-center items-center gap-10 w-full">
                 {/* Front View */}
-                <div className="w-48 h-80 relative bg-gray-900 bg-opacity-20 rounded-lg p-3 flex flex-col items-center">
+                <div className="w-48 h-96 relative bg-gray-900 bg-opacity-20 rounded-lg p-3 flex flex-col items-center">
                     <svg viewBox="0 0 100 170" className="w-full h-full">
                         {/* Head */}
                         <circle cx="50" cy="15" r="12" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
@@ -213,7 +279,7 @@ const MuscleHeatMap: React.FC<{
                 </div>
                 
                 {/* Back View */}
-                <div className="w-48 h-80 relative bg-gray-900 bg-opacity-20 rounded-lg p-3 flex flex-col items-center">
+                <div className="w-48 h-96 relative bg-gray-900 bg-opacity-20 rounded-lg p-3 flex flex-col items-center">
                     <svg viewBox="0 0 100 170" className="w-full h-full">
                         {/* Head */}
                         <circle cx="50" cy="15" r="12" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
@@ -286,16 +352,32 @@ const MuscleHeatMap: React.FC<{
                     <span className="text-sm font-medium text-gray-600 dark:text-gray-300">No Volume</span>
                 </div>
                 <div className="flex items-center">
-                    <div className="w-5 h-5 bg-red-300 mr-2 border border-red-400 rounded"></div>
-                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Low Volume</span>
+                    <div className="w-5 h-5 bg-blue-600 mr-2 border border-blue-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Arms</span>
                 </div>
                 <div className="flex items-center">
-                    <div className="w-5 h-5 bg-red-500 mr-2 border border-red-600 rounded"></div>
-                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Medium Volume</span>
+                    <div className="w-5 h-5 bg-purple-600 mr-2 border border-purple-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Shoulders</span>
                 </div>
                 <div className="flex items-center">
-                    <div className="w-5 h-5 bg-red-700 mr-2 border border-red-800 rounded"></div>
-                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">High Volume</span>
+                    <div className="w-5 h-5 bg-red-600 mr-2 border border-red-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Chest</span>
+                </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-green-600 mr-2 border border-green-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Back</span>
+                </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-yellow-600 mr-2 border border-yellow-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Core</span>
+                </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-pink-600 mr-2 border border-pink-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Glutes</span>
+                </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-indigo-600 mr-2 border border-indigo-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Legs</span>
                 </div>
             </div>
         </div>
@@ -309,6 +391,23 @@ const MuscleSetBreakdown: React.FC<{
 }> = ({ muscleData, title }) => {
     // Sort muscles by sets count in descending order
     const sortedMuscleData = [...muscleData].sort((a, b) => b.setsCount - a.setsCount);
+    
+    // Define color mapping for different muscle groups
+    const getGroupColor = (muscleName: string): string => {
+        const groupColors: Record<string, string> = {
+            'Arms': 'bg-blue-600',
+            'Shoulders': 'bg-purple-600',
+            'Chest': 'bg-red-600',
+            'Back': 'bg-green-600',
+            'Core': 'bg-yellow-600',
+            'Glutes': 'bg-pink-600',
+            'Legs': 'bg-indigo-600',
+            'Neck': 'bg-gray-600',
+            'Other': 'bg-gray-500'
+        };
+        
+        return groupColors[muscleName] || 'bg-red-600'; // Default to red if not found
+    };
     
     return (
         <div className="mb-8">
@@ -342,7 +441,7 @@ const MuscleSetBreakdown: React.FC<{
                                         <div className="flex items-center">
                                             <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mr-4">
                                                 <div 
-                                                    className="bg-red-600 h-2.5 rounded-full" 
+                                                    className={`${getGroupColor(muscle.name)} h-2.5 rounded-full`}
                                                     style={{ width: `${muscle.intensity}%` }}
                                                 ></div>
                                             </div>
@@ -1173,12 +1272,22 @@ const ProgramBuilder: React.FC = () => {
         }
         setIsLoadingWorkouts(true);
         try {
-            // Enhanced query to fetch workouts and exercise instances
+            // Now that we have a proper database relationship, we can use nested joins
             const { data, error } = await supabase
                 .from('workouts')
                 .select(`
                     *, 
-                    exercise_instances(*)
+                    exercise_instances(
+                        *,
+                        exercises(
+                            id,
+                            name,
+                            primary_muscle_group,
+                            secondary_muscle_groups,
+                            body_part,
+                            target
+                        )
+                    )
                 `)
                 .eq('program_template_id', selectedTemplate.id)
                 .order('order_in_program', { ascending: true })
@@ -1188,10 +1297,11 @@ const ProgramBuilder: React.FC = () => {
 
             if (data && data.length > 0) {
                 console.log('*** DETAILED PROGRAM DATA ***');
-                console.log('Raw workout data:', JSON.stringify(data, null, 2));
+                console.log('Raw workout data with nested exercises:', JSON.stringify(data, null, 2));
                 
-                // Get all exercise instance IDs
+                // Get all exercise instance IDs for fetching sets
                 const exerciseInstanceIds: string[] = [];
+                
                 data.forEach(workout => {
                     if (workout.exercise_instances && workout.exercise_instances.length > 0) {
                         workout.exercise_instances.forEach((instance: ExerciseInstanceAdminData) => {
@@ -1204,7 +1314,7 @@ const ProgramBuilder: React.FC = () => {
                 
                 console.log('Fetching exercise sets for instances:', exerciseInstanceIds);
                 
-                // Fetch all exercise sets for these instances
+                // Fetch all exercise sets for these instances (this part remains the same)
                 if (exerciseInstanceIds.length > 0) {
                     const { data: setsData, error: setsError } = await supabase
                         .from('exercise_sets')
@@ -1273,6 +1383,25 @@ const ProgramBuilder: React.FC = () => {
                                     if (instance.group_id && instance.group_type === ExerciseGroupType.SUPERSET) {
                                         instanceWithSuperset.superset_group_id = instance.group_id;
                                         instanceWithSuperset.superset_order = instance.group_order;
+                                    }
+                                    
+                                    // Log muscle group info for debugging
+                                    if (instance.exercises) {
+                                        // Cast to the correct type since it appears to be an object not an array
+                                        interface ExerciseData {
+                                            id: number | string;
+                                            name: string;
+                                            primary_muscle_group?: string;
+                                            secondary_muscle_groups?: string[];
+                                            body_part?: string;
+                                            target?: string;
+                                        }
+                                        
+                                        const exerciseData = instance.exercises as unknown as ExerciseData;
+                                        console.log(`Exercise ${instance.exercise_name} - Primary muscle: ${exerciseData.primary_muscle_group || exerciseData.body_part || exerciseData.target || 'None'}`);
+                                        console.log(`Secondary muscles: ${Array.isArray(exerciseData.secondary_muscle_groups) 
+                                            ? exerciseData.secondary_muscle_groups.join(', ') 
+                                            : 'None'}`);
                                     }
                                 });
                                 
@@ -1547,29 +1676,6 @@ const ProgramBuilder: React.FC = () => {
         // Map to hold sets per muscle group across all workouts
         const muscleMap: Record<string, number> = {};
         
-        // Collect all exercise_db_ids to fetch from the exercises table
-        const exerciseDbIds: string[] = [];
-        workouts.forEach(workout => {
-            if (!workout.exercise_instances) return;
-            
-            workout.exercise_instances.forEach(exercise => {
-                if (exercise.exercise_db_id) {
-                    exerciseDbIds.push(exercise.exercise_db_id);
-                }
-            });
-        });
-        
-        // For now, we'll continue with processing workout data directly
-        // In a real implementation, you would fetch the exercises data here
-        // using a query like:
-        //
-        // const { data: exercisesData } = await supabase
-        //     .from('exercises')
-        //     .select('id, primary_muscle_group, secondary_muscle_groups')
-        //     .in('id', exerciseDbIds);
-        //
-        // Then use that data to get muscle information for each exercise
-        
         // Process all workouts and their exercises
         console.log("MUSCLE MAP DEBUG: Processing", workouts.length, "workouts directly");
         workouts.forEach((workout, widx) => {
@@ -1581,30 +1687,93 @@ const ProgramBuilder: React.FC = () => {
                 const setCount = exercise.sets_data?.length || 0;
                 console.log(`MUSCLE MAP DEBUG: Exercise ${eidx+1}: ${exercise.exercise_name} has ${setCount} sets`);
                 
-                // Add primary muscle group - use proper typing for exercise properties
-                interface ExerciseWithMuscles extends ExerciseInstanceAdminData {
+                console.log("MUSCLE MAP DEBUG: Exercise with muscles:", exercise);
+                
+                // Get primary muscle from the joined exercises data if available
+                let primaryMuscle = null;
+                let secondaryMuscles: string[] = [];
+
+                console.log("MUSCLE MAP DEBUG: Exercise exercises:", exercise.exercises);
+                
+                // Define the exercise data type for the joined data
+                interface ExerciseData {
+                    id: number | string;
+                    name: string;
                     primary_muscle_group?: string;
                     secondary_muscle_groups?: string[];
+                    body_part?: string;
+                    target?: string;
                 }
                 
-                // Cast exercise to our expected type
-                const exerciseWithMuscles = exercise as ExerciseWithMuscles;
+                // Check if we have the exercises data from the join
+                if (exercise.exercises) {
+                    // Cast the exercise data to the right type
+                    const exerciseData = exercise.exercises as unknown as ExerciseData;
+                    primaryMuscle = exerciseData.primary_muscle_group || exerciseData.body_part || exerciseData.target;
+                    secondaryMuscles = Array.isArray(exerciseData.secondary_muscle_groups) 
+                        ? exerciseData.secondary_muscle_groups 
+                        : [];
+                        
+                    console.log(`MUSCLE MAP DEBUG: Found joined exercise data for ${exercise.exercise_name} with ID ${exercise.exercise_db_id}`);
+                    console.log(`MUSCLE MAP DEBUG: Primary muscle from data: ${primaryMuscle}, Secondary muscles: ${JSON.stringify(secondaryMuscles)}`);
+                } else {
+                    // Fallback to existing data - for backward compatibility with direct properties
+                    console.log(`MUSCLE MAP DEBUG: No exercise data found for ${exercise.exercise_name}`);
+                    
+                    // We expect most exercises should have data with the new structure, but keep fallback just in case
+                    interface LegacyExerciseData {
+                        primary_muscle_group?: string;
+                        secondary_muscle_groups?: string[];
+                    }
+                    
+                    const legacyData = exercise as unknown as LegacyExerciseData;
+                    primaryMuscle = legacyData.primary_muscle_group;
+                    secondaryMuscles = legacyData.secondary_muscle_groups || [];
+                }
                 
                 // Log the primary muscle group
-                console.log(`MUSCLE MAP DEBUG: ${exercise.exercise_name} primary muscle: ${exerciseWithMuscles.primary_muscle_group || 'NONE'}`);
+                console.log(`MUSCLE MAP DEBUG: ${exercise.exercise_name} primary muscle: ${primaryMuscle || 'NONE'}`);
                 console.log(`MUSCLE MAP DEBUG: Exercise DB ID: ${exercise.exercise_db_id || 'NONE'}`);
                 
-                if (exerciseWithMuscles.primary_muscle_group) {
-                    const muscleName = exerciseWithMuscles.primary_muscle_group;
-                    muscleMap[muscleName] = (muscleMap[muscleName] || 0) + setCount;
+                // Map the primary muscle to its broader category if available
+                if (primaryMuscle) {
+                    // Find the broader category (default to the original muscle name if not found)
+                    const primaryLower = primaryMuscle.toLowerCase().trim();
+                    let primaryCategory = MUSCLE_GROUP_MAPPING[primaryLower] || primaryMuscle;
+                    
+                    // If not an exact match, try to find a partial match
+                    if (!MUSCLE_GROUP_MAPPING[primaryLower]) {
+                        for (const [muscle, category] of Object.entries(MUSCLE_GROUP_MAPPING)) {
+                            if (primaryLower.includes(muscle) || muscle.includes(primaryLower)) {
+                                primaryCategory = category;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    muscleMap[primaryCategory] = (muscleMap[primaryCategory] || 0) + setCount;
                 }
                 
                 // Add secondary muscle groups with half the weight
-                const secondaryMuscles = exerciseWithMuscles.secondary_muscle_groups || [];
                 console.log(`MUSCLE MAP DEBUG: ${exercise.exercise_name} secondary muscles: ${secondaryMuscles.length || 0} muscles`);
                 
                 secondaryMuscles.forEach(muscleName => {
-                    muscleMap[muscleName] = (muscleMap[muscleName] || 0) + Math.ceil(setCount / 2);
+                    if (muscleName) {
+                        const secondaryLower = muscleName.toLowerCase().trim();
+                        let secondaryCategory = MUSCLE_GROUP_MAPPING[secondaryLower] || muscleName;
+                        
+                        // If not an exact match, try to find a partial match
+                        if (!MUSCLE_GROUP_MAPPING[secondaryLower]) {
+                            for (const [muscle, category] of Object.entries(MUSCLE_GROUP_MAPPING)) {
+                                if (secondaryLower.includes(muscle) || muscle.includes(secondaryLower)) {
+                                    secondaryCategory = category;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        muscleMap[secondaryCategory] = (muscleMap[secondaryCategory] || 0) + Math.ceil(setCount / 2);
+                    }
                 });
             });
         });
@@ -1615,39 +1784,40 @@ const ProgramBuilder: React.FC = () => {
         const maxSets = Math.max(...Object.values(muscleMap), 1);
         console.log("MUSCLE MAP DEBUG: Max sets for any muscle:", maxSets);
         
-        // Convert to array with intensity values
-        const result = Object.entries(muscleMap).map(([name, setsCount]) => ({
+        // Convert the map to an array of objects sorted by volume
+        const muscleData = Object.entries(muscleMap).map(([name, setsCount]) => ({
             name,
             setsCount,
             intensity: Math.min(100, Math.round((setsCount / maxSets) * 100))
         }));
         
-        console.log("MUSCLE MAP DEBUG: Final result has", result.length, "muscle groups");
-        console.log("MUSCLE MAP DEBUG: Muscles detected:", result);
+        // Sort by volume descending
+        muscleData.sort((a, b) => b.setsCount - a.setsCount);
         
-        // If no muscles were found, generate mock data for testing
-        if (result.length === 0) {
-            console.log("MUSCLE MAP DEBUG: No muscles found, generating mock data for testing");
-            
-            // Create mock muscle data so we can at least see the visualization
-            const mockMuscleData: MuscleData[] = [
-                { name: 'chest', setsCount: 12, intensity: 100 },
-                { name: 'back', setsCount: 10, intensity: 83 },
-                { name: 'quads', setsCount: 8, intensity: 67 },
-                { name: 'hamstrings', setsCount: 6, intensity: 50 },
-                { name: 'shoulders', setsCount: 9, intensity: 75 },
-                { name: 'biceps', setsCount: 5, intensity: 42 },
-                { name: 'triceps', setsCount: 5, intensity: 42 },
-                { name: 'abs', setsCount: 3, intensity: 25 },
-                { name: 'glutes', setsCount: 4, intensity: 33 },
-                { name: 'calves', setsCount: 2, intensity: 17 }
-            ];
-            
-            // Show the visualization with mock data
-            return mockMuscleData;
+        console.log("MUSCLE MAP DEBUG: Final sorted muscle data:", muscleData);
+        
+        return muscleData;
+    };
+
+    // Helper function to map a specific muscle to its broader category
+    const mapMuscleToCategory = (muscleName: string): string => {
+        if (!muscleName) return 'Other';
+        
+        const lowerCaseName = muscleName.toLowerCase().trim();
+        
+        // Check our mapping first
+        const category = MUSCLE_GROUP_MAPPING[lowerCaseName];
+        if (category) return category;
+        
+        // If not found, try to find a partial match
+        for (const [muscle, category] of Object.entries(MUSCLE_GROUP_MAPPING)) {
+            if (lowerCaseName.includes(muscle) || muscle.includes(lowerCaseName)) {
+                return category;
+            }
         }
         
-        return result;
+        // If no match found, return the original name
+        return muscleName;
     };
 
     // Helper function to clean exercise names from gender and version indicators

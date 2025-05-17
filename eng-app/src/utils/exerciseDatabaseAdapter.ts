@@ -17,23 +17,90 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * Converts a database exercise to the standard Exercise format
  */
 const formatExerciseFromDb = (dbExercise: DbExercise): Exercise => {
+  // Ensure proper handling of primary muscle group
+  const primaryMuscle = dbExercise.primary_muscle_group || dbExercise.body_part || 'Uncategorized';
+  
+  // Handle secondary muscles with better type checking
+  let secondaryMuscles: string[] = [];
+  if (dbExercise.secondary_muscle_groups) {
+    if (Array.isArray(dbExercise.secondary_muscle_groups)) {
+      secondaryMuscles = dbExercise.secondary_muscle_groups
+        .filter(muscle => typeof muscle === 'string' && muscle.trim() !== '')
+        .map(muscle => muscle.trim());
+    } else if (typeof dbExercise.secondary_muscle_groups === 'string') {
+      // Handle case where it might be a comma-separated string
+      secondaryMuscles = (dbExercise.secondary_muscle_groups as string)
+        .split(',')
+        .map((m: string) => m.trim())
+        .filter((m: string) => m !== '');
+    }
+  }
+  
+  // Ensure arrays are always arrays, even if data is malformed
+  const equipment = Array.isArray(dbExercise.equipment) 
+    ? dbExercise.equipment 
+    : [dbExercise.equipment || 'None'].filter(Boolean);
+  
+  const instructions = Array.isArray(dbExercise.instructions) 
+    ? dbExercise.instructions 
+    : typeof dbExercise.instructions === 'string'
+      ? [dbExercise.instructions]
+      : [];
+      
+  const tips = Array.isArray(dbExercise.tips) 
+    ? dbExercise.tips 
+    : typeof dbExercise.tips === 'string'
+      ? [dbExercise.tips]
+      : [];
+
+  // Log muscle info for debugging
+  console.log(`Formatted exercise ${dbExercise.id} - ${dbExercise.name}: Primary muscle: ${primaryMuscle}, Secondary muscles: ${secondaryMuscles.join(', ') || 'None'}`);
+  
   return {
     id: dbExercise.id.toString(),
     name: dbExercise.name || 'Unknown Exercise',
     original_name: dbExercise.original_name || dbExercise.name,
     description: dbExercise.description || '',
-    category: dbExercise.body_part || dbExercise.primary_muscle_group || 'Uncategorized',
-    muscles: [dbExercise.primary_muscle_group || 'Uncategorized'],
-    equipment: [dbExercise.equipment || 'None'],
-    secondary_muscles: Array.isArray(dbExercise.secondary_muscle_groups) ? dbExercise.secondary_muscle_groups : [],
+    category: primaryMuscle,
+    muscles: [primaryMuscle],
+    equipment: equipment,
+    secondary_muscles: secondaryMuscles,
     image: dbExercise.gif_url || null,
-    instructions: Array.isArray(dbExercise.instructions) ? dbExercise.instructions : [],
-    tips: Array.isArray(dbExercise.tips) ? dbExercise.tips : [],
+    instructions: instructions,
+    tips: tips,
     youtube_link: dbExercise.youtube_link || null,
     type: dbExercise.type || 'Strength',
     gender: dbExercise.gender || null,
     target: dbExercise.target || null
   };
+};
+
+/**
+ * Safely processes array data for distinct values
+ * Handles cases where data might not be strings
+ */
+const processDistinctValues = (data: unknown[] | null): string[] => {
+  if (!data || !Array.isArray(data)) {
+    return [];
+  }
+  
+  return data
+    .map(item => {
+      // Handle different data formats 
+      if (typeof item === 'string') {
+        return item.trim();
+      } else if (item && typeof item === 'object' && item !== null) {
+        // For RPC functions that return {value: string}
+        const objItem = item as Record<string, unknown>;
+        if (objItem.value !== undefined) {
+          return String(objItem.value).trim();
+        }
+      }
+      // Convert other values to string
+      return item !== null && item !== undefined ? String(item).trim() : '';
+    })
+    .filter(item => item !== '')  // Filter out empty strings
+    .sort();  // Sort for consistency
 };
 
 /**
@@ -52,16 +119,13 @@ export const getMuscleGroups = async (): Promise<Muscle[]> => {
       return await getMuscleGroupsFallback();
     }
     
-    // Safety check and conversion for the data
-    const safeData: string[] = Array.isArray(data) 
-      ? data.map(item => typeof item === 'string' ? item : String(item.value)) 
-      : [];
+    const processedData = processDistinctValues(data);
     
     // Log the result for debugging
-    console.log(`Found ${safeData.length} unique muscle groups/categories`);
+    console.log(`Found ${processedData.length} unique muscle groups/categories`);
     
     // Convert to Muscle objects
-    return safeData.map((name) => ({
+    return processedData.map((name) => ({
       name
     }));
   } catch (error) {
@@ -129,18 +193,10 @@ export const getGenderOptions = async (): Promise<string[]> => {
       return await getGenderOptionsFallback();
     }
     
-    // Safety check and conversion for the data
-    const safeData: string[] = Array.isArray(data) 
-      ? data.map(item => typeof item === 'string' ? item : String(item.value)) 
-      : [];
-    
-    // Convert to lowercase array and ensure male/female are always included
-    const processedValues = safeData
-      .filter(Boolean)
-      .map(value => value.trim());
+    const processedData = processDistinctValues(data);
     
     // Get unique values
-    const uniqueGenders = [...new Set(processedValues)].sort();
+    const uniqueGenders = [...new Set(processedData)].sort();
     
     // Always include male/female even if not in database
     if (!uniqueGenders.includes('Male')) uniqueGenders.push('Male');
@@ -332,11 +388,14 @@ export const searchExercises = async (
           .select('primary_muscle_group')
           .eq('id', categoryFilter)
           .limit(1);
-
-          console.log(categories[0].primary_muscle_group);
           
-        if (categories && categories.length > 0 && categories[0].primary_muscle_group) {
-          dbQuery = dbQuery.eq('primary_muscle_group', categories[0].primary_muscle_group);
+        // Fix: Safely check if categories exists and has elements before accessing
+        if (categories && categories.length > 0) {
+          console.log('Category filter found:', categories[0]?.primary_muscle_group);
+          
+          if (categories[0]?.primary_muscle_group) {
+            dbQuery = dbQuery.eq('primary_muscle_group', categories[0].primary_muscle_group);
+          }
         }
       }
     }
@@ -556,23 +615,9 @@ export const getEquipmentOptions = async (): Promise<string[]> => {
       return await getEquipmentOptionsFallback();
     }
     
-    console.log(data);
-    
-    // Safety check and conversion for the data
-    const safeData: string[] = Array.isArray(data) 
-      ? data.map(item => typeof item === 'string' ? item : String(item.value)) 
-      : [];
-    
-    // Filter out null values and sort
-    const validEquipment = safeData
-      .filter(Boolean)
-      .map(item => item)
-      .sort();
-
-    console.log(validEquipment);
-    
-    console.log(`Found ${validEquipment.length} unique equipment types`);
-    return validEquipment;
+    const processedData = processDistinctValues(data);
+    console.log(`Found ${processedData.length} unique equipment types`);
+    return processedData;
   } catch (error) {
     console.error('Error in getEquipmentOptions:', error);
     return await getEquipmentOptionsFallback();
@@ -618,17 +663,33 @@ export const getExercisesByIds = async (ids: string[] | number[]): Promise<Exerc
   try {
     if (ids.length === 0) return [];
     
+    // Convert all IDs to strings for consistent comparison
+    const stringIds = ids.map(id => id.toString());
+    
+    console.log(`Fetching ${stringIds.length} exercises by IDs:`, stringIds);
+    
     const { data, error } = await supabase
       .from('exercises')
       .select('*')
-      .in('id', ids);
+      .in('id', stringIds);
     
     if (error) {
       console.error('Error fetching exercises by IDs:', error);
       return [];
     }
     
-    return data.map(formatExerciseFromDb);
+    if (!data || data.length === 0) {
+      console.warn(`No exercises found for IDs: ${stringIds.join(', ')}`);
+      return [];
+    }
+    
+    // Log how many exercises were found vs requested
+    console.log(`Found ${data.length} exercises out of ${stringIds.length} requested IDs`);
+    
+    // Format the data and ensure muscle groups are properly processed
+    const exercises = data.map(formatExerciseFromDb);
+    
+    return exercises;
   } catch (error) {
     console.error('Error in getExercisesByIds:', error);
     return [];

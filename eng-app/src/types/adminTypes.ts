@@ -60,6 +60,15 @@ export interface ExerciseInstanceAdminData {
     group_type?: ExerciseGroupType; // The type of group this exercise belongs to
     group_order?: number; // Order within the group
     is_bodyweight?: boolean; // Whether this exercise uses bodyweight instead of external weights
+    // Fields for joined database exercise data
+    exercises?: {
+        id: string | number;
+        name: string;
+        primary_muscle_group?: string;
+        secondary_muscle_groups?: string[];
+        body_part?: string;
+        target?: string;
+    };
 }
 
 export interface WorkoutAdminData {

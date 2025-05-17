@@ -11,7 +11,6 @@ import {
     fetchExercises, 
     fetchMuscleGroups, 
     fetchEquipmentOptions,
-    fetchCategories,
     fetchGenderOptions,
     Muscle as Category
 } from '../../utils/exerciseAPI';
@@ -584,12 +583,12 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             try {
                 // Load first page of exercises without filters on component mount
                 const response = await fetchExercises(
-                    1, // First page
                     "", // No search term
                     "", // No category filter
-                    RESULTS_PER_PAGE,
                     "", // No gender filter
-                    "" // No equipment filter
+                    "", // No equipment filter
+                    1, // First page
+                    RESULTS_PER_PAGE,
                 );
                 
                 // Convert API exercise type to database exercise type
