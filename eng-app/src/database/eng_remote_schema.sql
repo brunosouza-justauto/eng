@@ -58,6 +58,19 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
 
 
 
+CREATE TYPE "public"."bf_calculation_method" AS ENUM (
+    'jackson_pollock_3',
+    'jackson_pollock_4',
+    'jackson_pollock_7',
+    'durnin_womersley',
+    'parrillo',
+    'navy_tape'
+);
+
+
+ALTER TYPE "public"."bf_calculation_method" OWNER TO "postgres";
+
+
 CREATE TYPE "public"."exercise_group_type" AS ENUM (
     'none',
     'superset',
@@ -76,14 +89,12 @@ CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     AS $$
 BEGIN
   -- Insert into public.profiles, linking to the new auth.users record
-  INSERT INTO public.profiles (user_id, email, role, onboarding_complete, first_name, last_name)
+  INSERT INTO public.profiles (user_id, email, role, onboarding_complete)
   VALUES (
     NEW.id,             -- The user_id from auth.users
     NEW.email,          -- The email from auth.users
     'athlete',          -- Default role for new signups
-    false,              -- Require onboarding
-    NULL,               -- First name (will be set during onboarding)
-    NULL                -- Last name (will be set during onboarding)
+    false               -- Require onboarding
   );
   RETURN NEW;
 END;
@@ -104,6 +115,26 @@ $$;
 
 
 ALTER FUNCTION "public"."trigger_set_timestamp"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_latest_program_version"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  -- If this is a new version of an existing template
+  IF NEW.parent_template_id IS NOT NULL THEN
+    -- Set all previous versions to not be the latest
+    UPDATE program_templates
+    SET is_latest_version = FALSE
+    WHERE (id = NEW.parent_template_id OR parent_template_id = NEW.parent_template_id)
+      AND id != NEW.id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_latest_program_version"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."update_modified_column"() RETURNS "trigger"
@@ -138,6 +169,40 @@ CREATE TABLE IF NOT EXISTS "public"."assigned_plans" (
 
 
 ALTER TABLE "public"."assigned_plans" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."athlete_measurements" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "measurement_date" "date" DEFAULT CURRENT_DATE NOT NULL,
+    "weight_kg" numeric(5,2),
+    "weight_change_kg" numeric(5,2),
+    "waist_cm" numeric(5,2),
+    "neck_cm" numeric(5,2),
+    "hips_cm" numeric(5,2),
+    "tricep_mm" numeric(5,2),
+    "subscapular_mm" numeric(5,2),
+    "suprailiac_mm" numeric(5,2),
+    "midaxillary_mm" numeric(5,2),
+    "bicep_mm" numeric(5,2),
+    "lower_back_mm" numeric(5,2),
+    "calf_mm" numeric(5,2),
+    "body_fat_percentage" numeric(5,2),
+    "body_fat_override" numeric(5,2),
+    "lean_body_mass_kg" numeric(5,2),
+    "fat_mass_kg" numeric(5,2),
+    "basal_metabolic_rate" numeric(6,2),
+    "calculation_method" "public"."bf_calculation_method",
+    "notes" "text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "created_by" "uuid",
+    "chest_mm" numeric(5,2),
+    "abdominal_mm" numeric(5,2),
+    "thigh_mm" numeric(5,2)
+);
+
+
+ALTER TABLE "public"."athlete_measurements" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."body_metrics" (
@@ -188,6 +253,41 @@ COMMENT ON COLUMN "public"."check_ins"."photos" IS 'JSON array storing URLs or s
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."completed_exercise_sets" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "workout_session_id" "uuid" NOT NULL,
+    "exercise_instance_id" "uuid" NOT NULL,
+    "set_order" integer NOT NULL,
+    "weight" "text",
+    "reps" integer,
+    "is_completed" boolean DEFAULT false,
+    "notes" "text",
+    "set_type" "text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."completed_exercise_sets" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."device_connections" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "device_type" "text" NOT NULL,
+    "access_token" "text" NOT NULL,
+    "refresh_token" "text",
+    "last_synced" timestamp with time zone,
+    "expires_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "token_type" "text"
+);
+
+
+ALTER TABLE "public"."device_connections" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."exercise_instances" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "workout_id" "uuid" NOT NULL,
@@ -207,12 +307,17 @@ CREATE TABLE IF NOT EXISTS "public"."exercise_instances" (
     "group_id" "uuid",
     "group_type" "public"."exercise_group_type" DEFAULT 'none'::"public"."exercise_group_type",
     "group_order" integer DEFAULT 0,
+    "is_bodyweight" boolean DEFAULT false,
     CONSTRAINT "exercise_instances_order_in_workout_check" CHECK (("order_in_workout" >= 0)),
     CONSTRAINT "exercise_instances_rest_period_seconds_check" CHECK (("rest_period_seconds" >= 0))
 );
 
 
 ALTER TABLE "public"."exercise_instances" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."exercise_instances"."is_bodyweight" IS 'Flag to indicate if this exercise uses bodyweight instead of external weights';
+
 
 
 CREATE TABLE IF NOT EXISTS "public"."exercise_sets" (
@@ -230,6 +335,19 @@ CREATE TABLE IF NOT EXISTS "public"."exercise_sets" (
 
 
 ALTER TABLE "public"."exercise_sets" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."extra_meal_food_items" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "meal_log_id" "uuid" NOT NULL,
+    "food_item_id" "uuid" NOT NULL,
+    "quantity" numeric(10,2) NOT NULL,
+    "unit" character varying(50) NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."extra_meal_food_items" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."food_items" (
@@ -263,6 +381,51 @@ COMMENT ON COLUMN "public"."food_items"."nutrient_basis" IS 'Indicates if nutrie
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."program_templates" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "coach_id" "uuid" NOT NULL,
+    "name" "text" NOT NULL,
+    "phase" "text",
+    "weeks" integer NOT NULL,
+    "description" "text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "is_public" boolean DEFAULT false NOT NULL,
+    "version" integer DEFAULT 1 NOT NULL,
+    "parent_template_id" "uuid",
+    "is_latest_version" boolean DEFAULT true NOT NULL,
+    "fitness_level" "text",
+    CONSTRAINT "program_templates_weeks_check" CHECK (("weeks" > 0))
+);
+
+
+ALTER TABLE "public"."program_templates" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."program_templates"."fitness_level" IS 'The target fitness level for this program: Beginner, Intermediate, Advanced, or Athlete';
+
+
+
+CREATE OR REPLACE VIEW "public"."latest_program_templates" AS
+ SELECT "program_templates"."id",
+    "program_templates"."coach_id",
+    "program_templates"."name",
+    "program_templates"."phase",
+    "program_templates"."weeks",
+    "program_templates"."description",
+    "program_templates"."created_at",
+    "program_templates"."updated_at",
+    "program_templates"."is_public",
+    "program_templates"."version",
+    "program_templates"."parent_template_id",
+    "program_templates"."is_latest_version"
+   FROM "public"."program_templates"
+  WHERE ("program_templates"."is_latest_version" = true);
+
+
+ALTER TABLE "public"."latest_program_templates" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."meal_food_items" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "meal_id" "uuid" NOT NULL,
@@ -280,6 +443,25 @@ CREATE TABLE IF NOT EXISTS "public"."meal_food_items" (
 ALTER TABLE "public"."meal_food_items" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."meal_logs" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "meal_id" "uuid",
+    "nutrition_plan_id" "uuid" NOT NULL,
+    "name" character varying(255) NOT NULL,
+    "date" "date" NOT NULL,
+    "time" time without time zone NOT NULL,
+    "day_type" character varying(100) NOT NULL,
+    "notes" "text",
+    "is_extra_meal" boolean DEFAULT false NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."meal_logs" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."meals" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "nutrition_plan_id" "uuid" NOT NULL,
@@ -289,8 +471,8 @@ CREATE TABLE IF NOT EXISTS "public"."meals" (
     "order_in_plan" integer,
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
-    "day_number" integer DEFAULT 1 NOT NULL,
     "day_type" "text",
+    "description" "text",
     CONSTRAINT "meals_order_in_plan_check" CHECK (("order_in_plan" >= 0))
 );
 
@@ -309,6 +491,7 @@ CREATE TABLE IF NOT EXISTS "public"."nutrition_plans" (
     "description" "text",
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
+    "is_public" boolean DEFAULT false NOT NULL,
     CONSTRAINT "nutrition_plans_carbohydrate_grams_check" CHECK (("carbohydrate_grams" >= 0)),
     CONSTRAINT "nutrition_plans_fat_grams_check" CHECK (("fat_grams" >= 0)),
     CONSTRAINT "nutrition_plans_protein_grams_check" CHECK (("protein_grams" >= 0)),
@@ -324,8 +507,6 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "user_id" "uuid",
     "username" "text",
     "email" "text" NOT NULL,
-    "first_name" "text",
-    "last_name" "text",
     "role" "text" DEFAULT 'athlete'::"text" NOT NULL,
     "coach_id" "uuid",
     "age" integer,
@@ -357,7 +538,12 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "invitation_status" character varying(50),
     "invited_at" timestamp with time zone,
     "gender" character varying(10) DEFAULT 'male'::character varying,
-    CONSTRAINT "profiles_gender_check" CHECK ((("gender")::"text" = ANY ((ARRAY['male'::character varying, 'female'::character varying])::"text"[])))
+    "first_name" "text",
+    "last_name" "text",
+    "goal_type" "text",
+    "goal_target_muscle_gain_kg" numeric,
+    CONSTRAINT "profiles_gender_check" CHECK ((("gender")::"text" = ANY ((ARRAY['male'::character varying, 'female'::character varying])::"text"[]))),
+    CONSTRAINT "profiles_goal_type_check" CHECK (("goal_type" = ANY (ARRAY['fat_loss'::"text", 'muscle_gain'::"text", 'both'::"text", 'maintenance'::"text"])))
 );
 
 
@@ -382,22 +568,6 @@ COMMENT ON COLUMN "public"."profiles"."invitation_status" IS 'Status of the invi
 
 COMMENT ON COLUMN "public"."profiles"."invited_at" IS 'When the invitation was sent';
 
-
-
-CREATE TABLE IF NOT EXISTS "public"."program_templates" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "coach_id" "uuid" NOT NULL,
-    "name" "text" NOT NULL,
-    "phase" "text",
-    "weeks" integer NOT NULL,
-    "description" "text",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "updated_at" timestamp with time zone DEFAULT "now"(),
-    CONSTRAINT "program_templates_weeks_check" CHECK (("weeks" > 0))
-);
-
-
-ALTER TABLE "public"."program_templates" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."recipe_ingredients" (
@@ -439,6 +609,19 @@ CREATE TABLE IF NOT EXISTS "public"."recipes" (
 
 
 ALTER TABLE "public"."recipes" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."step_entries" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "date" "date" NOT NULL,
+    "step_count" integer NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."step_entries" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."step_goals" (
@@ -491,6 +674,22 @@ CREATE TABLE IF NOT EXISTS "public"."wellness_metrics" (
 ALTER TABLE "public"."wellness_metrics" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."workout_sessions" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "workout_id" "uuid" NOT NULL,
+    "start_time" timestamp with time zone DEFAULT "now"(),
+    "end_time" timestamp with time zone,
+    "duration_seconds" integer,
+    "notes" "text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."workout_sessions" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."workouts" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "program_template_id" "uuid" NOT NULL,
@@ -514,6 +713,16 @@ ALTER TABLE ONLY "public"."assigned_plans"
 
 
 
+ALTER TABLE ONLY "public"."athlete_measurements"
+    ADD CONSTRAINT "athlete_measurements_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."athlete_measurements"
+    ADD CONSTRAINT "athlete_measurements_user_id_measurement_date_key" UNIQUE ("user_id", "measurement_date");
+
+
+
 ALTER TABLE ONLY "public"."body_metrics"
     ADD CONSTRAINT "body_metrics_check_in_id_key" UNIQUE ("check_in_id");
 
@@ -529,6 +738,16 @@ ALTER TABLE ONLY "public"."check_ins"
 
 
 
+ALTER TABLE ONLY "public"."completed_exercise_sets"
+    ADD CONSTRAINT "completed_exercise_sets_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."device_connections"
+    ADD CONSTRAINT "device_connections_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."exercise_instances"
     ADD CONSTRAINT "exercise_instances_pkey" PRIMARY KEY ("id");
 
@@ -536,6 +755,11 @@ ALTER TABLE ONLY "public"."exercise_instances"
 
 ALTER TABLE ONLY "public"."exercise_sets"
     ADD CONSTRAINT "exercise_sets_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."extra_meal_food_items"
+    ADD CONSTRAINT "extra_meal_food_items_pkey" PRIMARY KEY ("id");
 
 
 
@@ -556,6 +780,11 @@ ALTER TABLE ONLY "public"."meal_food_items"
 
 ALTER TABLE ONLY "public"."meal_food_items"
     ADD CONSTRAINT "meal_food_items_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."meal_logs"
+    ADD CONSTRAINT "meal_logs_pkey" PRIMARY KEY ("id");
 
 
 
@@ -609,6 +838,16 @@ ALTER TABLE ONLY "public"."recipes"
 
 
 
+ALTER TABLE ONLY "public"."step_entries"
+    ADD CONSTRAINT "step_entries_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."step_entries"
+    ADD CONSTRAINT "step_entries_user_id_date_key" UNIQUE ("user_id", "date");
+
+
+
 ALTER TABLE ONLY "public"."step_goals"
     ADD CONSTRAINT "step_goals_pkey" PRIMARY KEY ("id");
 
@@ -634,6 +873,11 @@ ALTER TABLE ONLY "public"."wellness_metrics"
 
 
 
+ALTER TABLE ONLY "public"."workout_sessions"
+    ADD CONSTRAINT "workout_sessions_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."workouts"
     ADD CONSTRAINT "workouts_pkey" PRIMARY KEY ("id");
 
@@ -655,11 +899,31 @@ CREATE INDEX "idx_assigned_plans_user_id" ON "public"."assigned_plans" USING "bt
 
 
 
+CREATE INDEX "idx_athlete_measurements_date" ON "public"."athlete_measurements" USING "btree" ("measurement_date");
+
+
+
+CREATE INDEX "idx_athlete_measurements_user_id" ON "public"."athlete_measurements" USING "btree" ("user_id");
+
+
+
 CREATE INDEX "idx_body_metrics_check_in_id" ON "public"."body_metrics" USING "btree" ("check_in_id");
 
 
 
 CREATE INDEX "idx_check_ins_user_id" ON "public"."check_ins" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "idx_completed_sets_exercise_instance_id" ON "public"."completed_exercise_sets" USING "btree" ("exercise_instance_id");
+
+
+
+CREATE INDEX "idx_completed_sets_set_type" ON "public"."completed_exercise_sets" USING "btree" ("set_type");
+
+
+
+CREATE INDEX "idx_completed_sets_workout_session_id" ON "public"."completed_exercise_sets" USING "btree" ("workout_session_id");
 
 
 
@@ -676,6 +940,10 @@ CREATE INDEX "idx_exercise_sets_exercise_instance_id" ON "public"."exercise_sets
 
 
 CREATE INDEX "idx_exercise_sets_order" ON "public"."exercise_sets" USING "btree" ("set_order");
+
+
+
+CREATE INDEX "idx_extra_meal_food_items_meal_log_id" ON "public"."extra_meal_food_items" USING "btree" ("meal_log_id");
 
 
 
@@ -703,7 +971,15 @@ CREATE INDEX "idx_meal_food_items_source_recipe_id" ON "public"."meal_food_items
 
 
 
-CREATE INDEX "idx_meals_day_number" ON "public"."meals" USING "btree" ("nutrition_plan_id", "day_number");
+CREATE INDEX "idx_meal_logs_date" ON "public"."meal_logs" USING "btree" ("date");
+
+
+
+CREATE INDEX "idx_meal_logs_meal_id" ON "public"."meal_logs" USING "btree" ("meal_id");
+
+
+
+CREATE INDEX "idx_meal_logs_user_id" ON "public"."meal_logs" USING "btree" ("user_id");
 
 
 
@@ -712,6 +988,10 @@ CREATE INDEX "idx_meals_nutrition_plan_id" ON "public"."meals" USING "btree" ("n
 
 
 CREATE INDEX "idx_nutrition_plans_coach_id" ON "public"."nutrition_plans" USING "btree" ("coach_id");
+
+
+
+CREATE INDEX "idx_nutrition_plans_is_public" ON "public"."nutrition_plans" USING "btree" ("is_public");
 
 
 
@@ -735,6 +1015,22 @@ CREATE INDEX "idx_program_templates_coach_id" ON "public"."program_templates" US
 
 
 
+CREATE INDEX "idx_program_templates_fitness_level" ON "public"."program_templates" USING "btree" ("fitness_level");
+
+
+
+CREATE INDEX "idx_program_templates_is_public" ON "public"."program_templates" USING "btree" ("is_public");
+
+
+
+CREATE INDEX "idx_program_templates_latest" ON "public"."program_templates" USING "btree" ("is_latest_version");
+
+
+
+CREATE INDEX "idx_program_templates_parent_id" ON "public"."program_templates" USING "btree" ("parent_template_id");
+
+
+
 CREATE INDEX "idx_recipe_ingredients_recipe_id" ON "public"."recipe_ingredients" USING "btree" ("recipe_id");
 
 
@@ -743,11 +1039,23 @@ CREATE INDEX "idx_recipes_coach_id" ON "public"."recipes" USING "btree" ("coach_
 
 
 
+CREATE INDEX "idx_step_entries_user_date" ON "public"."step_entries" USING "btree" ("user_id", "date");
+
+
+
 CREATE INDEX "idx_step_goals_user_id" ON "public"."step_goals" USING "btree" ("user_id");
 
 
 
 CREATE INDEX "idx_wellness_metrics_check_in_id" ON "public"."wellness_metrics" USING "btree" ("check_in_id");
+
+
+
+CREATE INDEX "idx_workout_sessions_user_id" ON "public"."workout_sessions" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "idx_workout_sessions_workout_id" ON "public"."workout_sessions" USING "btree" ("workout_id");
 
 
 
@@ -803,6 +1111,10 @@ CREATE OR REPLACE TRIGGER "set_workouts_timestamp" BEFORE UPDATE ON "public"."wo
 
 
 
+CREATE OR REPLACE TRIGGER "trigger_update_program_version" AFTER INSERT OR UPDATE ON "public"."program_templates" FOR EACH ROW EXECUTE FUNCTION "public"."update_latest_program_version"();
+
+
+
 CREATE OR REPLACE TRIGGER "update_exercise_sets_modtime" BEFORE UPDATE ON "public"."exercise_sets" FOR EACH ROW EXECUTE FUNCTION "public"."update_modified_column"();
 
 
@@ -827,6 +1139,16 @@ ALTER TABLE ONLY "public"."assigned_plans"
 
 
 
+ALTER TABLE ONLY "public"."athlete_measurements"
+    ADD CONSTRAINT "athlete_measurements_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "public"."profiles"("user_id");
+
+
+
+ALTER TABLE ONLY "public"."athlete_measurements"
+    ADD CONSTRAINT "athlete_measurements_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("user_id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."body_metrics"
     ADD CONSTRAINT "body_metrics_check_in_id_fkey" FOREIGN KEY ("check_in_id") REFERENCES "public"."check_ins"("id") ON DELETE CASCADE;
 
@@ -837,6 +1159,21 @@ ALTER TABLE ONLY "public"."check_ins"
 
 
 
+ALTER TABLE ONLY "public"."completed_exercise_sets"
+    ADD CONSTRAINT "completed_exercise_sets_exercise_instance_id_fkey" FOREIGN KEY ("exercise_instance_id") REFERENCES "public"."exercise_instances"("id");
+
+
+
+ALTER TABLE ONLY "public"."completed_exercise_sets"
+    ADD CONSTRAINT "completed_exercise_sets_workout_session_id_fkey" FOREIGN KEY ("workout_session_id") REFERENCES "public"."workout_sessions"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."device_connections"
+    ADD CONSTRAINT "device_connections_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."exercise_instances"
     ADD CONSTRAINT "exercise_instances_workout_id_fkey" FOREIGN KEY ("workout_id") REFERENCES "public"."workouts"("id") ON DELETE CASCADE;
 
@@ -844,6 +1181,16 @@ ALTER TABLE ONLY "public"."exercise_instances"
 
 ALTER TABLE ONLY "public"."exercise_sets"
     ADD CONSTRAINT "exercise_sets_exercise_instance_id_fkey" FOREIGN KEY ("exercise_instance_id") REFERENCES "public"."exercise_instances"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."extra_meal_food_items"
+    ADD CONSTRAINT "extra_meal_food_items_food_item_id_fkey" FOREIGN KEY ("food_item_id") REFERENCES "public"."food_items"("id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."extra_meal_food_items"
+    ADD CONSTRAINT "extra_meal_food_items_meal_log_id_fkey" FOREIGN KEY ("meal_log_id") REFERENCES "public"."meal_logs"("id") ON DELETE CASCADE;
 
 
 
@@ -864,6 +1211,21 @@ ALTER TABLE ONLY "public"."meal_food_items"
 
 ALTER TABLE ONLY "public"."meal_food_items"
     ADD CONSTRAINT "meal_food_items_source_recipe_id_fkey" FOREIGN KEY ("source_recipe_id") REFERENCES "public"."recipes"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."meal_logs"
+    ADD CONSTRAINT "meal_logs_meal_id_fkey" FOREIGN KEY ("meal_id") REFERENCES "public"."meals"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."meal_logs"
+    ADD CONSTRAINT "meal_logs_nutrition_plan_id_fkey" FOREIGN KEY ("nutrition_plan_id") REFERENCES "public"."nutrition_plans"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."meal_logs"
+    ADD CONSTRAINT "meal_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -892,6 +1254,11 @@ ALTER TABLE ONLY "public"."program_templates"
 
 
 
+ALTER TABLE ONLY "public"."program_templates"
+    ADD CONSTRAINT "program_templates_parent_template_id_fkey" FOREIGN KEY ("parent_template_id") REFERENCES "public"."program_templates"("id");
+
+
+
 ALTER TABLE ONLY "public"."recipe_ingredients"
     ADD CONSTRAINT "recipe_ingredients_food_item_id_fkey" FOREIGN KEY ("food_item_id") REFERENCES "public"."food_items"("id") ON DELETE CASCADE;
 
@@ -907,6 +1274,11 @@ ALTER TABLE ONLY "public"."recipes"
 
 
 
+ALTER TABLE ONLY "public"."step_entries"
+    ADD CONSTRAINT "step_entries_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("user_id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."step_goals"
     ADD CONSTRAINT "step_goals_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
 
@@ -914,6 +1286,16 @@ ALTER TABLE ONLY "public"."step_goals"
 
 ALTER TABLE ONLY "public"."wellness_metrics"
     ADD CONSTRAINT "wellness_metrics_check_in_id_fkey" FOREIGN KEY ("check_in_id") REFERENCES "public"."check_ins"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."workout_sessions"
+    ADD CONSTRAINT "workout_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."workout_sessions"
+    ADD CONSTRAINT "workout_sessions_workout_id_fkey" FOREIGN KEY ("workout_id") REFERENCES "public"."workouts"("id");
 
 
 
@@ -934,12 +1316,154 @@ CREATE POLICY "Allow individual user access" ON "public"."check_ins" TO "authent
 
 
 
+CREATE POLICY "Users can delete their own device connections" ON "public"."device_connections" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can insert their own device connections" ON "public"."device_connections" FOR INSERT WITH CHECK (("user_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can read their own device connections" ON "public"."device_connections" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can update their own device connections" ON "public"."device_connections" FOR UPDATE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "athlete_manage_own_extra_meal_food_items" ON "public"."extra_meal_food_items" USING ((EXISTS ( SELECT 1
+   FROM "public"."meal_logs" "ml"
+  WHERE (("ml"."id" = "extra_meal_food_items"."meal_log_id") AND ("ml"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "athlete_manage_own_meal_logs" ON "public"."meal_logs" USING (("user_id" = "auth"."uid"()));
+
+
+
+ALTER TABLE "public"."athlete_measurements" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "athlete_view_own_measurements" ON "public"."athlete_measurements" FOR SELECT TO "authenticated" USING (("user_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "athletes_view_accessible_nutrition_plans" ON "public"."nutrition_plans" FOR SELECT USING (("is_public" OR (EXISTS ( SELECT 1
+   FROM "public"."assigned_plans"
+  WHERE (("assigned_plans"."nutrition_plan_id" = "nutrition_plans"."id") AND ("assigned_plans"."athlete_id" = "auth"."uid"()))))));
+
+
+
+CREATE POLICY "athletes_view_accessible_programs" ON "public"."program_templates" FOR SELECT USING (("is_public" OR (EXISTS ( SELECT 1
+   FROM "public"."assigned_plans"
+  WHERE (("assigned_plans"."program_template_id" = "program_templates"."id") AND ("assigned_plans"."athlete_id" = "auth"."uid"()))))));
+
+
+
+CREATE POLICY "coach_measurement_policy" ON "public"."athlete_measurements" TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."user_id" = "auth"."uid"()) AND ("profiles"."role" = 'coach'::"text")))));
+
+
+
+CREATE POLICY "coach_read_athlete_extra_meal_food_items" ON "public"."extra_meal_food_items" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM ("public"."meal_logs" "ml"
+     JOIN "public"."profiles" "ac" ON (("ac"."user_id" = "ml"."user_id")))
+  WHERE (("ml"."id" = "extra_meal_food_items"."meal_log_id") AND ("ac"."coach_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "coach_read_athlete_meal_logs" ON "public"."meal_logs" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles" "ac"
+  WHERE (("ac"."user_id" = "meal_logs"."user_id") AND ("ac"."coach_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "coaches_access_own_nutrition_plans" ON "public"."nutrition_plans" USING (("coach_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "coaches_access_own_programs" ON "public"."program_templates" USING (("coach_id" = "auth"."uid"()));
+
+
+
+ALTER TABLE "public"."completed_exercise_sets" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "delete_own_workout_sessions" ON "public"."workout_sessions" FOR DELETE USING (("user_id" = "auth"."uid"()));
+
+
+
+ALTER TABLE "public"."device_connections" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."extra_meal_food_items" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "insert_own_completed_sets" ON "public"."completed_exercise_sets" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."workout_sessions"
+  WHERE (("workout_sessions"."id" = "completed_exercise_sets"."workout_session_id") AND ("workout_sessions"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "insert_own_workout_sessions" ON "public"."workout_sessions" FOR INSERT WITH CHECK (("user_id" = "auth"."uid"()));
+
+
+
+ALTER TABLE "public"."meal_logs" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "read_athletes_completed_sets" ON "public"."completed_exercise_sets" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM ("public"."workout_sessions"
+     JOIN "public"."profiles" ON (("profiles"."user_id" = "workout_sessions"."user_id")))
+  WHERE (("workout_sessions"."id" = "completed_exercise_sets"."workout_session_id") AND ("profiles"."coach_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "read_athletes_workout_sessions" ON "public"."workout_sessions" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."user_id" = "workout_sessions"."user_id") AND ("profiles"."coach_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "read_own_completed_sets" ON "public"."completed_exercise_sets" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."workout_sessions"
+  WHERE (("workout_sessions"."id" = "completed_exercise_sets"."workout_session_id") AND ("workout_sessions"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "read_own_workout_sessions" ON "public"."workout_sessions" FOR SELECT USING (("user_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "update_own_completed_sets" ON "public"."completed_exercise_sets" FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM "public"."workout_sessions"
+  WHERE (("workout_sessions"."id" = "completed_exercise_sets"."workout_session_id") AND ("workout_sessions"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "update_own_workout_sessions" ON "public"."workout_sessions" FOR UPDATE USING (("user_id" = "auth"."uid"()));
+
+
+
+ALTER TABLE "public"."workout_sessions" ENABLE ROW LEVEL SECURITY;
 
 
 
 
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."completed_exercise_sets";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."workout_sessions";
+
 
 
 GRANT USAGE ON SCHEMA "public" TO "postgres";
@@ -1129,6 +1653,12 @@ GRANT ALL ON FUNCTION "public"."trigger_set_timestamp"() TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."update_latest_program_version"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_latest_program_version"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_latest_program_version"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."update_modified_column"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_modified_column"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_modified_column"() TO "service_role";
@@ -1156,6 +1686,12 @@ GRANT ALL ON TABLE "public"."assigned_plans" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."athlete_measurements" TO "anon";
+GRANT ALL ON TABLE "public"."athlete_measurements" TO "authenticated";
+GRANT ALL ON TABLE "public"."athlete_measurements" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."body_metrics" TO "anon";
 GRANT ALL ON TABLE "public"."body_metrics" TO "authenticated";
 GRANT ALL ON TABLE "public"."body_metrics" TO "service_role";
@@ -1165,6 +1701,18 @@ GRANT ALL ON TABLE "public"."body_metrics" TO "service_role";
 GRANT ALL ON TABLE "public"."check_ins" TO "anon";
 GRANT ALL ON TABLE "public"."check_ins" TO "authenticated";
 GRANT ALL ON TABLE "public"."check_ins" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."completed_exercise_sets" TO "anon";
+GRANT ALL ON TABLE "public"."completed_exercise_sets" TO "authenticated";
+GRANT ALL ON TABLE "public"."completed_exercise_sets" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."device_connections" TO "anon";
+GRANT ALL ON TABLE "public"."device_connections" TO "authenticated";
+GRANT ALL ON TABLE "public"."device_connections" TO "service_role";
 
 
 
@@ -1180,15 +1728,39 @@ GRANT ALL ON TABLE "public"."exercise_sets" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."extra_meal_food_items" TO "anon";
+GRANT ALL ON TABLE "public"."extra_meal_food_items" TO "authenticated";
+GRANT ALL ON TABLE "public"."extra_meal_food_items" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."food_items" TO "anon";
 GRANT ALL ON TABLE "public"."food_items" TO "authenticated";
 GRANT ALL ON TABLE "public"."food_items" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."program_templates" TO "anon";
+GRANT ALL ON TABLE "public"."program_templates" TO "authenticated";
+GRANT ALL ON TABLE "public"."program_templates" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."latest_program_templates" TO "anon";
+GRANT ALL ON TABLE "public"."latest_program_templates" TO "authenticated";
+GRANT ALL ON TABLE "public"."latest_program_templates" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."meal_food_items" TO "anon";
 GRANT ALL ON TABLE "public"."meal_food_items" TO "authenticated";
 GRANT ALL ON TABLE "public"."meal_food_items" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."meal_logs" TO "anon";
+GRANT ALL ON TABLE "public"."meal_logs" TO "authenticated";
+GRANT ALL ON TABLE "public"."meal_logs" TO "service_role";
 
 
 
@@ -1210,12 +1782,6 @@ GRANT ALL ON TABLE "public"."profiles" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."program_templates" TO "anon";
-GRANT ALL ON TABLE "public"."program_templates" TO "authenticated";
-GRANT ALL ON TABLE "public"."program_templates" TO "service_role";
-
-
-
 GRANT ALL ON TABLE "public"."recipe_ingredients" TO "anon";
 GRANT ALL ON TABLE "public"."recipe_ingredients" TO "authenticated";
 GRANT ALL ON TABLE "public"."recipe_ingredients" TO "service_role";
@@ -1225,6 +1791,12 @@ GRANT ALL ON TABLE "public"."recipe_ingredients" TO "service_role";
 GRANT ALL ON TABLE "public"."recipes" TO "anon";
 GRANT ALL ON TABLE "public"."recipes" TO "authenticated";
 GRANT ALL ON TABLE "public"."recipes" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."step_entries" TO "anon";
+GRANT ALL ON TABLE "public"."step_entries" TO "authenticated";
+GRANT ALL ON TABLE "public"."step_entries" TO "service_role";
 
 
 
@@ -1243,6 +1815,12 @@ GRANT ALL ON TABLE "public"."unit_conversions" TO "service_role";
 GRANT ALL ON TABLE "public"."wellness_metrics" TO "anon";
 GRANT ALL ON TABLE "public"."wellness_metrics" TO "authenticated";
 GRANT ALL ON TABLE "public"."wellness_metrics" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."workout_sessions" TO "anon";
+GRANT ALL ON TABLE "public"."workout_sessions" TO "authenticated";
+GRANT ALL ON TABLE "public"."workout_sessions" TO "service_role";
 
 
 

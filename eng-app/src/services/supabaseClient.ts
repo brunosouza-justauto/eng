@@ -37,8 +37,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: 'pkce', // More secure flow type for auth
     // Add more robust storage options
     storage: localStorage,
-    // Debug to help track issues
-    debug: import.meta.env.DEV ? true : false
+    // Disable debug to suppress GoTrueClient logs
+    debug: import.meta.env.DEV ? false : false
   },
   global: {
     // Set this to false to ensure reliable token handling

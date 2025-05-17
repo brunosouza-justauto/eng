@@ -8,6 +8,8 @@ import { Button } from '../../components/ui/Button';
 import ProgramAssignmentModal from '../../components/admin/ProgramAssignmentModal';
 import NutritionPlanAssignmentModal from '../../components/admin/NutritionPlanAssignmentModal';
 import AthleteMeasurementsManager from '../../components/admin/AthleteMeasurementsManager';
+import { format, parseISO, subDays } from 'date-fns';
+import { FiCalendar, FiActivity } from 'react-icons/fi';
 
 // Add a proper interface for the program assignment
 interface AthleteProgram {
@@ -34,6 +36,25 @@ interface AthleteNutritionPlan {
         name: string;
         description: string | null;
     };
+}
+
+// Add interface for step goals
+interface StepGoal {
+    id: string;
+    user_id: string;
+    daily_steps: number;
+    assigned_at: string;
+    is_active: boolean;
+}
+
+// Add interface for step entries
+interface StepEntry {
+    id: string;
+    user_id: string;
+    date: string;
+    step_count: number;
+    created_at: string;
+    updated_at: string;
 }
 
 // Define database result types for the transform functions
@@ -140,6 +161,11 @@ const AthleteDetailsPage: React.FC = () => {
     const [currentProgram, setCurrentProgram] = useState<AthleteProgram | null>(null);
     const [currentNutritionPlan, setCurrentNutritionPlan] = useState<AthleteNutritionPlan | null>(null);
 
+    // Step goal states
+    const [stepGoal, setStepGoal] = useState<StepGoal | null>(null);
+    const [stepEntries, setStepEntries] = useState<StepEntry[]>([]);
+    const [isLoadingStepData, setIsLoadingStepData] = useState<boolean>(false);
+
     useEffect(() => {
         const fetchAthleteDetails = async () => {
             if (!id) return;
@@ -234,6 +260,63 @@ const AthleteDetailsPage: React.FC = () => {
 
         fetchAssignments();
     }, [id]);
+
+    // Fetch step goals and step entries
+    useEffect(() => {
+        if (!athleteDetails || !athleteDetails.user_id) return;
+        
+        const fetchStepData = async () => {
+            setIsLoadingStepData(true);
+            
+            try {
+
+                console.log("athleteDetails", athleteDetails);
+
+                // Fetch current step goal
+                const { data: goalData, error: goalError } = await supabase
+                    .from('step_goals')
+                    .select('*')
+                    .eq('user_id', athleteDetails.id)
+                    .eq('is_active', true)
+                    .order('assigned_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                console.log("goalData", goalData);
+                
+                if (goalError) throw goalError;
+                
+                if (goalData) {
+                    setStepGoal(goalData as StepGoal);
+                }
+                
+                // Fetch step entries for the last 7 days
+                const sevenDaysAgo = format(subDays(new Date(), 6), 'yyyy-MM-dd');
+                const today = format(new Date(), 'yyyy-MM-dd');
+                
+                const { data: entriesData, error: entriesError } = await supabase
+                    .from('step_entries')
+                    .select('*')
+                    .eq('user_id', athleteDetails.user_id)
+                    .gte('date', sevenDaysAgo)
+                    .lte('date', today)
+                    .order('date', { ascending: false });
+                
+                if (entriesError) throw entriesError;
+                
+                if (entriesData) {
+                    setStepEntries(entriesData as StepEntry[]);
+                }
+            } catch (err) {
+                console.error("Error fetching step data:", err);
+                // Don't display error to user, just log it
+            } finally {
+                setIsLoadingStepData(false);
+            }
+        };
+        
+        fetchStepData();
+    }, [athleteDetails]);
 
     const handleUpdateAthlete = async (formData: Partial<UserProfileFull>) => {
         if (!athleteDetails || !id) return;
@@ -428,6 +511,116 @@ const AthleteDetailsPage: React.FC = () => {
         setShowNutritionPlanModal(false);
         setSuccessMessage('Nutrition plan assigned successfully');
         setTimeout(() => setSuccessMessage(null), 5000);
+    };
+
+    // Add this JSX section inside the main return section where you want to display the Step Goal Card
+    const renderStepGoalCard = () => {
+        return (
+            <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
+                <div className="flex items-center justify-between pb-2 mb-4 border-b">
+                    <h3 className="text-lg font-medium text-gray-800 dark:text-white">Step Goal</h3>
+                </div>
+                
+                {isLoadingStepData ? (
+                    <div className="flex items-center justify-center h-24">
+                        <div className="w-10 h-10 border-t-2 border-b-2 border-indigo-500 rounded-full animate-spin"></div>
+                    </div>
+                ) : (
+                    <>
+                        <div className="mb-4">
+                            {stepGoal ? (
+                                <div>
+                                    <p className="mb-2 font-medium text-indigo-600 dark:text-indigo-400">
+                                        {stepGoal.daily_steps.toLocaleString()} steps per day
+                                    </p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        Assigned on {new Date(stepGoal.assigned_at).toLocaleDateString()}
+                                    </p>
+                                    <button 
+                                        onClick={() => navigate('/admin/step-goals')}
+                                        className="mt-3 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
+                                    >
+                                        Manage Step Goals
+                                    </button>
+                                </div>
+                            ) : (
+                                <div>
+                                    <p className="text-gray-600 dark:text-gray-400">No step goal assigned yet.</p>
+                                    <button 
+                                        onClick={() => navigate('/admin/step-goals')}
+                                        className="mt-3 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
+                                    >
+                                        Assign Step Goal
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="mt-6">
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-medium text-gray-800 dark:text-white flex items-center">
+                                    <FiCalendar className="mr-2" /> Recent Step Log
+                                </h4>
+                            </div>
+                            
+                            {stepEntries.length > 0 ? (
+                                <div className="overflow-hidden bg-white rounded-lg shadow dark:bg-gray-800">
+                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead className="bg-gray-50 dark:bg-gray-700">
+                                            <tr>
+                                                <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">
+                                                    Date
+                                                </th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                                                    Steps
+                                                </th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                                                    Goal Met
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                                            {stepEntries.map((entry) => {
+                                                const goalMet = stepGoal && entry.step_count >= stepGoal.daily_steps;
+                                                
+                                                return (
+                                                    <tr key={entry.id}>
+                                                        <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
+                                                            {format(parseISO(entry.date), 'MMM d, yyyy')}
+                                                        </td>
+                                                        <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                                            {entry.step_count.toLocaleString()}
+                                                        </td>
+                                                        <td className="px-3 py-4 text-sm">
+                                                            {stepGoal ? (
+                                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                                    goalMet 
+                                                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                                                                        : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                                                }`}>
+                                                                    {goalMet ? 'Yes' : 'No'} 
+                                                                    <FiActivity className={`ml-1 ${goalMet ? 'text-green-500' : 'text-red-500'}`} />
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-gray-400 dark:text-gray-500">No goal set</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="p-4 text-center text-gray-500 bg-gray-50 rounded dark:bg-gray-700/50 dark:text-gray-400">
+                                    No step logs recorded in the last 7 days.
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+            </Card>
+        );
     };
 
     if (isLoading) {
@@ -648,6 +841,9 @@ const AthleteDetailsPage: React.FC = () => {
                             </div>
                         )}
                     </Card>
+
+                    {/* Step Goal Card - Add this new section */}
+                    {renderStepGoalCard()}
 
                     <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Basic Information</h3>

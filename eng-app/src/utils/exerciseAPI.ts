@@ -312,9 +312,8 @@ export const searchExercises = async (
 // Helper function to extract equipment from the description
 const extractEquipment = (description: string): string[] => {
   try {
-    // The description is a JSON string containing various properties
-
-    if (description.includes('"equipment":')) {
+    // Check if the description is a valid JSON string that might contain equipment data
+    if (description && description.trim().startsWith('{') && description.trim().endsWith('}') && description.includes('"equipment":')) {
       const parsedDesc = JSON.parse(description);
       return parsedDesc.equipment ? [parsedDesc.equipment] : [];
     }
@@ -329,8 +328,14 @@ const extractEquipment = (description: string): string[] => {
 // Helper function to extract body part from the description
 const extractBodyPart = (description: string): string => {
   try {
-    const parsedDesc = JSON.parse(description);
-    return parsedDesc.body_part || 'Uncategorized';
+    // First check if the description is a valid JSON string
+    if (description && description.trim().startsWith('{') && description.trim().endsWith('}')) {
+      const parsedDesc = JSON.parse(description);
+      return parsedDesc.body_part || 'Uncategorized';
+    } else {
+      // Handle plain text descriptions
+      return 'Uncategorized';
+    }
   } catch (error) {
     console.error('Failed to parse exercise description:', error);
     return 'Uncategorized';

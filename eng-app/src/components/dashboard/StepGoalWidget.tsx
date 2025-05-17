@@ -342,7 +342,7 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
     {
       id: 'fitbit',
       type: 'fitbit',
-      name: 'Fitbit',
+      name: 'Fitbit (Coming Soon)',
       icon: <FiActivity className="text-teal-500" />,
       lastSynced: null,
       status: 'disconnected',
@@ -369,7 +369,7 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
     {
       id: 'google_fit',
       type: 'google_fit',
-      name: 'Google Fit',
+      name: 'Google Fit (Coming Soon)',
       icon: <FiActivity className="text-green-500" />,
       lastSynced: null,
       status: 'disconnected',
@@ -1034,7 +1034,7 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
                     <div className="flex space-x-2">
                       <button
                         onClick={() => setShowManualEntry(true)}
-                        className="flex-1 py-2 px-4 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-800/30 text-indigo-700 dark:text-indigo-300 rounded-md transition-colors text-sm flex items-center justify-center"
+                        className="flex-1 py-2 px-4 bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 rounded-md transition-colors text-sm flex items-center justify-center"
                       >
                         <FiPlus className="mr-2" />
                         <span>Add Steps Manually</span>
@@ -1047,7 +1047,7 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
                         <span>
                           {connectedDevices.length > 0 
                             ? `Manage Devices (${connectedDevices.length})` 
-                            : 'Connect Device'
+                            : 'Connect Device (Coming Soon)'
                           }
                         </span>
                       </button>
