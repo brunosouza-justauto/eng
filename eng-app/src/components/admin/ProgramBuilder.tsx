@@ -388,9 +388,13 @@ const MuscleHeatMap: React.FC<{
 const MuscleSetBreakdown: React.FC<{ 
     muscleData: MuscleData[];
     title: string;
-}> = ({ muscleData, title }) => {
+    workouts: WorkoutAdminData[];
+}> = ({ muscleData, title, workouts }) => {
     // Sort muscles by sets count in descending order
     const sortedMuscleData = [...muscleData].sort((a, b) => b.setsCount - a.setsCount);
+    
+    // State to track which group is expanded
+    const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
     
     // Define color mapping for different muscle groups
     const getGroupColor = (muscleName: string): string => {
@@ -407,6 +411,139 @@ const MuscleSetBreakdown: React.FC<{
         };
         
         return groupColors[muscleName] || 'bg-red-600'; // Default to red if not found
+    };
+    
+    // Get text color for different muscle groups
+    const getGroupTextColor = (muscleName: string): string => {
+        const textColors: Record<string, string> = {
+            'Arms': 'text-blue-600 dark:text-blue-400',
+            'Shoulders': 'text-purple-600 dark:text-purple-400',
+            'Chest': 'text-red-600 dark:text-red-400',
+            'Back': 'text-green-600 dark:text-green-400',
+            'Core': 'text-yellow-600 dark:text-yellow-400',
+            'Glutes': 'text-pink-600 dark:text-pink-400',
+            'Legs': 'text-indigo-600 dark:text-indigo-400',
+            'Neck': 'text-gray-600 dark:text-gray-400',
+            'Other': 'text-gray-600 dark:text-gray-400'
+        };
+        
+        return textColors[muscleName] || 'text-gray-600 dark:text-gray-400';
+    };
+    
+    // Local helper to avoid reference issues with outer function
+    const cleanName = (name: string): string => {
+        if (!name) return name;
+        // Remove text within parentheses and extra whitespace
+        return name.replace(/\s*\([^)]*\)\s*/g, ' ') // Remove anything between parentheses
+                   .replace(/\s+/g, ' ')             // Replace multiple spaces with a single space
+                   .trim();                          // Remove leading/trailing whitespace
+    };
+    
+    // Function to get exercises for a specific muscle group
+    const getExercisesForMuscleGroup = (muscleGroup: string): { name: string, setCount: number }[] => {
+        // Create a map to track exercises and their set counts
+        const exerciseMap: Record<string, number> = {};
+        
+        // Loop through all workouts and exercises
+        workouts.forEach(workout => {
+            if (!workout.exercise_instances) return;
+            
+            workout.exercise_instances.forEach(exercise => {
+                let primaryMuscle = null;
+                let secondaryMuscles: string[] = [];
+                
+                // Get muscles from the exercise data
+                if (exercise.exercises) {
+                    const exerciseData = exercise.exercises as unknown;
+                    // Safely access properties
+                    const data = exerciseData as {
+                        primary_muscle_group?: string,
+                        body_part?: string,
+                        target?: string,
+                        secondary_muscle_groups?: string[]
+                    };
+                    
+                    primaryMuscle = data.primary_muscle_group || data.body_part || data.target;
+                    secondaryMuscles = Array.isArray(data.secondary_muscle_groups) 
+                        ? data.secondary_muscle_groups 
+                        : [];
+                } else {
+                    // Fallback to legacy data
+                    const legacyData = exercise as unknown as {
+                        primary_muscle_group?: string,
+                        secondary_muscle_groups?: string[]
+                    };
+                    
+                    primaryMuscle = legacyData.primary_muscle_group;
+                    secondaryMuscles = legacyData.secondary_muscle_groups || [];
+                }
+                
+                // Map primary muscle to its category
+                if (primaryMuscle) {
+                    const primaryLower = primaryMuscle.toLowerCase().trim();
+                    let primaryCategory = MUSCLE_GROUP_MAPPING[primaryLower] || primaryMuscle;
+                    
+                    // If not an exact match, try to find a partial match
+                    if (!MUSCLE_GROUP_MAPPING[primaryLower]) {
+                        for (const [muscle, category] of Object.entries(MUSCLE_GROUP_MAPPING)) {
+                            if (primaryLower.includes(muscle) || muscle.includes(primaryLower)) {
+                                primaryCategory = category;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Check if this exercise belongs to the requested muscle group
+                    if (primaryCategory === muscleGroup) {
+                        const name = cleanName(exercise.exercise_name);
+                        const setCount = exercise.sets_data?.length || 0;
+                        if (name && setCount > 0) {
+                            exerciseMap[name] = (exerciseMap[name] || 0) + setCount;
+                        }
+                    }
+                }
+                
+                // Check secondary muscles too
+                secondaryMuscles.forEach(muscleName => {
+                    if (muscleName) {
+                        const secondaryLower = muscleName.toLowerCase().trim();
+                        let secondaryCategory = MUSCLE_GROUP_MAPPING[secondaryLower] || muscleName;
+                        
+                        // If not an exact match, try to find a partial match
+                        if (!MUSCLE_GROUP_MAPPING[secondaryLower]) {
+                            for (const [muscle, category] of Object.entries(MUSCLE_GROUP_MAPPING)) {
+                                if (secondaryLower.includes(muscle) || muscle.includes(secondaryLower)) {
+                                    secondaryCategory = category;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Check if this secondary muscle belongs to the requested group
+                        if (secondaryCategory === muscleGroup) {
+                            const name = cleanName(exercise.exercise_name);
+                            const setCount = Math.ceil((exercise.sets_data?.length || 0) / 2); // Half weight for secondary
+                            if (name && setCount > 0) {
+                                exerciseMap[name] = (exerciseMap[name] || 0) + setCount;
+                            }
+                        }
+                    }
+                });
+            });
+        });
+        
+        // Convert map to array and sort by set count descending
+        return Object.entries(exerciseMap)
+            .map(([name, setCount]) => ({ name, setCount }))
+            .sort((a, b) => b.setCount - a.setCount);
+    };
+    
+    const toggleGroup = (groupName: string) => {
+        if (expandedGroup === groupName) {
+            setExpandedGroup(null); // Collapse if already expanded
+        } else {
+            setExpandedGroup(groupName); // Expand the clicked group
+        }
     };
     
     return (
@@ -430,27 +567,63 @@ const MuscleSetBreakdown: React.FC<{
                     <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                         {sortedMuscleData.length > 0 ? (
                             sortedMuscleData.map((muscle, index) => (
-                                <tr key={index} className={index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-700'}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white capitalize">
-                                        {muscle.name}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-500 dark:text-gray-300">
-                                        {muscle.setsCount}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mr-4">
-                                                <div 
-                                                    className={`${getGroupColor(muscle.name)} h-2.5 rounded-full`}
-                                                    style={{ width: `${muscle.intensity}%` }}
-                                                ></div>
-                                            </div>
-                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-10 text-right">
-                                                {muscle.intensity}%
+                                <React.Fragment key={index}>
+                                    <tr 
+                                        className={`${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-700'} 
+                                            hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors`}
+                                        onClick={() => toggleGroup(muscle.name)}
+                                    >
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white capitalize flex items-center">
+                                            <span className={`mr-2 ${expandedGroup === muscle.name ? 'transform rotate-90 transition-transform' : 'transition-transform'}`}>
+                                                ▶
                                             </span>
-                                        </div>
-                                    </td>
-                                </tr>
+                                            {muscle.name}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-500 dark:text-gray-300">
+                                            {muscle.setsCount}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex items-center">
+                                                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mr-4">
+                                                    <div 
+                                                        className={`${getGroupColor(muscle.name)} h-2.5 rounded-full`}
+                                                        style={{ width: `${muscle.intensity}%` }}
+                                                    ></div>
+                                                </div>
+                                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-10 text-right">
+                                                    {muscle.intensity}%
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    
+                                    {/* Expanded details section */}
+                                    {expandedGroup === muscle.name && (
+                                        <tr className="bg-gray-50 dark:bg-gray-900/30">
+                                            <td colSpan={3} className="px-4 py-2">
+                                                <div className="px-3 py-3 rounded bg-gray-100 dark:bg-gray-800">
+                                                    <h4 className={`text-sm font-medium mb-2 ${getGroupTextColor(muscle.name)}`}>
+                                                        Exercises targeting {muscle.name.toLowerCase()}
+                                                    </h4>
+                                                    <div className="space-y-1">
+                                                        {getExercisesForMuscleGroup(muscle.name).map((exercise, idx) => (
+                                                            <div key={idx} className="flex justify-between items-center py-1 px-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-sm">
+                                                                <span className="text-gray-800 dark:text-gray-200">{exercise.name}</span>
+                                                                <span className="text-gray-600 dark:text-gray-400 font-medium">{exercise.setCount} sets</span>
+                                                            </div>
+                                                        ))}
+                                                        
+                                                        {getExercisesForMuscleGroup(muscle.name).length === 0 && (
+                                                            <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                                                No specific exercises found
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </React.Fragment>
                             ))
                         ) : (
                             <tr>
@@ -1799,27 +1972,6 @@ const ProgramBuilder: React.FC = () => {
         return muscleData;
     };
 
-    // Helper function to map a specific muscle to its broader category
-    const mapMuscleToCategory = (muscleName: string): string => {
-        if (!muscleName) return 'Other';
-        
-        const lowerCaseName = muscleName.toLowerCase().trim();
-        
-        // Check our mapping first
-        const category = MUSCLE_GROUP_MAPPING[lowerCaseName];
-        if (category) return category;
-        
-        // If not found, try to find a partial match
-        for (const [muscle, category] of Object.entries(MUSCLE_GROUP_MAPPING)) {
-            if (lowerCaseName.includes(muscle) || muscle.includes(lowerCaseName)) {
-                return category;
-            }
-        }
-        
-        // If no match found, return the original name
-        return muscleName;
-    };
-
     // Helper function to clean exercise names from gender and version indicators
     const cleanExerciseName = (name: string): string => {
       if (!name) return name;
@@ -2245,6 +2397,7 @@ const ProgramBuilder: React.FC = () => {
                                 <MuscleSetBreakdown 
                                     muscleData={muscleData}
                                     title="Sets Per Muscle Group (Across All Workouts)"
+                                    workouts={currentWorkouts}
                                 />
                             </div>
                         )}
