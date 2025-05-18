@@ -163,42 +163,15 @@ const UserManager: React.FC = () => {
         setResendError(null);
         
         try {
-            // Generate a secure random password
-            const generateRandomPassword = () => {
-                const length = 12;
-                const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=';
-                let password = '';
-                for (let i = 0, n = charset.length; i < length; ++i) {
-                    password += charset.charAt(Math.floor(Math.random() * n));
-                }
-                return password;
-            };
-            
-            // Use the admin API to create/update the user with email verification bypassed
-            const { error: createUserError } = await supabase.auth.admin.createUser({
+            // Re-send the magic link
+            const { error: inviteError } = await supabase.auth.signInWithOtp({
                 email: user.email,
-                password: generateRandomPassword(),
-                email_confirm: true, // Pre-validate the email
-                user_metadata: {
-                    invited_at: new Date().toISOString(),
-                    role: user.role || 'athlete',
+                options: {
+                    emailRedirectTo: `${window.location.origin}/auth/verify`,
                 }
             });
 
-            // Fall back to magic link if admin API method fails
-            if (createUserError) {
-                console.log('Admin user creation failed, falling back to magic link:', createUserError);
-                
-                // Re-send the magic link as a fallback
-                const { error: inviteError } = await supabase.auth.signInWithOtp({
-                    email: user.email,
-                    options: {
-                        emailRedirectTo: `${window.location.origin}/auth/verify`,
-                    }
-                });
-    
-                if (inviteError) throw inviteError;
-            }
+            if (inviteError) throw inviteError;
 
             // Update the invitation timestamp
             const { error: updateError } = await supabase

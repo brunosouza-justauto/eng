@@ -1,11 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { 
-  selectIsAuthenticated, 
-  selectIsLoading, 
-  selectProfile
-} from '../store/slices/authSlice';
+import { selectIsAuthenticated, selectIsLoading, selectProfile } from '../store/slices/authSlice';
 import { supabase } from '../services/supabaseClient';
 
 const ProtectedRoute: React.FC = () => {
@@ -16,11 +12,6 @@ const ProtectedRoute: React.FC = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(false);
   const [isProcessingRedirect, setIsProcessingRedirect] = useState(false);
   const [isConfirmationFlow, setIsConfirmationFlow] = useState(false);
-  
-  // Add state to track if user was previously authenticated
-  const [wasAuthenticated, setWasAuthenticated] = useState<boolean>(false);
-  // Add state to remember if onboarding was previously complete
-  const [wasOnboardingComplete, setWasOnboardingComplete] = useState<boolean | null>(null);
 
   // Check if we have auth parameters in the URL
   const hasAuthParams = window.location.hash.includes('access_token') || 
@@ -52,30 +43,30 @@ const ProtectedRoute: React.FC = () => {
     }
   }, [location.search, location.pathname]);
 
-  // Keep track of authentication state to prevent disruption during token refreshes
+  // Add debugging for auth state
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      setWasAuthenticated(true);
-    }
+    console.log('ProtectedRoute - Auth state:', { 
+      isAuthenticated, 
+      isLoading,
+      hasProfile: !!profile,
+      path: location.pathname,
+      hash: window.location.hash,
+      search: window.location.search,
+      href: window.location.href,
+      hasAuthParams,
+      isConfirmationFlow
+    });
     
-    // Remember onboarding status
-    if (profile?.onboarding_complete) {
-      setWasOnboardingComplete(true);
-    } else if (profile && profile.onboarding_complete === false) {
-      setWasOnboardingComplete(false);
+    // For debugging - log local storage auth keys
+    try {
+      console.log('ProtectedRoute - Auth storage status:', {
+        'eng_supabase_auth': !!localStorage.getItem('eng_supabase_auth'),
+        'supabase.auth.token': !!localStorage.getItem('supabase.auth.token')
+      });
+    } catch (e) {
+      console.error('Error checking auth storage:', e);
     }
-  }, [isAuthenticated, isLoading, profile]);
-
-  // Debug information
-  console.log('ProtectedRoute - Auth state:', {
-    isAuthenticated,
-    isLoading,
-    hasProfile: !!profile,
-    path: location.pathname,
-    hash: location.hash,
-    wasAuthenticated,
-    wasOnboardingComplete
-  });
+  }, [isAuthenticated, isLoading, profile, location, hasAuthParams, isConfirmationFlow]);
 
   // Special case for when we have auth params but no authenticated state yet
   // This helps handle the redirect after email verification
@@ -215,6 +206,12 @@ const ProtectedRoute: React.FC = () => {
     return <Outlet />;
   }
 
+  // Standard handling for other protected routes
+  if (!isAuthenticated) {
+    console.log('ProtectedRoute - Not authenticated, redirecting to login');
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
   // --- Onboarding Check ---
   // If authenticated but profile is loaded and onboarding is not complete,
   // redirect to onboarding page (unless already there).
@@ -239,13 +236,6 @@ const ProtectedRoute: React.FC = () => {
     console.log('ProtectedRoute - Verification URL detected, bypassing authentication check');
     // Let the verification routes handle this directly
     return <Outlet />;
-  }
-
-  // Add back the standard authentication check
-  // Use wasAuthenticated to prevent disruption during token refreshes
-  if (!isAuthenticated && !wasAuthenticated) {
-    console.log('ProtectedRoute - Not authenticated, redirecting to login');
-    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // If authenticated, render the child route component

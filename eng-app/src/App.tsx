@@ -383,16 +383,11 @@ function App() {
         
         // Skip processing certain non-critical events
         if (event === 'TOKEN_REFRESHED') {
-            // Silently update the session object without triggering any state changes or re-renders
-            // This is crucial to prevent losing user's work when tokens refresh
+            // Only update the session object, but don't trigger profile fetches or redirects
             if (session) {
-                // Only update the Redux session, but preserve all other state
                 dispatch(setSession(session));
-                
-                // IMPORTANT: Don't trigger any profile fetches, redirects, or state changes
-                // Don't modify loading states or trigger re-renders of protected routes
-                console.log('Token refresh event - silently updating session without state changes');
             }
+            console.log('Token refresh event - only updating session object');
             return;
         }
         

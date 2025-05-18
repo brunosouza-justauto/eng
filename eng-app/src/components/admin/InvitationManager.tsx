@@ -23,29 +23,16 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
   userRole = 'athlete' // Default to 'athlete' if not specified
 }) => {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState(''); // Add password state for user creation
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showBulkInvite, setShowBulkInvite] = useState(false);
   const [bulkEmails, setBulkEmails] = useState('');
   const [invitedEmails, setInvitedEmails] = useState<{ email: string; provider: EmailProvider | null }[]>([]);
   const [showSuccessMessage, setShowSuccessMessage] = useState<boolean>(false);
-  const [usePasswordAuth, setUsePasswordAuth] = useState(true); // Default to password authentication
 
   // Display text based on userRole
   const roleText = userRole === 'coach' ? 'Coach' : 'Athlete';
   const roleTextLower = userRole === 'coach' ? 'coach' : 'athlete';
-
-  // Generate a secure random password for users
-  const generateRandomPassword = () => {
-    const length = 12;
-    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=';
-    let password = '';
-    for (let i = 0, n = charset.length; i < length; ++i) {
-      password += charset.charAt(Math.floor(Math.random() * n));
-    }
-    return password;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,37 +42,17 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
     setError(null);
     
     try {
-      // Generate a secure random password if not provided
-      const userPassword = password || generateRandomPassword();
-      
-      if (usePasswordAuth) {
-        // Create a pre-validated user using admin API
-        console.log(`Creating user ${email.trim()} with email_confirm: true`);
-        const { error: createUserError } = await supabase.auth.admin.createUser({
-          email: email.trim(),
-          password: userPassword,
-          email_confirm: true, // Pre-validate the email
-          user_metadata: {
-            invite_date: new Date().toISOString(),
-            invited_by: coachId,
-            role: userRole,
-          }
-        });
-  
-        if (createUserError) throw createUserError;
-      } else {
-        // Send the magic link to the email (original method)
-        console.log(`Sending invitation to ${email.trim()} with redirect to ${window.location.origin}/auth/verify`);
-        const { error: inviteError } = await supabase.auth.signInWithOtp({
-          email: email.trim(),
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/verify`,
-            shouldCreateUser: true, // Ensure a user is created
-          }
-        });
+      // Send the magic link to the email
+      console.log(`Sending invitation to ${email.trim()} with redirect to ${window.location.origin}/auth/verify`);
+      const { error: inviteError } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/verify`,
+          shouldCreateUser: true, // Ensure a user is created
+        }
+      });
 
-        if (inviteError) throw inviteError;
-      }
+      if (inviteError) throw inviteError;
 
       // Log the invitation details (without sensitive data)
       console.log(`Invitation sent successfully to ${email.trim()}`, {
@@ -124,7 +91,6 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
       
       // Clear the form
       setEmail('');
-      setPassword('');
     } catch (err: unknown) {
       console.error(`Error inviting ${roleTextLower}:`, err);
       setError(err instanceof Error ? err.message : 'Failed to send invitation');
@@ -159,32 +125,16 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
       
       for (const emailAddress of emails) {
         try {
-          if (usePasswordAuth) {
-            // Create a pre-validated user using admin API
-            const { error: createUserError } = await supabase.auth.admin.createUser({
-              email: emailAddress,
-              password: generateRandomPassword(),
-              email_confirm: true, // Pre-validate the email
-              user_metadata: {
-                invite_date: new Date().toISOString(),
-                invited_by: coachId,
-                role: userRole,
-              }
-            });
-      
-            if (createUserError) continue;
-          } else {
-            // Send the magic link
-            const { error: inviteError } = await supabase.auth.signInWithOtp({
-              email: emailAddress,
-              options: {
-                emailRedirectTo: `${window.location.origin}/auth/verify`,
-                shouldCreateUser: true, // Ensure a user is created
-              }
-            });
-  
-            if (inviteError) continue;
-          }
+          // Send the magic link
+          const { error: inviteError } = await supabase.auth.signInWithOtp({
+            email: emailAddress,
+            options: {
+              emailRedirectTo: `${window.location.origin}/auth/verify`,
+              shouldCreateUser: true, // Ensure a user is created
+            }
+          });
+
+          if (inviteError) continue;
 
           // Create or update a profile record using upsert
           const profileData = {
@@ -249,22 +199,13 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
               Invite {roleTextLower}s to join your coaching program
             </p>
           </div>
-          <div className="flex space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setUsePasswordAuth(!usePasswordAuth)}
-            >
-              {usePasswordAuth ? 'Use Magic Links' : 'Use Password Auth'}
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setShowBulkInvite(!showBulkInvite)}
-            >
-              {showBulkInvite ? 'Single Invite' : 'Bulk Invite'}
-            </Button>
-          </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setShowBulkInvite(!showBulkInvite)}
+          >
+            {showBulkInvite ? 'Single Invite' : 'Bulk Invite'}
+          </Button>
         </div>
 
         {error && (
@@ -285,17 +226,12 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
                 </p>
                 <p className="text-sm mb-3">
                   {invitedEmails.length === 1 
-                    ? usePasswordAuth 
-                      ? `${invitedEmails[0].email} has been invited and can now log in with a temporary password.` 
-                      : `Check ${invitedEmails[0].email} for the invitation link.`
-                    : usePasswordAuth
-                      ? 'Recipients have been invited and can now log in with temporary passwords.'
-                      : 'Recipients will receive an email with the invitation link.'
-                  }
+                    ? `Check ${invitedEmails[0].email} for the invitation link.` 
+                    : 'Recipients will receive an email with the invitation link.'}
                 </p>
 
                 {/* Show email provider links for single email or if multiple emails use the same provider */}
-                {!usePasswordAuth && invitedEmails.length === 1 && invitedEmails[0].provider && (
+                {invitedEmails.length === 1 && invitedEmails[0].provider && (
                   <a 
                     href={invitedEmails[0].provider.url}
                     target="_blank"
@@ -308,7 +244,7 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
                 )}
 
                 {/* Common provider links if no specific provider detected */}
-                {!usePasswordAuth && (invitedEmails.length > 1 || !invitedEmails[0].provider) && (
+                {(invitedEmails.length > 1 || !invitedEmails[0].provider) && (
                   <div className="mt-2">
                     <p className="text-xs mb-1">Popular email providers:</p>
                     <CommonEmailLinks />
@@ -355,15 +291,9 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
                   Send Invitation
                 </Button>
               </div>
-              {usePasswordAuth ? (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  User will be created with a random password and pre-validated email.
-                </p>
-              ) : (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  An email will be sent with a link to join your coaching program.
-                </p>
-              )}
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                An email will be sent with a link to join your coaching program.
+              </p>
             </div>
           </form>
         ) : (
@@ -382,15 +312,9 @@ const InvitationManager: React.FC<InvitationManagerProps> = ({
                 className="block w-full px-4 py-2 mt-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 disabled={isSubmitting}
               />
-              {usePasswordAuth ? (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Users will be created with random passwords and pre-validated emails.
-                </p>
-              ) : (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Enter multiple email addresses separated by commas, semicolons, or new lines.
-                </p>
-              )}
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Enter multiple email addresses separated by commas, semicolons, or new lines.
+              </p>
               <Button
                 type="submit"
                 variant="primary"

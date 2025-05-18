@@ -380,13 +380,7 @@ export const searchExercises = async (
     if (categoryFilter) {
       if (typeof categoryFilter === 'string') {
         // Filter by body_part, primary_muscle_group, or target fields
-        // Need to format secondary_muscle_groups.cs properly with array syntax
-        dbQuery = dbQuery.or(
-          `body_part.eq.${categoryFilter},` +
-          `primary_muscle_group.eq.${categoryFilter},` +
-          `secondary_muscle_groups.cs.{${categoryFilter}},` + // Fix: Proper PostgreSQL array format
-          `target.eq.${categoryFilter}`
-        );
+        dbQuery = dbQuery.or(`body_part.eq.${categoryFilter},primary_muscle_group.eq.${categoryFilter},target.eq.${categoryFilter}`);
       } else if (typeof categoryFilter === 'number') {
         // Get the category name first
         const { data: categories } = await supabase

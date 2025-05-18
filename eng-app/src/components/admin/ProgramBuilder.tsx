@@ -8,7 +8,7 @@ import FormInput from '../ui/FormInput';
 import FormSelect from '../ui/FormSelect';
 import { WorkoutAdminData, ExerciseInstanceAdminData, SetType, ExerciseGroupType, ExerciseSet } from '../../types/adminTypes';
 import WorkoutForm from './WorkoutForm';
-import { FiSearch, FiPlus, FiInfo, FiRefreshCw } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiInfo } from 'react-icons/fi';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import WorkoutArrangement from './WorkoutArrangement';
@@ -187,36 +187,11 @@ const MuscleHeatMap: React.FC<{
     // Generate color based on intensity (0-100)
     const getColor = (intensity: number): string => {
         if (intensity === 0) return '#2d3748'; // Dark gray for unused muscles
-        
-        // Create a better color gradient from blue (low) to red (high)
-        if (intensity < 20) {
-            // Blue to teal range (low intensity: 1-19%)
-            const blue = Math.round(180 + (intensity * 3));
-            const green = Math.round(120 + (intensity * 4));
-            const red = Math.round(20 + (intensity * 2));
-            return `rgb(${red}, ${green}, ${blue})`;
-        } else if (intensity < 50) {
-            // Teal to yellow range (medium-low intensity: 20-49%)
-            const factor = (intensity - 20) / 30;
-            const blue = Math.round(180 - (factor * 180));
-            const green = Math.round(200 - (factor * 60));
-            const red = Math.round(60 + (factor * 195));
-            return `rgb(${red}, ${green}, ${blue})`;
-        } else if (intensity < 80) {
-            // Yellow to orange range (medium-high intensity: 50-79%)
-            const factor = (intensity - 50) / 30;
-            const red = 255;
-            const green = Math.round(140 - (factor * 70));
-            const blue = Math.round(0 + (factor * 0)); // Blue stays at 0
-            return `rgb(${red}, ${green}, ${blue})`;
-        } else {
-            // Orange to bright red range (high intensity: 80-100%)
-            const factor = (intensity - 80) / 20;
-            const red = 255;
-            const green = Math.round(70 - (factor * 70));
-            const blue = 0;
-            return `rgb(${red}, ${green}, ${blue})`;
-        }
+        // Enhanced red scale for intensity with better contrast
+        const red = Math.min(255, Math.round(160 + (intensity * 95 / 100))); // 160-255
+        const green = Math.min(80, Math.round(30 + (intensity * 50 / 100))); // 30-80
+        const blue = Math.min(70, Math.round(30 + (intensity * 40 / 100))); // 30-70
+        return `rgb(${red}, ${green}, ${blue})`;
     };
 
     return (
@@ -227,66 +202,78 @@ const MuscleHeatMap: React.FC<{
                 <div className="w-48 h-96 relative bg-gray-900 bg-opacity-20 rounded-lg p-3 flex flex-col items-center">
                     <svg viewBox="0 0 100 170" className="w-full h-full">
                         {/* Head */}
-                        <circle cx="50" cy="20" r="12" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
+                        <circle cx="50" cy="15" r="12" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Neck */}
-                        <rect x="45" y="32" width="10" height="8" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
+                        <rect id="neck" x="46" y="27" width="8" height="5" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Shoulders */}
-                        <path id="shoulder-left" d="M30,40 C25,40 20,45 20,50 L30,50 L30,40 Z" 
-                            fill={getColor(getColorIntensity('shoulders'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="shoulder-right" d="M70,40 C75,40 80,45 80,50 L70,50 L70,40 Z" 
-                            fill={getColor(getColorIntensity('shoulders'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="shoulder-left" d="M46,32 C38,32 30,37 25,42" fill="none" stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="shoulder-right" d="M54,32 C62,32 70,37 75,42" fill="none" stroke="#1a202c" strokeWidth="0.5" />
+                        
+                        <ellipse id="shoulder-front-left" cx="38" cy="35" rx="6" ry="4" 
+                            fill={getColor(getColorIntensity('front deltoid'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <ellipse id="shoulder-front-right" cx="62" cy="35" rx="6" ry="4" 
+                            fill={getColor(getColorIntensity('front deltoid'))} stroke="#1a202c" strokeWidth="0.5" />
+                        
+                        <ellipse id="shoulder-side-left" cx="30" cy="35" rx="4" ry="4" 
+                            fill={getColor(getColorIntensity('lateral deltoid'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <ellipse id="shoulder-side-right" cx="70" cy="35" rx="4" ry="4" 
+                            fill={getColor(getColorIntensity('lateral deltoid'))} stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Chest */}
-                        <path id="chest" d="M30,40 L70,40 L70,50 C70,60 60,70 50,70 C40,70 30,60 30,50 L30,40 Z" 
+                        <path id="chest-left" d="M46,32 Q35,50 35,60" 
+                            fill={getColor(getColorIntensity('chest'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="chest-right" d="M54,32 Q65,50 65,60" 
                             fill={getColor(getColorIntensity('chest'))} stroke="#1a202c" strokeWidth="0.5" />
                         
-                        {/* Arms */}
-                        <path id="arm-left" d="M20,50 L20,80 L30,80 L30,50 L20,50 Z" 
-                            fill={getColor(getColorIntensity('arms'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="arm-right" d="M70,50 L80,50 L80,80 L70,80 L70,50 Z" 
-                            fill={getColor(getColorIntensity('arms'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="chest-upper-left" d="M46,32 Q40,42 40,45" 
+                            fill={getColor(getColorIntensity('upper chest'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="chest-upper-right" d="M54,32 Q60,42 60,45" 
+                            fill={getColor(getColorIntensity('upper chest'))} stroke="#1a202c" strokeWidth="0.5" />
                         
-                        {/* Forearms */}
-                        <path id="forearm-left" d="M20,80 L15,95 L35,95 L30,80 L20,80 Z" 
-                            fill={getColor(getColorIntensity('forearms'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="forearm-right" d="M70,80 L80,80 L85,95 L65,95 L70,80 Z" 
-                            fill={getColor(getColorIntensity('forearms'))} stroke="#1a202c" strokeWidth="0.5" />
-                        
-                        {/* Hands */}
-                        <path id="hand-left" d="M15,95 L15,100 L35,100 L35,95 L15,95 Z" 
-                            fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="hand-right" d="M65,95 L65,100 L85,100 L85,95 L65,95 Z" 
-                            fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="chest-lower-left" d="M40,45 Q37,55 35,60" 
+                            fill={getColor(getColorIntensity('lower chest'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="chest-lower-right" d="M60,45 Q63,55 65,60" 
+                            fill={getColor(getColorIntensity('lower chest'))} stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Abs */}
-                        <path id="abs" d="M30,50 C30,60 40,70 50,70 C60,70 70,60 70,50 L70,90 L30,90 L30,50 Z" 
+                        <rect id="abs-upper" x="40" y="60" width="20" height="15" 
+                            fill={getColor(getColorIntensity('abs'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <rect id="abs-lower" x="40" y="75" width="20" height="15" 
                             fill={getColor(getColorIntensity('abs'))} stroke="#1a202c" strokeWidth="0.5" />
                         
-                        {/* Ab lines for definition */}
-                        <path d="M40,60 L60,60" fill="none" stroke="#1a202c" strokeWidth="0.3" />
-                        <path d="M40,70 L60,70" fill="none" stroke="#1a202c" strokeWidth="0.3" />
-                        <path d="M40,80 L60,80" fill="none" stroke="#1a202c" strokeWidth="0.3" />
-                        <path d="M50,50 L50,90" fill="none" stroke="#1a202c" strokeWidth="0.3" />
+                        {/* Obliques */}
+                        <path id="oblique-left" d="M40,60 Q35,70 35,90" 
+                            fill={getColor(getColorIntensity('obliques'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="oblique-right" d="M60,60 Q65,70 65,90" 
+                            fill={getColor(getColorIntensity('obliques'))} stroke="#1a202c" strokeWidth="0.5" />
                         
-                        {/* Quads */}
-                        <path id="quad-left" d="M30,90 L30,130 L45,130 L50,90 L30,90 Z" 
+                        {/* Arms */}
+                        <path id="bicep-left" d="M25,42 Q23,50 25,60" 
+                            fill={getColor(getColorIntensity('biceps'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="bicep-right" d="M75,42 Q77,50 75,60" 
+                            fill={getColor(getColorIntensity('biceps'))} stroke="#1a202c" strokeWidth="0.5" />
+                        
+                        <path id="forearm-left" d="M25,60 Q20,70 18,80" 
+                            fill={getColor(getColorIntensity('forearms'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="forearm-right" d="M75,60 Q80,70 82,80" 
+                            fill={getColor(getColorIntensity('forearms'))} stroke="#1a202c" strokeWidth="0.5" />
+                        
+                        {/* Legs */}
+                        <rect id="quad-left" x="38" y="90" width="10" height="30" 
                             fill={getColor(getColorIntensity('quads'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="quad-right" d="M50,90 L55,130 L70,130 L70,90 L50,90 Z" 
+                        <rect id="quad-right" x="52" y="90" width="10" height="30" 
                             fill={getColor(getColorIntensity('quads'))} stroke="#1a202c" strokeWidth="0.5" />
                         
-                        {/* Calves */}
-                        <path id="calf-left" d="M30,130 L28,150 L47,150 L45,130 L30,130 Z" 
+                        <rect id="calf-left" x="40" y="120" width="8" height="25" 
                             fill={getColor(getColorIntensity('calves'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="calf-right" d="M55,130 L53,150 L72,150 L70,130 L55,130 Z" 
+                        <rect id="calf-right" x="52" y="120" width="8" height="25" 
                             fill={getColor(getColorIntensity('calves'))} stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Feet */}
-                        <path id="foot-left" d="M28,150 L28,155 L47,155 L47,150 L28,150 Z" 
-                            fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="foot-right" d="M53,150 L53,155 L72,155 L72,150 L53,150 Z" 
-                            fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
+                        <rect id="foot-left" x="38" y="145" width="12" height="5" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
+                        <rect id="foot-right" x="50" y="145" width="12" height="5" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
                     </svg>
                     <div className="text-center mt-3 text-sm font-medium text-gray-600 dark:text-gray-300">Front View</div>
                 </div>
@@ -295,71 +282,64 @@ const MuscleHeatMap: React.FC<{
                 <div className="w-48 h-96 relative bg-gray-900 bg-opacity-20 rounded-lg p-3 flex flex-col items-center">
                     <svg viewBox="0 0 100 170" className="w-full h-full">
                         {/* Head */}
-                        <circle cx="50" cy="20" r="12" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
+                        <circle cx="50" cy="15" r="12" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Neck */}
-                        <rect x="45" y="32" width="10" height="8" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
+                        <rect id="neck-back" x="46" y="27" width="8" height="5" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Traps */}
-                        <path id="traps" d="M40,40 L60,40 L60,45 C55,50 45,50 40,45 L40,40 Z" 
+                        <path id="traps" d="M40,27 Q50,20 60,27" 
                             fill={getColor(getColorIntensity('traps'))} stroke="#1a202c" strokeWidth="0.5" />
                         
-                        {/* Shoulders */}
-                        <path id="shoulder-left" d="M30,40 C25,40 20,45 20,50 L30,50 L30,40 Z" 
-                            fill={getColor(getColorIntensity('shoulders'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="shoulder-right" d="M70,40 C75,40 80,45 80,50 L70,50 L70,40 Z" 
-                            fill={getColor(getColorIntensity('shoulders'))} stroke="#1a202c" strokeWidth="0.5" />
+                        {/* Shoulders - Rear */}
+                        <ellipse id="shoulder-rear-left" cx="32" cy="35" rx="6" ry="4" 
+                            fill={getColor(getColorIntensity('rear deltoid'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <ellipse id="shoulder-rear-right" cx="68" cy="35" rx="6" ry="4" 
+                            fill={getColor(getColorIntensity('rear deltoid'))} stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Back */}
-                        <path id="back" d="M30,40 L70,40 L70,75 L30,75 Z" 
+                        <rect id="back-upper" x="35" y="32" width="30" height="20" 
+                            fill={getColor(getColorIntensity('back'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <rect id="back-lower" x="35" y="52" width="30" height="20" 
                             fill={getColor(getColorIntensity('back'))} stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Lats */}
-                        <path id="lats-left" d="M30,40 L30,75 L20,60 L20,50 L30,40 Z" 
+                        <path id="lats-left" d="M35,52 Q25,60 30,75" 
                             fill={getColor(getColorIntensity('lats'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="lats-right" d="M70,40 L80,50 L80,60 L70,75 L70,40 Z" 
+                        <path id="lats-right" d="M65,52 Q75,60 70,75" 
                             fill={getColor(getColorIntensity('lats'))} stroke="#1a202c" strokeWidth="0.5" />
                         
-                        {/* Arms */}
-                        <path id="arm-left" d="M20,50 L20,80 L30,80 L30,50 L20,50 Z" 
-                            fill={getColor(getColorIntensity('arms'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="arm-right" d="M70,50 L80,50 L80,80 L70,80 L70,50 Z" 
-                            fill={getColor(getColorIntensity('arms'))} stroke="#1a202c" strokeWidth="0.5" />
+                        {/* Triceps */}
+                        <path id="tricep-left" d="M32,42 Q25,50 28,62" 
+                            fill={getColor(getColorIntensity('triceps'))} stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="tricep-right" d="M68,42 Q75,50 72,62" 
+                            fill={getColor(getColorIntensity('triceps'))} stroke="#1a202c" strokeWidth="0.5" />
                         
-                        {/* Forearms */}
-                        <path id="forearm-left" d="M20,80 L15,95 L35,95 L30,80 L20,80 Z" 
-                            fill={getColor(getColorIntensity('forearms'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="forearm-right" d="M70,80 L80,80 L85,95 L65,95 L70,80 Z" 
-                            fill={getColor(getColorIntensity('forearms'))} stroke="#1a202c" strokeWidth="0.5" />
-                        
-                        {/* Hands */}
-                        <path id="hand-left" d="M15,95 L15,100 L35,100 L35,95 L15,95 Z" 
-                            fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="hand-right" d="M65,95 L65,100 L85,100 L85,95 L65,95 Z" 
-                            fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
+                        {/* Forearms - Back */}
+                        <path id="forearm-back-left" d="M28,62 Q22,70 20,80" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
+                        <path id="forearm-back-right" d="M72,62 Q78,70 80,80" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Glutes */}
-                        <path id="glutes" d="M30,75 L70,75 L70,90 L30,90 Z" 
+                        <path id="glute-left" d="M40,72 Q37,85 40,90" 
                             fill={getColor(getColorIntensity('glutes'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="glute-separation" d="M50,75 L50,90" fill="none" stroke="#1a202c" strokeWidth="0.3" />
+                        <path id="glute-right" d="M60,72 Q63,85 60,90" 
+                            fill={getColor(getColorIntensity('glutes'))} stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Hamstrings */}
-                        <path id="hamstring-left" d="M30,90 L30,130 L45,130 L50,90 L30,90 Z" 
+                        <rect id="hamstring-left" x="38" y="90" width="10" height="30" 
                             fill={getColor(getColorIntensity('hamstrings'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="hamstring-right" d="M50,90 L55,130 L70,130 L70,90 L50,90 Z" 
+                        <rect id="hamstring-right" x="52" y="90" width="10" height="30" 
                             fill={getColor(getColorIntensity('hamstrings'))} stroke="#1a202c" strokeWidth="0.5" />
                         
-                        {/* Calves */}
-                        <path id="calf-left" d="M30,130 L28,150 L47,150 L45,130 L30,130 Z" 
+                        {/* Calves - Back */}
+                        <rect id="calf-back-left" x="40" y="120" width="8" height="25" 
                             fill={getColor(getColorIntensity('calves'))} stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="calf-right" d="M55,130 L53,150 L72,150 L70,130 L55,130 Z" 
+                        <rect id="calf-back-right" x="52" y="120" width="8" height="25" 
                             fill={getColor(getColorIntensity('calves'))} stroke="#1a202c" strokeWidth="0.5" />
                         
                         {/* Feet */}
-                        <path id="foot-left" d="M28,150 L28,155 L47,155 L47,150 L28,150 Z" 
-                            fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
-                        <path id="foot-right" d="M53,150 L53,155 L72,155 L72,150 L53,150 Z" 
-                            fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
+                        <rect id="foot-back-left" x="38" y="145" width="12" height="5" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
+                        <rect id="foot-back-right" x="50" y="145" width="12" height="5" fill="#2d3748" stroke="#1a202c" strokeWidth="0.5" />
                     </svg>
                     <div className="text-center mt-3 text-sm font-medium text-gray-600 dark:text-gray-300">Back View</div>
                 </div>
@@ -367,35 +347,37 @@ const MuscleHeatMap: React.FC<{
             
             {/* Legend */}
             <div className="mt-6 flex flex-wrap justify-center gap-6 bg-gray-900 bg-opacity-20 py-3 px-6 rounded-lg">
-                {/* Intensity Scale - Added back */}
-                <div className="flex flex-col">
-                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Intensity Scale:</span>
-                    <div className="flex items-center space-x-2">
-                        <div className="flex items-center">
-                            <div className="w-5 h-5 bg-gray-700 mr-1 border border-gray-600 rounded"></div>
-                            <span className="text-xs text-gray-600 dark:text-gray-300">No Volume</span>
-                        </div>
-                        <div className="flex items-center">
-                            <div className="w-5 h-5 bg-blue-500 mr-1 border border-blue-600 rounded"></div>
-                            <span className="text-xs text-gray-600 dark:text-gray-300">Low</span>
-                        </div>
-                        <div className="flex items-center">
-                            <div className="w-5 h-5 bg-teal-400 mr-1 border border-teal-500 rounded"></div>
-                            <span className="text-xs text-gray-600 dark:text-gray-300">Med-Low</span>
-                        </div>
-                        <div className="flex items-center">
-                            <div className="w-5 h-5 bg-yellow-400 mr-1 border border-yellow-500 rounded"></div>
-                            <span className="text-xs text-gray-600 dark:text-gray-300">Medium</span>
-                        </div>
-                        <div className="flex items-center">
-                            <div className="w-5 h-5 bg-orange-500 mr-1 border border-orange-600 rounded"></div>
-                            <span className="text-xs text-gray-600 dark:text-gray-300">Med-High</span>
-                        </div>
-                        <div className="flex items-center">
-                            <div className="w-5 h-5 bg-red-600 mr-1 border border-red-700 rounded"></div>
-                            <span className="text-xs text-gray-600 dark:text-gray-300">High</span>
-                        </div>
-                    </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-gray-700 mr-2 border border-gray-600 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">No Volume</span>
+                </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-blue-600 mr-2 border border-blue-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Arms</span>
+                </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-purple-600 mr-2 border border-purple-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Shoulders</span>
+                </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-red-600 mr-2 border border-red-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Chest</span>
+                </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-green-600 mr-2 border border-green-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Back</span>
+                </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-yellow-600 mr-2 border border-yellow-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Core</span>
+                </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-pink-600 mr-2 border border-pink-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Glutes</span>
+                </div>
+                <div className="flex items-center">
+                    <div className="w-5 h-5 bg-indigo-600 mr-2 border border-indigo-700 rounded"></div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Legs</span>
                 </div>
             </div>
         </div>
@@ -458,25 +440,16 @@ const MuscleSetBreakdown: React.FC<{
     };
     
     // Function to get exercises for a specific muscle group
-    const getExercisesForMuscleGroup = (muscleGroup: string): { 
-        name: string, 
-        setCount: number, 
-        isPrimary: boolean, 
-        isSecondary: boolean 
-    }[] => {
-        // Create a map to track exercises and their set counts + muscle targeting
-        const exerciseMap: Record<string, { 
-            primaryCount: number, 
-            secondaryCount: number,
-            actualSets: number
-        }> = {};
+    const getExercisesForMuscleGroup = (muscleGroup: string): { name: string, setCount: number }[] => {
+        // Create a map to track exercises and their set counts
+        const exerciseMap: Record<string, number> = {};
         
         // Loop through all workouts and exercises
         workouts.forEach(workout => {
             if (!workout.exercise_instances) return;
             
             workout.exercise_instances.forEach(exercise => {
-                let primaryMuscle: string | null = null;
+                let primaryMuscle = null;
                 let secondaryMuscles: string[] = [];
                 
                 // Get muscles from the exercise data
@@ -490,7 +463,7 @@ const MuscleSetBreakdown: React.FC<{
                         secondary_muscle_groups?: string[]
                     };
                     
-                    primaryMuscle = data.primary_muscle_group || data.body_part || data.target || null;
+                    primaryMuscle = data.primary_muscle_group || data.body_part || data.target;
                     secondaryMuscles = Array.isArray(data.secondary_muscle_groups) 
                         ? data.secondary_muscle_groups 
                         : [];
@@ -501,18 +474,11 @@ const MuscleSetBreakdown: React.FC<{
                         secondary_muscle_groups?: string[]
                     };
                     
-                    primaryMuscle = legacyData.primary_muscle_group || null;
+                    primaryMuscle = legacyData.primary_muscle_group;
                     secondaryMuscles = legacyData.secondary_muscle_groups || [];
                 }
                 
-                const name = cleanName(exercise.exercise_name);
-                // Get the actual number of sets from sets_data when available, or fall back to the sets field
-                const setCount = exercise.sets_data?.length || parseInt(exercise.sets as string) || 0;
-                
-                if (!name || setCount <= 0) return;
-                
-                // Get muscle category for primary muscle if it exists
-                let primaryBelongsToGroup = false;
+                // Map primary muscle to its category
                 if (primaryMuscle) {
                     const primaryLower = primaryMuscle.toLowerCase().trim();
                     let primaryCategory = MUSCLE_GROUP_MAPPING[primaryLower] || primaryMuscle;
@@ -527,72 +493,49 @@ const MuscleSetBreakdown: React.FC<{
                         }
                     }
                     
-                    // Check if this exercise primarily targets the requested muscle group
-                    primaryBelongsToGroup = (primaryCategory === muscleGroup);
+                    // Check if this exercise belongs to the requested muscle group
+                    if (primaryCategory === muscleGroup) {
+                        const name = cleanName(exercise.exercise_name);
+                        const setCount = exercise.sets_data?.length || 0;
+                        if (name && setCount > 0) {
+                            exerciseMap[name] = (exerciseMap[name] || 0) + setCount;
+                        }
+                    }
                 }
                 
-                // Get all secondary muscle categories
-                const secondaryBelongsToGroup = secondaryMuscles.some(muscleName => {
-                    if (!muscleName) return false;
-                    
-                    const secondaryLower = muscleName.toLowerCase().trim();
-                    let secondaryCategory = MUSCLE_GROUP_MAPPING[secondaryLower] || muscleName;
-                    
-                    // If not an exact match, try to find a partial match
-                    if (!MUSCLE_GROUP_MAPPING[secondaryLower]) {
-                        for (const [muscle, category] of Object.entries(MUSCLE_GROUP_MAPPING)) {
-                            if (secondaryLower.includes(muscle) || muscle.includes(secondaryLower)) {
-                                secondaryCategory = category;
-                                break;
+                // Check secondary muscles too
+                secondaryMuscles.forEach(muscleName => {
+                    if (muscleName) {
+                        const secondaryLower = muscleName.toLowerCase().trim();
+                        let secondaryCategory = MUSCLE_GROUP_MAPPING[secondaryLower] || muscleName;
+                        
+                        // If not an exact match, try to find a partial match
+                        if (!MUSCLE_GROUP_MAPPING[secondaryLower]) {
+                            for (const [muscle, category] of Object.entries(MUSCLE_GROUP_MAPPING)) {
+                                if (secondaryLower.includes(muscle) || muscle.includes(secondaryLower)) {
+                                    secondaryCategory = category;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Check if this secondary muscle belongs to the requested group
+                        if (secondaryCategory === muscleGroup) {
+                            const name = cleanName(exercise.exercise_name);
+                            const setCount = Math.ceil((exercise.sets_data?.length || 0) / 2); // Half weight for secondary
+                            if (name && setCount > 0) {
+                                exerciseMap[name] = (exerciseMap[name] || 0) + setCount;
                             }
                         }
                     }
-                    
-                    return secondaryCategory === muscleGroup;
                 });
-                
-                // If this exercise targets our muscle group, add it to the map
-                if (primaryBelongsToGroup || secondaryBelongsToGroup) {
-                    if (!exerciseMap[name]) {
-                        exerciseMap[name] = { 
-                            primaryCount: 0, 
-                            secondaryCount: 0,
-                            actualSets: 0
-                        };
-                    }
-                    
-                    if (primaryBelongsToGroup) {
-                        exerciseMap[name].primaryCount++;
-                        exerciseMap[name].actualSets += setCount;
-                    } else if (secondaryBelongsToGroup) {
-                        exerciseMap[name].secondaryCount++;
-                        // For secondary muscles, count half the sets (rounded up)
-                        exerciseMap[name].actualSets += Math.ceil(setCount / 2);
-                    }
-                }
             });
         });
         
-        // Convert map to array of exercises with their set counts
+        // Convert map to array and sort by set count descending
         return Object.entries(exerciseMap)
-            .map(([name, counts]) => {
-                return { 
-                    name, 
-                    setCount: counts.actualSets, // Use the actual tracked sets
-                    isPrimary: counts.primaryCount > 0,
-                    isSecondary: counts.primaryCount === 0 && counts.secondaryCount > 0
-                };
-            })
-            .filter(exercise => exercise.setCount > 0) // Only include exercises with sets
-            // Sort first by primary/secondary status (primary first), then by set count within each group
-            .sort((a, b) => {
-                // Primary exercises come before secondary
-                if (a.isPrimary && !b.isPrimary) return -1;
-                if (!a.isPrimary && b.isPrimary) return 1;
-                
-                // Within the same category (primary or secondary), sort by set count
-                return b.setCount - a.setCount;
-            });
+            .map(([name, setCount]) => ({ name, setCount }))
+            .sort((a, b) => b.setCount - a.setCount);
     };
     
     const toggleGroup = (groupName: string) => {
@@ -623,124 +566,65 @@ const MuscleSetBreakdown: React.FC<{
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                         {sortedMuscleData.length > 0 ? (
-                            (() => {
-                                // First pass to calculate max sets across all muscle groups
-                                const allMuscleExercises = sortedMuscleData.map(muscle => 
-                                    getExercisesForMuscleGroup(muscle.name)
-                                );
-                                const allMuscleTotalSets = allMuscleExercises.map(exercises => 
-                                    exercises.reduce((sum, ex) => sum + ex.setCount, 0)
-                                );
-                                const maxTotalSets = Math.max(...allMuscleTotalSets, 1); // Prevent division by zero
-                                
-                                // Second pass to render with corrected percentages
-                                return sortedMuscleData.map((muscle, index) => {
-                                    // Get all exercises for this muscle group to calculate accurate total sets
-                                    const muscleExercises = getExercisesForMuscleGroup(muscle.name);
-                                    const totalExerciseSets = muscleExercises.reduce((sum, ex) => sum + ex.setCount, 0);
-                                    // Calculate corrected intensity percentage
-                                    const correctedIntensity = Math.round((totalExerciseSets / maxTotalSets) * 100);
+                            sortedMuscleData.map((muscle, index) => (
+                                <React.Fragment key={index}>
+                                    <tr 
+                                        className={`${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-700'} 
+                                            hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors`}
+                                        onClick={() => toggleGroup(muscle.name)}
+                                    >
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white capitalize flex items-center">
+                                            <span className={`mr-2 ${expandedGroup === muscle.name ? 'transform rotate-90 transition-transform' : 'transition-transform'}`}>
+                                                ▶
+                                            </span>
+                                            {muscle.name}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-500 dark:text-gray-300">
+                                            {muscle.setsCount}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex items-center">
+                                                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mr-4">
+                                                    <div 
+                                                        className={`${getGroupColor(muscle.name)} h-2.5 rounded-full`}
+                                                        style={{ width: `${muscle.intensity}%` }}
+                                                    ></div>
+                                                </div>
+                                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-10 text-right">
+                                                    {muscle.intensity}%
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
                                     
-                                    return (
-                                        <React.Fragment key={index}>
-                                            <tr 
-                                                className={`${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-700'} 
-                                                    hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors`}
-                                                onClick={() => toggleGroup(muscle.name)}
-                                            >
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white capitalize flex items-center">
-                                                    <span className={`mr-2 ${expandedGroup === muscle.name ? 'transform rotate-90 transition-transform' : 'transition-transform'}`}>
-                                                        ▶
-                                                    </span>
-                                                    {muscle.name}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-500 dark:text-gray-300">
-                                                    {totalExerciseSets}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center">
-                                                        <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mr-4">
-                                                            <div 
-                                                                className={`${getGroupColor(muscle.name)} h-2.5 rounded-full`}
-                                                                style={{ width: `${correctedIntensity}%` }}
-                                                            ></div>
-                                                        </div>
-                                                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-10 text-right">
-                                                            {correctedIntensity}%
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            
-                                            {/* Expanded details section */}
-                                            {expandedGroup === muscle.name && (
-                                                <tr className="bg-gray-50 dark:bg-gray-900/30">
-                                                    <td colSpan={3} className="px-4 py-2">
-                                                        <div className="px-3 py-3 rounded bg-gray-100 dark:bg-gray-800">
-                                                            <h4 className={`text-sm font-medium mb-2 ${getGroupTextColor(muscle.name)}`}>
-                                                                Exercises targeting {muscle.name.toLowerCase()}
-                                                            </h4>
-                                                            <div className="space-y-3">
-                                                                {(() => {
-                                                                    const exercises = muscleExercises; // Reuse already calculated exercises
-                                                                    const primaryExercises = exercises.filter(ex => ex.isPrimary);
-                                                                    const secondaryExercises = exercises.filter(ex => ex.isSecondary);
-                                                                    
-                                                                    return (
-                                                                        <>
-                                                                            {primaryExercises.length > 0 && (
-                                                                                <div>
-                                                                                    <h5 className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase mb-1 border-b border-red-200 dark:border-red-900 pb-1">
-                                                                                        Primary Target
-                                                                                    </h5>
-                                                                                    <div className="space-y-1">
-                                                                                        {primaryExercises.map((exercise, idx) => (
-                                                                                            <div key={idx} className="flex justify-between items-center py-1 px-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-sm">
-                                                                                                <span className="text-gray-800 dark:text-gray-200 font-medium">
-                                                                                                    {exercise.name}
-                                                                                                </span>
-                                                                                                <span className="text-gray-600 dark:text-gray-400 font-medium">{exercise.setCount} sets</span>
-                                                                                            </div>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-                                                                            
-                                                                            {secondaryExercises.length > 0 && (
-                                                                                <div className={primaryExercises.length > 0 ? "mt-2" : ""}>
-                                                                                    <h5 className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1 border-b border-blue-200 dark:border-blue-900 pb-1">
-                                                                                        Secondary Target
-                                                                                    </h5>
-                                                                                    <div className="space-y-1">
-                                                                                        {secondaryExercises.map((exercise, idx) => (
-                                                                                            <div key={idx} className="flex justify-between items-center py-1 px-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-sm">
-                                                                                                <span className="text-gray-800 dark:text-gray-200">
-                                                                                                    {exercise.name}
-                                                                                                </span>
-                                                                                                <span className="text-gray-600 dark:text-gray-400 font-medium">{exercise.setCount} sets</span>
-                                                                                            </div>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-                                                                            
-                                                                            {exercises.length === 0 && (
-                                                                                <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                                                                                    No specific exercises found
-                                                                                </div>
-                                                                            )}
-                                                                        </>
-                                                                    );
-                                                                })()}
+                                    {/* Expanded details section */}
+                                    {expandedGroup === muscle.name && (
+                                        <tr className="bg-gray-50 dark:bg-gray-900/30">
+                                            <td colSpan={3} className="px-4 py-2">
+                                                <div className="px-3 py-3 rounded bg-gray-100 dark:bg-gray-800">
+                                                    <h4 className={`text-sm font-medium mb-2 ${getGroupTextColor(muscle.name)}`}>
+                                                        Exercises targeting {muscle.name.toLowerCase()}
+                                                    </h4>
+                                                    <div className="space-y-1">
+                                                        {getExercisesForMuscleGroup(muscle.name).map((exercise, idx) => (
+                                                            <div key={idx} className="flex justify-between items-center py-1 px-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-sm">
+                                                                <span className="text-gray-800 dark:text-gray-200">{exercise.name}</span>
+                                                                <span className="text-gray-600 dark:text-gray-400 font-medium">{exercise.setCount} sets</span>
                                                             </div>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </React.Fragment>
-                                    );
-                                });
-                            })()
+                                                        ))}
+                                                        
+                                                        {getExercisesForMuscleGroup(muscle.name).length === 0 && (
+                                                            <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                                                No specific exercises found
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </React.Fragment>
+                            ))
                         ) : (
                             <tr>
                                 <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
@@ -750,39 +634,6 @@ const MuscleSetBreakdown: React.FC<{
                         )}
                     </tbody>
                 </table>
-            </div>
-            
-            {/* Training Volume Guidelines */}
-            <div className="mt-5 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                <h4 className="text-md font-semibold mb-3 text-gray-700 dark:text-gray-200">Weekly Training Volume Guidelines</h4>
-                <div className="space-y-3">
-                    <div className="flex">
-                        <div className="w-28 flex-shrink-0">
-                            <span className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded text-xs font-medium">Beginners</span>
-                        </div>
-                        <div className="ml-2 text-sm text-gray-600 dark:text-gray-300">
-                            Start with 4–10 sets per week to stimulate growth, as even minimal volume can yield significant "newbie gains".
-                        </div>
-                    </div>
-                    
-                    <div className="flex">
-                        <div className="w-28 flex-shrink-0">
-                            <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs font-medium">Intermediate</span>
-                        </div>
-                        <div className="ml-2 text-sm text-gray-600 dark:text-gray-300">
-                            Aim for 12–20 sets (1–4 years), increasing volume gradually to overcome adaptation plateaus.
-                        </div>
-                    </div>
-                    
-                    <div className="flex">
-                        <div className="w-28 flex-shrink-0">
-                            <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded text-xs font-medium">Advanced</span>
-                        </div>
-                        <div className="ml-2 text-sm text-gray-600 dark:text-gray-300">
-                            May require 20–30+ sets ({'>'}5 years) for continued growth, but this depends on individual recovery and exercise quality.
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );
@@ -810,8 +661,6 @@ const ProgramBuilder: React.FC = () => {
     // Add these new states for muscle visualization
     const [muscleData, setMuscleData] = useState<MuscleData[]>([]);
     const [showMuscleVisualizations, setShowMuscleVisualizations] = useState<boolean>(false);
-    // Add state to track muscle data refresh
-    const [isRefreshingMuscleData, setIsRefreshingMuscleData] = useState<boolean>(false);
 
     const profile = useSelector(selectProfile);
 
@@ -2000,9 +1849,6 @@ const ProgramBuilder: React.FC = () => {
         // Map to hold sets per muscle group across all workouts
         const muscleMap: Record<string, number> = {};
         
-        // Track exercises per muscle group to avoid double-counting
-        const exerciseTracker: Record<string, Set<string>> = {};
-        
         // Process all workouts and their exercises
         console.log("MUSCLE MAP DEBUG: Processing", workouts.length, "workouts directly");
         workouts.forEach((workout, widx) => {
@@ -2011,7 +1857,7 @@ const ProgramBuilder: React.FC = () => {
             console.log(`MUSCLE MAP DEBUG: Workout ${widx+1}: ${workout.name} has ${workout.exercise_instances.length} exercises`);
             workout.exercise_instances.forEach((exercise, eidx) => {
                 // Count total sets for this exercise
-                const setCount = exercise.sets_data?.length || parseInt(exercise.sets as string) || 0;
+                const setCount = exercise.sets_data?.length || 0;
                 console.log(`MUSCLE MAP DEBUG: Exercise ${eidx+1}: ${exercise.exercise_name} has ${setCount} sets`);
                 
                 console.log("MUSCLE MAP DEBUG: Exercise with muscles:", exercise);
@@ -2036,7 +1882,7 @@ const ProgramBuilder: React.FC = () => {
                 if (exercise.exercises) {
                     // Cast the exercise data to the right type
                     const exerciseData = exercise.exercises as unknown as ExerciseData;
-                    primaryMuscle = exerciseData.primary_muscle_group || exerciseData.body_part || exerciseData.target || null;
+                    primaryMuscle = exerciseData.primary_muscle_group || exerciseData.body_part || exerciseData.target;
                     secondaryMuscles = Array.isArray(exerciseData.secondary_muscle_groups) 
                         ? exerciseData.secondary_muscle_groups 
                         : [];
@@ -2054,20 +1900,13 @@ const ProgramBuilder: React.FC = () => {
                     }
                     
                     const legacyData = exercise as unknown as LegacyExerciseData;
-                    primaryMuscle = legacyData.primary_muscle_group || null;
+                    primaryMuscle = legacyData.primary_muscle_group;
                     secondaryMuscles = legacyData.secondary_muscle_groups || [];
                 }
                 
                 // Log the primary muscle group
                 console.log(`MUSCLE MAP DEBUG: ${exercise.exercise_name} primary muscle: ${primaryMuscle || 'NONE'}`);
                 console.log(`MUSCLE MAP DEBUG: Exercise DB ID: ${exercise.exercise_db_id || 'NONE'}`);
-                
-                // Create a cleaned version of the exercise name for tracking
-                const exerciseName = exercise.exercise_name || '';
-                const cleanedName = exerciseName
-                    .replace(/\s*\([^)]*\)\s*/g, ' ') // Remove text within parentheses
-                    .replace(/\s+/g, ' ')            // Replace multiple spaces with single space
-                    .trim();                         // Remove leading/trailing whitespace
                 
                 // Map the primary muscle to its broader category if available
                 if (primaryMuscle) {
@@ -2085,17 +1924,7 @@ const ProgramBuilder: React.FC = () => {
                         }
                     }
                     
-                    // Initialize tracking for this muscle if needed
-                    if (!exerciseTracker[primaryCategory]) {
-                        exerciseTracker[primaryCategory] = new Set();
-                    }
-                    
-                    // Only count this exercise if we haven't seen it before for this muscle
-                    if (!exerciseTracker[primaryCategory].has(cleanedName)) {
-                        muscleMap[primaryCategory] = (muscleMap[primaryCategory] || 0) + setCount;
-                        // Mark this exercise as counted for this muscle group
-                        exerciseTracker[primaryCategory].add(cleanedName);
-                    }
+                    muscleMap[primaryCategory] = (muscleMap[primaryCategory] || 0) + setCount;
                 }
                 
                 // Add secondary muscle groups with half the weight
@@ -2116,19 +1945,7 @@ const ProgramBuilder: React.FC = () => {
                             }
                         }
                         
-                        // Initialize tracking for this muscle if needed
-                        if (!exerciseTracker[secondaryCategory]) {
-                            exerciseTracker[secondaryCategory] = new Set();
-                        }
-                        
-                        // Only count this exercise if we haven't seen it before for this muscle
-                        // or if it's not already counted as a primary target
-                        if (!exerciseTracker[secondaryCategory].has(cleanedName)) {
-                            // Add half the weight for secondary muscles (rounded up)
-                            muscleMap[secondaryCategory] = (muscleMap[secondaryCategory] || 0) + Math.ceil(setCount / 2);
-                            // Mark this exercise as counted for this muscle group
-                            exerciseTracker[secondaryCategory].add(cleanedName);
-                        }
+                        muscleMap[secondaryCategory] = (muscleMap[secondaryCategory] || 0) + Math.ceil(setCount / 2);
                     }
                 });
             });
@@ -2162,29 +1979,6 @@ const ProgramBuilder: React.FC = () => {
       return name.replace(/\s*\([^)]*\)\s*/g, ' ') // Remove anything between parentheses
                  .replace(/\s+/g, ' ')             // Replace multiple spaces with a single space
                  .trim();                          // Remove leading/trailing whitespace
-    };
-
-    // Function to refresh muscle data
-    const refreshMuscleData = async () => {
-        if (!selectedTemplate) {
-            return;
-        }
-        
-        setIsRefreshingMuscleData(true);
-        try {
-            await fetchWorkoutsForTemplate();
-            setSuccess("Muscle activation data refreshed successfully");
-            
-            // Auto-hide success message after 3 seconds
-            setTimeout(() => {
-                setSuccess(null);
-            }, 3000);
-        } catch (error) {
-            console.error("Error refreshing muscle data:", error);
-            setError("Failed to refresh muscle activation data");
-        } finally {
-            setIsRefreshingMuscleData(false);
-        }
     };
 
     return (
@@ -2587,20 +2381,9 @@ const ProgramBuilder: React.FC = () => {
                                     <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
                                         Program Muscle Activation Analysis
                                     </h2>
-                                    <div className="flex items-center gap-4">
-                                        <button
-                                            onClick={refreshMuscleData}
-                                            disabled={isRefreshingMuscleData}
-                                            className="flex items-center px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                            title="Refresh muscle data"
-                                        >
-                                            <FiRefreshCw className={`mr-1.5 ${isRefreshingMuscleData ? 'animate-spin' : ''}`} />
-                                            {isRefreshingMuscleData ? 'Refreshing...' : 'Refresh'}
-                                        </button>
-                                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                            <FiInfo className="mr-1" />
-                                            <span>Showing muscle groups targeted across all workouts in this program</span>
-                                        </div>
+                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                        <FiInfo className="mr-1" />
+                                        <span>Showing muscle groups targeted across all workouts in this program</span>
                                     </div>
                                 </div>
                                 
