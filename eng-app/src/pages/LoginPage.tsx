@@ -8,6 +8,7 @@ import { getEmailProviderInfo, CommonEmailLinks, type EmailProvider } from '../u
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>(''); // New state for password
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
@@ -15,6 +16,7 @@ const LoginPage: React.FC = () => {
   const [processingInvite, setProcessingInvite] = useState<boolean>(false);
   const [confirmationSuccess, setConfirmationSuccess] = useState<boolean>(false);
   const [confirmationType, setConfirmationType] = useState<string | null>(null);
+  const [useMagicLink, setUseMagicLink] = useState<boolean>(false); // Toggle between password and magic link
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -200,28 +202,44 @@ const LoginPage: React.FC = () => {
     
     try {
       // Add some pre-login cleanup
-      console.log('Sending magic link to:', email);
+      console.log('Attempting to log in with:', email);
       
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          // Change redirect URL to the root of the app instead of directly to dashboard
-          // This allows the auth state to be properly captured first
-          emailRedirectTo: `${window.location.origin}/auth/verify`,
-        },
-      });
+      let result;
+      
+      if (useMagicLink) {
+        // Use magic link authentication
+        result = await supabase.auth.signInWithOtp({
+          email: email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/verify`,
+          },
+        });
+      } else {
+        // Use password authentication
+        result = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password,
+        });
+      }
 
+      const { error } = result;
+      
       if (error) {
         throw error;
       }
 
-      // Detect email provider
-      const provider = getEmailProviderInfo(email);
-      setEmailProvider(provider);
-      setMessage('Check your email for the login link!');
+      if (useMagicLink) {
+        // Show magic link message for OTP method
+        const provider = getEmailProviderInfo(email);
+        setEmailProvider(provider);
+        setMessage('Check your email for the login link!');
+      } else {
+        // For password login, if successful we'll be redirected to dashboard
+        navigate('/dashboard');
+      }
     } catch (error: unknown) {
       console.error('Error logging in:', error);
-      let errorMessage = 'Failed to send login link.';
+      let errorMessage = useMagicLink ? 'Failed to send login link.' : 'Login failed.';
       if (typeof error === 'object' && error !== null) {
         if ('error_description' in error && typeof error.error_description === 'string') {
             errorMessage = error.error_description;
@@ -356,7 +374,7 @@ const LoginPage: React.FC = () => {
                 Sign in to your account
               </h2>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                We'll send you a magic link for a password-free sign in
+                {useMagicLink ? "We'll send you a magic link for a password-free sign in" : "Enter your email and password to sign in"}
               </p>
             </div>
 
@@ -381,6 +399,28 @@ const LoginPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Password input - only shown when not using magic link */}
+              {!useMagicLink && (
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Password
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      autoComplete="current-password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={loading}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
                 <button
                   type="submit"
@@ -393,12 +433,25 @@ const LoginPage: React.FC = () => {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Sending Link...
+                      {useMagicLink ? 'Sending Link...' : 'Signing in...'}
                     </>
-                  ) : 'Send Magic Link'}
+                  ) : (
+                    useMagicLink ? 'Send Magic Link' : 'Sign In'
+                  )}
                 </button>
               </div>
             </form>
+
+            {/* Toggle between password and magic link authentication */}
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => setUseMagicLink(!useMagicLink)}
+                className="text-sm text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+              >
+                {useMagicLink ? 'Use Password Login' : 'Use Magic Link Instead'}
+              </button>
+            </div>
 
             <div className="mt-6">
               <div className="relative">
@@ -415,7 +468,7 @@ const LoginPage: React.FC = () => {
               <div className="mt-6 text-center text-sm">
                 <p className="text-gray-600 dark:text-gray-400">
                   {confirmationSuccess 
-                    ? "Enter your email address above and click 'Send Magic Link' to receive a login link" 
+                    ? "Enter your email address above to sign in" 
                     : "If you haven't received an invitation link, contact us to get started"}
                 </p>
               </div>
