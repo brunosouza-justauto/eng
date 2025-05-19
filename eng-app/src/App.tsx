@@ -43,9 +43,8 @@ import UserProfilePage from './pages/UserProfilePage'; // Import the profile pag
 import PasswordResetPage from './pages/auth/PasswordResetPage'; // Import the password reset page
 import AthleteStepsPage from './pages/admin/AthleteStepsPage';
 import AthleteNutritionPage from './pages/admin/AthleteNutritionPage';
-// Placeholder pages - we will create these properly later
-// const LoginPage = () => <div>Login Page Placeholder - <Link to="/dashboard">Go to Dashboard (temp)</Link></div>;
-const NotFoundPage = () => <div>404 Not Found</div>;
+import NotFoundPage from './pages/NotFoundPage'; // Import the custom NotFoundPage
+import HomePage from './pages/HomePage'; // Import the new HomePage component
 
 function App() {
   const dispatch = useDispatch();
@@ -576,12 +575,10 @@ function App() {
   return (
     <>
       <Routes>
-        {/* Routes without MainLayout */}
+        {/* Public Routes */}
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route element={<ProtectedRoute />}>
-            <Route path="/onboarding" element={<OnboardingPage />} />
-        </Route>
-
+        
         {/* Auth Routes - Publicly accessible */}
         <Route path="/auth/verify" element={<VerificationPage />} />
         <Route path="/verify" element={<VerificationPage />} />
@@ -590,10 +587,10 @@ function App() {
         {/* Legal Pages - Accessible without authentication */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
-        {/* Routes WITH MainLayout (Authenticated) */}
+        {/* Protected Routes WITH MainLayout (Authenticated) */}
         <Route element={<ProtectedRoute />}>
+          <Route path="/onboarding" element={<OnboardingPage />} />
           <Route element={<MainLayout />}>
-              <Route index element={<DashboardPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               {/* User profile route */}
               <Route path="/profile" element={<UserProfilePage />} />
@@ -631,7 +628,7 @@ function App() {
                 <Route path="checkins" element={<CheckInReview />} />
                 <Route path="checkins/:checkInId" element={<CheckInDetail />} />
                 <Route path="bmr-calculator" element={<BMRCalculatorPage />} />
-                <Route path="*" element={<div>Admin Section Not Found</div>} />
+                <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Route>
 

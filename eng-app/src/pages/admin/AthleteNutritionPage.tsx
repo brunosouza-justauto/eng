@@ -68,20 +68,6 @@ interface DailyNutrition {
   completionRate: number;
 }
 
-interface MealFoodItem {
-  id: string;
-  name: string;
-  protein_grams: number;
-  carbohydrate_grams: number;
-  fat_grams: number;
-  calories: number;
-  serving_size: number;
-  serving_unit: string;
-  quantity: number;
-}
-
-// No need for detailed typing of the raw data, use more generic types
-
 // Component for nutrition macros visualization
 const MacrosPieChart: React.FC<{
   protein: number;
@@ -454,6 +440,7 @@ const AthleteNutritionPage: React.FC = () => {
           .filter(meal => meal.is_extra_meal)
           .map(meal => meal.id);
         
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let extraMealItems: any[] = [];
         
         if (extraMealIds.length > 0) {
@@ -470,6 +457,7 @@ const AthleteNutritionPage: React.FC = () => {
         }
         
         // Process data to include food items for all meal logs
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const processedData = data.map((mealLog: any) => {
           if (mealLog.is_extra_meal) {
             // For extra meals, get food items from extra_meal_food_items
@@ -495,6 +483,7 @@ const AthleteNutritionPage: React.FC = () => {
             };
           } else {
             // For regular meals, get food items from meal_food_items via the meal relation
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const foodItems = (mealLog.meal?.food_items || []).map((item: any) => {
               const foodItemData = item.food_item || {};
               return {

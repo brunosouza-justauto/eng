@@ -7,7 +7,6 @@ import PageHeader from '../../components/ui/PageHeader';
 import Card from '../../components/ui/Card';
 import Spinner from '../../components/ui/Spinner';
 import { Button } from '../../components/ui/Button';
-import { C } from 'vitest/dist/chunks/reporters.d.79o4mouw.js';
 
 // Types for step data
 interface StepEntry {
