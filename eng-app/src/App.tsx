@@ -22,18 +22,19 @@ import AdminRoute from './components/AdminRoute'; // Import AdminRoute
 import AdminLayout from './components/admin/AdminLayout'; // Import AdminLayout
 import UserManager from './components/admin/UserManager'; // Import UserManager
 import CoachManager from './components/admin/CoachManager'; // Import CoachManager
-import ProgramBuilder from './components/admin/ProgramBuilder'; // Import
-import MealPlanner from './components/admin/MealPlanner'; // Import
-import StepGoalSetter from './components/admin/StepGoalSetter'; // Import
-import CheckInReview from './components/admin/CheckInReview'; // Import
+import ProgramBuilder from './components/admin/ProgramBuilder'; // Import ProgramBuilder
+import MealPlanner from './components/admin/MealPlanner'; // Import MealPlanner
+import StepGoalSetter from './components/admin/StepGoalSetter'; // Import StepGoalSetter
+import CheckInReview from './components/admin/CheckInReview'; // Import CheckInReview
 import CheckInDetail from './components/admin/CheckInDetail'; // Import CheckInDetail
 import AdminDashboard from './components/admin/AdminDashboard'; // Import AdminDashboard
 import MainLayout from './components/layout/MainLayout'; // Import MainLayout
 import AthleteDetailsPage from './pages/admin/AthleteDetailsPage'; // Import AthleteDetailsPage
 import CoachDetailsPage from './pages/admin/CoachDetailsPage'; // Import CoachDetailsPage
 import BMRCalculatorPage from './pages/admin/BMRCalculatorPage'; // Import BMRCalculatorPage
+import AthleteWorkoutsPage from './pages/admin/AthleteWorkoutsPage'; // Import AthleteWorkoutsPage
 import FitnessDeviceCallback from './pages/auth/callback/FitnessDeviceCallback';
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'; // Import PrivacyPolicyPage
 import VerificationPage from './pages/auth/VerificationPage'; // Import the new VerificationPage
 import PWAInstallPrompt from './components/common/PWAInstallPrompt'; // Import the PWA install prompt
 import UpdateNotification from './components/common/UpdateNotification'; // Import the update notification
@@ -616,6 +617,7 @@ function App() {
                 <Route index element={<AdminDashboard />} />
                 <Route path="athletes" element={<UserManager />} />
                 <Route path="athletes/:id" element={<AthleteDetailsPage />} />
+                <Route path="athletes/:id/workouts" element={<AthleteWorkoutsPage />} />
                 <Route path="coaches" element={<CoachManager />} />
                 <Route path="coaches/:id" element={<CoachDetailsPage />} />
                 <Route path="programs" element={<ProgramBuilder />} />
