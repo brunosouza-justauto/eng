@@ -161,31 +161,32 @@ const CheckInReminderWidget: React.FC = () => {
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
                   Next check-in will be available on {getNextCheckInDayDisplay()}, {getNextCheckInDateDisplay()}.
                 </p>
-                <ButtonLink
-                  to="/history"
-                  variant="primary"
-                  color="indigo"
-                  icon={
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                  }
-                >
-                  View Check-in History
-                </ButtonLink>
-                <ButtonLink
-                  to="/check-in/new"
-                  variant="secondary"
-                  color="indigo"
-                  className="mt-2 sm:mt-0"
-                  icon={
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  }
-                >
-                  Submit Check-in
-                </ButtonLink>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <ButtonLink
+                    to="/history"
+                    variant="primary"
+                    color="indigo"
+                    icon={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                    }
+                  >
+                    View Check-in History
+                  </ButtonLink>
+                  <ButtonLink
+                    to="/check-in/new"
+                    variant="secondary"
+                    color="indigo"
+                    icon={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    }
+                  >
+                    Submit Check-in
+                  </ButtonLink>
+                </div>
               </div>
             ) : (
               <div id="check-in-due">
