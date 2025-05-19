@@ -499,7 +499,11 @@ function App() {
                                window.location.href.includes('/auth/v1/verify?token=') ||
                                window.location.href.includes('/auth/v1/verify?code=');
                                
-      if (isVerificationUrl) {
+      // Skip if we're already on the /auth/verify route to prevent infinite redirects
+      const isAlreadyOnVerifyPage = window.location.pathname === '/auth/verify' || 
+                                   window.location.pathname === '/verify';
+                               
+      if (isVerificationUrl && !isAlreadyOnVerifyPage) {
         console.log('Direct Supabase verification URL detected:', window.location.href);
         
         // Extract email parameter if present

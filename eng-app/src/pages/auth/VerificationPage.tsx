@@ -17,7 +17,7 @@ const VerificationPage: React.FC = () => {
         const urlParams = new URLSearchParams(location.search);
         // Check for both token and code parameters (Supabase uses 'code' for PKCE flow)
         let token = urlParams.get('token') || urlParams.get('code');
-        const type = urlParams.get('type') || 'signup'; // Default to signup if type is not provided
+        const type = urlParams.get('type'); // Don't default to signup
         
         // Log parameters for debugging
         console.log('VerificationPage - Parameters:', { 
@@ -49,13 +49,104 @@ const VerificationPage: React.FC = () => {
               return;
             }
             
-            // For code parameter (PKCE flow), we might need to exchange the code for a session
-            if (urlParams.has('code') && !urlParams.has('token')) {
-              console.log('VerificationPage - Detected PKCE flow with code parameter');
+            // Special handling for magic links
+            if (type === 'magiclink') {
+              console.log('VerificationPage - Detected magic link login flow');
               
-              // For PKCE flow, the code parameter likely means successful email verification
-              // Even if we don't have a session yet, we can show a success message
+              // For magic links, exchange the token for a session directly
+              try {
+                // First check if we already have a session
+                const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+                
+                if (sessionError) {
+                  console.error('Error getting session:', sessionError);
+                  setError('Error verifying your magic link. Please try logging in again.');
+                  setIsProcessing(false);
+                } else if (sessionData.session) {
+                  console.log('VerificationPage - Session already established, redirecting to dashboard');
+                  navigate('/dashboard');
+                  return;
+                } else {
+                  // Try to get the session based on the URL parameters
+                  // Directly use navigate instead of window.location to prevent redirect loops
+                  console.log('VerificationPage - No session yet, attempting to verify magic link');
+                  
+                  // Enhanced error handling
+                  try {
+                    // When receiving a magic link with a code, we need to wait a moment
+                    // for Supabase to process the code and establish a session
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    // Check again for a session
+                    const { data: sessionCheck, error: checkError } = await supabase.auth.getSession();
+                    
+                    if (checkError) {
+                      console.error('Error checking session after delay:', checkError);
+                      setError('Error verifying your login link. Please try logging in directly.');
+                      setIsProcessing(false);
+                    } else if (sessionCheck.session) {
+                      console.log('VerificationPage - Session established after delay, redirecting to dashboard');
+                      navigate('/dashboard');
+                    } else {
+                      console.log('VerificationPage - No session after delay, redirecting to login');
+                      navigate('/login');
+                    }
+                  } catch (e) {
+                    console.error('Error in delayed session check:', e);
+                    setError('Error processing your verification. Please try logging in directly.');
+                    setIsProcessing(false);
+                  }
+                  return;
+                }
+              } catch (e) {
+                console.error('Error handling magic link authentication:', e);
+                setError('Error processing your magic link. Please try logging in again.');
+                setIsProcessing(false);
+                return;
+              }
+            }
+            
+            // For code parameter (PKCE flow with no explicit type), we need special handling
+            if (urlParams.has('code') && !urlParams.has('token') && !type) {
+              console.log('VerificationPage - Detected PKCE flow with code parameter (no type)');
               
+              // This is likely a magic link but the type parameter was lost
+              // Attempt to exchange the code for a session
+              try {
+                // First try to exchange the code for a session
+                // Wait a moment to allow Supabase to process the code
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Now check if we have a session
+                const { data, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                  console.error('Error getting session from code parameter:', error);
+                  setError('Error verifying your login link. Please try logging in directly.');
+                  setIsProcessing(false);
+                } else if (data.session) {
+                  console.log('VerificationPage - Session established from code, redirecting to dashboard');
+                  navigate('/dashboard');
+                  return;
+                } else {
+                  // If we still don't have a session, redirect to login as a fallback
+                  console.log('VerificationPage - No session established, redirecting to login');
+                  navigate('/login');
+                  return;
+                }
+              } catch (e) {
+                console.error('Error in code verification:', e);
+                setError('Error processing your verification. Please try logging in directly.');
+                setIsProcessing(false);
+                return;
+              }
+            }
+            
+            // For PKCE flow with explicit signup type, handle as email confirmation
+            if (urlParams.has('code') && type === 'signup') {
+              console.log('VerificationPage - Detected PKCE flow with signup type');
+              
+              // For signup confirmation, redirect to login with success message
               // Try to get any email parameter that might have been added in the redirect
               let email = urlParams.get('email') || '';
               
@@ -81,13 +172,13 @@ const VerificationPage: React.FC = () => {
               }
               
               console.log('VerificationPage - Redirecting to login with success message', { 
-                type, 
+                type: 'signup',
                 hasEmail: !!email,
                 email: email ? `${email.substring(0, 3)}...${email.split('@')[1] || ''}` : null 
               });
               
               // Redirect to login with verification success parameters
-              navigate(`/login?verified=true&type=${type}${email ? `&email=${encodeURIComponent(email)}` : ''}`);
+              navigate(`/login?verified=true&type=signup${email ? `&email=${encodeURIComponent(email)}` : ''}`);
               return;
             }
             
@@ -118,7 +209,9 @@ const VerificationPage: React.FC = () => {
             } else {
               // No session but we have a token/code - redirect to login with verified=true
               console.log('VerificationPage - Email verified but no session, redirecting to login');
-              navigate(`/login?verified=true&type=${type}`);
+              // Use the type from the URL or default to signup
+              const verType = type || 'signup';
+              navigate(`/login?verified=true&type=${verType}`);
               return;
             }
           } catch (verificationError) {
@@ -135,7 +228,7 @@ const VerificationPage: React.FC = () => {
               token = accessTokenMatch[1];
               console.log('VerificationPage - Extracted access token from hash');
               // Redirect to login with the token information
-              navigate(`/login?verified=true&type=${type}`);
+              navigate(`/login?verified=true&type=${type || 'signup'}`);
               return;
             }
           }

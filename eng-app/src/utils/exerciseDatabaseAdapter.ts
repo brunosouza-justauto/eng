@@ -5,13 +5,9 @@
  * It replaces the previous implementation that used the HeyGainz API.
  */
 
-import { createClient } from '@supabase/supabase-js';
+// Import the existing supabase client instead of creating a new one
+import { supabase } from '../services/supabaseClient';
 import { Exercise, PaginatedResponse, Muscle, ExerciseCategory, DbExercise } from './exerciseTypes';
-
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
  * Converts a database exercise to the standard Exercise format
