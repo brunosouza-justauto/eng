@@ -626,9 +626,9 @@ const LoginPage: React.FC = () => {
 
                 <div className="mt-6 text-center text-sm">
                   <p className="text-gray-600 dark:text-gray-400">
-                    {confirmationSuccess 
-                      ? "Enter your email address above and click 'Send Magic Link' to receive a login link" 
-                      : "If you haven't received an invitation link, contact us to get started"}
+                    Enter your email address above and click 'Send Magic Link' to receive a login link to get started.
+                    <br /><br />
+                    Alternatively, you can use the password method to create an account.
                   </p>
                 </div>
               </div>

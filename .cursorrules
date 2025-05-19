@@ -13,11 +13,15 @@
 - Dark/light mode toggle with persistent preference
 - Meal planning components use dark-themed cards with clear content separation
 - Nutrition data uses consistent color coding (protein=red, carbs=yellow, fat=blue)
+- Homepage uses gradient backgrounds with grid patterns for visual appeal
+- Coach profile showcases competition imagery and professional credentials
+- Service packages use card-based layout with featured package highlighting
 
 ### Navigation
 - URL parameters are used to maintain context between related screens
 - Query parameters preserve user selections when navigating between components
 - Dashboard widgets link to detailed views with preserved context
+- Homepage provides clear pathways to login and signup flows
 
 ## Tailwind CSS Configuration
 
@@ -30,6 +34,9 @@
   - `pr-4` for table column spacing (not `pr-8` which is too wide)
   - Card headers use `p-4 bg-gray-800` for consistent styling
   - Macro indicators use `text-sm text-gray-400` for secondary information
+  - Service package cards use `border-2 border-indigo-500` for featured items
+  - Gradient backgrounds use `bg-gradient-to-br from-gray-900 to-indigo-900`
+  - Grid patterns use custom CSS with SVG backgrounds
 
 ## Project Structure
 
@@ -50,6 +57,29 @@
 - Table layouts use consistent spacing with proper column alignment
 - URL parameters maintain context across navigation boundaries
 - Macronutrient displays follow P/C/F order with consistent color coding
+- Social media integration uses standard icon components from react-icons/fi
+- Instagram embeds use a custom InstagramEmbed component that dynamically loads Instagram's embed script
+
+## Homepage and Marketing Components
+
+- The homepage is the default route for better marketing functionality
+- "About Me" section showcases the coach's competition experience and credentials
+- Service packages are displayed in card format with clear pricing and features
+- Social media links use consistent styling with hover effects
+- Instagram embeds provide social proof and showcase the coach's content
+- Testimonial section uses card layout with client quotes
+- Call-to-action buttons are placed strategically throughout the page
+- The hero section includes a prominent tagline and coach image
+- Dark themed design with gradient backgrounds creates a premium fitness aesthetic
+
+## Social Media Integration
+
+- Social icons use react-icons/fi package for consistent styling
+- Instagram embeds use a dedicated InstagramEmbed component
+- Social media embeds are responsive and adapt to different screen sizes
+- Links open in new tabs with proper rel attributes for security
+- Instagram script is loaded only once using React's useEffect hook
+- Component structure preserves performance by avoiding unnecessary re-renders
 
 ## Known Challenges
 
@@ -57,6 +87,7 @@
 - Admin CMS data integration is pending
 - Some column spacing in tables requires fine-tuning for optimal readability
 - Daily nutrition calculations need to account for unlogged days
+- Instagram embeds may require periodic updates if Instagram's embedding API changes
 
 ## Database Tables
 
@@ -83,5 +114,15 @@
 - Display loading spinners during async operations
 - Maintain consistent nutritional information display order: P/C/F
 - Use ID anchors (e.g., `id="todays-meals"`) for scroll navigation from other components
+
+### Homepage Components
+- Use gradient backgrounds with grid patterns for visual appeal
+- Place call-to-action buttons at strategic points throughout the page
+- Feature the coach's competition photo prominently to establish credibility
+- Use card layouts for service packages with clear pricing and feature lists
+- Highlight the featured package with distinct border and styling
+- Include social proof through Instagram embeds and testimonials
+- Use consistent styling for social media icons with hover effects
+- Implement responsive design that adapts to different screen sizes
 
 This file serves as a learning journal and will be updated as new patterns and decisions emerge. 

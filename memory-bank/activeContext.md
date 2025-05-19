@@ -1,28 +1,35 @@
 # Active Context
 
 ## Current Focus
-We are enhancing the reliability of the app by eliminating external dependencies while continuing to improve the workout and nutrition tracking experience:
+We are enhancing the app's user experience and marketing capabilities while continuing to improve core functionality:
 
-1. **Exercise Data Independence** ✅
+1. **Professional Homepage & Landing Experience** ✅
+   - Created a professional landing page for coach marketing and service offerings
+   - Implemented sections for coach bio, packages, testimonials, and Instagram content
+   - Added social media integration with links to Instagram, Facebook, YouTube, and TikTok
+   - Integrated real Instagram embeds to showcase the coach's content
+   - Implemented responsive design that works across all device sizes
+
+2. **Exercise Data Independence** ✅
    - Migrated from external HeyGainz API to local database for exercise data
    - Updated all components to use the local exercise database
    - Created compatibility adapters to maintain backward compatibility
    - Refactored exercise search, filtering, and detail fetching
    - Eliminated external API dependencies for improved reliability
 
-2. **PWA and Deployment Enhancement** ✅
+3. **PWA and Deployment Enhancement** ✅
    - Implementing Progressive Web App support for installable experience
    - Setting up Vercel deployment with optimized configuration
    - Creating API proxies for external fitness services
    - Enhancing offline capabilities with service worker caching
 
-3. **Type Safety Improvements** ✅
+4. **Type Safety Improvements** ✅
    - Refining TypeScript types in service layer
    - Eliminating 'any' types in critical functions
    - Fixing compatibility issues between interfaces
    - Improving overall code quality and maintainability
 
-4. **Workout Session Enhancement** 🚧
+5. **Workout Session Enhancement** 🚧
    - Adding comprehensive rest timer functionality
    - Implementing exercise demonstrations with GIFs
    - Adding voice announcements for next exercises
@@ -30,20 +37,20 @@ We are enhancing the reliability of the app by eliminating external dependencies
    - Enhancing user experience during workouts
    - Fixing rest period handling for 0-second rest times
 
-5. **Meal Planning System** 🚧
+6. **Meal Planning System** 🚧
    - Adding ability to manage meals within nutrition plans
    - Implementing food item search and selection
    - Creating custom recipe functionality
    - Building multi-day meal planning capability
    - Adding nutritional calculations for meals and plans
 
-6. **Bug Fixes and Optimizations** 🔧
+7. **Bug Fixes and Optimizations** 🔧
    - Addressing UI/UX issues in dark mode
    - Improving authentication stability
    - Enhancing data quality for food items
    - Fixing food data classification mapping
 
-7. **Previous Completed Focus Areas** ✅
+8. **Previous Completed Focus Areas** ✅
    - Exercise Data Fetching Performance
    - Dashboard Workout Display
    - Program Builder Improvements
@@ -449,3 +456,81 @@ Continue identifying and implementing quality-of-life improvements for workout t
 - The app should intelligently assist users during workout sessions by reducing manual data entry when possible
 - Clear user feedback should be provided when automatic actions are taken
 - The UI should be optimized for quick interactions during workouts
+
+## Current Focus: Marketing and Professional Landing Page
+
+We've implemented a comprehensive landing page to enable coaches to effectively market their services and showcase their expertise:
+
+1. **Professional Landing Page**
+   - Created a visually appealing homepage with sections for coach bio, services, testimonials, and social media
+   - Implemented modern design elements with gradient backgrounds, card layouts, and responsive components
+   - Added a prominent call-to-action to encourage visitor engagement and conversions
+   - Ensured compatibility with both light and dark modes
+
+2. **Coach Bio Showcase**
+   - Created a dedicated "About Me" section with competition photo and professional credentials
+   - Implemented a bio that emphasizes the coach's bodybuilding experience and coaching philosophy
+   - Added visual indicators for key coaching attributes (competition experience, evidence-based, results-driven)
+   - Designed the layout to create immediate credibility and connection with potential clients
+
+3. **Package Offerings and Pricing**
+   - Implemented a clear pricing structure with four distinct package options
+   - Created visually distinct cards to showcase different service tiers
+   - Added detailed "What's included" lists for each package
+   - Highlighted the featured package with accent colors and styling
+
+4. **Social Media Integration**
+   - Added direct links to Instagram, Facebook, YouTube, and TikTok profiles
+   - Implemented professional icon styling with hover effects
+   - Created a dedicated Instagram Reels section to showcase the coach's content
+   - Implemented proper embed components that load Instagram's embed script dynamically
+
+## Active Decisions
+
+1. **Landing Page Strategy**
+   - Making the landing page the default route for visitors to immediately showcase coach credentials
+   - Creating clear pathways to sign up or log in from multiple points on the page
+   - Emphasizing the coach's competition experience and bodybuilding credentials
+   - Using Instagram embeds to provide social proof and show the coach's content style
+
+2. **Visual Design Approach**
+   - Implementing a dark, fitness-focused color scheme with indigo accents
+   - Using gradients and shadows to create depth and visual interest
+   - Placing the coach's competition photo prominently in multiple sections
+   - Creating consistent visual patterns across sections for brand cohesion
+
+3. **Technical Implementation**
+   - Creating a reusable InstagramEmbed component for handling social media integration
+   - Using React's useEffect hook to properly load Instagram's embed script
+   - Implementing responsive layouts that adapt to various screen sizes
+   - Ensuring proper TypeScript typing for all components
+
+## Next Steps
+
+1. **Analytics Integration**
+   - Implement tracking for landing page engagement and conversions
+   - Add event tracking for package clicks and social media interactions
+   - Create funnel analysis for visitor-to-signup journey
+
+2. **Testimonial Enhancement**
+   - Replace placeholder testimonials with real client feedback
+   - Add before/after transformation photos
+   - Implement a testimonial carousel for mobile devices
+
+3. **Content Management**
+   - Create an admin interface for updating homepage content
+   - Implement a media library for managing photos and videos
+   - Add the ability to change pricing and package details dynamically
+
+## Recent Changes
+
+### Homepage and Landing Page Implementation
+- Created a professional homepage with sections for coach bio, services, Instagram content, and call-to-action
+- Implemented a detailed "About Me" section showcasing the coach's IFBB bodybuilding experience
+- Added package offerings with clear pricing and feature details ($40/month app access, $200 custom plan, $700 12-week transformation, $50/week premium coaching)
+- Integrated Instagram embeds using a custom React component that handles the Instagram embed script
+- Added social media links to Instagram, Facebook, YouTube, and TikTok (@brunoifbb)
+- Implemented responsive design that works across desktop, tablet, and mobile devices
+- Created visually appealing UI with gradient backgrounds, card layouts, and professional styling
+- Added proper dark/light mode support throughout the landing page
+- Implemented clear navigation and call-to-action buttons for visitor conversion
