@@ -82,3 +82,14 @@ The deployment configuration uses:
 ## License
 
 MIT
+
+## Default Coach Assignment
+
+When a new user creates an account, their profile is automatically assigned to the default coach with ID `c5e342a9-28a3-4fdb-9947-fe9e76c46b65`. This happens in two ways:
+
+1. **Database Trigger**: The `handle_new_user` database trigger function assigns the default coach ID when a new profile is created.
+2. **Frontend Check**: As a fallback, the application checks for null `coach_id` values when a user logs in and assigns the default coach ID if needed.
+
+### Updating Existing Profiles
+
+To update existing profiles that don't have a coach ID assigned, run the SQL script in `src/scripts/update_coach_id.sql` via the Supabase SQL Editor.

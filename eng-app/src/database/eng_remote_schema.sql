@@ -89,12 +89,13 @@ CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     AS $$
 BEGIN
   -- Insert into public.profiles, linking to the new auth.users record
-  INSERT INTO public.profiles (user_id, email, role, onboarding_complete)
+  INSERT INTO public.profiles (user_id, email, role, onboarding_complete, coach_id)
   VALUES (
     NEW.id,             -- The user_id from auth.users
     NEW.email,          -- The email from auth.users
     'athlete',          -- Default role for new signups
-    false               -- Require onboarding
+    false,              -- Require onboarding
+    'c5e342a9-28a3-4fdb-9947-fe9e76c46b65'  -- Default coach ID
   );
   RETURN NEW;
 END;

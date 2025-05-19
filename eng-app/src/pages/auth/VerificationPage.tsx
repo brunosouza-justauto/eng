@@ -32,6 +32,23 @@ const VerificationPage: React.FC = () => {
           console.log(`VerificationPage - Found verification token/code, type: ${type}`);
           
           try {
+            // If this is a password recovery flow, redirect to the password reset page
+            if (type === 'recovery') {
+              console.log('VerificationPage - Detected password recovery flow, redirecting to reset page');
+              
+              // For recovery flow, include both the token/code in the redirect
+              const redirectPath = `/auth/reset-password${location.search}&type=${type}`;
+              
+              // If we have a code but no token, ensure the code is correctly passed
+              if (!urlParams.has('token') && urlParams.has('code')) {
+                console.log('VerificationPage - Using code parameter for recovery flow');
+              }
+              
+              // Pass through the original search parameters to maintain all required auth data
+              navigate(redirectPath);
+              return;
+            }
+            
             // For code parameter (PKCE flow), we might need to exchange the code for a session
             if (urlParams.has('code') && !urlParams.has('token')) {
               console.log('VerificationPage - Detected PKCE flow with code parameter');

@@ -16,6 +16,7 @@ export interface ProfileData {
   weight_kg: number | null; // Add weight_kg field
   age: number | null; // Add age field
   gender: 'male' | 'female' | null; // Add gender field
+  coach_id: string | null; // Add coach_id field
   // Add other profile fields you might want in Redux state later (username, role, etc.)
 }
 

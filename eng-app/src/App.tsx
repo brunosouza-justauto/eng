@@ -37,6 +37,8 @@ import VerificationPage from './pages/auth/VerificationPage'; // Import the new 
 import PWAInstallPrompt from './components/common/PWAInstallPrompt'; // Import the PWA install prompt
 import UpdateNotification from './components/common/UpdateNotification'; // Import the update notification
 import { initPWA } from './utils/pwaHandler'; // Import PWA initialization
+import UserProfilePage from './pages/UserProfilePage'; // Import the profile page
+import PasswordResetPage from './pages/auth/PasswordResetPage'; // Import the password reset page
 // Placeholder pages - we will create these properly later
 // const LoginPage = () => <div>Login Page Placeholder - <Link to="/dashboard">Go to Dashboard (temp)</Link></div>;
 const NotFoundPage = () => <div>404 Not Found</div>;
@@ -67,7 +69,7 @@ function App() {
       try {
         const { data, error, status } = await supabase
           .from('profiles')
-          .select(`id, user_id, onboarding_complete, role, email, first_name, last_name`)
+          .select(`id, user_id, onboarding_complete, role, email, first_name, last_name, coach_id`)
           .eq('user_id', userId)
           .single();
 
@@ -76,6 +78,26 @@ function App() {
         }
 
         if (data) {
+          // Check if coach_id is null and update it if needed
+          if (data.coach_id === null) {
+            console.log('Profile found but coach_id is null. Assigning default coach ID.');
+            
+            // Update profile with default coach ID
+            const defaultCoachId = "c5e342a9-28a3-4fdb-9947-fe9e76c46b65";
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ coach_id: defaultCoachId })
+              .eq('id', data.id);
+              
+            if (updateError) {
+              console.error('Error updating profile with default coach_id:', updateError);
+            } else {
+              console.log('Successfully assigned default coach_id to profile:', data.id);
+              // Update the coach_id in our data object
+              data.coach_id = defaultCoachId;
+            }
+          }
+          
           dispatch(setProfile(data as ProfileData));
         } else {
           // Handle case where user might be logging in for the first time
@@ -89,7 +111,7 @@ function App() {
             // Try to find a profile with matching email and NULL user_id
             const { data: emailProfile, error: emailError } = await supabase
               .from('profiles')
-              .select(`id, user_id, onboarding_complete, role, email, first_name, last_name`)
+              .select(`id, user_id, onboarding_complete, role, email, first_name, last_name, coach_id`)
               .eq('email', email)
               .is('user_id', null)
               .single();
@@ -115,7 +137,7 @@ function App() {
               // Fetch the updated profile
               const { data: updatedProfile, error: fetchError } = await supabase
                 .from('profiles')
-                .select(`id, user_id, onboarding_complete, role, email, first_name, last_name`)
+                .select(`id, user_id, onboarding_complete, role, email, first_name, last_name, coach_id`)
                 .eq('id', emailProfile.id)
                 .single();
                 
@@ -125,6 +147,26 @@ function App() {
               
               if (updatedProfile) {
                 console.log('Successfully linked profile to auth account:', updatedProfile);
+                
+                // Check if coach_id is null and update it if needed
+                if (updatedProfile.coach_id === null) {
+                  console.log('Linked profile has null coach_id. Assigning default coach ID.');
+                  
+                  // Update profile with default coach ID
+                  const defaultCoachId = "c5e342a9-28a3-4fdb-9947-fe9e76c46b65";
+                  const { error: updateCoachError } = await supabase
+                    .from('profiles')
+                    .update({ coach_id: defaultCoachId })
+                    .eq('id', updatedProfile.id);
+                    
+                  if (updateCoachError) {
+                    console.error('Error updating linked profile with default coach_id:', updateCoachError);
+                  } else {
+                    console.log('Successfully assigned default coach_id to linked profile:', updatedProfile.id);
+                    // Update the coach_id in our data object
+                    updatedProfile.coach_id = defaultCoachId;
+                  }
+                }
                 
                 // Log onboarding status for debugging
                 if (!updatedProfile.onboarding_complete) {
@@ -142,7 +184,42 @@ function App() {
           }
           
           // If we get here, no matching profile was found or linked
-          dispatch(setProfile(null)); 
+          // Create a new profile with default values including the default coach_id
+          try {
+            if (userId) {
+              const email = (await supabase.auth.getUser()).data.user?.email;
+              if (email) {
+                console.log('Creating new profile for user with default coach_id');
+                
+                const defaultCoachId = "c5e342a9-28a3-4fdb-9947-fe9e76c46b65";
+                const newProfileData = {
+                  user_id: userId,
+                  email: email,
+                  role: 'athlete',
+                  onboarding_complete: false,
+                  coach_id: defaultCoachId
+                };
+                
+                const { data: newProfile, error: createError } = await supabase
+                  .from('profiles')
+                  .insert(newProfileData)
+                  .select()
+                  .single();
+                  
+                if (createError) {
+                  console.error('Error creating new profile:', createError);
+                } else {
+                  console.log('Successfully created new profile with default coach_id:', newProfile);
+                  dispatch(setProfile(newProfile as ProfileData));
+                  return;
+                }
+              }
+            }
+          } catch (createError) {
+            console.error('Error in profile creation:', createError);
+          }
+          
+          dispatch(setProfile(null));
         }
       } catch (error: unknown) {
         console.error("Error fetching profile:", error);
@@ -504,6 +581,7 @@ function App() {
         {/* Auth Routes - Publicly accessible */}
         <Route path="/auth/verify" element={<VerificationPage />} />
         <Route path="/verify" element={<VerificationPage />} />
+        <Route path="/auth/reset-password" element={<PasswordResetPage />} />
 
         {/* Legal Pages - Accessible without authentication */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -513,6 +591,8 @@ function App() {
           <Route element={<MainLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
+              {/* User profile route */}
+              <Route path="/profile" element={<UserProfilePage />} />
               {/* Check-in routes */}
               <Route path="/check-in/new" element={<CheckInPage />} />
               <Route path="/check-in/history" element={<CheckInHistoryPage />} />

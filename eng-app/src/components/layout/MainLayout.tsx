@@ -42,14 +42,14 @@ const DashboardHeader = ({ profile, handleLogout }: { profile: ProfileData | nul
         <div className="flex items-center space-x-4">
           <ThemeToggle />
           
-          <div className="flex items-center space-x-2">
+          <Link to="/profile" className="flex items-center space-x-2 hover:opacity-80">
             <div className="flex items-center justify-center w-8 h-8 font-medium text-white bg-indigo-600 rounded-full">
               {profile?.email?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div className="hidden md:block text-sm font-medium text-gray-700 truncate dark:text-gray-300 max-w-[150px]">
               {profile?.email || 'User'}
             </div>
-          </div>
+          </Link>
           
           <button 
             onClick={handleLogout}
@@ -162,14 +162,14 @@ const MainLayout: React.FC = () => {
           <div className="flex items-center space-x-4">
             <ThemeToggle />
             
-            <div className="flex items-center space-x-2">
+            <Link to="/profile" className="flex items-center space-x-2 hover:opacity-80">
               <div className="flex items-center justify-center w-8 h-8 font-medium text-white bg-indigo-600 rounded-full">
                 {profile?.email?.charAt(0)?.toUpperCase() || 'U'}
               </div>
               <div className="hidden md:block text-sm font-medium text-gray-700 truncate dark:text-gray-300 max-w-[150px]">
                 {profile?.email || 'User'}
               </div>
-            </div>
+            </Link>
             
             <button 
               onClick={handleLogout}
