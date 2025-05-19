@@ -168,6 +168,18 @@ We've been enhancing the meal planning and nutrition tracking features of the EN
 
 ## Recent Changes
 
+### Athlete Nutrition History Enhancements
+- Implemented a comprehensive nutrition history page for coaches to view athlete meal logs
+- Created a robust data retrieval system that properly maps database fields to component fields
+- Fixed calculation logic for nutritional values based on food quantities (per 100g)
+- Implemented date grouping for meal logs with visually distinct date headers
+- Added proper time formatting for displaying meal times in a user-friendly format
+- Created synchronized filters between the calorie history chart and meal logs table
+- Enhanced UI with hover states, proper spacing, and clear visual hierarchy
+- Fixed data types to ensure correct calculations and avoid "NaN" display values
+- Built nutrition summary statistics (average calories, protein/carbs/fat totals)
+- Implemented a nutritional breakdown visualization with color-coded macro percentages
+
 ### PWA and Update Notification Improvements
 - Fixed issue with repeated update notifications by implementing a cooldown mechanism
 - Created a user-friendly update notification component to replace browser confirm dialogs

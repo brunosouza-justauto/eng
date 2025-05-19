@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { selectIsAuthenticated, selectIsLoading, selectProfile } from '../store/slices/authSlice';
@@ -8,12 +8,26 @@ const AdminRoute: React.FC = () => {
   const isLoading = useSelector(selectIsLoading);
   const profile = useSelector(selectProfile);
   const location = useLocation();
+  const [localLoading, setLocalLoading] = useState(true);
+  
+  // Add a short delay to ensure profile is fully loaded
+  useEffect(() => {
+    if (!isLoading && profile) {
+      setLocalLoading(false);
+    } else if (!isLoading && !profile && isAuthenticated) {
+      // If auth is done but profile isn't loaded, wait a bit more
+      const timer = setTimeout(() => setLocalLoading(false), 1000);
+      return () => clearTimeout(timer);
+    } else if (!isLoading) {
+      setLocalLoading(false);
+    }
+  }, [isLoading, profile, isAuthenticated]);
 
-  if (isLoading) {
+  if (isLoading || localLoading) {
     // Show loading indicator while checking auth/profile status
     return (
       <div className="flex justify-center items-center min-h-screen">
-        Verifying access...
+        Verifying admin access...
       </div>
     );
   }

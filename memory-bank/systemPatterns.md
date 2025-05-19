@@ -1039,4 +1039,82 @@ The notification system uses the following patterns:
 
 ## Front-End Architecture
 
-// ... existing code ... 
+## Nutrition History Architecture
+
+The Athlete Nutrition History system follows a structured component pattern for displaying meal logs and nutritional data:
+
+```mermaid
+flowchart TD
+    AthleteNutritionPage[Athlete Nutrition Page] --> AthleteData[Athlete Data Fetch]
+    AthleteNutritionPage --> NutritionPlanFetch[Nutrition Plan Fetch]
+    AthleteNutritionPage --> MealLogsFetch[Meal Logs Fetch]
+    
+    MealLogsFetch --> RegularMeals[Regular Meals Processing]
+    MealLogsFetch --> ExtraMeals[Extra Meals Processing]
+    
+    RegularMeals --> FoodItemMapping[Food Item Mapping]
+    ExtraMeals --> FoodItemMapping
+    
+    FoodItemMapping --> NutritionCalculations[Nutrition Calculations]
+    
+    NutritionCalculations --> DailyNutritionSummary[Daily Nutrition Summary]
+    NutritionCalculations --> MealLogTable[Meal Log Table Display]
+    
+    DailyNutritionSummary --> NutritionBarChart[Nutrition Bar Chart]
+    DailyNutritionSummary --> StatisticsCalculation[Statistics Calculation]
+    
+    StatisticsCalculation --> MacrosPieChart[Macros Pie Chart]
+    StatisticsCalculation --> StatsDisplay[Stats Display]
+```
+
+### Data Flow
+
+1. **User Data Retrieval**
+   * Fetch athlete profile information
+   * Retrieve assigned nutrition plan details
+   * Fetch meal logs for the selected time period
+   * Filter based on time selection (Past 7 Days or Month View)
+
+2. **Data Processing**
+   * Different processing paths for regular meals vs. extra meals
+   * Map database fields to component fields (e.g., `protein_per_100g` → `protein_grams`)
+   * Calculate nutritional values based on food quantities
+   * Group meal logs by date for display
+
+3. **Nutrition Calculations**
+   * Calculate daily totals for calories, protein, carbs, and fat
+   * Compute statistics like average calories and macro distribution
+   * Generate completion rate based on expected vs. logged meals
+   * Convert per 100g nutritional values to actual amounts based on quantity
+
+4. **Visualization**
+   * Display nutritional data in bar and pie charts
+   * Present meal logs in a grouped table with date headers
+   * Show time information in a user-friendly format
+   * Color-code macronutrient information for easy identification
+
+### Key Patterns
+
+1. **Database Field Mapping**
+   * Proper handling of field name differences between database and component
+   * Fallback values to prevent "NaN" display issues
+   * Consistent normalization of nutritional data
+   * Support for both regular meals and extra meals with different data structures
+
+2. **Time-Based Filtering**
+   * Synchronized filters between chart and table views
+   * Support for different time periods (7 days or full month)
+   * Date-based grouping for improved readability
+   * Proper formatting of dates and times for display
+
+3. **UI Components**
+   * MacrosPieChart for visualizing macronutrient distribution
+   * NutritionBarChart for showing calorie history
+   * Date-grouped meal logs table with collapsible sections
+   * Statistics card with averages and totals
+
+4. **Error Handling**
+   * Graceful fallbacks for missing data
+   * Safe parsing of date and time strings
+   * Clear loading and error states
+   * Empty state handling for when no meal logs are found 

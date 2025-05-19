@@ -536,22 +536,38 @@ const AthleteDetailsPage: React.FC = () => {
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
                                         Assigned on {new Date(stepGoal.assigned_at).toLocaleDateString()}
                                     </p>
-                                    <button 
-                                        onClick={() => navigate('/admin/step-goals')}
-                                        className="mt-3 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
-                                    >
-                                        Manage Step Goals
-                                    </button>
+                                    <div className="flex flex-wrap mt-3 gap-2">
+                                        <button 
+                                            onClick={() => navigate('/admin/step-goals')}
+                                            className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
+                                        >
+                                            Manage Step Goals
+                                        </button>
+                                        <button 
+                                            onClick={() => navigate(`/admin/athletes/${id}/steps`)}
+                                            className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 text-sm px-4 py-2"
+                                        >
+                                            View Step History
+                                        </button>
+                                    </div>
                                 </div>
                             ) : (
                                 <div>
                                     <p className="text-gray-600 dark:text-gray-400">No step goal assigned yet.</p>
-                                    <button 
-                                        onClick={() => navigate('/admin/step-goals')}
-                                        className="mt-3 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
-                                    >
-                                        Assign Step Goal
-                                    </button>
+                                    <div className="flex flex-wrap mt-3 gap-2">
+                                        <button 
+                                            onClick={() => navigate('/admin/step-goals')}
+                                            className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
+                                        >
+                                            Assign Step Goal
+                                        </button>
+                                        <button 
+                                            onClick={() => navigate(`/admin/athletes/${id}/steps`)}
+                                            className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 text-sm px-4 py-2"
+                                        >
+                                            View Step History
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -733,13 +749,34 @@ const AthleteDetailsPage: React.FC = () => {
                 <>
                     <div className="flex flex-col mb-4 space-y-2 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                         <h2 className="text-xl font-semibold text-gray-800 dark:text-white">{athleteDetails.first_name} {athleteDetails.last_name}</h2>
-                        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+                        <div className="flex flex-wrap gap-2 sm:flex-row sm:space-y-0">
                             <Button 
                                 onClick={() => setIsEditing(true)}
                                 variant="primary"
                                 className="w-full sm:w-auto"
                             >
                                 Edit Profile
+                            </Button>
+                            <Button 
+                                onClick={() => navigate(`/admin/athletes/${id}/steps`)}
+                                variant="secondary"
+                                className="w-full sm:w-auto"
+                            >
+                                View Steps History
+                            </Button>
+                            <Button 
+                                onClick={() => navigate(`/admin/athletes/${id}/workouts`)}
+                                variant="secondary"
+                                className="w-full sm:w-auto"
+                            >
+                                View Training History
+                            </Button>
+                            <Button 
+                                onClick={() => navigate(`/admin/athletes/${id}/nutrition`)}
+                                variant="secondary"
+                                className="w-full sm:w-auto"
+                            >
+                                View Nutrition History
                             </Button>
                             <Button 
                                 onClick={() => setShowProgramModal(true)}
@@ -796,6 +833,12 @@ const AthleteDetailsPage: React.FC = () => {
                                 >
                                     Change Program
                                 </button>
+                                <button 
+                                    onClick={() => navigate(`/admin/athletes/${id}/workouts`)}
+                                    className="mt-3 ml-2 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 text-sm px-4 py-2"
+                                >
+                                    View Training History
+                                </button>
                             </div>
                         ) : (
                             <div>
@@ -805,6 +848,12 @@ const AthleteDetailsPage: React.FC = () => {
                                     className="mt-3 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
                                 >
                                     Assign Program
+                                </button>
+                                <button 
+                                    onClick={() => navigate(`/admin/athletes/${id}/workouts`)}
+                                    className="mt-3 ml-2 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 text-sm px-4 py-2"
+                                >
+                                    View Training History
                                 </button>
                             </div>
                         )}
@@ -828,6 +877,12 @@ const AthleteDetailsPage: React.FC = () => {
                                 >
                                     Change Nutrition Plan
                                 </button>
+                                <button 
+                                    onClick={() => navigate(`/admin/athletes/${id}/nutrition-history`)}
+                                    className="mt-3 ml-2 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 text-sm px-4 py-2"
+                                >
+                                    View Nutrition History
+                                </button>
                             </div>
                         ) : (
                             <div>
@@ -837,6 +892,12 @@ const AthleteDetailsPage: React.FC = () => {
                                     className="mt-3 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
                                 >
                                     Assign Nutrition Plan
+                                </button>
+                                <button 
+                                    onClick={() => navigate(`/admin/athletes/${id}/nutrition-history`)}
+                                    className="mt-3 ml-2 inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 text-sm px-4 py-2"
+                                >
+                                    View Nutrition History
                                 </button>
                             </div>
                         )}

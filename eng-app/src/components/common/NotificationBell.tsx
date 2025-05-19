@@ -76,22 +76,22 @@ const NotificationBell: React.FC = () => {
         break;
       case 'workout_completed':
         if (notification.related_entity_id) {
-          navigate(`/admin/athletes/${notification.sender_id}/workouts?log=${notification.related_entity_id}`);
+          navigate(`/admin/athletes/${notification.sender_id}/workouts/log/${notification.related_entity_id}`);
         }
         break;
       case 'steps_completed':
         if (notification.sender_id) {
-          navigate(`/admin/athletes/${notification.sender_id}/fitness?metric=steps`);
+          navigate(`/admin/athletes/${notification.sender_id}/steps`);
         }
         break;
       case 'nutrition_assigned':
         if (notification.related_entity_id) {
-          navigate(`/dashboard/nutrition/${notification.related_entity_id}`);
+          navigate(`/meal-plan/${notification.related_entity_id}`);
         }
         break;
       case 'program_assigned':
         if (notification.related_entity_id) {
-          navigate(`/dashboard/programs/${notification.related_entity_id}`);
+          navigate(`/workout-plan/${notification.related_entity_id}`);
         }
         break;
       default:

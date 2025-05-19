@@ -45,6 +45,9 @@ interface ExerciseInstanceData {
     description: string | null;
   };
   completed_sets: CompletedSetRecord[];
+  prescribed_sets: PrescribedSetRecord[];
+  each_side: boolean;
+  tempo: number | null;
 }
 
 interface CompletedSetRecord {
@@ -68,17 +71,34 @@ interface CompletedSetRecord {
   completed?: boolean;
 }
 
+interface PrescribedSetRecord {
+  id: string;
+  exercise_instance_id: string;
+  set_order: number;
+  type: string;
+  reps: string;
+  weight: string | null;
+  rest_seconds: number | null;
+  duration: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AthleteData {
   id: string;
   first_name: string;
   last_name: string;
   email: string;
+  user_id: string;
 }
 
 const AthleteWorkoutsPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, logId: routeLogId } = useParams<{ id: string; logId: string }>();
   const [searchParams] = useSearchParams();
-  const logId = searchParams.get('log');
+  const queryLogId = searchParams.get('log');
+  
+  // Use route parameter first, fall back to query parameter for backward compatibility
+  const logId = routeLogId || queryLogId;
   
   const [athlete, setAthlete] = useState<AthleteData | null>(null);
   const [workoutSession, setWorkoutSession] = useState<WorkoutSessionData | null>(null);
@@ -97,7 +117,7 @@ const AthleteWorkoutsPage: React.FC = () => {
         // Fetch athlete data
         const { data: athleteData, error: athleteError } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name, email')
+          .select('id, first_name, last_name, email, user_id')
           .eq('id', id)
           .single();
           
@@ -189,15 +209,58 @@ const AthleteWorkoutsPage: React.FC = () => {
                   exercise_name: instance.exercise_name || 'Unknown Exercise',
                   sets: parseInt(instance.sets) || 0,
                   reps: instance.reps ? parseInt(instance.reps) : null,
-                  weight: instance.sets_data || null,
+                  // Try to extract weight from multiple possible sources
+                  weight: (() => {
+                    // First check if sets_data looks like a weight
+                    if (instance.sets_data && !isNaN(parseFloat(instance.sets_data))) {
+                      return parseFloat(instance.sets_data);
+                    }
+                    // Then try other fields that might contain weight info
+                    // For legacy data compatibility
+                    if (instance.weight) {
+                      return parseFloat(instance.weight);
+                    }
+                    return null;
+                  })(),
                   duration: null,
                   distance: null,
                   notes: instance.notes,
                   exercise: instance.exercise || { name: instance.exercise_name, description: null },
                   each_side: instance.each_side || false,
                   tempo: instance.tempo || null,
-                  completed_sets: completedSets || []
+                  completed_sets: completedSets || [],
+                  prescribed_sets: [] as PrescribedSetRecord[]
                 };
+
+                // Fetch prescribed sets for this exercise instance
+                const { data: prescribedSets, error: prescribedSetsError } = await supabase
+                  .from('exercise_sets')
+                  .select('*')
+                  .eq('exercise_instance_id', instance.id)
+                  .order('set_order', { ascending: true });
+                  
+                if (prescribedSetsError) {
+                  console.error(`Error fetching prescribed sets for instance ${instance.id}:`, prescribedSetsError);
+                }
+
+                console.log("Prescribed Sets:", prescribedSets);
+
+                // Add the prescribed sets to our exercise instance
+                exerciseInstance.prescribed_sets = prescribedSets || [];
+
+                // Add log to debug weight related fields
+                console.log(`Exercise ${instance.exercise_name} data:`, {
+                  sets_data: instance.sets_data,
+                  each_side: instance.each_side,
+                  is_bodyweight: instance.is_bodyweight
+                });
+
+                console.log(`Exercise ${instance.exercise_name} after processing:`, {
+                  weight: exerciseInstance.weight,
+                  has_prescribed_sets: (prescribedSets || []).length > 0,
+                  has_weights_in_prescribed_sets: (prescribedSets || []).some(set => set.weight),
+                  prescribed_sets_sample: prescribedSets ? prescribedSets.slice(0, 2) : []
+                });
 
                 return exerciseInstance;
               })
@@ -300,7 +363,7 @@ const AthleteWorkoutsPage: React.FC = () => {
           subtitle="View workout history and details"
         />
         <div className="mb-4">
-          <WorkoutHistory athleteId={id!} />
+          <WorkoutHistory athleteId={athlete.id} athleteUserId={athlete.user_id} />
         </div>
       </div>
     );
@@ -381,10 +444,10 @@ const AthleteWorkoutsPage: React.FC = () => {
                         <thead>
                           <tr>
                             <th className="px-2 py-2 text-left text-xs font-medium text-gray-400">Set</th>
-                            {exercise.reps !== null && (
+                            {(
                               <th className="px-2 py-2 text-left text-xs font-medium text-gray-400">Reps</th>
                             )}
-                            {exercise.weight !== null && (
+                            {(
                               <th className="px-2 py-2 text-left text-xs font-medium text-gray-400">Weight</th>
                             )}
                             {exercise.duration !== null && (
@@ -410,33 +473,50 @@ const AthleteWorkoutsPage: React.FC = () => {
                                 
                                 {exercise.reps !== null && (
                                   <td className="px-2 py-2 text-sm">
-                                    {completedSet?.reps !== null 
-                                      ? completedSet.reps 
-                                      : '-'} / {exercise.reps}
+                                    {completedSet?.reps ?? '-'} / {(() => {
+                                      // Get the prescribed rep value as a string
+                                      const prescribedSet = exercise.prescribed_sets.find(set => set.set_order === setNumber);
+                                      // Parse it if found, otherwise fall back to exercise.reps
+                                      return prescribedSet ? prescribedSet.reps : exercise.reps;
+                                    })()}
                                   </td>
                                 )}
                                 
-                                {exercise.weight !== null && (
+                                {(
                                   <td className="px-2 py-2 text-sm">
-                                    {completedSet?.weight !== null 
-                                      ? `${completedSet.weight} kg` 
-                                      : '-'} / {exercise.weight} kg
+                                    {(() => {
+                                      // Show completed weight with proper formatting
+                                      let actualDisplay = '-';
+                                      if (completedSet?.weight) {
+                                        // Handle bodyweight exercises
+                                        const isBodyweight = completedSet.weight === 'BW';
+                                        if (isBodyweight) {
+                                          actualDisplay = 'Bodyweight';
+                                        } else {
+                                          // Add "per side" if exercise is flagged as each_side
+                                          actualDisplay = `${completedSet.weight} kg${exercise.each_side ? ' per side' : ''}`;
+                                        }
+                                      }
+                                      
+                                      return actualDisplay;
+                                    })()}
                                   </td>
                                 )}
                                 
                                 {exercise.duration !== null && (
                                   <td className="px-2 py-2 text-sm">
-                                    {completedSet?.actual_duration !== null 
-                                      ? `${completedSet.actual_duration} sec` 
-                                      : '-'} / {exercise.duration} sec
+                                    {completedSet?.actual_duration ? `${completedSet.actual_duration} sec` : '-'} / {(() => {
+                                      // Get the prescribed duration
+                                      const prescribedSet = exercise.prescribed_sets.find(set => set.set_order === setNumber);
+                                      // Use it if found, otherwise fall back to exercise.duration
+                                      return prescribedSet && prescribedSet.duration ? prescribedSet.duration : `${exercise.duration} sec`;
+                                    })()}
                                   </td>
                                 )}
                                 
                                 {exercise.distance !== null && (
                                   <td className="px-2 py-2 text-sm">
-                                    {completedSet?.actual_distance !== null 
-                                      ? `${completedSet.actual_distance} m` 
-                                      : '-'} / {exercise.distance} m
+                                    {completedSet?.actual_distance ? `${completedSet.actual_distance} m` : '-'} / {`${exercise.distance} m`}
                                   </td>
                                 )}
                                 
@@ -475,7 +555,7 @@ const AthleteWorkoutsPage: React.FC = () => {
 };
 
 // Component to display workout history for an athlete
-const WorkoutHistory: React.FC<{ athleteId: string }> = ({ athleteId }) => {
+const WorkoutHistory: React.FC<{ athleteId: string, athleteUserId: string }> = ({ athleteId, athleteUserId }) => {
   const [sessions, setSessions] = useState<WorkoutSessionData[]>([]);
   const [workouts, setWorkouts] = useState<Record<string, WorkoutData>>({});
   const [loading, setLoading] = useState(true);
@@ -488,14 +568,22 @@ const WorkoutHistory: React.FC<{ athleteId: string }> = ({ athleteId }) => {
         const { data: sessionData, error: sessionError } = await supabase
           .from('workout_sessions')
           .select('*')
-          .eq('user_id', athleteId)
+          .eq('user_id', athleteUserId)
           .order('created_at', { ascending: false })
           .limit(20);
           
         if (sessionError) throw sessionError;
+
         setSessions(sessionData || []);
         
         if (sessionData && sessionData.length > 0) {
+
+          sessionData?.forEach((session: WorkoutSessionData) => {
+            if (session.end_time) {
+              session.completed = true;
+            }
+          });
+
           // Get unique workout IDs
           const workoutIds = [...new Set(sessionData.map(session => session.workout_id))];
           
@@ -547,9 +635,10 @@ const WorkoutHistory: React.FC<{ athleteId: string }> = ({ athleteId }) => {
   return (
     <div className="grid gap-4">
       {sessions.map((session: WorkoutSessionData) => (
+        console.log('session', session),
         <Card key={session.id}>
           <a 
-            href={`/admin/athletes/${athleteId}/workouts?log=${session.id}`}
+            href={`/admin/athletes/${athleteId}/workouts/log/${session.id}`}
             className="block p-4 hover:bg-gray-800 transition-colors duration-150"
           >
             <div className="flex justify-between items-start mb-2">
@@ -612,7 +701,29 @@ const formatDuration = (start: Date, end: Date): string => {
   return `${hours}h ${remainingMinutes}m`;
 };
 
-// Helper function to format exercise target (reps, weight, duration, distance)
+// Add a helper function to determine if an exercise is likely to use weights
+const isWeightExercise = (exercise: ExerciseInstanceData): boolean => {
+  // Check multiple conditions to determine if this is an exercise that uses weights
+  
+  // If we have weight data directly on the exercise
+  if (exercise.weight !== null && exercise.weight > 0) {
+    return true;
+  }
+  
+  // If we have prescribed sets with weight info
+  if (exercise.prescribed_sets.some(set => set.weight && set.weight !== 'BW')) {
+    return true;
+  }
+  
+  // If we have completed sets with weight info
+  if (exercise.completed_sets.some(set => set.weight && set.weight !== 'BW')) {
+    return true;
+  }
+  
+  return true;
+};
+
+// Update the formatExerciseTarget function to better display weight info
 const formatExerciseTarget = (exercise: ExerciseInstanceData): string => {
   const parts = [];
   
@@ -624,8 +735,23 @@ const formatExerciseTarget = (exercise: ExerciseInstanceData): string => {
     parts.push(`${exercise.reps} reps`);
   }
   
-  if (exercise.weight !== null) {
-    parts.push(`${exercise.weight} kg`);
+  // Check if it's a weight exercise and display weight information
+  if (isWeightExercise(exercise)) {
+    // Try to get weight info from prescribed sets first
+    const firstPrescribedSet = exercise.prescribed_sets[0];
+    if (firstPrescribedSet?.weight) {
+      if (firstPrescribedSet.weight === 'BW') {
+        parts.push('Bodyweight');
+      } else if (firstPrescribedSet.weight.toLowerCase().includes('kg')) {
+        parts.push(`${firstPrescribedSet.weight}${exercise.each_side ? ' per side' : ''}`);
+      } else {
+        parts.push(`${firstPrescribedSet.weight} kg${exercise.each_side ? ' per side' : ''}`);
+      }
+    } else if (exercise.weight) {
+      parts.push(`${exercise.weight} kg${exercise.each_side ? ' per side' : ''}`);
+    } else {
+      parts.push('With weights');
+    }
   }
   
   if (exercise.duration !== null) {

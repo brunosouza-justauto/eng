@@ -41,6 +41,8 @@ import UpdateNotification from './components/common/UpdateNotification'; // Impo
 import { initPWA } from './utils/pwaHandler'; // Import PWA initialization
 import UserProfilePage from './pages/UserProfilePage'; // Import the profile page
 import PasswordResetPage from './pages/auth/PasswordResetPage'; // Import the password reset page
+import AthleteStepsPage from './pages/admin/AthleteStepsPage';
+import AthleteNutritionPage from './pages/admin/AthleteNutritionPage';
 // Placeholder pages - we will create these properly later
 // const LoginPage = () => <div>Login Page Placeholder - <Link to="/dashboard">Go to Dashboard (temp)</Link></div>;
 const NotFoundPage = () => <div>404 Not Found</div>;
@@ -618,6 +620,9 @@ function App() {
                 <Route path="athletes" element={<UserManager />} />
                 <Route path="athletes/:id" element={<AthleteDetailsPage />} />
                 <Route path="athletes/:id/workouts" element={<AthleteWorkoutsPage />} />
+                <Route path="athletes/:id/workouts/log/:logId" element={<AthleteWorkoutsPage />} />
+                <Route path="athletes/:id/steps" element={<AthleteStepsPage />} />
+                <Route path="athletes/:id/nutrition" element={<AthleteNutritionPage />} />
                 <Route path="coaches" element={<CoachManager />} />
                 <Route path="coaches/:id" element={<CoachDetailsPage />} />
                 <Route path="programs" element={<ProgramBuilder />} />
