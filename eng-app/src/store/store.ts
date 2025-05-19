@@ -1,8 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
-// Use specific storage adapter
-import createIdbStorage from 'redux-persist-indexeddb-storage'; 
 
 import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';

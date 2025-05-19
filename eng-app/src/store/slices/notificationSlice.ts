@@ -50,6 +50,7 @@ export const fetchNotifications = createAsyncThunk(
         notifications: notificationsData as Notification[],
         unreadCount,
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch notifications');
     }
@@ -69,6 +70,7 @@ export const markNotificationsAsRead = createAsyncThunk(
       if (error) throw error;
 
       return notificationIds;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to mark notifications as read');
     }
@@ -99,6 +101,7 @@ export const fetchNotificationCount = createAsyncThunk(
         total: totalCount || 0,
         unread: unreadCount || 0,
       } as NotificationCount;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch notification count');
     }
