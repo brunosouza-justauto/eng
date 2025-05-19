@@ -26,6 +26,7 @@ import ProgramBuilder from './components/admin/ProgramBuilder'; // Import
 import MealPlanner from './components/admin/MealPlanner'; // Import
 import StepGoalSetter from './components/admin/StepGoalSetter'; // Import
 import CheckInReview from './components/admin/CheckInReview'; // Import
+import CheckInDetail from './components/admin/CheckInDetail'; // Import CheckInDetail
 import AdminDashboard from './components/admin/AdminDashboard'; // Import AdminDashboard
 import MainLayout from './components/layout/MainLayout'; // Import MainLayout
 import AthleteDetailsPage from './pages/admin/AthleteDetailsPage'; // Import AthleteDetailsPage
@@ -621,6 +622,7 @@ function App() {
                 <Route path="mealplans" element={<MealPlanner />} />
                 <Route path="stepgoals" element={<StepGoalSetter />} />
                 <Route path="checkins" element={<CheckInReview />} />
+                <Route path="checkins/:checkInId" element={<CheckInDetail />} />
                 <Route path="bmr-calculator" element={<BMRCalculatorPage />} />
                 <Route path="*" element={<div>Admin Section Not Found</div>} />
             </Route>

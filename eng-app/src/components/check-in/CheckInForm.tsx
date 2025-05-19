@@ -9,6 +9,24 @@ import FormInput from '../ui/FormInput';
 import { v4 as uuidv4 } from 'uuid';
 import { formatDate } from '../../utils/dateUtils';
 
+// Spinner component for loading states
+const Spinner = ({ size = "small" }: { size?: "small" | "medium" | "large" }) => {
+  const sizeClasses = {
+    small: "w-4 h-4",
+    medium: "w-6 h-6",
+    large: "w-8 h-8"
+  };
+  
+  return (
+    <div className={`inline-block animate-spin rounded-full border-2 border-solid border-current border-r-transparent ${sizeClasses[size]} text-blue-600 dark:text-blue-400 align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]`} 
+      role="status">
+      <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+        Loading...
+      </span>
+    </div>
+  );
+};
+
 // Define Zod schema for check-in data (refine as needed)
 const checkInSchema = z.object({
     // Check-in date
@@ -534,9 +552,20 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
 
                     {/* Placeholder for upload progress bar */}
                     {isSubmitting && uploadProgress !== null && (
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
-                            <p className="text-xs text-center mt-1">Uploading media: {uploadProgress}%</p>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-3">
+                            <div 
+                                className="bg-blue-600 h-2.5 rounded-full relative overflow-hidden transition-all duration-300" 
+                                style={{ width: `${uploadProgress}%` }}
+                            >
+                                {/* Animated gradient overlay */}
+                                <div className="absolute inset-0 w-full h-full animate-gradient-x bg-gradient-to-r from-blue-500 via-blue-600 to-blue-500 bg-200"></div>
+                            </div>
+                            <div className="flex items-center justify-center mt-2 space-x-2">
+                                <Spinner size="small" />
+                                <p className="text-sm text-center">
+                                    Uploading media: {uploadProgress}%
+                                </p>
+                            </div>
                         </div>
                     )}
                 </section>
@@ -552,7 +581,12 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
                     disabled={isSubmitting}
                     className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 dark:focus:ring-offset-gray-800"
                 >
-                    {isSubmitting ? 'Submitting...' : 'Submit Check-in'}
+                    {isSubmitting ? (
+                        <div className="flex items-center">
+                            <Spinner size="small" />
+                            <span className="ml-2">Submitting...</span>
+                        </div>
+                    ) : 'Submit Check-in'}
                 </button>
             </form>
         </FormProvider>
