@@ -65,6 +65,14 @@
 - Meal logging queries should filter by `user_id`, `log_date`, and `is_extra_meal` flag
 - Nutrition plans are stored in `nutrition_plans` table with nested meals and food items
 
+### Notification System
+- Notifications are stored in the `notifications` table with recipient_id, sender_id, and metadata
+- Database triggers automatically generate notifications for key events
+- Step goal notifications use `step_entries` and `step_goals` tables to detect achievements
+- Notification types are defined in the `NotificationType` TypeScript enum
+- Notification handlers map to specific navigation paths based on notification type
+- Workout notifications dynamically detect completion based on table structure
+
 ## UI/UX Patterns
 
 ### Meal Logging Components

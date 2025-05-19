@@ -985,3 +985,58 @@ const DeleteConfirmationDialog = () => {
 - Weight fields are required when marking sets as complete
 - System attempts to fill required fields from previous data before showing errors
 - Validates only when trying to complete an action, not when canceling 
+
+## Database Integration Patterns
+
+### Supabase Authentication
+The ENG App uses Supabase for authentication, following these patterns:
+- **Auth State in Redux**: Authentication state is managed in Redux, with a dedicated `authSlice` to track user status
+- **Protected Routes**: Components like `ProtectedRoute` ensure only authenticated users can access certain pages
+- **Magic Link Authentication**: Uses passwordless authentication with email magic links
+- **Auth Event Handling**: Listens for auth state changes with `onAuthStateChange` but ignores TOKEN_REFRESHED events
+
+### Database CRUD Operations
+The app follows these patterns for database operations:
+- **Service Layer Abstraction**: Database calls are abstracted through service files like `programService.ts`
+- **Error Handling Middleware**: All database calls include standardized error handling
+- **Optimistic UI Updates**: Some operations update UI immediately, then reconcile with server response
+- **Batched Queries**: Related data is fetched in batched queries where possible for performance
+- **Transformation Utilities**: Raw database results are transformed into domain objects using utility functions
+
+### Real-time Notifications with Database Triggers
+
+The notification system uses the following patterns:
+
+1. **Database-Triggered Notifications**:
+   - PostgreSQL triggers automatically create notifications on specific events
+   - Triggers detect events like workout completions, check-ins, and step goal achievements
+   - Notifications are stored in a `notifications` table with comprehensive metadata
+
+2. **Dynamic Structure Detection**:
+   - SQL scripts use information_schema queries to detect table and column structures
+   - Triggers adapt to various table configurations (e.g., different column names for user IDs)
+   - Fallback mechanisms ensure functionality even with different database structures
+
+3. **Schema-Aware SQL Generation**:
+   - Dynamic SQL is generated based on detected schema
+   - Format strings are used to inject the correct column names into SQL statements
+   - Error handling catches and reports structural mismatches
+
+4. **Personalized Goal Integration**:
+   - Step notifications integrate with a goal-tracking system
+   - Default goals are used as fallbacks when personalized goals aren't available
+   - Most recent active goals are prioritized when multiple exist
+
+5. **Redux Notification State Management**:
+   - Notifications are fetched and cached in Redux store
+   - Unread counts are maintained separately for efficiency
+   - Optimistic UI updates are used for mark-as-read actions
+
+6. **Dynamic Navigation from Notifications**:
+   - Notifications include entity references for contextual navigation
+   - Click handlers determine appropriate navigation paths based on notification type
+   - Required parameters are extracted from notification metadata
+
+## Front-End Architecture
+
+// ... existing code ... 

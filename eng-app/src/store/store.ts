@@ -1,32 +1,42 @@
-import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import { configureStore } from '@reduxjs/toolkit';
 import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
+import storage from 'redux-persist/lib/storage';
 // Use specific storage adapter
 import createIdbStorage from 'redux-persist-indexeddb-storage'; 
 
 import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
+import notificationReducer from './slices/notificationSlice';
 // Import other reducers here later
 
-// Configure persist
-const persistConfig = {
-  key: 'root', // Key for storage
-  storage: createIdbStorage({name: "eng-app-db", storeName: "eng-app-store"}), // Use IndexedDB
-  whitelist: ['auth', 'ui'] // Persist auth and ui slices
-  // blacklist: ['someSliceToIgnore'] // Alternatively, blacklist slices
+// Configure persist for auth slice
+const authPersistConfig = {
+  key: 'auth',
+  storage,
+  whitelist: ['profile'], // Only persist the profile part of the auth state
 };
 
-// Combine reducers if you have more than one
-const rootReducer = combineReducers({
-  auth: authReducer,
-  ui: uiReducer,
-  // Add other reducers here
-});
+// Configure persist for UI slice
+const uiPersistConfig = {
+  key: 'ui',
+  storage,
+  whitelist: ['theme'], // Only persist theme setting
+};
 
-// Create a persisted reducer
-const persistedReducer = persistReducer(persistConfig, rootReducer);
+// Configure persist for notification slice
+const notificationPersistConfig = {
+  key: 'notifications',
+  storage,
+  whitelist: ['unreadCount'], // Only persist unread count
+};
 
+// Create the store with our reducers
 export const store = configureStore({
-  reducer: persistedReducer, // Use the persisted reducer
+  reducer: {
+    auth: persistReducer(authPersistConfig, authReducer),
+    ui: persistReducer(uiPersistConfig, uiReducer),
+    notifications: persistReducer(notificationPersistConfig, notificationReducer),
+  },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       // Ignore specific non-serializable actions from redux-persist
@@ -41,5 +51,5 @@ export const store = configureStore({
 export const persistor = persistStore(store);
 
 // Types remain the same, but derived from rootReducer now
-export type RootState = ReturnType<typeof rootReducer>; 
+export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch; 

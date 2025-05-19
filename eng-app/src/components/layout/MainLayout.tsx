@@ -6,6 +6,7 @@ import { selectProfile, logout, ProfileData } from '../../store/slices/authSlice
 import { supabase } from '../../services/supabaseClient';
 import Footer from './Footer';
 import ThemeToggle from '../common/ThemeToggle';
+import NotificationBell from '../common/NotificationBell';
 import { FiLogOut, FiMenu, FiX, FiHome, FiUsers, FiUser, FiFileText, FiCalendar, FiActivity, FiMessageSquare, FiSettings, FiHelpCircle, FiArrowLeft } from 'react-icons/fi';
 
 // NavItem component for sidebar navigation
@@ -41,6 +42,8 @@ const DashboardHeader = ({ profile, handleLogout }: { profile: ProfileData | nul
 
         <div className="flex items-center space-x-4">
           <ThemeToggle />
+          
+          <NotificationBell />
           
           <Link to="/profile" className="flex items-center space-x-2 hover:opacity-80">
             <div className="flex items-center justify-center w-8 h-8 font-medium text-white bg-indigo-600 rounded-full">
@@ -161,6 +164,8 @@ const MainLayout: React.FC = () => {
 
           <div className="flex items-center space-x-4">
             <ThemeToggle />
+            
+            <NotificationBell />
             
             <Link to="/profile" className="flex items-center space-x-2 hover:opacity-80">
               <div className="flex items-center justify-center w-8 h-8 font-medium text-white bg-indigo-600 rounded-full">

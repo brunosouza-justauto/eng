@@ -8,6 +8,7 @@ A comprehensive bodybuilding and nutrition tracking application built with React
 - **Workout Tracking**: Log workouts, track sets, reps, and weights
 - **Nutrition Planning**: Plan and log meals, track macronutrients
 - **Step Goals**: Connect with fitness devices (Fitbit, Garmin, Google Fit)
+- **Coach Notifications**: Real-time notifications for coaches when new athletes are assigned
 - **Progressive Web App (PWA)**: Install on any device for an app-like experience
 - **Mobile Responsive**: Optimized for all screen sizes
 
@@ -93,3 +94,20 @@ When a new user creates an account, their profile is automatically assigned to t
 ### Updating Existing Profiles
 
 To update existing profiles that don't have a coach ID assigned, run the SQL script in `src/scripts/update_coach_id.sql` via the Supabase SQL Editor.
+
+## Coach Notification System
+
+The notification system provides real-time alerts for both coaches and athletes:
+
+### For Coaches:
+- Receive notifications when new athletes are assigned to their roster
+- Get alerts when athletes complete workouts
+- Be notified when athletes submit check-ins
+
+### For Athletes:
+- Receive notifications when assigned new training programs
+- Get alerts when nutrition plans are updated or assigned
+
+Notifications appear in the notification bell in the app header with distinctive icons for each notification type. Clicking a notification takes the user directly to the relevant page (athlete profile, workout log, nutrition plan, etc.).
+
+For setup instructions and customization options, see the documentation in `src/scripts/README.md`.
