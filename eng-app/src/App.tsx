@@ -23,6 +23,7 @@ import UserManager from './components/admin/UserManager'; // Import UserManager
 import CoachManager from './components/admin/CoachManager'; // Import CoachManager
 import ProgramBuilder from './components/admin/ProgramBuilder'; // Import ProgramBuilder
 import MealPlanner from './components/admin/MealPlanner'; // Import MealPlanner
+import MealPlannerPage from './pages/MealPlannerPage'; // Import our integrated meal planner page
 import StepGoalSetter from './components/admin/StepGoalSetter'; // Import StepGoalSetter
 import CheckInReview from './components/admin/CheckInReview'; // Import CheckInReview
 import CheckInDetail from './components/admin/CheckInDetail'; // Import CheckInDetail
@@ -626,6 +627,8 @@ function App() {
                 <Route path="coaches/:id" element={<CoachDetailsPage />} />
                 <Route path="programs" element={<ProgramBuilder />} />
                 <Route path="mealplans" element={<MealPlanner />} />
+                <Route path="mealplans/edit/:planId" element={<MealPlannerPage />} />
+                <Route path="mealplans/new" element={<MealPlannerPage />} />
                 <Route path="stepgoals" element={<StepGoalSetter />} />
                 <Route path="checkins" element={<CheckInReview />} />
                 <Route path="checkins/:checkInId" element={<CheckInDetail />} />

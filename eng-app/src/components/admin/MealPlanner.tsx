@@ -8,6 +8,7 @@ import FormInput from '../ui/FormInput';
 import { FiSearch, FiPlus, FiBook } from 'react-icons/fi';
 import MealManager from './MealManager';
 import RecipeManager from './RecipeManager';
+import { useNavigate } from 'react-router-dom';
 
 // Basic type for plan list item
 interface NutritionPlanListItem {
@@ -63,6 +64,7 @@ const MealPlanner: React.FC = () => {
     const [alertMessage, setAlertMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     
     const profile = useSelector(selectProfile);
+    const navigate = useNavigate();
 
     // Form methods
     const methods = useForm<MealPlanFormData>({
@@ -158,20 +160,12 @@ const MealPlanner: React.FC = () => {
         }
     }, [selectedPlan, reset]);
 
-    const handleCreateNew = () => { 
-        setIsCreating(true);
-        setSelectedPlan(null);
-        reset();
-        // Also set values explicitly to ensure they're applied
-        methods.setValue('name', '');
-        methods.setValue('total_calories', '');
-        methods.setValue('protein_grams', '');
-        methods.setValue('carbohydrate_grams', '');
-        methods.setValue('fat_grams', '');
-        methods.setValue('description', '');
-        methods.setValue('is_public', false);
+    const handleCreateNew = () => {
+        navigate('/admin/mealplans/new');
     };
-    const handleEdit = (plan: NutritionPlanListItem) => { setSelectedPlan(plan); setIsCreating(false); };
+    const handleEdit = (plan: NutritionPlanListItem) => {
+        navigate(`/admin/mealplans/edit/${plan.id}`);
+    };
     const handleCancel = () => { setIsCreating(false); setSelectedPlan(null); reset(); };
 
     const handleSavePlan: SubmitHandler<MealPlanFormData> = async (formData) => {
