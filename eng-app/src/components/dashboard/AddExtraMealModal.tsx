@@ -456,7 +456,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
         setError(null);
         
         try {
-            await logExtraMeal(userProfile.id, nutritionPlanId, mealData, date);
+            await logExtraMeal(userProfile.user_id, nutritionPlanId, mealData, date);
             onMealAdded();
         } catch (err) {
             console.error('Error adding extra meal:', err);

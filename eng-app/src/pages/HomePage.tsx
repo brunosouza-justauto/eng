@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiArrowRight, FiCheck } from 'react-icons/fi';
+import { useSelector } from 'react-redux';
+import { selectIsAuthenticated, selectIsLoading } from '../store/slices/authSlice';
 
 // Instagram Embed Component
 const InstagramEmbed: React.FC<{ postUrl: string }> = ({ postUrl }) => {
@@ -132,6 +134,29 @@ declare global {
  * Landing page for the ENG App showcasing the trainer's bio and package offerings
  */
 const HomePage: React.FC = () => {
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const isLoading = useSelector(selectIsLoading);
+  const navigate = useNavigate();
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  // If still loading or authenticated, show a minimal loading indicator
+  if (isLoading || isAuthenticated) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-gray-700 dark:text-gray-300">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       {/* Navigation */}

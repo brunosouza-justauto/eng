@@ -534,3 +534,125 @@ We've implemented a comprehensive landing page to enable coaches to effectively 
 - Created visually appealing UI with gradient backgrounds, card layouts, and professional styling
 - Added proper dark/light mode support throughout the landing page
 - Implemented clear navigation and call-to-action buttons for visitor conversion
+
+## Current Focus
+
+We are currently enhancing the meal planning functionality in the ENG app. The most recent improvements include:
+
+### Meal Planner Management Features
+We've added comprehensive meal management capabilities to the `MealPlannerIntegrated` component:
+
+1. **Meal Reordering**: Implementation of up/down arrow controls to reorder meals within a day type
+   - Implemented in `handleMoveMealUp` and `handleMoveMealDown` functions
+   - Updates `order_in_plan` values in the database
+   - Provides immediate visual feedback with arrow buttons that change color on hover
+
+2. **Meal Editing**: Creation of modal dialog for editing existing meal properties
+   - Edit meal name, time suggestion, day type, description, and notes
+   - Uses the same UI components as the meal creation flow for consistency
+   - Updates are saved directly to the database via Supabase
+
+3. **Meal Deletion**: Addition of deletion capability with confirmation dialog
+   - Includes a confirmation dialog to prevent accidental deletions
+   - Properly removes the meal and associated food items from the database
+   - Uses a distinct red color scheme to indicate destructive action
+
+4. **Time Format Standardization**: Conversion from 12-hour (AM/PM) to 24-hour time format for consistency
+   - Changed hour selection from 1-12 to 00-23 range
+   - Removed AM/PM selector for a cleaner interface
+   - Updated time presets to use 24-hour format (e.g., "19:30" instead of "7:30 PM")
+   - Modified time parsing and formatting functions to handle 24-hour time
+
+5. **Enhanced Time Picker**: Implementation of a structured time picker with hour/minute dropdowns in 24-hour format
+   - Added hour and minute dropdowns to the time picker for better time selection
+   - Updated time parsing and formatting functions to handle 24-hour time
+
+6. **UI/UX Improvements**: General styling enhancements to the meal planner interface
+   - Added better spacing, consistent button styling, and improved layout
+   - Enhanced average nutrition calculation to properly account for different day types
+
+7. **Average Nutrition Calculation**: Improved calculation of average nutrition values by day type
+   - Updated meal logging logic to use meal_logs table for better data organization
+   - Fixed caching issues where meal items would disappear when switching between meal days
+   - Added TypeScript interfaces and types to ensure proper type safety
+
+## Recent Decisions
+
+- Adopted 24-hour time format for international compatibility and clarity
+- Used modals for complex operations to maintain a clean main interface
+- Implemented stopPropagation in button click handlers to prevent unwanted behavior
+- Added confirmation for destructive actions like deletion
+
+## Current Tasks
+
+- Test the new meal management features across different devices
+- Consider enhancing the mobile experience for these features
+- Identify any performance optimizations for large meal plans
+- Review accessibility of the new UI elements
+
+## Current Focus
+We are currently enhancing the meal planning functionality within the nutrition module of the ENG application. Recent work has focused on improving the user experience for meal management, including:
+
+1. **Meal Reordering**: Implementation of up/down arrow controls to reorder meals within a day type
+2. **Meal Editing**: Creation of modal dialog for editing existing meal properties
+3. **Meal Deletion**: Addition of deletion capability with confirmation dialog
+4. **Time Format Standardization**: Conversion from 12-hour (AM/PM) to 24-hour time format for consistency
+5. **Enhanced Time Picker**: Implementation of a structured time picker with hour/minute dropdowns in 24-hour format
+6. **UI/UX Improvements**: General styling enhancements to the meal planner interface
+7. **Average Nutrition Calculation**: Improved calculation of average nutrition values by day type
+
+## Recent Changes
+
+### MealPlannerIntegrated Component
+The `MealPlannerIntegrated.tsx` component has undergone significant enhancement:
+
+- Added reordering functionality using `updateMealOrder` Supabase function
+- Implemented edit meal functionality with a modal dialog that supports:
+  - Changing meal name
+  - Updating time suggestion (using 24-hour format)
+  - Modifying day type
+  - Adding/editing description and notes
+- Added delete meal functionality with confirmation dialog
+- Converted time picker from 12-hour to 24-hour format
+- Enhanced UI with better spacing, consistent button styling, and improved layout
+- Improved average nutrition calculation to properly account for different day types
+- Fixed caching issues where meal items would disappear when switching between meal days
+- Added TypeScript interfaces and types to ensure proper type safety
+
+### Supabase Database Interactions
+- Utilizing `order_in_plan` field to manage meal sequence
+- Implementing proper transaction handling for data operations
+- Optimistic UI updates with subsequent backend confirmation
+- Error handling with user feedback via toast notifications
+
+## Next Steps
+
+### Short-term Priorities
+1. Address remaining TypeScript linter errors in the MealPlannerIntegrated component
+2. Consider implementing drag-and-drop functionality for more intuitive meal reordering
+3. Explore bulk operations for meals (e.g., bulk delete, duplicate)
+4. Further enhance the UI with animations for smoother transitions
+
+### Medium-term Goals
+1. Implement meal templates for quick creation of common meal configurations
+2. Add nutritional goal tracking against meal plans
+3. Develop print/export functionality for meal plans
+4. Integrate with shopping list functionality
+
+## Active Decisions
+1. Using 24-hour format for all time inputs and displays for global consistency
+2. Following modal pattern for complex forms and confirmation dialogs
+3. Implementing optimistic UI updates for better perceived performance
+4. Structuring meal management with day types as the primary organization method
+
+## Current Challenges
+1. Some TypeScript linter errors related to property types and function parameters
+2. Need for better responsive design on smaller screen sizes
+3. Ensuring consistent state management across complex operations
+4. Performance optimization with larger meal plans
+
+## Technical Considerations
+1. Proper use of React hooks and dependencies to prevent render issues
+2. Consistent error handling and user feedback mechanisms
+3. Type safety across component boundaries
+4. Optimized database queries to reduce latency

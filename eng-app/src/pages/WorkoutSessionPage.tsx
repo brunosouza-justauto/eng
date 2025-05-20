@@ -2440,14 +2440,14 @@ const WorkoutSessionPage: React.FC = () => {
             {nextExerciseInfo && (
               <div className="grid grid-cols-12 gap-2 text-xs text-white/90 py-1">
                 {/* Left column - Next Set/Exercise Label */}
-                <div className="col-span-3 sm:col-span-2 flex items-center">
+                <div className="col-span-2 sm:col-span-2 flex items-center">
                   <span className="whitespace-nowrap">
                     {nextExerciseInfo.isSameExercise ? 'Next Set:' : 'Next Exercise:'}
                   </span>
                 </div>
                 
                 {/* Middle column - Exercise Name (with truncation for very long names) */}
-                <div className="col-span-5 sm:col-span-6 flex items-center">
+                <div className="col-span-6 ml-2 sm:col-span-6 flex items-center">
                   <span className="font-medium text-white truncate max-w-full">
                     {nextExerciseInfo.exerciseName}
                   </span>

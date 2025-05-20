@@ -23,6 +23,15 @@
 - Dashboard widgets link to detailed views with preserved context
 - Homepage provides clear pathways to login and signup flows
 
+### Meal Planning
+- Day types (Rest, Light, Moderate, Heavy, Training) categorize different nutritional needs
+- 24-hour time format (00:00-23:59) is used for meal times throughout the application
+- Common meal time presets (Breakfast: 08:00, Lunch: 12:30, etc.) aid quick selection
+- Meals can be reordered within day types using up/down controls
+- Destructive actions (deletion) require confirmation through modal dialogs
+- Edit operations reuse creation forms with pre-populated values
+- Time picker uses separate hour (00-23) and minute dropdowns with 24-hour display
+
 ## Tailwind CSS Configuration
 
 - **Version**: Using stable Tailwind CSS v3.3.2 (NOT v4.x alpha)
@@ -37,6 +46,8 @@
   - Service package cards use `border-2 border-indigo-500` for featured items
   - Gradient backgrounds use `bg-gradient-to-br from-gray-900 to-indigo-900`
   - Grid patterns use custom CSS with SVG backgrounds
+  - Modal dialogs use `fixed inset-0 z-50 overflow-y-auto flex items-center justify-center`
+  - Action buttons use contrasting colors to indicate functionality (red for delete, indigo for primary actions)
 
 ## Project Structure
 
@@ -59,6 +70,10 @@
 - Macronutrient displays follow P/C/F order with consistent color coding
 - Social media integration uses standard icon components from react-icons/fi
 - Instagram embeds use a custom InstagramEmbed component that dynamically loads Instagram's embed script
+- Modal dialogs for complex forms with semi-transparent overlay
+- Toast notifications for user feedback
+- Loading states during async operations
+- Error handling with clear user feedback
 
 ## Homepage and Marketing Components
 
@@ -88,6 +103,7 @@
 - Some column spacing in tables requires fine-tuning for optimal readability
 - Daily nutrition calculations need to account for unlogged days
 - Instagram embeds may require periodic updates if Instagram's embedding API changes
+- Some TypeScript linter errors in the MealPlannerIntegrated component need attention
 
 ## Database Tables
 
@@ -95,6 +111,7 @@
 - Meal logs are stored in the `meal_logs` table (NOT `logged_meals`)
 - Meal logging queries should filter by `user_id`, `log_date`, and `is_extra_meal` flag
 - Nutrition plans are stored in `nutrition_plans` table with nested meals and food items
+- Meals use `order_in_plan` field for sequencing within day types
 
 ### Notification System
 - Notifications are stored in the `notifications` table with recipient_id, sender_id, and metadata
@@ -114,6 +131,15 @@
 - Display loading spinners during async operations
 - Maintain consistent nutritional information display order: P/C/F
 - Use ID anchors (e.g., `id="todays-meals"`) for scroll navigation from other components
+
+### Meal Management Components
+- Group meals by day type for logical organization
+- Display macronutrient breakdowns with consistent color coding
+- Use up/down arrows for reordering within day types
+- Provide edit and delete controls on each meal card
+- Time suggestions use 24-hour format (e.g., "08:00" not "8:00 AM")
+- Modal dialogs for edit and create operations
+- Confirmation dialogs for destructive actions
 
 ### Homepage Components
 - Use gradient backgrounds with grid patterns for visual appeal

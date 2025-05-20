@@ -1118,3 +1118,107 @@ flowchart TD
    * Safe parsing of date and time strings
    * Clear loading and error states
    * Empty state handling for when no meal logs are found 
+
+## Architectural Patterns
+
+### Component Structure
+- React functional components with TypeScript interfaces
+- Redux state management for global app state
+- React Router for navigation
+- Custom hooks for reusable logic
+
+### Data Flow
+- Supabase for backend services and real-time updates
+- Redux selectors for accessing store state
+- Async/await patterns for database operations
+- Optimistic UI updates with error handling
+
+## UI Patterns
+
+### Layout
+- Responsive grid-based layouts using Tailwind CSS
+- Sidebar navigation for desktop, bottom navigation for mobile
+- Card-based components for content display
+- Consistent spacing and alignment
+
+### Styling
+- Tailwind CSS for utility-first styling
+- Dark/light mode support with class strategy
+- Custom components defined in index.css using @layer components
+- Indigo color palette as primary branding
+
+### Form Handling
+- React Hook Form for form state management
+- Zod for schema validation
+- Custom input components with consistent styling
+- Loading states during async operations
+
+## Meal Planning Patterns
+
+### Data Structure
+- `meals` table with relationships to `nutrition_plans` and `food_items`
+- Day type categorization (rest, light, moderate, heavy, training)
+- `order_in_plan` field for meal sequencing
+- Time suggestion in 24-hour format
+
+### Meal Management Operations
+1. **Creation Pattern**:
+   - Modal dialog with form inputs
+   - Default values for new meals
+   - Day type selection with visual indicators
+   - Time selection with common presets
+   - Immediate database update and UI refresh
+
+2. **Edit Pattern**:
+   - Reuse of creation form with populated values
+   - Non-destructive operation with cancel option
+   - Immediate database update on save
+   - Data validation before submission
+
+3. **Delete Pattern**:
+   - Two-step process with confirmation dialog
+   - Clear warning about consequences
+   - Visual distinction for destructive action (red button)
+   - Error handling with user feedback
+
+4. **Reordering Pattern**:
+   - In-place visual controls (up/down arrows)
+   - Order changes limited to within day type groups
+   - Database update of `order_in_plan` field
+   - Optimistic UI update with rollback on error
+
+5. **Time Selection Pattern**:
+   - 24-hour format for international compatibility
+   - Dropdown selectors for hour (00-23) and minute
+   - Common presets for quick selection
+   - Support for non-time text suggestions (e.g., "Post-Workout")
+
+### Food Item Handling
+- USDA database integration with local database caching
+- Custom food creation with nutritional data
+- Quantity and unit management
+- Automatic nutritional calculations based on quantity
+
+## Error Handling Patterns
+
+- Toast notifications for user feedback
+- Console logging for debugging
+- Try/catch blocks around async operations
+- Loading states during operations
+- Error state management and display
+
+## Modal Dialog Pattern
+
+- Fixed positioning with centered content
+- Semi-transparent overlay background
+- Focus trapping for accessibility
+- Close button and escape key handling
+- Loading state indication during async operations
+
+## Database Interaction Patterns
+
+- Supabase queries with error handling
+- Optimistic UI updates
+- Real-time subscriptions for collaborative features
+- Batch operations where appropriate
+- Data normalization and denormalization as needed 
