@@ -258,12 +258,14 @@ export const searchFoodItems = async (
     query: string,
     category?: string,
     limit: number = 20,
-    offset: number = 0
+    offset: number = 0,
+    includeExternalSources: boolean = true
 ): Promise<{ items: FoodItem[]; count: number }> => {
     try {
-        let supabaseQuery = supabase
+        // First search our database to get total count without pagination
+        let countQuery = supabase
             .from('food_items')
-            .select('*', { count: 'exact' });
+            .select('id', { count: 'exact', head: true });
         
         if (query) {
             // Split the query into words and create a filter for each word
@@ -271,30 +273,217 @@ export const searchFoodItems = async (
             
             if (words.length > 0) {
                 // Use .and() logic to match items containing ALL search terms
-                // We'll apply each word as a separate ilike condition
                 words.forEach(word => {
-                    supabaseQuery = supabaseQuery.ilike('food_name', `%${word}%`);
+                    countQuery = countQuery.ilike('food_name', `%${word}%`);
                 });
             }
         }
         
         if (category) {
-            supabaseQuery = supabaseQuery.eq('food_group', category);
+            countQuery = countQuery.eq('food_group', category);
         }
         
-        const { data, error, count } = await supabaseQuery
-            .order('food_name')
-            .range(offset, offset + limit - 1);
+        // Get total count
+        const { count: dbTotalCount, error: countError } = await countQuery;
         
-        if (error) throw error;
+        if (countError) throw countError;
         
+        // Create search query for data
+        let dbResults: FoodItem[] = [];
+        
+        // Only query database if offset is within range
+        if (offset < (dbTotalCount || 0)) {
+            let searchQuery = supabase
+                .from('food_items')
+                .select('*');
+            
+            if (query) {
+                const words = query.trim().split(/\s+/).filter(word => word.length > 0);
+                
+                if (words.length > 0) {
+                    words.forEach(word => {
+                        searchQuery = searchQuery.ilike('food_name', `%${word}%`);
+                    });
+                }
+            }
+            
+            if (category) {
+                searchQuery = searchQuery.eq('food_group', category);
+            }
+            
+            // Calculate safe range to avoid out of bounds
+            const endOffset = Math.min(offset + limit - 1, (dbTotalCount || 0) - 1);
+            
+            // Only execute query if we have a valid range
+            if (endOffset >= offset) {
+                const { data, error } = await searchQuery
+                    .order('food_name')
+                    .range(offset, endOffset);
+                
+                if (error) throw error;
+                dbResults = data || [];
+            }
+        }
+        
+        // If we want to include USDA results
+        if (includeExternalSources && query) {
+            try {
+                // Fetch USDA results
+                const externalResults = await searchUsdaFoodItems(query, limit * 2);
+                
+                // Calculate total combined count
+                const totalCount = (dbTotalCount || 0) + externalResults.length;
+                
+                // If we have no database results for this page, use only USDA results
+                if (dbResults.length === 0) {
+                    // Calculate how many USDA results to skip
+                    const usdaOffset = Math.max(0, offset - (dbTotalCount || 0));
+                    
+                    // Get slice of USDA results for this page
+                    const usdaItems = externalResults
+                        .slice(usdaOffset, usdaOffset + limit)
+                        .map(item => ({
+                            ...item,
+                            id: `usda-${item.id}` // Prefix ID to avoid collisions
+                        }));
+                    
+                    return {
+                        items: usdaItems,
+                        count: totalCount
+                    };
+                }
+                
+                // Normal case - we have some database results
+                // Add USDA results, ensuring we don't exceed the limit
+                const remainingSpace = limit - dbResults.length;
+                
+                if (remainingSpace > 0 && externalResults.length > 0) {
+                    // Take only what we need to fill the page
+                    const usdaResultsToAdd = externalResults
+                        .slice(0, remainingSpace)
+                        .map(item => ({
+                            ...item,
+                            id: `usda-${item.id}` // Prefix ID to avoid collisions
+                        }));
+                    
+                    // Add USDA results to fill the page
+                    const mergedResults = [...dbResults, ...usdaResultsToAdd];
+                    
+                    // Sort combined results
+                    mergedResults.sort((a, b) => a.food_name.localeCompare(b.food_name));
+                    
+                    return {
+                        items: mergedResults,
+                        count: totalCount
+                    };
+                }
+                
+                // We have enough database results to fill the page
+                return {
+                    items: dbResults,
+                    count: totalCount
+                };
+            } catch (err) {
+                console.error('Error fetching USDA data:', err);
+                // If USDA search fails, return just our database results
+                return {
+                    items: dbResults,
+                    count: dbTotalCount || 0
+                };
+            }
+        }
+        
+        // Return just the database results
         return {
-            items: data || [],
-            count: count || 0
+            items: dbResults,
+            count: dbTotalCount || 0
         };
     } catch (error) {
         console.error('Error searching food items:', error);
         throw error;
+    }
+};
+
+// Helper function to search USDA database
+const searchUsdaFoodItems = async (query: string, limit: number = 10): Promise<FoodItem[]> => {
+    try {
+        console.log(`Searching USDA for "${query}", limit: ${limit}`);
+        
+        // Get API key from environment variables
+        const apiKey = import.meta.env.VITE_USDA_API_KEY;
+        
+        if (!apiKey) {
+            console.error('USDA API key not found in environment variables');
+            return [];
+        }
+        
+        // Make a request to the USDA API
+        const response = await fetch(
+            `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${apiKey}&query=${encodeURIComponent(query)}&pageSize=${limit}`,
+            { method: 'GET' }
+        );
+        
+        if (!response.ok) {
+            throw new Error(`USDA API error: ${response.statusText}`);
+        }
+        
+        interface UsdaFood {
+            fdcId: number;
+            description: string;
+            brandName?: string;
+            gtinUpc?: string;
+            foodNutrients: UsdaNutrient[];
+        }
+        
+        interface UsdaNutrient {
+            nutrientId: number;
+            nutrientName: string;
+            value: number;
+        }
+        
+        interface UsdaResponse {
+            foods: UsdaFood[];
+            totalHits: number;
+        }
+        
+        const data = await response.json() as UsdaResponse;
+        
+        // Get current timestamp for created_at and updated_at fields
+        const timestamp = new Date().toISOString();
+        
+        // Transform USDA response to our FoodItem format
+        const foodItems: FoodItem[] = data.foods.map((food: UsdaFood) => {
+            // Extract nutrients
+            const nutrients = food.foodNutrients || [];
+            
+            // Find nutrient values
+            const calories = nutrients.find((n: UsdaNutrient) => n.nutrientId === 1008)?.value || 0;
+            const protein = nutrients.find((n: UsdaNutrient) => n.nutrientId === 1003)?.value || 0;
+            const carbs = nutrients.find((n: UsdaNutrient) => n.nutrientId === 1005)?.value || 0;
+            const fat = nutrients.find((n: UsdaNutrient) => n.nutrientId === 1004)?.value || 0;
+            
+            return {
+                id: food.fdcId.toString(),
+                food_name: food.description,
+                brand: food.brandName,
+                calories_per_100g: calories,
+                protein_per_100g: protein,
+                carbs_per_100g: carbs,
+                fat_per_100g: fat,
+                source: 'usda',
+                barcode: food.gtinUpc,
+                source_id: food.fdcId.toString(),
+                created_at: timestamp,
+                updated_at: timestamp,
+                nutrient_basis: 'per_100g',
+                is_verified: true
+            };
+        });
+        
+        return foodItems;
+    } catch (error) {
+        console.error('Error searching USDA database:', error);
+        return []; // Return empty array in case of error
     }
 };
 

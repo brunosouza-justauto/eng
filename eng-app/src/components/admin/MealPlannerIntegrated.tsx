@@ -40,6 +40,10 @@ interface MealFoodItem {
   protein: number;
   carbs: number;
   fat: number;
+  calculated_calories?: number;
+  calculated_protein?: number;
+  calculated_carbs?: number;
+  calculated_fat?: number;
 }
 
 interface MealData {
@@ -47,6 +51,7 @@ interface MealData {
   name: string;
   day_type: string;
   time_of_day: string;
+  time_suggestion?: string;
   total_calories: number;
   total_protein: number;
   total_carbs: number;
@@ -123,6 +128,66 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
   const [selectedMealId, setSelectedMealId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Define fetchMeals function with useCallback before it's used in useEffect
+  const fetchMeals = useCallback(async () => {
+    if (!profile?.id || !planId) return;
+    
+    try {
+      console.log('Fetching meals data...');
+      // Get the nutrition plan with meals
+      const nutritionPlan = await getNutritionPlanById(planId);
+      
+      if (!nutritionPlan) {
+        console.error('Nutrition plan not found');
+        return;
+      }
+      
+      // Get all meals without filtering by day type
+      const allMeals = nutritionPlan.meals;
+      
+      // Create a compatible format for our component state
+      const formattedMeals = allMeals.map(meal => ({
+        id: meal.id,
+        name: meal.name,
+        day_type: meal.day_type || 'rest',
+        time_of_day: meal.time_suggestion || '',
+        total_calories: meal.total_calories || 0,
+        total_protein: meal.total_protein || 0,
+        total_carbs: meal.total_carbs || 0,
+        total_fat: meal.total_fat || 0,
+        food_items: (meal.food_items || []).map(item => ({
+          id: item.id,
+          food_item: item.food_item as unknown as FoodItem,
+          quantity: item.quantity,
+          unit: item.unit,
+          calories: item.calculated_calories || 0,
+          protein: item.calculated_protein || 0,
+          carbs: item.calculated_carbs || 0,
+          fat: item.calculated_fat || 0
+        }))
+      })) as MealData[];
+      
+      setMeals(formattedMeals);
+      
+      // Auto-select first meal if none is selected
+      if (formattedMeals.length > 0 && !selectedMealId) {
+        setSelectedMealId(formattedMeals[0].id);
+      }
+    } catch (err) {
+      console.error('Error fetching meals:', err);
+      toast.error('Failed to load meals');
+    }
+  }, [planId, profile?.id, selectedMealId]);
+  
+  // Add a custom setter function for selectedMealId
+  const selectMeal = useCallback((mealId: string) => {
+    setSelectedMealId(mealId);
+    // Fetch latest data for this meal
+    if (planId) {
+      fetchMeals();
+    }
+  }, [planId, fetchMeals]);
+  
   // Custom toast styling - place outside of conditional rendering
   useEffect(() => {
     toast.custom = (message) => toast(message, {
@@ -192,56 +257,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         console.log('New plan creation mode, no initialPlan or planId');
       }
     }
-  }, [initialPlan, planId, selectedMealId]);
-  
-  const fetchMeals = async () => {
-    if (!profile?.id || !planId) return;
-    
-    try {
-      // Get the nutrition plan with meals
-      const nutritionPlan = await getNutritionPlanById(planId);
-      
-      if (!nutritionPlan) {
-        console.error('Nutrition plan not found');
-        return;
-      }
-      
-      // Get all meals without filtering by day type
-      const allMeals = nutritionPlan.meals;
-      
-      // Create a compatible format for our component state
-      const formattedMeals = allMeals.map(meal => ({
-        id: meal.id,
-        name: meal.name,
-        day_type: meal.day_type || 'rest',
-        time_of_day: meal.time_suggestion || '',
-        total_calories: meal.total_calories || 0,
-        total_protein: meal.total_protein || 0,
-        total_carbs: meal.total_carbs || 0,
-        total_fat: meal.total_fat || 0,
-        food_items: (meal.food_items || []).map(item => ({
-          id: item.id,
-          food_item: item.food_item as unknown as FoodItem,
-          quantity: item.quantity,
-          unit: item.unit,
-          calories: item.calculated_calories || 0,
-          protein: item.calculated_protein || 0,
-          carbs: item.calculated_carbs || 0,
-          fat: item.calculated_fat || 0
-        }))
-      })) as MealData[];
-      
-      setMeals(formattedMeals);
-      
-      // Auto-select first meal if none is selected
-      if (formattedMeals.length > 0 && !selectedMealId) {
-        setSelectedMealId(formattedMeals[0].id);
-      }
-    } catch (err) {
-      console.error('Error fetching meals:', err);
-      toast.error('Failed to load meals');
-    }
-  };
+  }, [initialPlan, planId, selectedMealId, fetchMeals]);
   
   // Modify the create meal handler to use the current active day type if creating a new meal
   const handleCreateMeal = async () => {
@@ -288,11 +304,15 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     setError(null);
     
     try {
+
+      console.log('Performing search with includeExternalSources:', includeExternalSources);
+
       const result = await searchFoodItems(
         searchQuery,
         category,
         LIMIT,
-        (page - 1) * LIMIT
+        (page - 1) * LIMIT,
+        includeExternalSources
       );
       
       setFoodItems(result.items as unknown as FoodItem[]);
@@ -359,7 +379,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     setIncludeExternalSources(!includeExternalSources);
   };
   
-  // Add selected food to meal
+  // Update the handleAddToMealClick function to ensure proper data refresh
   const handleAddToMealClick = async () => {
     if (!selectedFoodItem || !selectedMealId) {
       setError(selectedMealId ? 'No food item selected' : 'No meal selected');
@@ -367,12 +387,58 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     }
     
     try {
-      let foodItemId = selectedFoodItem.id;
+      setIsLoading(true);
+      let actualFoodItemId = selectedFoodItem.id;
       const parsedQuantity = parseFloat(quantity) || 100;
       
-      // Check if user has customized the name
-      if (customFoodName.trim() && customFoodName.trim() !== selectedFoodItem.food_name) {
-        // Create a new food item that's a clone of the original but with the custom name
+      // Check if this is a USDA item (ID starts with "usda-")
+      if (selectedFoodItem.id.startsWith('usda-')) {
+        // This is a USDA food item, we need to create a local copy first
+        console.log('Creating local copy of USDA food item:', selectedFoodItem.food_name);
+        
+        // Extract the original USDA ID without the prefix
+        const originalUsdaId = selectedFoodItem.id.replace('usda-', '');
+        
+        // Check if we already have this USDA item in our database
+        const { data: existingItems, error: searchError } = await supabase
+          .from('food_items')
+          .select('id')
+          .eq('source', 'usda')
+          .eq('source_id', originalUsdaId);
+        
+        if (searchError) throw searchError;
+        
+        if (existingItems && existingItems.length > 0) {
+          // Use the existing item
+          actualFoodItemId = existingItems[0].id;
+          console.log('Found existing local copy with ID:', actualFoodItemId);
+        } else {
+          // Create a new food item record
+          const { data: newItem, error: insertError } = await supabase
+            .from('food_items')
+            .insert({
+              food_name: customFoodName.trim() || selectedFoodItem.food_name,
+              brand: selectedFoodItem.brand,
+              calories_per_100g: selectedFoodItem.calories_per_100g,
+              protein_per_100g: selectedFoodItem.protein_per_100g,
+              carbs_per_100g: selectedFoodItem.carbs_per_100g,
+              fat_per_100g: selectedFoodItem.fat_per_100g,
+              source: 'usda',
+              source_id: originalUsdaId,
+              barcode: selectedFoodItem.barcode,
+              nutrient_basis: 'per_100g',
+              is_verified: true
+            })
+            .select('id')
+            .single();
+          
+          if (insertError) throw insertError;
+          
+          actualFoodItemId = newItem.id;
+          console.log('Created new local copy with ID:', actualFoodItemId);
+        }
+      } else if (customFoodName.trim() && customFoodName.trim() !== selectedFoodItem.food_name) {
+        // Not a USDA item, but name is customized - create a new food item
         const { data: newFoodItem, error } = await supabase
           .from('food_items')
           .insert({
@@ -382,20 +448,21 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
             protein_per_100g: selectedFoodItem.protein_per_100g,
             carbs_per_100g: selectedFoodItem.carbs_per_100g,
             fat_per_100g: selectedFoodItem.fat_per_100g,
-            source: 'custom', // Mark this as a custom food item
-            barcode: selectedFoodItem.barcode
+            source: 'custom',
+            barcode: selectedFoodItem.barcode,
+            nutrient_basis: 'per_100g'
           })
-          .select()
+          .select('id')
           .single();
         
         if (error) throw error;
-        foodItemId = newFoodItem.id;
+        actualFoodItemId = newFoodItem.id;
       }
       
-      // Now add the food item to the meal using the original or newly created food item ID
+      // Now add the food item to the meal using the actual database ID
       await addFoodItemToMeal(
         selectedMealId,
-        foodItemId,
+        actualFoodItemId,
         parsedQuantity,
         unit
       );
@@ -405,14 +472,17 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         message: `Added ${customFoodName.trim() || selectedFoodItem.food_name} to meal`
       });
       
-      // Refresh meals data
-      fetchMeals();
+      console.log('Food item added, refreshing meals data...');
+      // Refresh meals data with a forced fetch from database
+      await fetchMeals();
       
       // Reset selected food item after adding
       setSelectedFoodItem(null);
     } catch (err) {
       console.error('Error adding food to meal:', err);
       setError('Failed to add food to meal');
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -484,6 +554,54 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     return groupedMeals;
   };
   
+  // Calculate average nutrition by day type
+  const calculateAverageNutrition = (): {calories: number; protein: number; carbs: number; fat: number} => {
+    // Group meals by day type
+    const mealsByDayType = getMealsByDayType();
+    const dayTypes = Object.keys(mealsByDayType);
+    
+    if (dayTypes.length === 0) {
+      return {
+        calories: planCalories || 0,
+        protein: planProtein || 0,
+        carbs: planCarbs || 0,
+        fat: planFat || 0
+      };
+    }
+    
+    // Calculate total nutrition for each day type
+    const dayTypeNutrition = dayTypes.map(dayType => {
+      const mealsForType = mealsByDayType[dayType];
+      
+      return mealsForType.reduce((totals, meal) => {
+        return {
+          calories: totals.calories + (meal.total_calories || 0),
+          protein: totals.protein + (meal.total_protein || 0),
+          carbs: totals.carbs + (meal.total_carbs || 0),
+          fat: totals.fat + (meal.total_fat || 0)
+        };
+      }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+    });
+    
+    // Calculate the average across all day types
+    const totalNutrition = dayTypeNutrition.reduce((sum, dayNutrition) => {
+      return {
+        calories: sum.calories + dayNutrition.calories,
+        protein: sum.protein + dayNutrition.protein,
+        carbs: sum.carbs + dayNutrition.carbs,
+        fat: sum.fat + dayNutrition.fat
+      };
+    }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+    
+    // Return the average
+    return {
+      calories: totalNutrition.calories / dayTypes.length,
+      protein: totalNutrition.protein / dayTypes.length,
+      carbs: totalNutrition.carbs / dayTypes.length,
+      fat: totalNutrition.fat / dayTypes.length
+    };
+  };
+  
   // Restore handleSavePlan function
   const handleSavePlan = async () => {
     if (!profile?.id) {
@@ -542,7 +660,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     return (
       <div className="fixed inset-0 z-[60] bg-black">
         <BarcodeScanner
-          onDetect={(barcodeData: string) => handleBarcodeDetect(barcodeData)}
+          onDetect={handleBarcodeDetect}
           onClose={() => setShowBarcodeScanner(false)}
         />
       </div>
@@ -672,40 +790,74 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         </div>
       </div>
       
+      {/* Average Daily Nutrition Section - Updated */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Meals & Food Items</h1>
-        <div className="bg-gray-900 dark:bg-gray-800 rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-100 dark:text-white mb-4">Average Daily Nutrition</h2>
-          <div className="grid grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm text-gray-400">Calories</p>
-              <p className="flex justify-between text-gray-200">
-                <span>{Math.round(planCalories || 0)}</span>
-                <span className="text-gray-500">kcal</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Protein</p>
-              <p className="flex justify-between text-gray-200">
-                <span>{(planProtein || 0).toFixed(1)}g</span>
-                <span className="text-gray-500">{Math.round(((planProtein || 0) / (planCalories || 1)) * 400)}% of calories</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Carbs</p>
-              <p className="flex justify-between text-gray-200">
-                <span>{(planCarbs || 0).toFixed(1)}g</span>
-                <span className="text-gray-500">{Math.round(((planCarbs || 0) / (planCalories || 1)) * 400)}% of calories</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Fat</p>
-              <p className="flex justify-between text-gray-200">
-                <span>{(planFat || 0).toFixed(1)}g</span>
-                <span className="text-gray-500">{Math.round(((planFat || 0) / (planCalories || 1)) * 900)}% of calories</span>
-              </p>
+        <div className="bg-gradient-to-br from-gray-900 to-gray-800 dark:from-gray-800 dark:to-gray-900 rounded-lg shadow-lg p-6 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-100 dark:text-white">Average Daily Nutrition</h2>
+            <div className="text-xs text-gray-400 bg-gray-800/50 rounded py-1 px-2">
+              Calculated as average across all day types
             </div>
           </div>
+          
+          {/* Calculate nutrition values dynamically */}
+          {(() => {
+            const avgNutrition = calculateAverageNutrition();
+            const totalCals = avgNutrition.calories;
+            
+            // Calculate percentages of calories
+            const proteinCals = avgNutrition.protein * 4;
+            const carbsCals = avgNutrition.carbs * 4;
+            const fatCals = avgNutrition.fat * 9;
+            
+            const proteinPerc = totalCals > 0 ? Math.round((proteinCals / totalCals) * 100) : 0;
+            const carbsPerc = totalCals > 0 ? Math.round((carbsCals / totalCals) * 100) : 0;
+            const fatPerc = totalCals > 0 ? Math.round((fatCals / totalCals) * 100) : 0;
+            
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
+                  <div className="text-sm text-gray-400 mb-1">Calories</div>
+                  <div className="text-2xl font-bold text-gray-200">{Math.round(avgNutrition.calories)}</div>
+                  <div className="text-xs text-gray-500">kcal</div>
+                </div>
+                
+                <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
+                  <div className="flex justify-between">
+                    <div className="text-sm text-gray-400 mb-1">Protein</div>
+                    <div className="text-sm text-red-400">{proteinPerc}%</div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-200">{avgNutrition.protein.toFixed(1)}g</div>
+                  <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+                    <div className="bg-red-500 h-1.5 rounded-full" style={{ width: `${proteinPerc}%` }}></div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
+                  <div className="flex justify-between">
+                    <div className="text-sm text-gray-400 mb-1">Carbs</div>
+                    <div className="text-sm text-yellow-400">{carbsPerc}%</div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-200">{avgNutrition.carbs.toFixed(1)}g</div>
+                  <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+                    <div className="bg-yellow-500 h-1.5 rounded-full" style={{ width: `${carbsPerc}%` }}></div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
+                  <div className="flex justify-between">
+                    <div className="text-sm text-gray-400 mb-1">Fat</div>
+                    <div className="text-sm text-blue-400">{fatPerc}%</div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-200">{avgNutrition.fat.toFixed(1)}g</div>
+                  <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+                    <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${fatPerc}%` }}></div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -820,7 +972,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                   />
                   <div className="relative w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-500"></div>
                   <span className="ms-3 text-sm font-medium text-gray-300">
-                    Include USDA Database
+                    Include USDA Database API
                   </span>
                 </label>
               </div>
@@ -1049,7 +1201,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                         <div 
                           key={meal.id} 
                           className={getMealCardStyle(meal.id)}
-                          onClick={() => setSelectedMealId(meal.id)}
+                          onClick={() => selectMeal(meal.id)}
                         >
                           <div className="flex justify-between items-start mb-2">
                             <div>
