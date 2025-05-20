@@ -47,6 +47,12 @@ export interface FoodItem {
     created_at: string;
     updated_at: string;
     nutrient_basis: string;
+    barcode?: string;
+    source?: 'ausnut' | 'usda' | 'open_food_facts' | 'custom';
+    created_by?: string;
+    is_verified?: boolean;
+    brand?: string;
+    source_id?: string;
 }
 
 export interface MealFoodItem {
@@ -256,4 +262,54 @@ export interface ExtraMealFormData {
             fat_g: number;
         };
     }>;
-} 
+}
+
+// Add a new interface for creating a custom food item
+export interface CustomFoodItemFormData {
+    food_name: string;
+    food_group?: string;
+    calories_per_100g: number;
+    protein_per_100g: number;
+    carbs_per_100g: number;
+    fat_per_100g: number;
+    fiber_per_100g?: number;
+    serving_size_g?: number;
+    serving_size_unit?: string;
+    barcode?: string;
+    brand?: string;
+    nutrient_basis: string;
+}
+
+// Add Zod schema for form validation
+export const customFoodItemSchema = z.object({
+    food_name: z.string().min(1, 'Food name is required'),
+    food_group: z.string().optional(),
+    calories_per_100g: z.preprocess(
+        (val) => (val ? parseFloat(String(val)) : undefined),
+        z.number().min(0, 'Calories must be 0 or greater').optional()
+    ),
+    protein_per_100g: z.preprocess(
+        (val) => (val ? parseFloat(String(val)) : undefined),
+        z.number().min(0, 'Protein must be 0 or greater').optional()
+    ),
+    carbs_per_100g: z.preprocess(
+        (val) => (val ? parseFloat(String(val)) : undefined),
+        z.number().min(0, 'Carbs must be 0 or greater').optional()
+    ),
+    fat_per_100g: z.preprocess(
+        (val) => (val ? parseFloat(String(val)) : undefined),
+        z.number().min(0, 'Fat must be 0 or greater').optional()
+    ),
+    fiber_per_100g: z.preprocess(
+        (val) => (val ? parseFloat(String(val)) : undefined),
+        z.number().min(0, 'Fiber must be 0 or greater').optional()
+    ),
+    serving_size_g: z.preprocess(
+        (val) => (val ? parseFloat(String(val)) : undefined),
+        z.number().positive('Serving size must be positive').optional()
+    ),
+    serving_size_unit: z.string().optional(),
+    barcode: z.string().optional(),
+    brand: z.string().optional(),
+    nutrient_basis: z.string().default('100g')
+}); 

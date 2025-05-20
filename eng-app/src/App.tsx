@@ -15,7 +15,6 @@ import WorkoutSessionPage from './pages/WorkoutSessionPage'; // Import WorkoutSe
 import WorkoutHistoryPage from './pages/WorkoutHistoryPage'; // Import WorkoutHistoryPage
 import MealPlanView from './components/nutrition/MealPlanView'; // Import MealPlanView
 import NutritionPlansPage from './pages/NutritionPlansPage'; // Import NutritionPlansPage
-import NutritionRouteHandler from './components/nutrition/NutritionRouteHandler'; // Import NutritionRouteHandler
 import WorkoutProgramsPage from './pages/WorkoutProgramsPage'; // Import WorkoutProgramsPage
 import WorkoutPlanView from './pages/WorkoutPlanView'; // Import WorkoutPlanView
 import AdminRoute from './components/AdminRoute'; // Import AdminRoute
@@ -607,7 +606,6 @@ function App() {
               <Route path="/workout-session/:workoutId" element={<WorkoutSessionPage />} />
               <Route path="/workouts/history" element={<WorkoutHistoryPage />} />
               <Route path="/meal-plan/:planId" element={<MealPlanView />} />
-              <Route path="/nutrition" element={<NutritionRouteHandler />} />
               <Route path="/nutrition-plans" element={<NutritionPlansPage />} />
               <Route path="/workout-programs" element={<WorkoutProgramsPage />} />
               <Route path="/workout-plan/:programId" element={<WorkoutPlanView />} />
@@ -641,6 +639,12 @@ function App() {
         <Route path="/auth/callback/garmin" element={<FitnessDeviceCallback />} />
         <Route path="/auth/callback/google-fit" element={<FitnessDeviceCallback />} />
         {/* We'll handle apple-health and samsung-health through native app integrations */}
+
+        {/* Redirect old nutrition routes to their new locations */}
+        <Route path="/nutrition" element={<Navigate to="/nutrition-plans" replace />} />
+        <Route path="/nutrition/meal-plans" element={<Navigate to="/nutrition-plans" replace />} />
+        <Route path="/nutrition/meal-plans/:planId" element={<Navigate to="/meal-plan/:planId" replace />} />
+        <Route path="/nutrition/food-items" element={<Navigate to="/admin/mealplans" replace />} />
 
         {/* Fallback 404 Route (without MainLayout) */}
         <Route path="*" element={<NotFoundPage />} />

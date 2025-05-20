@@ -61,7 +61,7 @@ const MealPlanner: React.FC = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
     const [showRecipeManager, setShowRecipeManager] = useState<boolean>(false);
     const [alertMessage, setAlertMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
+    
     const profile = useSelector(selectProfile);
 
     // Form methods
@@ -349,13 +349,11 @@ const MealPlanner: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Show the RecipeManager when user wants to manage recipes */}
+                    {/* Recipe Manager Modal */}
                     {showRecipeManager && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                            <div className="max-w-6xl w-full mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
-                                <RecipeManager onClose={handleCloseRecipeManager} />
-                            </div>
-                        </div>
+                        <RecipeManager 
+                            onClose={handleCloseRecipeManager}
+                        />
                     )}
 
                     {/* Form for Creating/Editing Plan */}

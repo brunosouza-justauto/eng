@@ -26,9 +26,15 @@ interface RecipeBuilderProps {
     recipeId?: string;
     onSave: () => void;
     onCancel: () => void;
+    isForSelection?: boolean;
 }
 
-const RecipeBuilder: React.FC<RecipeBuilderProps> = ({ recipeId, onSave, onCancel }) => {
+const RecipeBuilder: React.FC<RecipeBuilderProps> = ({ 
+    recipeId, 
+    onSave, 
+    onCancel,
+    isForSelection = false
+}) => {
     const profile = useSelector(selectProfile);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -321,7 +327,7 @@ const RecipeBuilder: React.FC<RecipeBuilderProps> = ({ recipeId, onSave, onCance
         <div className="recipe-builder p-6 bg-white dark:bg-gray-800 rounded-lg">
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-                    {recipeId ? 'Edit Recipe' : 'Create New Recipe'}
+                    {recipeId ? 'Edit Recipe' : isForSelection ? 'Create Recipe for Selection' : 'Create New Recipe'}
                 </h2>
                 <button
                     onClick={onCancel}
@@ -396,7 +402,7 @@ const RecipeBuilder: React.FC<RecipeBuilderProps> = ({ recipeId, onSave, onCance
                                             isSaving ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700'
                                         } text-white rounded-md`}
                                     >
-                                        {isSaving ? 'Saving...' : recipeId ? 'Update Recipe' : 'Create Recipe'}
+                                        {isSaving ? 'Saving...' : recipeId ? 'Update Recipe' : isForSelection ? 'Create & Select Recipe' : 'Create Recipe'}
                                     </button>
                                 </div>
                             </div>

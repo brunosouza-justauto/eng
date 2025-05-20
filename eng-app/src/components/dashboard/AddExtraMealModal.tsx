@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiPlus } from 'react-icons/fi';
+import { FiX, FiPlus, FiSearch } from 'react-icons/fi';
+import { TbBarcode } from 'react-icons/tb';
 import { useSelector } from 'react-redux';
-import { selectUser } from '../../store/slices/authSlice';
-import { ExtraMealFormData, DAY_TYPES } from '../../types/mealPlanning';
+import { selectProfile } from '../../store/slices/authSlice';
+import { ExtraMealFormData, DAY_TYPES, FoodItem } from '../../types/mealPlanning';
 import { searchFoodItems } from '../../services/mealPlanningService';
 import { logExtraMeal } from '../../services/mealLoggingService';
+import CustomFoodItemForm from '../nutrition/CustomFoodItemForm';
+import BarcodeScanner from '../nutrition/BarcodeScanner';
+import { searchFoodItemByBarcode } from '../../services/foodItemService';
 
 interface AddExtraMealModalProps {
     isOpen: boolean;
@@ -61,8 +65,8 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
         }
     `;
 
-    // Get user from Redux store
-    const user = useSelector(selectUser);
+    // Get profile from Redux store (instead of just user)
+    const userProfile = useSelector(selectProfile);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [name, setName] = useState<string>('');
@@ -87,6 +91,15 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
         };
     }>>([]);
     
+    // Add state for custom food item form
+    const [showCustomFoodForm, setShowCustomFoodForm] = useState<boolean>(false);
+    
+    // Add barcode scanning states
+    const [showBarcodeScanner, setShowBarcodeScanner] = useState<boolean>(false);
+    const [manualBarcodeEntry, setManualBarcodeEntry] = useState<boolean>(false);
+    const [barcodeValue, setBarcodeValue] = useState<string>('');
+    const [isBarcodeSearching, setIsBarcodeSearching] = useState<boolean>(false);
+    
     // Add state for manual macro entry
     const [foodsNeedingMacros, setFoodsNeedingMacros] = useState<Record<number, {
         calories: string;
@@ -107,6 +120,8 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
             setSelectedFoods([]);
             setFoodsNeedingMacros({});
             setError(null);
+            setBarcodeValue('');
+            setManualBarcodeEntry(false);
         }
     }, [isOpen, dayType]);
 
@@ -134,6 +149,73 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
         return () => clearTimeout(timeoutId);
     }, [searchQuery]);
 
+    // Handle barcode detection
+    const handleBarcodeDetect = async (foodItem: FoodItem | null) => {
+        setShowBarcodeScanner(false);
+        
+        if (!foodItem) {
+            setManualBarcodeEntry(true);
+            return;
+        }
+        
+        // Directly add the found food item
+        handleAddFood({
+            id: foodItem.id,
+            food_name: foodItem.food_name,
+            calories_per_100g: foodItem.calories_per_100g,
+            protein_per_100g: foodItem.protein_per_100g,
+            carbs_per_100g: foodItem.carbs_per_100g,
+            fat_per_100g: foodItem.fat_per_100g
+        });
+        
+        // If we found a barcode, store it in case the user wants to add more items
+        if (foodItem.barcode) {
+            setBarcodeValue(foodItem.barcode);
+        }
+    };
+    
+    // Function to search for food item by barcode
+    const searchByBarcode = async (barcode: string) => {
+        if (!barcode) {
+            setError('Please enter a valid barcode');
+            return;
+        }
+        
+        setIsBarcodeSearching(true);
+        setError(null);
+        try {
+            const result = await searchFoodItemByBarcode(barcode);
+            
+            if (result.item) {
+                // Add the found item to selected foods
+                handleAddFood({
+                    id: result.item.id,
+                    food_name: result.item.food_name,
+                    calories_per_100g: result.item.calories_per_100g,
+                    protein_per_100g: result.item.protein_per_100g,
+                    carbs_per_100g: result.item.carbs_per_100g,
+                    fat_per_100g: result.item.fat_per_100g
+                });
+                setManualBarcodeEntry(false);
+                setBarcodeValue('');
+            } else {
+                // No product found, allow user to create a custom food item
+                setError('No food item found with this barcode. Try adding a custom item.');
+                setManualBarcodeEntry(false);
+                
+                // Show custom food form with pre-filled barcode
+                setShowCustomFoodForm(true);
+                setBarcodeValue(barcode); // Store barcode value for the form
+            }
+        } catch (err) {
+            console.error('Error searching by barcode:', err);
+            setError('Failed to search food by barcode');
+        } finally {
+            setIsBarcodeSearching(false);
+            setBarcodeValue('');
+        }
+    };
+
     // Add food to selected list
     const handleAddFood = (food: FoodSearchResult) => {
         setSelectedFoods([
@@ -152,6 +234,19 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
             }
         ]);
         setSearchQuery('');
+    };
+
+    // Handle custom food item creation
+    const handleCustomFoodSave = (foodItem: FoodItem) => {
+        handleAddFood({
+            id: foodItem.id,
+            food_name: foodItem.food_name,
+            calories_per_100g: foodItem.calories_per_100g,
+            protein_per_100g: foodItem.protein_per_100g,
+            carbs_per_100g: foodItem.carbs_per_100g,
+            fat_per_100g: foodItem.fat_per_100g
+        });
+        setShowCustomFoodForm(false);
     };
 
     // Remove food from selected list
@@ -284,7 +379,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        if (!user?.id) {
+        if (!userProfile?.id) {
             setError('You must be logged in to add a meal');
             return;
         }
@@ -361,7 +456,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
         setError(null);
         
         try {
-            await logExtraMeal(user.id, nutritionPlanId, mealData, date);
+            await logExtraMeal(userProfile.id, nutritionPlanId, mealData, date);
             onMealAdded();
         } catch (err) {
             console.error('Error adding extra meal:', err);
@@ -372,6 +467,85 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
     };
 
     if (!isOpen) return null;
+
+    // If custom food form is showing, render that instead of the main form
+    if (showCustomFoodForm) {
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+                    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4">
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                            Add Custom Food Item
+                        </h2>
+                        <button 
+                            onClick={() => setShowCustomFoodForm(false)}
+                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                            <FiX className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <div className="p-4 overflow-y-auto max-h-[calc(90vh-4rem)]">
+                        <CustomFoodItemForm 
+                            onSave={handleCustomFoodSave}
+                            onCancel={() => setShowCustomFoodForm(false)}
+                            initialData={barcodeValue ? { barcode: barcodeValue } : undefined}
+                        />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    
+    // If barcode scanner is showing
+    if (showBarcodeScanner) {
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+                    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4">
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                            Scan Barcode
+                        </h2>
+                        <button 
+                            onClick={() => {
+                                setShowBarcodeScanner(false);
+                                setManualBarcodeEntry(true);
+                            }}
+                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                            <FiX className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <div className="p-4">
+                        <BarcodeScanner
+                            onDetect={(result) => handleBarcodeDetect(result)}
+                            onClose={() => {
+                                setShowBarcodeScanner(false);
+                                setManualBarcodeEntry(true);
+                            }}
+                            onError={(error) => {
+                                console.error('Barcode scanner error:', error);
+                                setShowBarcodeScanner(false);
+                                setManualBarcodeEntry(true);
+                                setError('Camera access error. Please enter barcode manually.');
+                            }}
+                        />
+                        <div className="mt-4 text-center">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowBarcodeScanner(false);
+                                    setManualBarcodeEntry(true);
+                                }}
+                                className="px-4 py-2 text-sm text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                            >
+                                Enter barcode manually
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -467,19 +641,91 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                         
                         {/* Food Items */}
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Food Items <span className="text-red-500">*</span>
-                            </label>
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Food Items <span className="text-red-500">*</span>
+                                </label>
+                                <div className="flex space-x-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowBarcodeScanner(true)}
+                                        className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center"
+                                    >
+                                        <TbBarcode className="mr-1 w-4 h-4" /> Scan Barcode
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCustomFoodForm(true)}
+                                        className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center"
+                                    >
+                                        <FiPlus className="mr-1 w-4 h-4" /> Add Custom Item
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {/* Manual Barcode Entry */}
+                            {manualBarcodeEntry && (
+                                <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Enter Barcode Manually
+                                    </label>
+                                    <div className="flex">
+                                        <input
+                                            type="text"
+                                            value={barcodeValue}
+                                            onChange={(e) => setBarcodeValue(e.target.value)}
+                                            placeholder="Enter product barcode"
+                                            className="flex-grow px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-l-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => searchByBarcode(barcodeValue)}
+                                            disabled={isBarcodeSearching || !barcodeValue}
+                                            className="px-4 py-2 bg-indigo-600 text-white rounded-r-md hover:bg-indigo-700 disabled:opacity-50"
+                                        >
+                                            {isBarcodeSearching ? (
+                                                <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin"></div>
+                                            ) : (
+                                                "Search"
+                                            )}
+                                        </button>
+                                    </div>
+                                    <div className="flex justify-between mt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setManualBarcodeEntry(false)}
+                                            className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowCustomFoodForm(true);
+                                                setBarcodeValue(barcodeValue);
+                                            }}
+                                            className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+                                        >
+                                            Create Custom Food
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                             
                             {/* Food Search */}
                             <div className="mb-4">
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search for food items..."
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                                />
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <FiSearch className="h-5 w-5 text-gray-400" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Search for food items..."
+                                        className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                    />
+                                </div>
                                 
                                 {isSearching && (
                                     <div className="mt-2 text-center">
@@ -512,7 +758,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                 
                                 {searchQuery.trim() && searchResults.length === 0 && !isSearching && (
                                     <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                        No food items found. Try a different search term.
+                                        No food items found. Try a different search term or scan a barcode.
                                     </div>
                                 )}
                             </div>

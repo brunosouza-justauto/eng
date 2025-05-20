@@ -74,9 +74,36 @@ const RecipeManager: React.FC<RecipeManagerProps> = ({
     };
 
     const handleSaveRecipe = async () => {
-        setIsCreating(false);
-        setSelectedRecipeId(null);
-        await fetchRecipes();
+        try {
+            setIsCreating(false);
+            
+            // Fetch the updated recipes list
+            if (!profile || !profile.id) return;
+            
+            const result = await getRecipesByCoach(profile.id, '', 100);
+            setRecipes(result.recipes);
+            
+            // If we're in selection mode, get the latest recipe (which should be the one just created)
+            if (selectionMode && onSelectRecipe && result.recipes.length > 0) {
+                // Sort by created_at to get the most recently created recipe
+                const sortedRecipes = [...result.recipes].sort(
+                    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                );
+                const latestRecipe = sortedRecipes[0];
+                
+                // If this was a new recipe (not editing an existing one)
+                if (!selectedRecipeId) {
+                    // Auto-select the new recipe with default serving size of 1
+                    onSelectRecipe(latestRecipe.id, 1);
+                }
+            } else {
+                // Just reset the UI state
+                setSelectedRecipeId(null);
+            }
+        } catch (err) {
+            console.error('Error updating recipes:', err);
+            setError('Failed to refresh recipes');
+        }
     };
 
     const handleCancelRecipe = () => {
@@ -113,6 +140,7 @@ const RecipeManager: React.FC<RecipeManagerProps> = ({
                 recipeId={selectedRecipeId || undefined}
                 onSave={handleSaveRecipe}
                 onCancel={handleCancelRecipe}
+                isForSelection={selectionMode}
             />
         );
     }
@@ -126,19 +154,17 @@ const RecipeManager: React.FC<RecipeManagerProps> = ({
                     </h2>
                     <p className="text-gray-600 dark:text-gray-400 mt-1">
                         {selectionMode 
-                            ? 'Choose a recipe to add to your meal'
+                            ? 'Choose a recipe to add to your meal or create a new one'
                             : 'Manage your custom recipes'}
                     </p>
                 </div>
                 <div className="flex items-center space-x-2">
-                    {!selectionMode && (
-                        <button
-                            onClick={handleCreateRecipe}
-                            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                        >
-                            <FiPlus className="mr-2" /> New Recipe
-                        </button>
-                    )}
+                    <button
+                        onClick={handleCreateRecipe}
+                        className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                    >
+                        <FiPlus className="mr-2" /> New Recipe
+                    </button>
                     <button
                         onClick={onClose}
                         className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -182,7 +208,7 @@ const RecipeManager: React.FC<RecipeManagerProps> = ({
                             ? 'No recipes found. Create your first recipe to get started.' 
                             : 'No recipes found matching your search criteria.'}
                     </p>
-                    {recipes.length === 0 && !selectionMode && (
+                    {recipes.length === 0 && (
                         <button
                             onClick={handleCreateRecipe}
                             className="flex items-center px-4 py-2 mx-auto bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
