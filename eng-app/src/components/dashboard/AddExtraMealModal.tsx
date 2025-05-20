@@ -55,13 +55,29 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
             }
             
             .mobile-scroll-container > div {
-                padding: 10px; /* Increase tap target size */
+                padding: 12px; /* Increase tap target size on mobile */
             }
         }
         
         /* Prevent parent scrolling when touching the results container */
         .mobile-scroll-container:focus {
             outline: none;
+        }
+        
+        /* Mobile-specific improvements */
+        @media (max-width: 640px) {
+            input, select, textarea, button {
+                font-size: 16px !important; /* Prevent iOS zoom on focus */
+            }
+            
+            .modal-actions-mobile {
+                position: sticky;
+                bottom: 0;
+                background: inherit;
+                padding-top: 10px;
+                padding-bottom: 10px;
+                z-index: 20;
+            }
         }
     `;
 
@@ -641,24 +657,24 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                         
                         {/* Food Items */}
                         <div className="mb-4">
-                            <div className="flex justify-between items-center mb-1">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-0">
                                     Food Items <span className="text-red-500">*</span>
                                 </label>
-                                <div className="flex space-x-2">
+                                <div className="flex flex-wrap gap-3">
                                     <button
                                         type="button"
                                         onClick={() => setShowBarcodeScanner(true)}
-                                        className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center"
+                                        className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center justify-center bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-md"
                                     >
-                                        <TbBarcode className="mr-1 w-4 h-4" /> Scan Barcode
+                                        <TbBarcode className="mr-1.5 w-4 h-4" /> Scan Barcode
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setShowCustomFoodForm(true)}
-                                        className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center"
+                                        className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center justify-center bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-md"
                                     >
-                                        <FiPlus className="mr-1 w-4 h-4" /> Add Custom Item
+                                        <FiPlus className="mr-1.5 w-4 h-4" /> Add Custom Item
                                     </button>
                                 </div>
                             </div>
@@ -669,28 +685,30 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                         Enter Barcode Manually
                                     </label>
-                                    <div className="flex">
+                                    <div className="flex flex-col sm:flex-row gap-2">
                                         <input
                                             type="text"
                                             value={barcodeValue}
                                             onChange={(e) => setBarcodeValue(e.target.value)}
                                             placeholder="Enter product barcode"
-                                            className="flex-grow px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-l-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                            className="flex-grow px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md sm:rounded-l-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => searchByBarcode(barcodeValue)}
                                             disabled={isBarcodeSearching || !barcodeValue}
-                                            className="px-4 py-2 bg-indigo-600 text-white rounded-r-md hover:bg-indigo-700 disabled:opacity-50"
+                                            className="px-4 py-3 bg-indigo-600 text-white rounded-md sm:rounded-l-none hover:bg-indigo-700 disabled:opacity-50 w-full sm:w-auto"
                                         >
                                             {isBarcodeSearching ? (
-                                                <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin"></div>
+                                                <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin mx-auto"></div>
                                             ) : (
                                                 "Search"
                                             )}
                                         </button>
                                     </div>
-                                    <div className="flex justify-between mt-2">
+                                    <div className="flex justify-between mt-3">
                                         <button
                                             type="button"
                                             onClick={() => setManualBarcodeEntry(false)}
@@ -723,7 +741,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         placeholder="Search for food items..."
-                                        className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                        className="w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
                                     />
                                 </div>
                                 
@@ -743,7 +761,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                             <div 
                                                 key={food.id}
                                                 onClick={() => handleAddFood(food)}
-                                                className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                                                className="px-3 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
                                             >
                                                 <p className="text-sm font-medium text-gray-800 dark:text-white">
                                                     {food.food_name}
@@ -784,13 +802,13 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                                 <button
                                                     type="button"
                                                     onClick={() => handleRemoveFood(index)}
-                                                    className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                                                    className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1"
                                                 >
-                                                    <FiX className="w-4 h-4" />
+                                                    <FiX className="w-5 h-5" />
                                                 </button>
                                             </div>
-                                            <div className="flex space-x-2">
-                                                <div className="w-1/2">
+                                            <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
+                                                <div className="w-full sm:w-1/2">
                                                     <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                                                         Quantity
                                                     </label>
@@ -800,17 +818,18 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                                         onChange={(e) => handleUpdateQuantity(index, parseFloat(e.target.value) || 0)}
                                                         min="0.1"
                                                         step="0.1"
-                                                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                                        className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                                        inputMode="decimal"
                                                     />
                                                 </div>
-                                                <div className="w-1/2">
+                                                <div className="w-full sm:w-1/2">
                                                     <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                                                         Unit
                                                     </label>
                                                     <select
                                                         value={food.unit}
                                                         onChange={(e) => handleUpdateUnit(index, e.target.value)}
-                                                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                                        className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
                                                     >
                                                         <option value="g">g</option>
                                                         <option value="oz">oz</option>
@@ -823,11 +842,11 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                             
                                             {/* Add macro input form if this food needs manual macros */}
                                             {foodsNeedingMacros[index] && (
-                                                <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
+                                                <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
                                                     <p className="text-xs text-yellow-700 dark:text-yellow-300 mb-2 font-medium">
                                                         Required: Enter nutrition info per {food.quantity} {food.unit} <span className="text-red-500">*</span>
                                                     </p>
-                                                    <div className="grid grid-cols-4 gap-2">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                                         <div>
                                                             <label className="block text-xs text-gray-500 dark:text-gray-400">
                                                                 Calories <span className="text-red-500">*</span>
@@ -836,7 +855,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                                                 type="number"
                                                                 value={foodsNeedingMacros[index].calories}
                                                                 onChange={(e) => handleMacroChange(index, 'calories', e.target.value)}
-                                                                className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                                                                className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
                                                                 min="0"
                                                                 placeholder="kcal"
                                                                 inputMode="decimal"
@@ -850,7 +869,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                                                 type="number"
                                                                 value={foodsNeedingMacros[index].protein}
                                                                 onChange={(e) => handleMacroChange(index, 'protein', e.target.value)}
-                                                                className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                                                                className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
                                                                 min="0"
                                                                 placeholder="g"
                                                                 inputMode="decimal"
@@ -864,7 +883,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                                                 type="number"
                                                                 value={foodsNeedingMacros[index].carbs}
                                                                 onChange={(e) => handleMacroChange(index, 'carbs', e.target.value)}
-                                                                className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                                                                className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
                                                                 min="0"
                                                                 placeholder="g"
                                                                 inputMode="decimal"
@@ -878,7 +897,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                                                                 type="number"
                                                                 value={foodsNeedingMacros[index].fat}
                                                                 onChange={(e) => handleMacroChange(index, 'fat', e.target.value)}
-                                                                className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                                                                className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
                                                                 min="0"
                                                                 placeholder="g"
                                                                 inputMode="decimal"
@@ -894,7 +913,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                         </div>
                         
                         {/* Submit Button */}
-                        <div className="flex justify-end space-x-3 mt-6">
+                        <div className="flex justify-end space-x-3 mt-6 modal-actions-mobile">
                             <button
                                 type="button"
                                 onClick={onClose}
