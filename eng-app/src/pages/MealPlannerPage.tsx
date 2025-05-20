@@ -6,6 +6,7 @@ import { getNutritionPlanById } from '../services/mealPlanningService';
 const MealPlannerPage: React.FC = () => {
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [nutritionPlan, setNutritionPlan] = useState<any>(null); 
   const [isLoading, setIsLoading] = useState(!!planId);
   const [error, setError] = useState<string | null>(null);
