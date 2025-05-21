@@ -45,6 +45,8 @@ import AthleteStepsPage from './pages/admin/AthleteStepsPage';
 import AthleteNutritionPage from './pages/admin/AthleteNutritionPage';
 import NotFoundPage from './pages/NotFoundPage'; // Import the custom NotFoundPage
 import HomePage from './pages/HomePage'; // Import the new HomePage component
+import SupplementsPage from './pages/SupplementsPage';
+import SupplementManagement from './components/admin/supplements/SupplementManagement';
 
 function App() {
   const dispatch = useDispatch();
@@ -610,6 +612,7 @@ function App() {
               <Route path="/nutrition-plans" element={<NutritionPlansPage />} />
               <Route path="/workout-programs" element={<WorkoutProgramsPage />} />
               <Route path="/workout-plan/:programId" element={<WorkoutPlanView />} />
+              <Route path="/supplements" element={<SupplementsPage />} />
           </Route>
         </Route>
 
@@ -633,6 +636,7 @@ function App() {
                 <Route path="checkins" element={<CheckInReview />} />
                 <Route path="checkins/:checkInId" element={<CheckInDetail />} />
                 <Route path="bmr-calculator" element={<BMRCalculatorPage />} />
+                <Route path="supplements" element={<SupplementManagement />} />
                 <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Route>

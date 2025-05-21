@@ -8,6 +8,7 @@ import StepGoalWidget from '../components/dashboard/StepGoalWidget';
 import CheckInReminderWidget from '../components/dashboard/CheckInReminderWidget';
 import LatestCheckInWidget from '../components/dashboard/LatestCheckInWidget'; // Import the new widget
 import MissedMealsAlert from '../components/dashboard/MissedMealsAlert'; // Import the MissedMealsAlert
+import SupplementDashboard from '../components/supplements/SupplementDashboard'; // Import SupplementDashboard
 import { startOfWeek, endOfWeek } from 'date-fns';
 
 // Define types for the fetched data
@@ -267,6 +268,9 @@ const DashboardPage: React.FC = () => {
             programTemplateId={assignedPlan?.program_template_id} 
             program={assignedPlan?.program}
           />
+        </div>
+        <div className="col-span-1">
+          <SupplementDashboard />
         </div>
         <div className="col-span-1">
           <DashboardNutritionWidget />

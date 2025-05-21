@@ -100,6 +100,7 @@ const DashboardNutritionWidget: React.FC = () => {
   return (
     <Card header={header} className="h-full flex flex-col p-0" variant="default" padding="none">     
       <MealLoggingWidget 
+        user_id={profile.id}
         nutritionPlanId={nutritionPlanId} 
         hideHeader={true} 
         onDayTypeChange={handleDayTypeChange}

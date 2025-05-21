@@ -44,6 +44,7 @@ const Header: React.FC = () => {
                             <NavLink to="/dashboard" className={navLinkClass}>Dashboard</NavLink>
                             <NavLink to="/check-in/new" className={navLinkClass}>Weekly Check-in</NavLink>
                             <NavLink to="/history" className={navLinkClass}>History</NavLink>
+                            <NavLink to="/supplements" className={navLinkClass}>Supplements</NavLink>
                             {/* Conditional Admin Link */}
                             {profile?.role === 'coach' && (
                                 <NavLink to="/admin" className={navLinkClass}>Admin</NavLink>
@@ -91,6 +92,7 @@ const Header: React.FC = () => {
                         <NavLink to="/dashboard" className={(props) => `${navLinkClass(props)} block`}>Dashboard</NavLink>
                         <NavLink to="/check-in/new" className={(props) => `${navLinkClass(props)} block`}>Weekly Check-in</NavLink>
                         <NavLink to="/history" className={(props) => `${navLinkClass(props)} block`}>History</NavLink>
+                        <NavLink to="/supplements" className={(props) => `${navLinkClass(props)} block`}>Supplements</NavLink>
                         {profile?.role === 'coach' && (
                             <NavLink to="/admin" className={(props) => `${navLinkClass(props)} block`}>Admin</NavLink>
                         )}

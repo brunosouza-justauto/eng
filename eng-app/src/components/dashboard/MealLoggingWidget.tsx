@@ -16,11 +16,13 @@ import {
 import { formatDate } from '../../utils/dateUtils';
 import AddExtraMealModal from './AddExtraMealModal';
 import Card from '../ui/Card';
+import { supabase } from '../../services/supabaseClient';
 
 interface MealLoggingWidgetProps {
     nutritionPlanId: string;
     hideHeader?: boolean;
     onDayTypeChange?: (dayType: string | null) => void;
+    user_id: string;
 }
 
 // Define an interface for day-specific nutrition
@@ -38,7 +40,8 @@ interface DayTypeNutrition {
 const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({ 
     nutritionPlanId,
     hideHeader = false,
-    onDayTypeChange
+    onDayTypeChange,
+    user_id
 }) => {
     const { user } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -54,6 +57,76 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
     const [expandedMeals, setExpandedMeals] = useState<Record<string, boolean>>({});
     // Add state to track missed meals with timestamps
     const [missedMeals, setMissedMeals] = useState<{id: string, name: string, time: string}[]>([]);
+    // Add state to track if there's a workout today
+    const [hasWorkoutToday, setHasWorkoutToday] = useState<boolean>(false);
+
+    // Function to check if there's a workout scheduled for today
+    const checkForWorkoutToday = async () => {
+        if (!user_id) return;
+        
+        try {
+            // Get today's date in ISO format (YYYY-MM-DD)
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            
+            // Get the current day of the week (1-7, Monday-Sunday)
+            const currentDayOfWeek = today.getDay() === 0 ? 7 : today.getDay();
+            
+            // First, check for assigned programs
+            const { data: assignedPlans, error: assignedError } = await supabase
+                .from('assigned_plans')
+                .select('program_template_id')
+                .eq('athlete_id', user_id)
+                .not('program_template_id', 'is', null);
+            
+            if (assignedError) throw assignedError;
+            
+            if (assignedPlans && assignedPlans.length > 0) {
+                // For each assigned program, check if there's a workout for today
+                for (const plan of assignedPlans) {
+                    const { data: programData, error: programError } = await supabase
+                        .from('program_templates')
+                        .select(`
+                            workouts (
+                                day_of_week
+                            )
+                        `)
+                        .eq('id', plan.program_template_id)
+                        .single();
+                    
+                    if (programError) continue; // Skip to next program if there's an error
+                    
+                    if (programData?.workouts) {
+                        const workouts = programData.workouts as { day_of_week: number | null }[];
+                        // Check if any workout matches today's day of week
+                        if (workouts.some(workout => workout.day_of_week === currentDayOfWeek)) {
+                            setHasWorkoutToday(true);
+                            return; // Found a workout for today
+                        }
+                    }
+                }
+            }
+            
+            // If we got here, check for any completed workouts today as a fallback
+            const { data: completedWorkouts, error: completedError } = await supabase
+                .from('workout_sessions')
+                .select('id')
+                .eq('user_id', user.id)
+                .gte('start_time', `${todayStr}T00:00:00`)
+                .lte('start_time', `${todayStr}T23:59:59`)
+                .limit(1);
+            
+            if (completedError) throw completedError;
+            
+            // If we found completed workouts today, set hasWorkoutToday to true
+            setHasWorkoutToday(completedWorkouts && completedWorkouts.length > 0);
+            
+        } catch (err) {
+            console.error('Error checking for workouts:', err);
+            // Default to false if there's an error
+            setHasWorkoutToday(false);
+        }
+    };
 
     // Fetch nutrition plan data
     useEffect(() => {
@@ -64,10 +137,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
                 const plan = await getNutritionPlanById(nutritionPlanId);
                 setNutritionPlan(plan);
                 
-                // Set the default day type
-                if (plan?.dayTypes && plan.dayTypes.length > 0) {
-                    setSelectedDayType(plan.dayTypes[0]);
-                }
+                // We'll set the default day type after checking for workouts
             } catch (err) {
                 console.error('Error fetching nutrition plan:', err);
                 setError('Failed to load nutrition plan');
@@ -78,6 +148,43 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
 
         fetchNutritionPlan();
     }, [nutritionPlanId]);
+
+    // Check for workouts when the component mounts
+    useEffect(() => {
+        if (user?.id) {
+            checkForWorkoutToday();
+        }
+    }, [user?.id]);
+
+    // Set the appropriate day type after checking for workouts and fetching the plan
+    useEffect(() => {
+        if (!isLoading && nutritionPlan?.dayTypes && nutritionPlan.dayTypes.length > 0) {
+            // Only set the day type if it hasn't been set yet or from the log
+            if (!selectedDayType || (dailyLog && !dailyLog.day_type)) {
+                let dayType = null;
+                
+                // If there's a workout today, select the "Training" day type if it exists
+                if (hasWorkoutToday && nutritionPlan.dayTypes.includes('training')) {
+                    dayType = 'training';
+                } 
+                // If there's no workout today, select the "Rest" day type if it exists
+                else if (!hasWorkoutToday && nutritionPlan.dayTypes.includes('rest')) {
+                    dayType = 'rest';
+                }
+                // Otherwise, fall back to the first day type
+                else {
+                    dayType = nutritionPlan.dayTypes[0];
+                }
+                
+                setSelectedDayType(dayType);
+                
+                // Call the callback if it exists
+                if (onDayTypeChange) {
+                    onDayTypeChange(dayType);
+                }
+            }
+        }
+    }, [isLoading, nutritionPlan, dailyLog, hasWorkoutToday, selectedDayType, onDayTypeChange]);
 
     // Fetch logged meals for today
     useEffect(() => {
@@ -416,7 +523,7 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
                                         key={type}
                                         onClick={() => handleDayTypeSelect(type)}
                                         className={`
-                                            whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm
+                                            capitalize whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm
                                             ${selectedDayType === type
                                                 ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'

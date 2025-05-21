@@ -309,7 +309,7 @@ const MealPlanView: React.FC = () => {
                                     <button
                                         key={dayType}
                                         onClick={() => setSelectedDayType(dayType)}
-                                        className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors
+                                        className={`capitalize px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors
                                             ${selectedDayType === dayType 
                                                 ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200" 
                                                 : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
