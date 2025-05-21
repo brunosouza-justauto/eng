@@ -320,15 +320,17 @@ const WorkoutPlanView: React.FC = () => {
       <div className="mb-8">
         <BackButton />
         
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
-          {programData.name}
-        </h1>
-        
-        {programData.description && (
-          <p className="text-gray-600 dark:text-gray-400 mb-2">
-            {programData.description}
-          </p>
-        )}
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm mb-6">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+            {programData.name}
+          </h1>
+          
+          {programData.description && (
+            <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-4 whitespace-pre-line">
+              {programData.description}
+            </p>
+          )}
+        </div>
         
         <div className="flex flex-wrap gap-2">
           {programData.phase && (

@@ -134,12 +134,6 @@ const NutritionPlansPage: React.FC = () => {
                   {formatMacros(plan)}
                 </div>
                 
-                {plan.description && (
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-                    {plan.description}
-                  </p>
-                )}
-                
                 <button
                   onClick={() => handleSelectPlan(plan.id)}
                   disabled={assigningPlan === plan.id}

@@ -298,7 +298,7 @@ const MealPlanView: React.FC = () => {
                         </div>
                         
                         {plan.description && 
-                            <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-4">{plan.description}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-4 whitespace-pre-line">{plan.description}</p>
                         }
                     </div>
                     
