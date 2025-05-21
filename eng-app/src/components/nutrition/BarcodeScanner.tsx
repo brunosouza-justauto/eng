@@ -18,7 +18,7 @@ interface DetectedBarcode {
 }
 
 interface BarcodeScannerProps {
-  onDetect: (foodItem: FoodItem | null) => void;
+  onDetect: (foodItem: FoodItem | null, barcode: string) => void;
   onError?: (error: Error) => void;
   onClose: () => void;
 }
@@ -127,7 +127,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetect, onError, onCl
       
       try {
         const foodItem = await getFoodItemByBarcode(barcode);
-        onDetect(foodItem);
+        onDetect(foodItem, barcode);
       } catch (error) {
         console.error('Error fetching product data:', error);
         setErrorMessage('Error fetching product data. Please try again.');

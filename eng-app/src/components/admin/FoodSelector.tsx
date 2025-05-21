@@ -86,7 +86,7 @@ export const FoodSelector: React.FC<FoodSelectorProps> = ({ mealId, onClose }) =
     };
 
     // Function to handle barcode detection
-    const handleBarcodeDetect = (foodItem: FoodItem | null) => {
+    const handleBarcodeDetect = (foodItem: FoodItem | null, barcode: string) => {
         setShowBarcodeScanner(false);
         
         if (foodItem) {
@@ -95,12 +95,12 @@ export const FoodSelector: React.FC<FoodSelectorProps> = ({ mealId, onClose }) =
             setSearchQuery(foodItem.food_name); // Update search query to match found item
             setAlertMessage({
                 type: 'success',
-                message: `Found item: ${foodItem.food_name}`
+                message: `Found item: ${foodItem.food_name} with barcode: ${barcode}`
             });
         } else {
             setAlertMessage({
                 type: 'error',
-                message: 'No food item found with this barcode'
+                message: 'No food item found with this barcode: ' + barcode
             });
         }
     };

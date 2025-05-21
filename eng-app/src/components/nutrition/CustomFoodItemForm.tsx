@@ -75,7 +75,7 @@ const CustomFoodItemForm: React.FC<CustomFoodItemFormProps> = ({
     }
   };
   
-  const handleBarcodeDetect = (foodItem: FoodItem | null) => {
+  const handleBarcodeDetect = (foodItem: FoodItem | null, barcode: string) => {
     setShowBarcodeScanner(false);
     
     if (foodItem) {
@@ -91,10 +91,10 @@ const CustomFoodItemForm: React.FC<CustomFoodItemFormProps> = ({
       setValue('brand', foodItem.brand || '');
       
       // Notify user that we found and pre-populated the item
-      alert(`Found product: ${foodItem.food_name}. You can edit details before saving.`);
+      alert(`Found product: ${foodItem.food_name} with barcode: ${barcode}. You can edit details before saving.`);
     } else if (watchedBarcode) {
       // If we didn't find anything but have a barcode, just keep that
-      alert('No product found for this barcode. Please enter nutrition information manually.');
+      alert('No product found for this barcode: ' + barcode + '. Please enter nutrition information manually.');
     }
   };
   

@@ -170,6 +170,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
         setShowBarcodeScanner(false);
         
         if (!foodItem) {
+            setError('No food item found with the barcode: ' + barcodeValue + '. Try adding a custom item.');
             setManualBarcodeEntry(true);
             return;
         }
@@ -216,7 +217,7 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                 setBarcodeValue('');
             } else {
                 // No product found, allow user to create a custom food item
-                setError('No food item found with this barcode. Try adding a custom item.');
+                setError('No food item found with the barcode: ' + barcode + '. Try adding a custom item.');
                 setManualBarcodeEntry(false);
                 
                 // Show custom food form with pre-filled barcode

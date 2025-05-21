@@ -205,6 +205,89 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     }
   ];
   
+  // Add this state to track which day type sections are expanded
+  const [expandedDayTypes, setExpandedDayTypes] = useState<Record<string, boolean>>({});
+  
+  // Add this state to track whether all day types are collapsed
+  const [allExpanded, setAllExpanded] = useState(false);
+  
+  // Add a toggle function for all day types at once
+  const toggleAllDayTypes = () => {
+    const dayTypes = Object.keys(getMealsByDayType());
+    const newExpandState: Record<string, boolean> = {};
+    const newAllExpanded = !allExpanded;
+    
+    dayTypes.forEach(type => {
+      newExpandState[type] = newAllExpanded;
+    });
+    
+    setExpandedDayTypes(newExpandState);
+    setAllExpanded(newAllExpanded);
+  };
+  
+  // Add a toggle function for day type expansion
+  const toggleDayTypeExpanded = (dayType: string) => {
+    const newExpandedDayTypes = {
+      ...expandedDayTypes,
+      [dayType]: !expandedDayTypes[dayType]
+    };
+    
+    setExpandedDayTypes(newExpandedDayTypes);
+    
+    // Check if all day types are expanded to update allExpanded state
+    const dayTypes = Object.keys(getMealsByDayType());
+    const allAreExpanded = dayTypes.every(type => newExpandedDayTypes[type]);
+    setAllExpanded(allAreExpanded);
+  };
+  
+  // Add this to initialize all day types as expanded
+  useEffect(() => {
+    const dayTypes = Object.keys(getMealsByDayType());
+    if (dayTypes.length > 0) {
+      const initialExpandState: Record<string, boolean> = {};
+      dayTypes.forEach(type => {
+        initialExpandState[type] = false; // Set to false to start collapsed
+      });
+      setExpandedDayTypes(initialExpandState);
+    }
+  }, [meals]);
+  
+  // Helper to get icon for day type
+  const getDayTypeIcon = (dayType: string) => {
+    switch (dayType.toLowerCase()) {
+      case 'rest':
+        return <FiCalendar className="text-blue-400" />;
+      case 'light':
+        return <FiActivity className="text-green-400" />;
+      case 'moderate':
+        return <FiActivity className="text-yellow-400" />;
+      case 'heavy':
+        return <FiActivity className="text-orange-400" />;
+      case 'training':
+        return <FiActivity className="text-indigo-400" />;
+      default:
+        return <FiCalendar className="text-gray-400" />;
+    }
+  };
+  
+  // Helper to get background color for day type
+  const getDayTypeColor = (dayType: string) => {
+    switch (dayType.toLowerCase()) {
+      case 'rest':
+        return 'from-blue-900/30 to-blue-800/10';
+      case 'light':
+        return 'from-green-900/30 to-green-800/10';
+      case 'moderate':
+        return 'from-yellow-900/30 to-yellow-800/10';
+      case 'heavy':
+        return 'from-orange-900/30 to-orange-800/10';
+      case 'training':
+        return 'from-indigo-900/30 to-indigo-800/10';
+      default:
+        return 'from-gray-800 to-gray-900';
+    }
+  };
+  
   // Define fetchMeals function with useCallback before it's used in useEffect
   const fetchMeals = useCallback(async () => {
     if (!profile?.id || !planId) return;
@@ -227,6 +310,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         id: meal.id,
         name: meal.name,
         day_type: meal.day_type || 'rest',
+        order_in_plan: meal.order_in_plan || 0,
         time_of_day: meal.time_suggestion || '',
         total_calories: meal.total_calories || 0,
         total_protein: meal.total_protein || 0,
@@ -294,6 +378,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
           name: meal.name,
           day_type: meal.day_type || 'rest',
           time_of_day: meal.time_suggestion || '',
+          order_in_plan: meal.order_in_plan || 0,
           total_calories: meal.total_calories || 0,
           total_protein: meal.total_protein || 0,
           total_carbs: meal.total_carbs || 0,
@@ -671,6 +756,17 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       groupedMeals[dayType].push(meal);
     });
     
+    // Sort meals by order_in_plan within each day type
+    Object.keys(groupedMeals).forEach(dayType => {
+      groupedMeals[dayType].sort((a, b) => {
+        const orderA = a.order_in_plan ?? Number.MAX_SAFE_INTEGER;
+        const orderB = b.order_in_plan ?? Number.MAX_SAFE_INTEGER;
+        return orderA - orderB;
+      });
+    });
+
+    console.log('Grouped meals:', groupedMeals);
+    
     return groupedMeals;
   };
   
@@ -884,21 +980,31 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       // Get the meal that's above the current meal
       const aboveMeal = dayMeals[currentIndex - 1];
       
-      // Swap the order_in_plan values
-      const currentOrder = meal.order_in_plan || 0;
-      const aboveOrder = aboveMeal.order_in_plan || 0;
+      // Get all day type meals and their orders for proper resequencing
+      const mealOrders = dayMeals.map((m, idx) => ({
+        id: m.id,
+        currentOrder: m.order_in_plan ?? idx
+      }));
       
-      // Update current meal's order
-      await supabase
-        .from('meals')
-        .update({ order_in_plan: aboveOrder })
-        .eq('id', meal.id);
+      // Reorder the specific meals
+      const swapPosition = mealOrders.findIndex(m => m.id === aboveMeal.id);
+      const currentPosition = mealOrders.findIndex(m => m.id === meal.id);
       
-      // Update above meal's order
-      await supabase
-        .from('meals')
-        .update({ order_in_plan: currentOrder })
-        .eq('id', aboveMeal.id);
+      // Swap the positions
+      [mealOrders[swapPosition], mealOrders[currentPosition]] = 
+      [mealOrders[currentPosition], mealOrders[swapPosition]];
+      
+      // Update database for both meals
+      await Promise.all([
+        supabase
+          .from('meals')
+          .update({ order_in_plan: swapPosition })
+          .eq('id', meal.id),
+        supabase
+          .from('meals')
+          .update({ order_in_plan: currentPosition })
+          .eq('id', aboveMeal.id)
+      ]);
       
       // Refresh meals to see the updated order
       await fetchMeals();
@@ -922,21 +1028,31 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       // Get the meal that's below the current meal
       const belowMeal = dayMeals[currentIndex + 1];
       
-      // Swap the order_in_plan values
-      const currentOrder = meal.order_in_plan || 0;
-      const belowOrder = belowMeal.order_in_plan || 0;
+      // Get all day type meals and their orders for proper resequencing
+      const mealOrders = dayMeals.map((m, idx) => ({
+        id: m.id,
+        currentOrder: m.order_in_plan ?? idx
+      }));
       
-      // Update current meal's order
-      await supabase
-        .from('meals')
-        .update({ order_in_plan: belowOrder })
-        .eq('id', meal.id);
+      // Reorder the specific meals
+      const swapPosition = mealOrders.findIndex(m => m.id === belowMeal.id);
+      const currentPosition = mealOrders.findIndex(m => m.id === meal.id);
       
-      // Update below meal's order
-      await supabase
-        .from('meals')
-        .update({ order_in_plan: currentOrder })
-        .eq('id', belowMeal.id);
+      // Swap the positions
+      [mealOrders[swapPosition], mealOrders[currentPosition]] = 
+      [mealOrders[currentPosition], mealOrders[swapPosition]];
+      
+      // Update database for both meals
+      await Promise.all([
+        supabase
+          .from('meals')
+          .update({ order_in_plan: swapPosition })
+          .eq('id', meal.id),
+        supabase
+          .from('meals')
+          .update({ order_in_plan: currentPosition })
+          .eq('id', belowMeal.id)
+      ]);
       
       // Refresh meals to see the updated order
       await fetchMeals();
@@ -949,13 +1065,13 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     }
   };
 
-  // Barcode scanner component
+  // Fix the BarcodeScanner component with a cleaner approach
   const BarcodeScanner: React.FC<{
     onDetect: (barcode: string) => void;
     onClose: () => void;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  }> = ({ onDetect, onClose }) => {
-    // This is a placeholder for the actual BarcodeScanner component
+  }> = (props) => {
+    // This is just a placeholder that doesn't use the props
+    void props; // Explicitly marks props as intentionally unused
     return <div>Barcode Scanner</div>;
   };
   
@@ -998,6 +1114,45 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     } catch (err) {
       console.error('Error updating food item:', err);
       setError('Failed to update food item');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Add this new state variable for tracking meal being reordered
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [reorderingMeal, setReorderingMeal] = useState<MealData | null>(null);
+  const [newOrderValue, setNewOrderValue] = useState<number>(0);
+  
+  // Add new function to handle manual order change
+  const handleShowOrderModal = (meal: MealData) => {
+    setReorderingMeal(meal);
+    setNewOrderValue(meal.order_in_plan ?? 0);
+    setShowOrderModal(true);
+  };
+  
+  const handleSaveOrder = async () => {
+    if (!reorderingMeal) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Update the meal's order_in_plan value
+      await supabase
+        .from('meals')
+        .update({ order_in_plan: newOrderValue })
+        .eq('id', reorderingMeal.id);
+      
+      // Refresh meals to see the updated order
+      await fetchMeals();
+      
+      // Close the modal
+      setShowOrderModal(false);
+      setReorderingMeal(null);
+      
+    } catch (err) {
+      console.error('Error updating meal order:', err);
+      setError('Failed to update meal order');
     } finally {
       setIsLoading(false);
     }
@@ -1515,9 +1670,26 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         {/* Right panel - Meals display */}
         <div className="col-span-8">
           <div className="bg-gray-900 dark:bg-gray-800 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-100 dark:text-white mb-4">
-              All Meal Plans
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-100 dark:text-white">
+                All Meal Plans
+              </h3>
+              
+              <button
+                onClick={toggleAllDayTypes}
+                className="flex items-center space-x-1 text-sm text-gray-300 hover:text-indigo-400 transition-colors bg-gray-800/50 hover:bg-gray-800 px-3 py-1.5 rounded-md border border-gray-700"
+              >
+                {allExpanded ? (
+                  <>
+                    <FiChevronDown className="mr-1" /> Collapse All
+                  </>
+                ) : (
+                  <>
+                    <FiChevronUp className="mr-1" /> Expand All
+                  </>
+                )}
+              </button>
+            </div>
             
             {meals.length === 0 ? (
               <div className="text-center py-10 text-gray-400">
@@ -1527,139 +1699,177 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
               <div className="space-y-8">
                 {/* Group meals by day type */}
                 {Object.entries(getMealsByDayType()).map(([dayType, dayMeals]) => (
-                  <div key={dayType} className="mb-6">
-                    <h4 className="text-md font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">
-                      {formatDayType(dayType)}
-                    </h4>
-                    
-                    <div className="space-y-4">
-                      {dayMeals.map((meal) => (
-                        <div 
-                          key={meal.id} 
-                          className={getMealCardStyle(meal.id)}
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1" onClick={() => selectMeal(meal.id)}>
-                              <h4 className="text-md font-semibold text-gray-200 flex items-center">
-                                <span className="mr-2">{meal.name}</span>
-                              </h4>
-                              <div className="text-sm text-gray-400">{meal.time_of_day || meal.time_suggestion}</div>
-                            </div>
-                            <div className="flex items-start space-x-1">
-                              {/* Move Up/Down Controls */}
-                              <div className="flex flex-col mr-3">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleMoveMealUp(meal, dayMeals);
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-indigo-400 transition-colors"
-                                  title="Move Up"
-                                >
-                                  <FiChevronUp size={16} />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleMoveMealDown(meal, dayMeals);
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-indigo-400 transition-colors"
-                                  title="Move Down"
-                                >
-                                  <FiChevronDown size={16} />
-                                </button>
-                              </div>
-                              
-                              <div className="text-right" onClick={() => selectMeal(meal.id)}>
-                                <div className="text-md font-semibold text-gray-200">{Math.round(meal.total_calories || 0)} cal</div>
-                                <div className="text-sm text-gray-400">
-                                  P: {(meal.total_protein || 0).toFixed(1)}g • C: {(meal.total_carbs || 0).toFixed(1)}g • F: {(meal.total_fat || 0).toFixed(1)}g
-                                </div>
-                              </div>
-                              
-                              {/* Edit & Delete Buttons */}
-                              <div className="ml-3 flex">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditMeal(meal);
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-indigo-400 transition-colors"
-                                  title="Edit Meal"
-                                >
-                                  <FiEdit3 size={16} />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setMealToDelete(meal.id);
-                                    setShowDeleteConfirmation(true);
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-red-400 transition-colors"
-                                  title="Delete Meal"
-                                >
-                                  <FiTrash2 size={16} />
-                                </button>
-                              </div>
+                  <div key={dayType} className="mb-8">
+                    <div 
+                      className={`p-3 rounded-lg mb-3 cursor-pointer bg-gradient-to-r ${getDayTypeColor(dayType)} border border-gray-700 shadow-md`}
+                      onClick={() => toggleDayTypeExpanded(dayType)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="mr-2 flex items-center justify-center w-8 h-8 rounded-full bg-gray-800/50">
+                            {getDayTypeIcon(dayType)}
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-semibold text-gray-200">
+                              {formatDayType(dayType)}
+                            </h4>
+                            <div className="text-xs text-gray-400">
+                              {dayMeals.length} {dayMeals.length === 1 ? 'meal' : 'meals'} • 
+                              {' '}{Math.round(dayMeals.reduce((sum, meal) => sum + (meal.total_calories || 0), 0))} calories
                             </div>
                           </div>
-                          
-                          {/* Food items in this meal */}
-                          {meal.food_items && meal.food_items.length > 0 ? (
-                            <div className="mt-4 space-y-2" onClick={() => selectMeal(meal.id)}>
-                              {meal.food_items.map((item) => (
-                                <div key={item.id} className="p-2 bg-gray-700 dark:bg-gray-700 rounded flex justify-between items-center">
-                                  <div>
-                                    <div className="font-medium text-gray-200">
-                                      {item.food_item.food_name}
-                                    </div>
-                                    <div className="text-sm text-gray-400">
-                                      {item.quantity} {item.unit} ({Math.round(item.calories)} cal)
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEditFoodItem(meal.id, item);
-                                      }}
-                                      className="p-1 text-gray-400 hover:text-indigo-400 mr-1"
-                                      title="Edit"
-                                    >
-                                      <FiEdit2 size={16} />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRemoveFoodFromMeal(meal.id, item.id);
-                                      }}
-                                      className="p-1 text-gray-400 hover:text-red-400"
-                                      title="Remove"
-                                    >
-                                      <FiTrash2 size={16} />
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                        </div>
+                        <div>
+                          {expandedDayTypes[dayType] ? (
+                            <FiChevronUp className="text-gray-400" />
                           ) : (
-                            <div className="mt-4 p-3 bg-gray-700/50 dark:bg-gray-700/50 rounded text-center text-gray-400" onClick={() => selectMeal(meal.id)}>
-                              No food items added to this meal yet.
-                            </div>
-                          )}
-                          
-                          {/* Add food to this meal button */}
-                          {selectedMealId === meal.id && !selectedFoodItem && (
-                            <div className="mt-3 text-center">
-                              <div className="text-sm text-gray-300 bg-indigo-900/30 border border-indigo-800/50 rounded-md p-2">
-                                <FiInfo className="inline mr-1" /> 
-                                This meal is selected. Search and select a food item on the left to add to this meal.
-                              </div>
-                            </div>
+                            <FiChevronDown className="text-gray-400" />
                           )}
                         </div>
-                      ))}
+                      </div>
                     </div>
+                    
+                    {expandedDayTypes[dayType] && (
+                      <div className="space-y-4 pl-2 pr-2">
+                        {dayMeals.map((meal) => (
+                          <div 
+                            key={meal.id} 
+                            className={getMealCardStyle(meal.id)}
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1" onClick={() => selectMeal(meal.id)}>
+                                <h4 className="text-md font-semibold text-gray-200 flex items-center">
+                                  <span className="mr-2">{meal.name}</span>
+                                </h4>
+                                <div className="text-sm text-gray-400">{meal.time_of_day || meal.time_suggestion}</div>
+                              </div>
+                              <div className="flex items-start space-x-1">
+                                {/* Move Up/Down Controls */}
+                                <div className="flex flex-col mr-3">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveMealUp(meal, dayMeals);
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-indigo-400 transition-colors"
+                                    title="Move Up"
+                                  >
+                                    <FiChevronUp size={16} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveMealDown(meal, dayMeals);
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-indigo-400 transition-colors"
+                                    title="Move Down"
+                                  >
+                                    <FiChevronDown size={16} />
+                                  </button>
+                                  {/* Add Order Number Display/Button */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleShowOrderModal(meal);
+                                    }}
+                                    className="p-1 text-xs text-gray-400 hover:text-indigo-400 transition-colors"
+                                    title="Set Order"
+                                  >
+                                    #{meal.order_in_plan ?? '?'}
+                                  </button>
+                                </div>
+                                
+                                <div className="text-right" onClick={() => selectMeal(meal.id)}>
+                                  <div className="text-md font-semibold text-gray-200">{Math.round(meal.total_calories || 0)} cal</div>
+                                  <div className="text-sm text-gray-400">
+                                    P: {(meal.total_protein || 0).toFixed(1)}g • C: {(meal.total_carbs || 0).toFixed(1)}g • F: {(meal.total_fat || 0).toFixed(1)}g
+                                  </div>
+                                </div>
+                                
+                                {/* Edit & Delete Buttons */}
+                                <div className="ml-3 flex">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditMeal(meal);
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-indigo-400 transition-colors"
+                                    title="Edit Meal"
+                                  >
+                                    <FiEdit3 size={16} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setMealToDelete(meal.id);
+                                      setShowDeleteConfirmation(true);
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                                    title="Delete Meal"
+                                  >
+                                    <FiTrash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Food items in this meal */}
+                            {meal.food_items && meal.food_items.length > 0 ? (
+                              <div className="mt-4 space-y-2" onClick={() => selectMeal(meal.id)}>
+                                {meal.food_items.map((item) => (
+                                  <div key={item.id} className="p-2 bg-gray-700 dark:bg-gray-700 rounded flex justify-between items-center">
+                                    <div>
+                                      <div className="font-medium text-gray-200">
+                                        {item.food_item.food_name}
+                                      </div>
+                                      <div className="text-sm text-gray-400">
+                                        {item.quantity} {item.unit} ({Math.round(item.calories)} cal)
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEditFoodItem(meal.id, item);
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-indigo-400 mr-1"
+                                        title="Edit"
+                                      >
+                                        <FiEdit2 size={16} />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRemoveFoodFromMeal(meal.id, item.id);
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-red-400"
+                                        title="Remove"
+                                      >
+                                        <FiTrash2 size={16} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="mt-4 p-3 bg-gray-700/50 dark:bg-gray-700/50 rounded text-center text-gray-400" onClick={() => selectMeal(meal.id)}>
+                                No food items added to this meal yet.
+                              </div>
+                            )}
+                            
+                            {/* Add food to this meal button */}
+                            {selectedMealId === meal.id && !selectedFoodItem && (
+                              <div className="mt-3 text-center">
+                                <div className="text-sm text-gray-300 bg-indigo-900/30 border border-indigo-800/50 rounded-md p-2">
+                                  <FiInfo className="inline mr-1" /> 
+                                  This meal is selected. Search and select a food item on the left to add to this meal.
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2188,6 +2398,65 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                   ) : (
                     <>
                       <FiSave className="mr-2" /> Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Add Order Modal */}
+      {showOrderModal && reorderingMeal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center bg-black bg-opacity-70">
+          <div className="relative bg-gray-900 dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-700">
+            <div className="p-5">
+              <h3 className="text-xl font-semibold text-gray-100 dark:text-white mb-4">Set Meal Order</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Meal: {reorderingMeal.name}
+                </label>
+                <p className="text-sm text-gray-400 mb-2">
+                  Current Order: {reorderingMeal.order_in_plan ?? 'Not set'}
+                </p>
+                <input
+                  type="number"
+                  value={newOrderValue}
+                  onChange={(e) => setNewOrderValue(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border rounded-md bg-gray-800 border-gray-600 text-white"
+                  placeholder="Enter order number"
+                  min="0"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Lower numbers will appear first, higher numbers later.
+                </p>
+              </div>
+              
+              <div className="flex justify-end mt-6 space-x-3">
+                <button
+                  onClick={() => setShowOrderModal(false)}
+                  className="px-4 py-2 border border-gray-600 text-gray-300 rounded-md hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveOrder}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
+                >
+                  {isLoading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <FiSave className="mr-2" /> Save Order
                     </>
                   )}
                 </button>

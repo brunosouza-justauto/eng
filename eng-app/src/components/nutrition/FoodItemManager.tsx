@@ -76,13 +76,13 @@ const FoodItemManager: React.FC<FoodItemManagerProps> = ({
     onSelectFoodItem(foodItem);
   };
 
-  const handleBarcodeDetect = (foodItem: FoodItem | null) => {
+  const handleBarcodeDetect = (foodItem: FoodItem | null, barcode: string) => {
     setShowBarcodeScanner(false);
     
     if (foodItem) {
       onSelectFoodItem(foodItem);
     } else {
-      alert('No product found for this barcode. Try adding it as a custom food item.');
+      alert('No product found for this barcode: ' + barcode + '. Try adding it as a custom food item.');
     }
   };
 
