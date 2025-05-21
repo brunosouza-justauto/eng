@@ -484,9 +484,6 @@ const MealPlanner: React.FC = () => {
                                                 <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-indigo-900/30">
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="text-sm font-medium text-gray-900 dark:text-white">{plan.name}</div>
-                                                        {plan.description && (
-                                                            <div className="text-xs text-gray-500 dark:text-gray-400">{plan.description}</div>
-                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="text-sm text-gray-900 dark:text-white">
