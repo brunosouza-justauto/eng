@@ -269,16 +269,16 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
             console.log('Prepared check-in data:', checkInData);
 
             const bodyMetricsData: BodyMetricsInsert = {
-                weight_kg: formData.weight_kg ?? null,
-                body_fat_percentage: formData.body_fat_percentage ?? null,
-                waist_cm: formData.waist_cm ?? null,
-                hip_cm: formData.hip_cm ?? null,
+                weight_kg: Number(formData.weight_kg) || null,
+                body_fat_percentage: formData.body_fat_percentage ? Number(formData.body_fat_percentage) : null,
+                waist_cm: formData.waist_cm ? Number(formData.waist_cm) : null,
+                hip_cm: formData.hip_cm ? Number(formData.hip_cm) : null,
                 // Updated to use left/right measurements
-                left_arm_cm: formData.left_arm_cm ?? null,
-                right_arm_cm: formData.right_arm_cm ?? null,
-                chest_cm: formData.chest_cm ?? null,
-                left_thigh_cm: formData.left_thigh_cm ?? null,
-                right_thigh_cm: formData.right_thigh_cm ?? null,
+                left_arm_cm: formData.left_arm_cm ? Number(formData.left_arm_cm) : null,
+                right_arm_cm: formData.right_arm_cm ? Number(formData.right_arm_cm) : null,
+                chest_cm: formData.chest_cm ? Number(formData.chest_cm) : null,
+                left_thigh_cm: formData.left_thigh_cm ? Number(formData.left_thigh_cm) : null,
+                right_thigh_cm: formData.right_thigh_cm ? Number(formData.right_thigh_cm) : null,
             };
 
             const wellnessMetricsData: WellnessMetricsInsert = {
