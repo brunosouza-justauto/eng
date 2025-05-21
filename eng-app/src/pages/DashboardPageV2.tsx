@@ -39,6 +39,7 @@ interface NavItem {
   name: string;
   icon: React.ReactNode;
   tab: TabType;
+  hasNotification?: boolean;
 }
 
 // Define CSS to hide footer on mobile
@@ -62,6 +63,11 @@ const DashboardPageV2: React.FC = () => {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [hasWeeklyCheckIn, setHasWeeklyCheckIn] = useState<boolean>(false);
   
+  // Additional states for tab notifications
+  const [hasMissedMeals, setHasMissedMeals] = useState<boolean>(false);
+  const [workoutCompleted, setWorkoutCompleted] = useState<boolean>(false);
+  const [stepsCompleted, setStepsCompleted] = useState<boolean>(false);
+  
   // State for active tab
   const [activeTab, setActiveTab] = useState<TabType>('workout');
 
@@ -78,34 +84,39 @@ const DashboardPageV2: React.FC = () => {
     };
   }, []);
 
-  // Navigation items for bottom menu
-  const navItems: NavItem[] = [
+  // Navigation items for bottom menu with notification status
+  const navItems: NavItem[] = useMemo(() => [
     {
       name: 'Workout',
       icon: <GiMuscleUp className="text-xl" />,
-      tab: 'workout'
+      tab: 'workout',
+      hasNotification: !workoutCompleted && assignedPlan?.program_template_id !== null
     },
     {
       name: 'Supplements',
       icon: <FiActivity className="text-xl" />,
-      tab: 'supplements'
+      tab: 'supplements',
+      hasNotification: false // No specific notification for supplements currently
     },
     {
       name: 'Nutrition',
       icon: <GiMeal className="text-xl" />,
-      tab: 'nutrition'
+      tab: 'nutrition',
+      hasNotification: hasMissedMeals
     },
     {
       name: 'Steps',
       icon: <FaWalking className="text-xl" />,
-      tab: 'steps'
+      tab: 'steps',
+      hasNotification: !stepsCompleted && stepGoal !== null
     },
     {
       name: 'Check-in',
       icon: <FiCheck className="text-xl" />,
-      tab: 'checkin'
+      tab: 'checkin',
+      hasNotification: !hasWeeklyCheckIn
     }
-  ];
+  ], [workoutCompleted, hasMissedMeals, stepsCompleted, hasWeeklyCheckIn, assignedPlan, stepGoal]);
 
   // Memoize the date calculations to prevent re-renders
   const { currentWeekStart, currentWeekEnd } = useMemo(() => {
@@ -114,6 +125,75 @@ const DashboardPageV2: React.FC = () => {
     return { currentWeekStart: start, currentWeekEnd: end };
   }, []);
   
+  // Check if today's workout is completed
+  useEffect(() => {
+    const checkWorkoutCompletion = async () => {
+      if (!user?.id || !assignedPlan?.program_template_id) return;
+      
+      try {
+        // Get today's date in ISO format (YYYY-MM-DD)
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        
+        // Check for completed workouts today
+        const { data, error } = await supabase
+          .from('workout_sessions')
+          .select('id')
+          .eq('user_id', user.id)
+          .gte('start_time', `${todayStr}T00:00:00`)
+          .lte('start_time', `${todayStr}T23:59:59`)
+          .limit(1);
+        
+        if (error) throw error;
+        
+        // If we found completed workouts today, mark as completed
+        setWorkoutCompleted(data && data.length > 0);
+      } catch (err) {
+        console.error('Error checking workout completion:', err);
+        // Default to false if there's an error
+        setWorkoutCompleted(false);
+      }
+    };
+    
+    checkWorkoutCompletion();
+  }, [user?.id, assignedPlan?.program_template_id]);
+  
+  // Check if daily step goal is met
+  useEffect(() => {
+    const checkStepCompletion = async () => {
+      if (!user?.id || !stepGoal?.daily_steps) return;
+      
+      try {
+        // Get today's date in ISO format (YYYY-MM-DD)
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        
+        // Get today's step entry - using proper Supabase aggregate query
+        const { data, error } = await supabase
+          .from('step_entries')
+          .select('sum:step_count')
+          .eq('user_id', user.id)
+          .gte('created_at', `${todayStr}T00:00:00`)
+          .lte('created_at', `${todayStr}T23:59:59`)
+          .single();
+
+        if (error) throw error;
+        
+        // Access the sum value correctly from the aggregation result
+        const totalSteps = data?.sum || 0;
+        
+        // Check if steps meet the goal
+        setStepsCompleted(totalSteps >= stepGoal.daily_steps);
+      } catch (err) {
+        console.error('Error checking step completion:', err);
+        // Default to false if there's an error
+        setStepsCompleted(false);
+      }
+    };
+    
+    checkStepCompletion();
+  }, [user?.id, stepGoal?.daily_steps]);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user || !profile) return; // Don't fetch if user is not available
@@ -333,7 +413,8 @@ const DashboardPageV2: React.FC = () => {
         {assignedPlan?.nutrition_plan_id && (
           <MissedMealsAlert 
             nutritionPlanId={assignedPlan.nutrition_plan_id} 
-            testMode={false} 
+            testMode={false}
+            onMealsStatusChange={(hasMissed) => setHasMissedMeals(hasMissed)}
           />
         )}
       </div>
@@ -451,12 +532,17 @@ const DashboardPageV2: React.FC = () => {
               }`}
               onClick={() => handleTabChange(item.tab)}
             >
-              <div className={`w-6 h-6 flex items-center justify-center ${
-                activeTab === item.tab 
-                  ? 'text-indigo-600 dark:text-indigo-400' 
-                  : ''
-              }`}>
-                {item.icon}
+              <div className="relative">
+                <div className={`w-6 h-6 flex items-center justify-center ${
+                  activeTab === item.tab 
+                    ? 'text-indigo-600 dark:text-indigo-400' 
+                    : ''
+                }`}>
+                  {item.icon}
+                </div>
+                {item.hasNotification && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white dark:border-gray-800"></div>
+                )}
               </div>
               <span className="text-xs mt-1">{item.name}</span>
             </button>

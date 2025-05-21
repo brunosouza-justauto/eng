@@ -12,12 +12,14 @@ import { useNavigate } from 'react-router-dom';
 interface MissedMealsAlertProps {
     nutritionPlanId: string | null;
     testMode?: boolean; // Add test mode flag for debugging
+    onMealsStatusChange?: (hasMissedMeals: boolean) => void; // Callback to notify parent about missed meals
 }
 
 // Use memo to prevent unnecessary rerenders
 const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({ 
     nutritionPlanId,
-    testMode = false // Default to false
+    testMode = false, // Default to false
+    onMealsStatusChange
 }) => {
     const { user } = useAuth();
     const [missedMeals, setMissedMeals] = useState<{id: string, name: string, time: string}[]>([]);
@@ -46,8 +48,20 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
                 {id: 'test2', name: 'Lunch', time: '12:00'}
             ]);
             setIsLoading(false);
+            
+            // Notify parent about missed meals status
+            if (onMealsStatusChange) {
+                onMealsStatusChange(true);
+            }
         }
-    }, [testMode, componentId]);
+    }, [testMode, componentId, onMealsStatusChange]);
+
+    // Notify parent component about missed meals status whenever it changes
+    useEffect(() => {
+        if (!isLoading && onMealsStatusChange) {
+            onMealsStatusChange(missedMeals.length > 0);
+        }
+    }, [missedMeals, isLoading, onMealsStatusChange]);
 
     useEffect(() => {
         // Skip normal fetch if in test mode
