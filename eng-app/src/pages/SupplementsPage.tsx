@@ -5,6 +5,7 @@ import { AthleteSupplementWithDetails, SupplementSchedule } from '../types/suppl
 import SupplementScheduleList from '../components/supplements/SupplementScheduleList';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { RootState } from '../store/store';
+import BackButton from '../components/common/BackButton';
 
 interface SupplementsBySchedule {
   schedule: SupplementSchedule;
@@ -69,6 +70,7 @@ const SupplementsPage: React.FC = () => {
   if (error) {
     return (
       <div className="p-6 text-red-500 dark:text-red-400">
+        <BackButton />
         <h1 className="text-2xl font-bold mb-4">My Supplements</h1>
         <p>{error}</p>
       </div>
@@ -77,6 +79,7 @@ const SupplementsPage: React.FC = () => {
 
   return (
     <div className="p-6">
+      <BackButton />
       <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">My Supplements</h1>
       
       {orderedSchedules.length === 0 ? (

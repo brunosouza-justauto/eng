@@ -31,11 +31,13 @@ ChartJS.register(
 interface AthleteMeasurementsChartProps {
   measurements: BodyMeasurement[];
   className?: string;
+  hideTitle?: boolean;
 }
 
 const AthleteMeasurementsChart: React.FC<AthleteMeasurementsChartProps> = ({ 
   measurements,
-  className = '' 
+  className = '',
+  hideTitle = false
 }) => {
   // Sort measurements by date (oldest to newest)
   const sortedMeasurements = useMemo(() => {
@@ -91,6 +93,7 @@ const AthleteMeasurementsChart: React.FC<AthleteMeasurementsChartProps> = ({
 
   const options: ChartOptions<'line'> = {
     responsive: true,
+    maintainAspectRatio: false,
     interaction: {
       mode: 'index' as const,
       intersect: false,
@@ -142,7 +145,7 @@ const AthleteMeasurementsChart: React.FC<AthleteMeasurementsChartProps> = ({
         position: 'top' as const,
       },
       title: {
-        display: true,
+        display: !hideTitle,
         text: 'Body Composition Trends',
       },
       tooltip: {
@@ -173,11 +176,13 @@ const AthleteMeasurementsChart: React.FC<AthleteMeasurementsChartProps> = ({
   }
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden ${className}`}>
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Body Composition Trends</h3>
-      </div>
-      <div className="p-4">
+    <div className={`bg-white dark:bg-gray-800 rounded-lg overflow-hidden ${className}`}>
+      {!hideTitle && (
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Body Composition Trends</h3>
+        </div>
+      )}
+      <div className="p-4 h-full">
         <Line options={options} data={chartData} />
       </div>
     </div>

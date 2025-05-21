@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { selectProfile, selectUser } from '../store/slices/authSlice';
 import { supabase } from '../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
-
+import BackButton from '../components/common/BackButton';
 const UserProfilePage: React.FC = () => {
   const profile = useSelector(selectProfile);
   const user = useSelector(selectUser);
@@ -107,6 +107,7 @@ const UserProfilePage: React.FC = () => {
 
   return (
     <div className="container max-w-4xl mx-auto px-4 py-8">
+      <BackButton />
       <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
         My Profile
       </h1>

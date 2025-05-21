@@ -48,6 +48,7 @@ import NotFoundPage from './pages/NotFoundPage'; // Import the custom NotFoundPa
 import HomePage from './pages/HomePage'; // Import the new HomePage component
 import SupplementsPage from './pages/SupplementsPage';
 import SupplementManagement from './components/admin/supplements/SupplementManagement';
+import AthleteCheckInsPage from './pages/admin/AthleteCheckInsPage';
 
 function App() {
   const dispatch = useDispatch();
@@ -628,6 +629,7 @@ function App() {
                 <Route path="athletes/:id/workouts/log/:logId" element={<AthleteWorkoutsPage />} />
                 <Route path="athletes/:id/steps" element={<AthleteStepsPage />} />
                 <Route path="athletes/:id/nutrition" element={<AthleteNutritionPage />} />
+                <Route path="athletes/:id/check-ins" element={<AthleteCheckInsPage />} />
                 <Route path="coaches" element={<CoachManager />} />
                 <Route path="coaches/:id" element={<CoachDetailsPage />} />
                 <Route path="programs" element={<ProgramBuilder />} />

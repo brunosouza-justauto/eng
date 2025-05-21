@@ -9,7 +9,7 @@ import ProgramAssignmentModal from '../../components/admin/ProgramAssignmentModa
 import NutritionPlanAssignmentModal from '../../components/admin/NutritionPlanAssignmentModal';
 import AthleteMeasurementsManager from '../../components/admin/AthleteMeasurementsManager';
 import { format, parseISO, subDays } from 'date-fns';
-import { FiCalendar, FiActivity } from 'react-icons/fi';
+import { FiCalendar, FiActivity, FiClipboard } from 'react-icons/fi';
 
 // Add a proper interface for the program assignment
 interface AthleteProgram {
@@ -55,6 +55,25 @@ interface StepEntry {
     step_count: number;
     created_at: string;
     updated_at: string;
+}
+
+// Add interface for check-ins
+interface CheckIn {
+    id: string;
+    user_id: string;
+    check_in_date: string;
+    photos: string[] | null;
+    video_url: string | null;
+    diet_adherence: string | null;
+    training_adherence: string | null;
+    steps_adherence: string | null;
+    notes: string | null;
+    coach_feedback: string | null;
+    created_at: string;
+    body_metrics?: {
+        weight_kg: number | null;
+        body_fat_percentage: number | null;
+    } | null;
 }
 
 // Define database result types for the transform functions
@@ -165,6 +184,10 @@ const AthleteDetailsPage: React.FC = () => {
     const [stepGoal, setStepGoal] = useState<StepGoal | null>(null);
     const [stepEntries, setStepEntries] = useState<StepEntry[]>([]);
     const [isLoadingStepData, setIsLoadingStepData] = useState<boolean>(false);
+    
+    // Check-in states
+    const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+    const [isLoadingCheckIns, setIsLoadingCheckIns] = useState<boolean>(false);
 
     useEffect(() => {
         const fetchAthleteDetails = async () => {
@@ -316,6 +339,61 @@ const AthleteDetailsPage: React.FC = () => {
         };
         
         fetchStepData();
+    }, [athleteDetails]);
+
+    // Fetch check-ins
+    useEffect(() => {
+        if (!athleteDetails || !athleteDetails.user_id) return;
+        
+        const fetchCheckIns = async () => {
+            setIsLoadingCheckIns(true);
+            
+            try {
+                // Fetch the most recent check-ins (limit to 5)
+                const { data, error } = await supabase
+                    .from('check_ins')
+                    .select(`
+                        id,
+                        user_id,
+                        check_in_date,
+                        photos,
+                        video_url,
+                        diet_adherence,
+                        training_adherence,
+                        steps_adherence,
+                        notes,
+                        coach_feedback,
+                        created_at,
+                        body_metrics:body_metrics(weight_kg, body_fat_percentage)
+                    `)
+                    .eq('user_id', athleteDetails.user_id)
+                    .order('check_in_date', { ascending: false })
+                    .limit(5);
+                
+                if (error) throw error;
+                
+                if (data) {
+                    // Transform the nested body metrics to match our interface
+                    const transformedData = data.map(checkIn => {
+                        return {
+                            ...checkIn,
+                            body_metrics: checkIn.body_metrics && checkIn.body_metrics.length > 0 
+                                ? checkIn.body_metrics[0] 
+                                : null
+                        };
+                    });
+                    
+                    setCheckIns(transformedData as CheckIn[]);
+                }
+            } catch (err) {
+                console.error("Error fetching check-ins:", err);
+                // Don't display error to user, just log it
+            } finally {
+                setIsLoadingCheckIns(false);
+            }
+        };
+        
+        fetchCheckIns();
     }, [athleteDetails]);
 
     const handleUpdateAthlete = async (formData: Partial<UserProfileFull>) => {
@@ -639,6 +717,119 @@ const AthleteDetailsPage: React.FC = () => {
         );
     };
 
+    // Add this JSX section inside the main return section for the Check-In Card
+    const renderCheckInCard = () => {
+        return (
+            <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
+                <div className="flex items-center justify-between pb-2 mb-4 border-b">
+                    <h3 className="text-lg font-medium text-gray-800 dark:text-white">Check-Ins</h3>
+                </div>
+                
+                {isLoadingCheckIns ? (
+                    <div className="flex items-center justify-center h-24">
+                        <div className="w-10 h-10 border-t-2 border-b-2 border-indigo-500 rounded-full animate-spin"></div>
+                    </div>
+                ) : (
+                    <>
+                        <div className="mb-4">
+                            {checkIns.length > 0 ? (
+                                <div>
+                                    <p className="mb-2 font-medium text-indigo-600 dark:text-indigo-400">
+                                        Latest check-in: {format(parseISO(checkIns[0].check_in_date), 'MMMM d, yyyy')}
+                                    </p>
+                                    <div className="flex flex-wrap mt-3 gap-2">
+                                        <button 
+                                            onClick={() => navigate(`/admin/checkins/${checkIns[0].id}`)}
+                                            className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
+                                        >
+                                            View Latest Check-in
+                                        </button>
+                                        <button 
+                                            onClick={() => navigate(`/admin/athletes/${id}/check-ins`)}
+                                            className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 text-sm px-4 py-2"
+                                        >
+                                            View All Check-ins
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <p className="text-gray-600 dark:text-gray-400">No check-ins submitted yet.</p>
+                                    <div className="flex flex-wrap mt-3 gap-2">
+                                        <button 
+                                            onClick={() => navigate(`/admin/athletes/${id}/check-ins`)}
+                                            className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 text-sm px-4 py-2"
+                                        >
+                                            Check-in History
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        
+                        {checkIns.length > 0 && (
+                            <div className="mt-6">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="font-medium text-gray-800 dark:text-white flex items-center">
+                                        <FiClipboard className="mr-2" /> Recent Check-ins
+                                    </h4>
+                                </div>
+                                
+                                <div className="overflow-hidden bg-white rounded-lg shadow dark:bg-gray-800">
+                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead className="bg-gray-50 dark:bg-gray-700">
+                                            <tr>
+                                                <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">
+                                                    Date
+                                                </th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                                                    Weight
+                                                </th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                                                    Body Fat %
+                                                </th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                                                    Actions
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                                            {checkIns.map((checkIn) => (
+                                                <tr key={checkIn.id}>
+                                                    <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
+                                                        {format(parseISO(checkIn.check_in_date), 'MMM d, yyyy')}
+                                                    </td>
+                                                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                                        {checkIn.body_metrics?.weight_kg 
+                                                            ? `${checkIn.body_metrics.weight_kg} kg` 
+                                                            : 'Not recorded'}
+                                                    </td>
+                                                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                                        {checkIn.body_metrics?.body_fat_percentage
+                                                            ? `${checkIn.body_metrics.body_fat_percentage}%`
+                                                            : 'Not recorded'}
+                                                    </td>
+                                                    <td className="px-3 py-4 text-sm">
+                                                        <button
+                                                            onClick={() => navigate(`/admin/checkins/${checkIn.id}`)}
+                                                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                                                        >
+                                                            View
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </Card>
+        );
+    };
+
     if (isLoading) {
         return (
             <div className="p-8">
@@ -779,6 +970,13 @@ const AthleteDetailsPage: React.FC = () => {
                                 View Nutrition History
                             </Button>
                             <Button 
+                                onClick={() => navigate(`/admin/athletes/${id}/check-ins`)}
+                                variant="secondary"
+                                className="w-full sm:w-auto"
+                            >
+                                View Check-ins
+                            </Button>
+                            <Button 
                                 onClick={() => setShowProgramModal(true)}
                                 variant="secondary"
                                 className="w-full sm:w-auto"
@@ -905,6 +1103,9 @@ const AthleteDetailsPage: React.FC = () => {
 
                     {/* Step Goal Card - Add this new section */}
                     {renderStepGoalCard()}
+
+                    {/* Check-in Card - Add this new section */}
+                    {renderCheckInCard()}
 
                     <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Basic Information</h3>
