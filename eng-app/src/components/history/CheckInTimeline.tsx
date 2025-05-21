@@ -20,9 +20,11 @@ interface CheckInTimelineData {
         body_fat_percentage: number | null;
         waist_cm: number | null;
         hip_cm: number | null;
-        arm_cm: number | null;
+        left_arm_cm: number | null;
+        right_arm_cm: number | null;
         chest_cm: number | null;
-        thigh_cm: number | null;
+        left_thigh_cm: number | null;
+        right_thigh_cm: number | null;
     } | null;
     wellness_metrics: { 
         sleep_hours: number | null;
@@ -50,9 +52,11 @@ interface CheckInSupabaseResponse {
         body_fat_percentage: number | null;
         waist_cm: number | null;
         hip_cm: number | null;
-        arm_cm: number | null;
+        left_arm_cm: number | null;
+        right_arm_cm: number | null;
         chest_cm: number | null;
-        thigh_cm: number | null;
+        left_thigh_cm: number | null;
+        right_thigh_cm: number | null;
     }[] | null;
     wellness_metrics: {
         id: string;
@@ -89,9 +93,11 @@ const CheckInTimeline: React.FC = () => {
                 body_fat_percentage: item.body_metrics[0].body_fat_percentage,
                 waist_cm: item.body_metrics[0].waist_cm,
                 hip_cm: item.body_metrics[0].hip_cm,
-                arm_cm: item.body_metrics[0].arm_cm,
+                left_arm_cm: item.body_metrics[0].left_arm_cm,
+                right_arm_cm: item.body_metrics[0].right_arm_cm,
                 chest_cm: item.body_metrics[0].chest_cm,
-                thigh_cm: item.body_metrics[0].thigh_cm,
+                left_thigh_cm: item.body_metrics[0].left_thigh_cm,
+                right_thigh_cm: item.body_metrics[0].right_thigh_cm,
             } : null,
             wellness_metrics: item.wellness_metrics && item.wellness_metrics[0] ? {
                 sleep_hours: item.wellness_metrics[0].sleep_hours,
@@ -142,9 +148,11 @@ const CheckInTimeline: React.FC = () => {
                         body_fat_percentage,
                         waist_cm,
                         hip_cm,
-                        arm_cm,
+                        left_arm_cm,
+                        right_arm_cm,
                         chest_cm,
-                        thigh_cm
+                        left_thigh_cm,
+                        right_thigh_cm
                     ), 
                     wellness_metrics (
                         id,
@@ -303,9 +311,9 @@ const CheckInTimeline: React.FC = () => {
                                         <p><span className="font-medium">Hips:</span> {displayMetric(checkIn.body_metrics?.hip_cm, ' cm')}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p><span className="font-medium">Arms:</span> {displayMetric(checkIn.body_metrics?.arm_cm, ' cm')}</p>
+                                        <p><span className="font-medium">Arms:</span> {displayMetric(checkIn.body_metrics?.left_arm_cm, ' cm')} / {displayMetric(checkIn.body_metrics?.right_arm_cm, ' cm')}</p>
                                         <p><span className="font-medium">Chest:</span> {displayMetric(checkIn.body_metrics?.chest_cm, ' cm')}</p>
-                                        <p><span className="font-medium">Thighs:</span> {displayMetric(checkIn.body_metrics?.thigh_cm, ' cm')}</p>
+                                        <p><span className="font-medium">Thighs:</span> {displayMetric(checkIn.body_metrics?.left_thigh_cm, ' cm')} / {displayMetric(checkIn.body_metrics?.right_thigh_cm, ' cm')}</p>
                                     </div>
                                 </div>
                             </div>

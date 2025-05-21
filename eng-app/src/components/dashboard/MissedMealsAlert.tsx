@@ -7,6 +7,7 @@ import {
 import { getNutritionPlanById } from '../../services/mealPlanningService';
 import { getLoggedMealsForDate } from '../../services/mealLoggingService';
 import { formatDate } from '../../utils/dateUtils';
+import { useNavigate } from 'react-router-dom';
 
 interface MissedMealsAlertProps {
     nutritionPlanId: string | null;
@@ -23,6 +24,7 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const todayDate = formatDate(new Date());
+    const navigate = useNavigate();
     
     // Generate a unique component ID for debugging
     const componentId = React.useId();
@@ -204,14 +206,35 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
     
     console.log(`MissedMealsAlert [${componentId}] - Rendering alert with missed meals:`, missedMeals);
 
-    // Create a dummy missed meal for testing - REMOVE THIS IN PRODUCTION
-    // This is just for demonstration/debugging - it will always show the component
-    /*
-    const testMissedMeals = [
-        {id: 'test', name: 'Breakfast', time: '09:00'},
-        {id: 'test2', name: 'Lunch', time: '12:00'}
-    ];
-    */
+    // Handle click to navigate to meal logging
+    const handleMealLoggingClick = () => {
+        // Check if we're on the DashboardPageV2 (which has the tab-based interface)
+        if (window.location.pathname === '/dashboard') {
+            // For DashboardPageV2, set the active tab to nutrition
+            const tabButtons = document.querySelectorAll('.fixed.bottom-0 button');
+            const nutritionButton = Array.from(tabButtons).find(button => 
+                button.textContent?.toLowerCase().includes('nutrition')
+            ) as HTMLButtonElement | undefined;
+            
+            // Click the nutrition tab if found
+            if (nutritionButton) {
+                nutritionButton.click();
+            }
+            
+            // After a short delay to allow tab change, try to scroll to the meals section
+            setTimeout(() => {
+                const todaysMealsElement = document.getElementById('todays-meals');
+                if (todaysMealsElement) {
+                    todaysMealsElement.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, 100);
+        } else {
+            // For other pages, navigate to nutrition plan page
+            if (nutritionPlanId) {
+                navigate(`/meal-plan/${nutritionPlanId}`);
+            }
+        }
+    };
 
     return (
         <div className="mb-4 p-3 text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/20 dark:text-amber-300 border-l-4 border-amber-500 flex items-start">
@@ -223,12 +246,7 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
                 </p>
                 <p>
                     <button className="inline-block mt-2 text-sm text-amber-800 dark:text-amber-200 font-medium hover:underline" 
-                            onClick={() => {
-                        const todaysMealsElement = document.getElementById('todays-meals');
-                        if (todaysMealsElement) {
-                            todaysMealsElement.scrollIntoView({ behavior: 'smooth' });
-                        }
-                    }}>
+                            onClick={handleMealLoggingClick}>
                         Click here to log these meals!
                     </button>
                 </p>

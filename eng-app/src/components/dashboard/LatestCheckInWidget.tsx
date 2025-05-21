@@ -22,9 +22,11 @@ interface CheckInData {
       body_fat_percentage: number | null;
       waist_cm: number | null;
       hip_cm: number | null;
-      arm_cm: number | null;
+      left_arm_cm: number | null;
+      right_arm_cm: number | null;
       chest_cm: number | null;
-      thigh_cm: number | null;
+      left_thigh_cm: number | null;
+      right_thigh_cm: number | null;
   } | null;
   wellness_metrics: { 
       sleep_hours: number | null;
@@ -72,9 +74,11 @@ const LatestCheckInWidget: React.FC = () => {
               body_fat_percentage,
               waist_cm,
               hip_cm,
-              arm_cm,
+              left_arm_cm,
+              right_arm_cm,
               chest_cm,
-              thigh_cm
+              left_thigh_cm,
+              right_thigh_cm
             ), 
             wellness_metrics (
               id,
@@ -200,14 +204,14 @@ const LatestCheckInWidget: React.FC = () => {
                   {latestCheckIn.body_metrics?.hip_cm && (
                     <p><span className="font-medium">Hip:</span> {displayMetric(latestCheckIn.body_metrics?.hip_cm, ' cm')}</p>
                   )}
-                  {latestCheckIn.body_metrics?.arm_cm && (
-                    <p><span className="font-medium">Arm:</span> {displayMetric(latestCheckIn.body_metrics?.arm_cm, ' cm')}</p>
+                  {latestCheckIn.body_metrics?.left_arm_cm && latestCheckIn.body_metrics?.right_arm_cm && (
+                    <p><span className="font-medium">Arm:</span> {displayMetric(latestCheckIn.body_metrics?.left_arm_cm, ' cm')} / {displayMetric(latestCheckIn.body_metrics?.right_arm_cm, ' cm')}</p>
                   )}
                   {latestCheckIn.body_metrics?.chest_cm && (
                     <p><span className="font-medium">Chest:</span> {displayMetric(latestCheckIn.body_metrics?.chest_cm, ' cm')}</p>
                   )}
-                  {latestCheckIn.body_metrics?.thigh_cm && (
-                    <p><span className="font-medium">Thigh:</span> {displayMetric(latestCheckIn.body_metrics?.thigh_cm, ' cm')}</p>
+                  {latestCheckIn.body_metrics?.left_thigh_cm && latestCheckIn.body_metrics?.right_thigh_cm && (
+                    <p><span className="font-medium">Thigh:</span> {displayMetric(latestCheckIn.body_metrics?.left_thigh_cm, ' cm')} / {displayMetric(latestCheckIn.body_metrics?.right_thigh_cm, ' cm')}</p>
                   )}
                 </div>
               </div>

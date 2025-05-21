@@ -18,11 +18,13 @@ interface CheckInFullData {
     video_url: string | null;
     body_metrics: { 
         id: string;
-        arm_cm: number | null;
+        left_arm_cm: number | null;
+        right_arm_cm: number | null;
         body_fat_percentage: number | null;
         chest_cm: number | null;
         hip_cm: number | null;
-        thigh_cm: number | null;
+        left_thigh_cm: number | null;
+        right_thigh_cm: number | null;
         waist_cm: number | null;
         weight_kg: number | null;
         check_in_id: string;
@@ -334,8 +336,8 @@ const CheckInDetail: React.FC = () => {
                             </p>
                             <p className="text-sm dark:text-gray-300">
                                 <span className="mr-2 font-medium text-gray-600 dark:text-white">Arms:</span> 
-                                {checkIn.body_metrics && checkIn.body_metrics.arm_cm != null 
-                                    ? `${checkIn.body_metrics.arm_cm} cm` 
+                                {checkIn.body_metrics && checkIn.body_metrics.left_arm_cm != null && checkIn.body_metrics.right_arm_cm != null 
+                                    ? `${checkIn.body_metrics.left_arm_cm} cm / ${checkIn.body_metrics.right_arm_cm} cm` 
                                     : 'N/A'}
                             </p>
                             <p className="text-sm dark:text-gray-300">
@@ -358,8 +360,8 @@ const CheckInDetail: React.FC = () => {
                             </p>
                             <p className="text-sm dark:text-gray-300">
                                 <span className="mr-2 font-medium text-gray-600 dark:text-white">Thighs:</span> 
-                                {checkIn.body_metrics && checkIn.body_metrics.thigh_cm != null 
-                                    ? `${checkIn.body_metrics.thigh_cm} cm` 
+                                {checkIn.body_metrics && checkIn.body_metrics.left_thigh_cm != null && checkIn.body_metrics.right_thigh_cm != null 
+                                    ? `${checkIn.body_metrics.left_thigh_cm} cm / ${checkIn.body_metrics.right_thigh_cm} cm` 
                                     : 'N/A'}
                             </p>
                         </div>

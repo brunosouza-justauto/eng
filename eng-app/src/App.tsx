@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage'; // Import the actual LoginPage compon
 import ProtectedRoute from './components/ProtectedRoute'; // Import ProtectedRoute
 import OnboardingPage from './pages/OnboardingPage'; // Import the actual OnboardingPage
 import DashboardPage from './pages/DashboardPage'; // Import the actual DashboardPage
+import DashboardPageV2 from './pages/DashboardPageV2'; // Import the new mobile-friendly DashboardPage
 import CheckInPage from './pages/CheckInPage'; // Import CheckInPage
 import CheckInHistoryPage from './pages/CheckInHistoryPage'; // Import CheckInHistoryPage
 import WorkoutView from './components/workouts/WorkoutView'; // Import WorkoutView
@@ -597,7 +598,8 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route element={<MainLayout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dashboard" element={<DashboardPageV2 />} />
+              <Route path="/dashboard-classic" element={<DashboardPage />} />
               {/* User profile route */}
               <Route path="/profile" element={<UserProfilePage />} />
               {/* Check-in routes */}
