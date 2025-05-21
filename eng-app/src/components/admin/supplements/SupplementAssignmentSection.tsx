@@ -3,8 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '../../../services/supabaseClient';
 import { 
-  Supplement, 
-  AthleteSupplementFormData, 
+  Supplement,
   athleteSupplementSchema,
   SUPPLEMENT_SCHEDULES
 } from '../../../types/supplements';
@@ -43,6 +42,7 @@ const SupplementAssignmentSection: React.FC<SupplementAssignmentSectionProps> = 
   const [success, setSuccess] = useState<string | null>(null);
 
   const { control, handleSubmit, reset, watch, formState: { errors } } = useForm<SupplementAssignmentFormData>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(athleteSupplementSchema) as any,
     defaultValues: {
       supplement_id: '',
@@ -195,6 +195,7 @@ const SupplementAssignmentSection: React.FC<SupplementAssignmentSectionProps> = 
       )}
 
       {/* Supplement assignment form */}
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
         <div className="space-y-4">
           {/* Supplement Selection */}

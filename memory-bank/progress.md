@@ -410,4 +410,56 @@ The workout session interface now provides a smoother experience for users throu
 2. Nutrition goal setting with visual indicators
 3. Integration with fitness tracking devices/apps
 4. Social sharing capabilities
-5. Advanced search filters for exercises and food items 
+5. Advanced search filters for exercises and food items
+
+# Progress
+
+## What Works
+
+- **Supplement Management**
+  - Complete CRUD operations for supplements
+  - Assignment of supplements to athletes
+  - Viewing supplement details and assignments
+  - Editing and deleting supplement assignments
+  - Search-based loading of supplement assignments
+  - Auto-populated notes when selecting supplements
+
+- **Meal Planning**
+  - Complete meal planning system with day types
+  - Meal logging and tracking
+  - Intelligent day type selection based on workout schedule
+  - Nutrition tracking and visualization
+  - Support for extra meals and custom entries
+
+- **User Experience**
+  - Cohesive dark/light mode throughout the application
+  - Responsive design for all screen sizes
+  - Loading states and error handling
+  - Clear navigation between related sections
+
+## What's Left to Build
+
+- **Supplement System**
+  - Update database constraint for multiple supplement assignments
+  - Complete type-safe implementation of the edit functionality
+  - Enhanced filters and sorting options for supplement lists
+  - Additional analytics on supplement compliance
+
+- **Meal Planning System**
+  - Further refinement of the automatic day type selection
+  - Add more guidance for nutrition on workout vs. rest days
+  - Improved visualization of nutritional progress
+
+## Current Status
+
+The application has a robust and functional supplement management system. We've recently improved:
+
+1. The performance of the supplement assignment list by implementing search-based loading
+2. The user experience in the meal planning system by automatically selecting day types based on workout schedule
+3. Identified a database constraint issue that needs to be addressed with SQL commands
+
+## Known Issues
+
+- Database constraint on athlete_supplements table preventing multiple assignments of the same supplement
+- Type safety issues in the edit form for supplement assignments
+- Case sensitivity in day type selection (using lowercase "training" and "rest" rather than capitalized) 

@@ -32,20 +32,43 @@ const checkInSchema = z.object({
     // Check-in date
     check_in_date: z.string().min(1, 'Date is required'),
     
-    // Body Metrics
+    // Body Metrics - All of these are optional now
     weight_kg: z.coerce.number({invalid_type_error: 'Weight must be a number'})
-                   .positive('Weight must be greater than 0'),
-    body_fat_percentage: z.coerce.number({invalid_type_error: 'Body fat % must be a number'})
-                   .min(0)
-                   .max(100)
-                   .optional()
-                   .nullable(),
-    waist_cm: z.coerce.number().positive().optional().nullable(),
-    hip_cm: z.coerce.number().positive().optional().nullable(),
-    // Add other body measurements 
-    arm_cm: z.coerce.number().positive().optional().nullable(),
-    chest_cm: z.coerce.number().positive().optional().nullable(),
-    thigh_cm: z.coerce.number().positive().optional().nullable(),
+        .positive('Weight must be greater than 0'),
+    body_fat_percentage: z.union([
+        z.string().trim().transform(val => val === "" ? null : val).nullable(),
+        z.coerce.number().min(0).max(100, 'Body fat % must be between 0 and 100').nullable()
+    ]).nullable().optional(),
+    waist_cm: z.union([
+        z.string().trim().transform(val => val === "" ? null : val).nullable(),
+        z.coerce.number().positive('Waist must be greater than 0').nullable()
+    ]).nullable().optional(),
+    hip_cm: z.union([
+        z.string().trim().transform(val => val === "" ? null : val).nullable(),
+        z.coerce.number().positive('Hip measurement must be greater than 0').nullable()
+    ]).nullable().optional(),
+    
+    // Updated limb measurements to support left/right
+    left_arm_cm: z.union([
+        z.string().trim().transform(val => val === "" ? null : val).nullable(),
+        z.coerce.number().positive('Left arm measurement must be greater than 0').nullable()
+    ]).nullable().optional(),
+    right_arm_cm: z.union([
+        z.string().trim().transform(val => val === "" ? null : val).nullable(),
+        z.coerce.number().positive('Right arm measurement must be greater than 0').nullable()
+    ]).nullable().optional(),
+    chest_cm: z.union([
+        z.string().trim().transform(val => val === "" ? null : val).nullable(),
+        z.coerce.number().positive('Chest measurement must be greater than 0').nullable()
+    ]).nullable().optional(),
+    left_thigh_cm: z.union([
+        z.string().trim().transform(val => val === "" ? null : val).nullable(),
+        z.coerce.number().positive('Left thigh measurement must be greater than 0').nullable()
+    ]).nullable().optional(),
+    right_thigh_cm: z.union([
+        z.string().trim().transform(val => val === "" ? null : val).nullable(),
+        z.coerce.number().positive('Right thigh measurement must be greater than 0').nullable()
+    ]).nullable().optional(),
 
     // Wellness Metrics
     sleep_hours: z.coerce.number().nonnegative().max(24, 'Sleep hours must be between 0 and 24'),
@@ -87,10 +110,12 @@ interface BodyMetricsInsert {
     body_fat_percentage?: number | null;
     waist_cm?: number | null;
     hip_cm?: number | null;
-    // Add additional metrics
-    arm_cm?: number | null;
+    // Updated to support left/right measurements
+    left_arm_cm?: number | null;
+    right_arm_cm?: number | null;
     chest_cm?: number | null;
-    thigh_cm?: number | null;
+    left_thigh_cm?: number | null;
+    right_thigh_cm?: number | null;
 }
 
 interface WellnessMetricsInsert {
@@ -244,14 +269,16 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
             console.log('Prepared check-in data:', checkInData);
 
             const bodyMetricsData: BodyMetricsInsert = {
-                weight_kg: formData.weight_kg,
-                body_fat_percentage: formData.body_fat_percentage,
-                waist_cm: formData.waist_cm,
-                hip_cm: formData.hip_cm,
-                // Add the new metrics
-                arm_cm: formData.arm_cm,
-                chest_cm: formData.chest_cm,
-                thigh_cm: formData.thigh_cm,
+                weight_kg: formData.weight_kg ?? null,
+                body_fat_percentage: formData.body_fat_percentage ?? null,
+                waist_cm: formData.waist_cm ?? null,
+                hip_cm: formData.hip_cm ?? null,
+                // Updated to use left/right measurements
+                left_arm_cm: formData.left_arm_cm ?? null,
+                right_arm_cm: formData.right_arm_cm ?? null,
+                chest_cm: formData.chest_cm ?? null,
+                left_thigh_cm: formData.left_thigh_cm ?? null,
+                right_thigh_cm: formData.right_thigh_cm ?? null,
             };
 
             const wellnessMetricsData: WellnessMetricsInsert = {
@@ -390,42 +417,56 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
                         />
                         <FormInput 
                             name="body_fat_percentage"
-                            label="Body Fat (%) *"
+                            label="Body Fat (%)"
                             type="number"
                             placeholder="e.g., 15.0"
                             step="0.1"
                         />
                         <FormInput 
                             name="waist_cm"
-                            label="Waist (cm) *"
+                            label="Waist (cm)"
                             type="number"
                             placeholder="e.g., 80.5"
                             step="0.1"
                         />
                         <FormInput 
                             name="hip_cm"
-                            label="Hips (cm) *"
+                            label="Hips (cm)"
                             type="number"
                             placeholder="e.g., 95.0"
                             step="0.1"
                         />
                         <FormInput 
-                            name="arm_cm"
-                            label="Arms (cm) *"
+                            name="left_arm_cm"
+                            label="Left Arm (cm)"
+                            type="number"
+                            placeholder="e.g., 35.0"
+                            step="0.1"
+                        />
+                        <FormInput 
+                            name="right_arm_cm"
+                            label="Right Arm (cm)"
                             type="number"
                             placeholder="e.g., 35.0"
                             step="0.1"
                         />
                         <FormInput 
                             name="chest_cm"
-                            label="Chest (cm) *"
+                            label="Chest (cm)"
                             type="number"
                             placeholder="e.g., 100.0"
                             step="0.1"
                         />
                         <FormInput 
-                            name="thigh_cm"
-                            label="Thighs (cm) *"
+                            name="left_thigh_cm"
+                            label="Left Thigh (cm)"
+                            type="number"
+                            placeholder="e.g., 60.0"
+                            step="0.1"
+                        />
+                        <FormInput 
+                            name="right_thigh_cm"
+                            label="Right Thigh (cm)"
                             type="number"
                             placeholder="e.g., 60.0"
                             step="0.1"

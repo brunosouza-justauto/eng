@@ -4,7 +4,6 @@ import { selectProfile } from '../../store/slices/authSlice';
 import { FiSearch, FiPlus, FiTrash2, FiX, FiInfo, FiBook, FiArrowLeft, FiSave, FiCalendar, FiActivity, FiEdit3, FiChevronUp, FiChevronDown } from 'react-icons/fi';
 import { TbBarcode } from 'react-icons/tb';
 import toast from 'react-hot-toast';
-import BarcodeScanner from '../nutrition/BarcodeScanner';
 import CustomFoodItemForm from '../nutrition/CustomFoodItemForm';
 import RecipeManager from './RecipeManager';
 import {
@@ -142,7 +141,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
   // Add these new state variables for the edit meal modal
   const [showDayTypeModal, setShowDayTypeModal] = useState(false);
   const [showEditMealModal, setShowEditMealModal] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [editingMealId, setEditingMealId] = useState<string | null>(null);
   const [newMealName, setNewMealName] = useState('');
   const [selectedDayType, setSelectedDayType] = useState('rest');
@@ -950,6 +948,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
   const BarcodeScanner: React.FC<{
     onDetect: (barcode: string) => void;
     onClose: () => void;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   }> = ({ onDetect, onClose }) => {
     // This is a placeholder for the actual BarcodeScanner component
     return <div>Barcode Scanner</div>;
@@ -1625,6 +1624,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center bg-black bg-opacity-50">
           <div className="relative bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full mx-4 shadow-xl">
             <CustomFoodItemForm 
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onSave={handleCustomFoodSave as any} // Type assertion to fix linter error
               onCancel={() => setShowCustomFoodForm(false)}
               initialData={initialFoodData || undefined}

@@ -124,6 +124,7 @@ const SupplementAssignmentList: React.FC = () => {
     setEditModalOpen(true);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onSubmitEdit = async (data: any) => {
     if (!selectedAssignment) return;
     

@@ -656,3 +656,35 @@ The `MealPlannerIntegrated.tsx` component has undergone significant enhancement:
 2. Consistent error handling and user feedback mechanisms
 3. Type safety across component boundaries
 4. Optimized database queries to reduce latency
+
+## Current Focus
+
+We're enhancing the ENG app's supplement management and meal planning features:
+
+1. **Supplement Assignment List Performance**
+   - Implemented search functionality to replace loading all assignments at once
+   - Added a search-based approach that only loads data when queried
+   - Improved UI with search guidance and "no results" state
+
+2. **Meal Planning Smart Selection**
+   - Enhanced MealLoggingWidget to automatically select day types based on workout schedule
+   - Added workout detection logic to sync nutrition with training
+   - Implemented intelligent fallback options
+
+3. **Database Constraints Solution**
+   - Identified constraint issue in athlete_supplements table that prevented multiple assignments of the same supplement
+   - Proposed SQL solution to modify the unique constraint to include start_date
+
+## Recent Changes
+
+- Created searchAthleteSupplementAssignments service function to enable filtered loading of supplement assignments
+- Implemented dynamic search functionality in the SupplementAssignmentList component
+- Added workout detection logic to MealLoggingWidget to select appropriate day types
+- Fixed case sensitivity issue in day type comparison (using lowercase for "training" and "rest")
+
+## Next Steps
+
+- Execute the SQL commands to update the database constraint for athlete_supplements
+- Enhance the edit functionality for supplement assignments with proper type handling
+- Consider implementing more comprehensive search capabilities including partial matches
+- Test the workout-based day type selection across different user scenarios

@@ -39,6 +39,7 @@ const SupplementManagement: React.FC = () => {
   
   // Initialize form
   const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(supplementSchema) as any,
     defaultValues: {
       name: '',
@@ -89,6 +90,7 @@ const SupplementManagement: React.FC = () => {
       if (mode === Mode.Create) {
         await createSupplement({
           name: data.name,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           category: data.category as any,
           default_dosage: data.default_dosage,
           default_timing: data.default_timing,
@@ -97,6 +99,7 @@ const SupplementManagement: React.FC = () => {
       } else if (mode === Mode.Edit && selectedSupplement) {
         await updateSupplement(selectedSupplement.id, {
           name: data.name,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           category: data.category as any,
           default_dosage: data.default_dosage,
           default_timing: data.default_timing,

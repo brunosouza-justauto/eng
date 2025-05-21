@@ -1222,3 +1222,43 @@ flowchart TD
 - Real-time subscriptions for collaborative features
 - Batch operations where appropriate
 - Data normalization and denormalization as needed 
+
+## Data Loading Patterns
+
+### Search-Based Loading
+- For large datasets like supplement assignments, we now implement search-based loading
+- Initial state shows a search prompt rather than loading all data
+- Results are only fetched when a search term is entered
+- This pattern improves performance and reduces database load
+
+### Real-time Data Integration
+- The meal planning system now integrates with workout data to provide context-aware defaults
+- Day types are automatically selected based on the user's workout schedule for that day
+- This creates a cohesive experience between different features of the application
+
+## Database Patterns
+
+### Constraint Management
+- Identified pattern where unique constraints may need to include additional fields
+- For example: athlete_supplements needs (user_id, supplement_id, start_date) instead of just (user_id, supplement_id)
+- This allows for multiple assignments of the same supplement with different start dates
+- SQL solution pattern:
+  ```sql
+  -- Drop existing constraint
+  ALTER TABLE table_name DROP CONSTRAINT constraint_name;
+  
+  -- Add new, more specific constraint
+  ALTER TABLE table_name ADD CONSTRAINT new_constraint_name UNIQUE (field1, field2, field3);
+  ```
+
+## UI Patterns
+
+### Empty State Design
+- Search interfaces now show informative empty states before search
+- Clear guidance on how to use the search functionality
+- Distinct visual difference between "no search performed" and "no results found"
+
+### Context-Aware Defaults
+- Components now detect related system state to provide intelligent defaults
+- Example: MealLoggingWidget looks for scheduled workouts to select day type
+- Fallback hierarchy: 1) User selection, 2) System detection, 3) Sensible default 
