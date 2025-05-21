@@ -166,11 +166,11 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
     }, [searchQuery]);
 
     // Handle barcode detection
-    const handleBarcodeDetect = async (foodItem: FoodItem | null) => {
+    const handleBarcodeDetect = async (foodItem: FoodItem | null, barcode: string) => {
         setShowBarcodeScanner(false);
         
         if (!foodItem) {
-            setError('No food item found with the barcode: ' + barcodeValue + '. Try adding a custom item.');
+            setError('No food item found with the barcode: ' + barcode + '. Try adding a custom item.');
             setManualBarcodeEntry(true);
             return;
         }
@@ -534,16 +534,17 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                     </div>
                     <div className="p-4">
                         <BarcodeScanner
-                            onDetect={(result) => handleBarcodeDetect(result)}
+                            onDetect={(result, barcode) => handleBarcodeDetect(result, barcode)}
                             onClose={() => {
                                 setShowBarcodeScanner(false);
                                 setManualBarcodeEntry(true);
+                                setError('You can enter the barcode below if you want.');
                             }}
                             onError={(error) => {
                                 console.error('Barcode scanner error:', error);
                                 setShowBarcodeScanner(false);
                                 setManualBarcodeEntry(true);
-                                setError('Camera access error. Please enter barcode manually.');
+                                setError('Barcode scanner error. Please enter barcode manually.');
                             }}
                         />
                         <div className="mt-4 text-center">
