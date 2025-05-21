@@ -1262,3 +1262,152 @@ flowchart TD
 - Components now detect related system state to provide intelligent defaults
 - Example: MealLoggingWidget looks for scheduled workouts to select day type
 - Fallback hierarchy: 1) User selection, 2) System detection, 3) Sensible default 
+
+## Mobile Dashboard Notification System
+
+The mobile dashboard notification system implements a pattern for showing users what actions they need to take in the app.
+
+### Notification Badge Pattern
+
+```mermaid
+flowchart TD
+    A[Dashboard Loads] --> B[Fetch Completion Status]
+    B --> C{Activity Completed?}
+    C -->|Yes| D[No Badge Shown]
+    C -->|No| E[Show Red Badge]
+    E --> F[User Takes Action]
+    F --> G[Refetch Status]
+    G --> C
+```
+
+1. **Badge Location and Appearance**
+   - Small red dots positioned at the top-right corner of tab icons
+   - Consistent with mobile platform notification conventions
+   - 8px diameter with 1px white/dark border based on theme
+   - Absolute positioning relative to the icon container
+
+2. **Visibility Logic**
+   - Badges only appear when specific conditions are not met
+   - Each tab has its own completion criteria (workouts, meals, steps, check-ins)
+   - Badges update in real-time as statuses change
+   - Badge visibility is determined by memorized derived state to prevent re-renders
+
+3. **Implementation Details**
+   - Badge visibility controlled via the `hasNotification` property in each NavItem
+   - Navigation items wrapped in useMemo to prevent unnecessary re-renders
+   - Each activity has a dedicated state variable and useEffect for status tracking
+   - Status queries run when relevant data changes (e.g., when plans or goals are loaded)
+
+### Completion Status Tracking Pattern
+
+```typescript
+// Completion status state pattern
+const [workoutCompleted, setWorkoutCompleted] = useState<boolean>(false);
+const [hasMissedMeals, setHasMissedMeals] = useState<boolean>(false);
+const [stepsCompleted, setStepsCompleted] = useState<boolean>(false);
+
+// Status checking pattern with useEffect
+useEffect(() => {
+  const checkCompletion = async () => {
+    if (!requiredData) return;
+    
+    try {
+      // Query specific completion data
+      const { data, error } = await supabase
+        // Database query to check completion
+        
+      if (error) throw error;
+      
+      // Update completion state
+      setCompletionState(Boolean(completionLogic));
+    } catch (err) {
+      console.error('Error checking completion:', err);
+      setCompletionState(false);
+    }
+  };
+  
+  checkCompletion();
+}, [requiredDataDependencies]);
+```
+
+Each completion status follows this pattern:
+1. Dedicated state variable (e.g., `workoutCompleted`)
+2. Effect hook dependent on relevant data
+3. Async function to query Supabase for completion status
+4. Logic to determine completion based on query results
+5. Error handling with fallback to "not completed"
+
+### Component Communication Pattern
+
+```mermaid
+flowchart TD
+    A[DashboardPageV2] --> B[MissedMealsAlert]
+    A --> C[StepGoalWidget]
+    A --> D[NextWorkoutWidget]
+    A --> E[CheckInReminderWidget]
+    B -- "onMealsStatusChange" --> A
+    C -- "Via Data Query" --> A
+    D -- "Via Data Query" --> A
+    E -- "Via Data Query" --> A
+```
+
+1. **Callback Props**
+   - Parent components pass callback functions to child components
+   - Child components invoke callbacks to update parent state
+   - Example: MissedMealsAlert uses onMealsStatusChange to notify parent about missed meals
+
+2. **Data-Driven Updates**
+   - Some components query data sources directly
+   - Parent components have independent effects to check status
+   - Database queries used for workout completion, step goals
+
+3. **Notification State Management**
+   - Each notification type has distinct state variables
+   - Status updates trigger badge visibility changes
+   - useMemo ensures navigation items update only when status changes
+
+### Alert Navigation Pattern
+
+The application implements a smart navigation system for alerts that:
+
+1. Detects the current context (which page/tab the user is on)
+2. Takes appropriate navigation action based on context:
+   - If on the dashboard, switches to the relevant tab
+   - If elsewhere, navigates to the appropriate page
+3. Uses setTimeout to allow tab transitions to complete before scrolling
+4. Implements smooth scrolling to the relevant content section
+
+```typescript
+// Alert action pattern
+const handleAlertAction = () => {
+  // Check current context
+  if (window.location.pathname === '/dashboard') {
+    // Find and click the relevant tab
+    const tabButtons = document.querySelectorAll('.nav-container button');
+    const targetButton = Array.from(tabButtons).find(
+      button => button.textContent?.includes('TabName')
+    );
+    
+    if (targetButton) {
+      targetButton.click();
+      
+      // Allow tab transition to complete before scrolling
+      setTimeout(() => {
+        const targetElement = document.getElementById('target-section');
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  } else {
+    // If not on dashboard, navigate to appropriate page
+    navigate('/relevant-page');
+  }
+};
+```
+
+This pattern enables alerts throughout the application to direct users to exactly where they need to take action, improving the overall user experience.
+
+## Workout Session Architecture
+
+The workout session timer and exercise demonstration system follows a sophisticated pattern to enhance the workout experience:
