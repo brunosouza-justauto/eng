@@ -538,7 +538,7 @@ const AthleteDetailsPage: React.FC = () => {
                                     </p>
                                     <div className="flex flex-wrap mt-3 gap-2">
                                         <button 
-                                            onClick={() => navigate('/admin/step-goals')}
+                                            onClick={() => navigate('/admin/stepgoals')}
                                             className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
                                         >
                                             Manage Step Goals
@@ -556,7 +556,7 @@ const AthleteDetailsPage: React.FC = () => {
                                     <p className="text-gray-600 dark:text-gray-400">No step goal assigned yet.</p>
                                     <div className="flex flex-wrap mt-3 gap-2">
                                         <button 
-                                            onClick={() => navigate('/admin/step-goals')}
+                                            onClick={() => navigate('/admin/stepgoals')}
                                             className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
                                         >
                                             Assign Step Goal

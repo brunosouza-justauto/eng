@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { selectProfile } from '../../store/slices/authSlice';
-import { FiSearch, FiPlus, FiTrash2, FiX, FiInfo, FiBook, FiArrowLeft, FiSave, FiCalendar, FiActivity, FiEdit3, FiChevronUp, FiChevronDown } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiTrash2, FiX, FiInfo, FiBook, FiArrowLeft, FiSave, FiCalendar, FiActivity, FiEdit3, FiChevronUp, FiChevronDown, FiEdit2 } from 'react-icons/fi';
 import { TbBarcode } from 'react-icons/tb';
 import toast from 'react-hot-toast';
 import CustomFoodItemForm from '../nutrition/CustomFoodItemForm';
@@ -12,7 +12,8 @@ import {
   removeFoodItemFromMeal,
   addRecipeToMeal,
   getNutritionPlanById,
-  createMeal
+  createMeal,
+  updateMealFoodItem
 } from '../../services/mealPlanningService';
 import './MealPlannerIntegrated.css';
 import { supabase } from '../../services/supabaseClient';
@@ -151,6 +152,12 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
   const [mealNotes, setMealNotes] = useState('');
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [mealToDelete, setMealToDelete] = useState<string | null>(null);
+  
+  // Add these new state variables for editing food items
+  const [showEditFoodItemModal, setShowEditFoodItemModal] = useState(false);
+  const [editingFoodItem, setEditingFoodItem] = useState<MealFoodItem | null>(null);
+  const [editFoodItemQuantity, setEditFoodItemQuantity] = useState('');
+  const [editFoodItemUnit, setEditFoodItemUnit] = useState('');
   
   // Add this array of common meal time presets
   const mealTimePresets = [
@@ -771,7 +778,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
   // Add a function to handle meal edit button click
   const handleEditMeal = (meal: MealData) => {
     setEditingMealId(meal.id);
-    setIsEditMode(true);
     setNewMealName(meal.name);
     setSelectedDayType(meal.day_type || 'rest');
     
@@ -826,7 +832,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       
       // Close the modal
       setShowEditMealModal(false);
-      setIsEditMode(false);
       setEditingMealId(null);
     } catch (err) {
       console.error('Error updating meal:', err);
@@ -952,6 +957,50 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
   }> = ({ onDetect, onClose }) => {
     // This is a placeholder for the actual BarcodeScanner component
     return <div>Barcode Scanner</div>;
+  };
+  
+  // Add function to handle edit food item button click
+  const handleEditFoodItem = (mealId: string, foodItem: MealFoodItem) => {
+    setEditingFoodItem(foodItem);
+    setEditFoodItemQuantity(foodItem.quantity.toString());
+    setEditFoodItemUnit(foodItem.unit || 'g');
+    setShowEditFoodItemModal(true);
+  };
+  
+  // Add function to handle saving edited food item
+  const handleSaveEditedFoodItem = async () => {
+    if (!editingFoodItem) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Parse quantity as a number
+      const parsedQuantity = parseFloat(editFoodItemQuantity);
+      if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
+        setError('Quantity must be a positive number');
+        return;
+      }
+      
+      // Update the food item in the database
+      await updateMealFoodItem(editingFoodItem.id, {
+        quantity: parsedQuantity,
+        unit: editFoodItemUnit
+      });
+      
+      // Refresh meals to see the updates
+      await fetchMeals();
+      
+      toast.success('Food item updated');
+      
+      // Close the modal and reset state
+      setShowEditFoodItemModal(false);
+      setEditingFoodItem(null);
+    } catch (err) {
+      console.error('Error updating food item:', err);
+      setError('Failed to update food item');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -1572,6 +1621,16 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        handleEditFoodItem(meal.id, item);
+                                      }}
+                                      className="p-1 text-gray-400 hover:text-indigo-400 mr-1"
+                                      title="Edit"
+                                    >
+                                      <FiEdit2 size={16} />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         handleRemoveFoodFromMeal(meal.id, item.id);
                                       }}
                                       className="p-1 text-gray-400 hover:text-red-400"
@@ -1964,7 +2023,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                 <button
                   onClick={() => {
                     setShowEditMealModal(false);
-                    setIsEditMode(false);
                   }}
                   className="px-4 py-2 border border-gray-600 text-gray-300 rounded-md hover:bg-gray-700"
                 >
@@ -2031,6 +2089,105 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                   ) : (
                     <>
                       <FiTrash2 className="mr-2" /> Delete Meal
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Add the Edit Food Item Modal */}
+      {showEditFoodItemModal && editingFoodItem && (
+        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center bg-black bg-opacity-70">
+          <div className="relative bg-gray-900 dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-700">
+            <div className="p-5">
+              <h3 className="text-xl font-semibold text-gray-100 dark:text-white mb-4">
+                Edit Food Item
+              </h3>
+              
+              <div className="mb-4">
+                <div className="font-medium text-gray-200 mb-2">
+                  {editingFoodItem.food_item.food_name}
+                </div>
+                
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Quantity*
+                  </label>
+                  <input
+                    type="number"
+                    value={editFoodItemQuantity}
+                    onChange={(e) => setEditFoodItemQuantity(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md bg-gray-800 border-gray-600 text-white"
+                    placeholder="Enter quantity"
+                    step="any"
+                    min="0"
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Unit*
+                  </label>
+                  <select
+                    value={editFoodItemUnit}
+                    onChange={(e) => setEditFoodItemUnit(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md bg-gray-800 border-gray-600 text-white"
+                  >
+                    <option value="g">grams (g)</option>
+                    <option value="oz">ounces (oz)</option>
+                    <option value="ml">milliliters (ml)</option>
+                    <option value="tbsp">tablespoons (tbsp)</option>
+                    <option value="tsp">teaspoons (tsp)</option>
+                    <option value="cup">cups</option>
+                    <option value="serving">serving</option>
+                  </select>
+                </div>
+                
+                <div className="text-sm text-gray-300 mt-2">
+                  <span className="font-medium">Nutrition per 100g:</span> 
+                  <span className="ml-2 text-red-400">P: {parseFloat(editingFoodItem.food_item.protein_per_100g.toFixed(1))}g</span> | 
+                  <span className="ml-2 text-yellow-400">C: {parseFloat(editingFoodItem.food_item.carbs_per_100g.toFixed(1))}g</span> | 
+                  <span className="ml-2 text-blue-400">F: {parseFloat(editingFoodItem.food_item.fat_per_100g.toFixed(1))}g</span> | 
+                  <span className="ml-2">{Math.round(editingFoodItem.food_item.calories_per_100g)} kcal</span>
+                </div>
+              </div>
+              
+              {error && (
+                <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-800 rounded-md dark:bg-red-800/30 dark:text-red-300 dark:border-red-700">
+                  {error}
+                </div>
+              )}
+              
+              <div className="flex justify-end mt-6 space-x-3">
+                <button
+                  onClick={() => {
+                    setShowEditFoodItemModal(false);
+                    setEditingFoodItem(null);
+                    setError(null);
+                  }}
+                  className="px-4 py-2 border border-gray-600 text-gray-300 rounded-md hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEditedFoodItem}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
+                >
+                  {isLoading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <FiSave className="mr-2" /> Save Changes
                     </>
                   )}
                 </button>
