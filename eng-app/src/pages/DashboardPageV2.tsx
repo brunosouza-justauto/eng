@@ -445,7 +445,7 @@ const DashboardPageV2: React.FC = () => {
         </div>
 
         {/* Bottom Navigation - Fixed even in loading state */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 md:hidden">
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 md:hidden">
           <div className="grid grid-cols-5 h-16">
             {navItems.map((item) => (
               <button 
@@ -520,7 +520,7 @@ const DashboardPageV2: React.FC = () => {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 md:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 md:hidden">
         <div className="grid grid-cols-5 h-16">
           {navItems.map((item) => (
             <button 

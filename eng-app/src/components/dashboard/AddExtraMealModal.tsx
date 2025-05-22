@@ -51,7 +51,6 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
         @media (max-width: 640px) {
             .mobile-scroll-container {
                 max-height: 200px !important;
-                padding-bottom: 40px; /* Add padding to ensure last items are visible */
             }
             
             .mobile-scroll-container > div {
@@ -70,13 +69,21 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
                 font-size: 16px !important; /* Prevent iOS zoom on focus */
             }
             
-            .modal-actions-mobile {
-                position: sticky;
+            /* Fixed bottom actions bar */
+            .modal-actions-fixed {
+                position: fixed;
                 bottom: 0;
-                background: inherit;
-                padding-top: 10px;
-                padding-bottom: 10px;
-                z-index: 20;
+                left: 0;
+                right: 0;
+                background: #111827; /* bg-gray-900 */
+                padding: 1rem;
+                z-index: 50;
+                border-top: 1px solid rgba(75, 85, 99, 0.5); /* border-gray-700 */
+            }
+            
+            /* Extra padding to ensure content isn't hidden behind fixed footer */
+            .pb-safe {
+                padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0));
             }
         }
     `;
@@ -488,26 +495,22 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
     // If custom food form is showing, render that instead of the main form
     if (showCustomFoodForm) {
         return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-                    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                            Add Custom Food Item
-                        </h2>
-                        <button 
-                            onClick={() => setShowCustomFoodForm(false)}
-                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                        >
-                            <FiX className="w-5 h-5" />
-                        </button>
-                    </div>
-                    <div className="p-4 overflow-y-auto max-h-[calc(90vh-4rem)]">
-                        <CustomFoodItemForm 
-                            onSave={handleCustomFoodSave}
-                            onCancel={() => setShowCustomFoodForm(false)}
-                            initialData={barcodeValue ? { barcode: barcodeValue } : undefined}
-                        />
-                    </div>
+            <div className="fixed inset-0 z-50 flex flex-col bg-gray-900">
+                <div className="bg-gray-900 p-4 flex justify-between items-center border-b border-gray-700">
+                    <h2 className="text-xl font-bold text-white">Add Custom Food Item</h2>
+                    <button 
+                        onClick={() => setShowCustomFoodForm(false)}
+                        className="text-gray-300 hover:text-white p-2"
+                    >
+                        <FiX size={24} />
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                    <CustomFoodItemForm 
+                        onSave={handleCustomFoodSave}
+                        onCancel={() => setShowCustomFoodForm(false)}
+                        initialData={barcodeValue ? { barcode: barcodeValue } : undefined}
+                    />
                 </div>
             </div>
         );
@@ -516,430 +519,399 @@ const AddExtraMealModal: React.FC<AddExtraMealModalProps> = ({
     // If barcode scanner is showing
     if (showBarcodeScanner) {
         return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-                    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                            Scan Barcode
-                        </h2>
-                        <button 
-                            onClick={() => {
-                                setShowBarcodeScanner(false);
-                                setManualBarcodeEntry(true);
-                            }}
-                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                        >
-                            <FiX className="w-5 h-5" />
-                        </button>
-                    </div>
-                    <div className="p-4">
-                        <BarcodeScanner
-                            onDetect={(result, barcode) => handleBarcodeDetect(result, barcode)}
-                            onClose={() => {
-                                setShowBarcodeScanner(false);
-                                setManualBarcodeEntry(true);
-                                setError('You can enter the barcode below if you want.');
-                            }}
-                            onError={(error) => {
-                                console.error('Barcode scanner error:', error);
-                                setShowBarcodeScanner(false);
-                                setManualBarcodeEntry(true);
-                                setError('Barcode scanner error. Please enter barcode manually.');
-                            }}
-                        />
-                        <div className="mt-4 text-center">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowBarcodeScanner(false);
-                                    setManualBarcodeEntry(true);
-                                }}
-                                className="px-4 py-2 text-sm text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                            >
-                                Enter barcode manually
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <BarcodeScanner
+                onDetect={(result, barcode) => handleBarcodeDetect(result, barcode)}
+                onClose={() => {
+                    setShowBarcodeScanner(false);
+                    setManualBarcodeEntry(true);
+                    setError('You can enter the barcode below if you want.');
+                }}
+                onError={(error) => {
+                    console.error('Barcode scanner error:', error);
+                    setShowBarcodeScanner(false);
+                    setManualBarcodeEntry(true);
+                    setError('Barcode scanner error. Please enter barcode manually.');
+                }}
+            />
         );
     }
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex flex-col bg-black">
             <style dangerouslySetInnerHTML={{ __html: mobileScrollStyle }} />
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-                <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4">
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        Log Extra Meal
-                    </h2>
-                    <button 
-                        onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                    >
-                        <FiX className="w-5 h-5" />
-                    </button>
+            
+            {/* Header with close button */}
+            <div className="bg-gray-900 p-4 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-white">Log Extra Meal</h2>
+                <button 
+                    onClick={onClose}
+                    className="text-gray-300 hover:text-white p-2"
+                    aria-label="Close"
+                >
+                    <FiX size={24} />
+                </button>
+            </div>
+            
+            {/* Error message */}
+            {error && (
+                <div className="absolute top-16 left-0 right-0 m-4 p-3 bg-red-900 text-red-100 rounded z-10">
+                    {error}
                 </div>
-                
-                <div className="p-4 overflow-y-auto max-h-[calc(90vh-4rem)]">
-                    {error && (
-                        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-md text-sm">
-                            {error}
-                        </div>
-                    )}
+            )}
+            
+            {/* Main content - scrollable */}
+            <div className="flex-1 overflow-y-auto bg-gray-900 p-4 pb-32">
+                <form onSubmit={handleSubmit}>
+                    {/* Meal Name */}
+                    <div className="mb-4">
+                        <label htmlFor="mealName" className="block text-sm font-medium text-gray-300 mb-1">
+                            Meal Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="mealName"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="e.g., Post-Workout Snack"
+                            required
+                            className="w-full px-3 py-3 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-gray-800 text-white"
+                        />
+                    </div>
                     
-                    <form onSubmit={handleSubmit}>
-                        {/* Meal Name */}
-                        <div className="mb-4">
-                            <label htmlFor="mealName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Meal Name <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                id="mealName"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="e.g., Post-Workout Snack"
-                                required
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                            />
-                        </div>
+                    {/* Day Type */}
+                    <div className="mb-4">
+                        <label htmlFor="dayType" className="block text-sm font-medium text-gray-300 mb-1">
+                            Day Type <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            id="dayType"
+                            value={selectedDayType}
+                            onChange={(e) => setSelectedDayType(e.target.value)}
+                            className="w-full px-3 py-3 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-gray-800 text-white"
+                        >
+                            {DAY_TYPES.map((type) => (
+                                <option key={type} value={type}>
+                                    {type}
+                                </option>
+                            ))}
+                            <option value="Custom Day">Custom Day</option>
+                        </select>
                         
-                        {/* Day Type */}
-                        <div className="mb-4">
-                            <label htmlFor="dayType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Day Type <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                                id="dayType"
-                                value={selectedDayType}
-                                onChange={(e) => setSelectedDayType(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                            >
-                                {DAY_TYPES.map((type) => (
-                                    <option key={type} value={type}>
-                                        {type}
-                                    </option>
-                                ))}
-                                <option value="Custom Day">Custom Day</option>
-                            </select>
-                            
-                            {selectedDayType === 'Custom Day' && (
-                                <div className="mt-3">
-                                    <label htmlFor="customDayType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Custom Day Name <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        id="customDayType"
-                                        type="text"
-                                        value={customDayType}
-                                        onChange={(e) => setCustomDayType(e.target.value)}
-                                        placeholder="e.g., Refeed Day, Travel Day"
-                                        required={selectedDayType === 'Custom Day'}
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                                    />
-                                </div>
-                            )}
-                        </div>
-                        
-                        {/* Notes */}
-                        <div className="mb-4">
-                            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Notes (Optional)
-                            </label>
-                            <textarea
-                                id="notes"
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                placeholder="Add any additional notes here..."
-                                rows={2}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                            />
-                        </div>
-                        
-                        {/* Food Items */}
-                        <div className="mb-4">
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-1">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-0">
-                                    Food Items <span className="text-red-500">*</span>
+                        {selectedDayType === 'Custom Day' && (
+                            <div className="mt-3">
+                                <label htmlFor="customDayType" className="block text-sm font-medium text-gray-300 mb-1">
+                                    Custom Day Name <span className="text-red-500">*</span>
                                 </label>
-                                <div className="flex flex-wrap gap-3">
+                                <input
+                                    id="customDayType"
+                                    type="text"
+                                    value={customDayType}
+                                    onChange={(e) => setCustomDayType(e.target.value)}
+                                    placeholder="e.g., Refeed Day, Travel Day"
+                                    required={selectedDayType === 'Custom Day'}
+                                    className="w-full px-3 py-3 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-gray-800 text-white"
+                                />
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Notes */}
+                    <div className="mb-4">
+                        <label htmlFor="notes" className="block text-sm font-medium text-gray-300 mb-1">
+                            Notes (Optional)
+                        </label>
+                        <textarea
+                            id="notes"
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="Add any additional notes here..."
+                            rows={2}
+                            className="w-full px-3 py-3 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-gray-800 text-white"
+                        />
+                    </div>
+                    
+                    {/* Food Items */}
+                    <div className="mb-4">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
+                            <label className="block text-sm font-medium text-gray-300 mb-2 sm:mb-0">
+                                Food Items <span className="text-red-500">*</span>
+                            </label>
+                            <div className="flex flex-wrap gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBarcodeScanner(true)}
+                                    className="text-sm text-indigo-400 hover:text-indigo-300 flex items-center justify-center bg-gray-800 px-3 py-2 rounded-md"
+                                >
+                                    <TbBarcode className="mr-1.5 w-4 h-4" /> Scan Barcode
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCustomFoodForm(true)}
+                                    className="text-sm text-indigo-400 hover:text-indigo-300 flex items-center justify-center bg-gray-800 px-3 py-2 rounded-md"
+                                >
+                                    <FiPlus className="mr-1.5 w-4 h-4" /> Add Custom Item
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {/* Manual Barcode Entry */}
+                        {manualBarcodeEntry && (
+                            <div className="mb-4 p-3 bg-gray-800 rounded-md">
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Enter Barcode Manually
+                                </label>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <input
+                                        type="text"
+                                        value={barcodeValue}
+                                        onChange={(e) => setBarcodeValue(e.target.value)}
+                                        placeholder="Enter product barcode"
+                                        className="flex-grow px-3 py-3 border border-gray-600 rounded-md sm:rounded-l-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-gray-700 text-white"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                    />
                                     <button
                                         type="button"
-                                        onClick={() => setShowBarcodeScanner(true)}
-                                        className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center justify-center bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-md"
+                                        onClick={() => searchByBarcode(barcodeValue)}
+                                        disabled={isBarcodeSearching || !barcodeValue}
+                                        className="px-4 py-3 bg-indigo-600 text-white rounded-md sm:rounded-l-none hover:bg-indigo-700 disabled:opacity-50 w-full sm:w-auto"
                                     >
-                                        <TbBarcode className="mr-1.5 w-4 h-4" /> Scan Barcode
+                                        {isBarcodeSearching ? (
+                                            <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin mx-auto"></div>
+                                        ) : (
+                                            "Search"
+                                        )}
+                                    </button>
+                                </div>
+                                <div className="flex justify-between mt-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setManualBarcodeEntry(false)}
+                                        className="text-sm text-gray-400 hover:text-gray-300"
+                                    >
+                                        Cancel
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setShowCustomFoodForm(true)}
-                                        className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center justify-center bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-md"
+                                        onClick={() => {
+                                            setShowCustomFoodForm(true);
+                                            setBarcodeValue(barcodeValue);
+                                        }}
+                                        className="text-sm text-indigo-400 hover:text-indigo-300"
                                     >
-                                        <FiPlus className="mr-1.5 w-4 h-4" /> Add Custom Item
+                                        Create Custom Food
                                     </button>
                                 </div>
                             </div>
+                        )}
+                        
+                        {/* Food Search */}
+                        <div className="mb-4">
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <FiSearch className="h-5 w-5 text-gray-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search for food items..."
+                                    className="w-full pl-10 pr-3 py-3 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-gray-800 text-white"
+                                />
+                            </div>
                             
-                            {/* Manual Barcode Entry */}
-                            {manualBarcodeEntry && (
-                                <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Enter Barcode Manually
-                                    </label>
-                                    <div className="flex flex-col sm:flex-row gap-2">
-                                        <input
-                                            type="text"
-                                            value={barcodeValue}
-                                            onChange={(e) => setBarcodeValue(e.target.value)}
-                                            placeholder="Enter product barcode"
-                                            className="flex-grow px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md sm:rounded-l-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                                            inputMode="numeric"
-                                            pattern="[0-9]*"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => searchByBarcode(barcodeValue)}
-                                            disabled={isBarcodeSearching || !barcodeValue}
-                                            className="px-4 py-3 bg-indigo-600 text-white rounded-md sm:rounded-l-none hover:bg-indigo-700 disabled:opacity-50 w-full sm:w-auto"
-                                        >
-                                            {isBarcodeSearching ? (
-                                                <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin mx-auto"></div>
-                                            ) : (
-                                                "Search"
-                                            )}
-                                        </button>
-                                    </div>
-                                    <div className="flex justify-between mt-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setManualBarcodeEntry(false)}
-                                            className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setShowCustomFoodForm(true);
-                                                setBarcodeValue(barcodeValue);
-                                            }}
-                                            className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
-                                        >
-                                            Create Custom Food
-                                        </button>
-                                    </div>
+                            {isSearching && (
+                                <div className="mt-2 text-center">
+                                    <div className="inline-block w-5 h-5 border-t-2 border-b-2 border-indigo-500 rounded-full animate-spin"></div>
                                 </div>
                             )}
                             
-                            {/* Food Search */}
-                            <div className="mb-4">
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <FiSearch className="h-5 w-5 text-gray-400" />
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Search for food items..."
-                                        className="w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                                    />
-                                </div>
-                                
-                                {isSearching && (
-                                    <div className="mt-2 text-center">
-                                        <div className="inline-block w-5 h-5 border-t-2 border-b-2 border-indigo-500 rounded-full animate-spin"></div>
-                                    </div>
-                                )}
-                                
-                                {searchQuery.trim() && searchResults.length > 0 && (
-                                    <div 
-                                        className="mt-2 border border-gray-200 dark:border-gray-700 rounded-md max-h-60 sm:max-h-40 overflow-y-scroll overflow-x-hidden mobile-scroll-container" 
-                                        style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
-                                        tabIndex={0}
-                                    >
-                                        {searchResults.map((food) => (
-                                            <div 
-                                                key={food.id}
-                                                onClick={() => handleAddFood(food)}
-                                                className="px-3 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                                            >
-                                                <p className="text-sm font-medium text-gray-800 dark:text-white">
-                                                    {food.food_name}
-                                                </p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    {Math.round(food.calories_per_100g)} cal • {Math.round(food.protein_per_100g)}g protein • {Math.round(food.carbs_per_100g)}g carbs • {Math.round(food.fat_per_100g)}g fat (per 100g)
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                
-                                {searchQuery.trim() && searchResults.length === 0 && !isSearching && (
-                                    <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                        No food items found. Try a different search term or scan a barcode.
-                                    </div>
-                                )}
-                            </div>
-                            
-                            {/* Selected Foods */}
-                            <div className="space-y-3 mt-3">
-                                {selectedFoods.length === 0 ? (
-                                    <div className="text-center py-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-md">
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                            No food items added yet. Search and add food items above.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    selectedFoods.map((food, index) => (
+                            {searchQuery.trim() && searchResults.length > 0 && (
+                                <div 
+                                    className="mt-2 border border-gray-700 rounded-md max-h-60 overflow-y-scroll overflow-x-hidden mobile-scroll-container bg-gray-800" 
+                                    style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
+                                    tabIndex={0}
+                                >
+                                    {searchResults.map((food) => (
                                         <div 
-                                            key={index}
-                                            className="p-3 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-700"
+                                            key={food.id}
+                                            onClick={() => handleAddFood(food)}
+                                            className="px-3 py-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0"
                                         >
-                                            <div className="flex justify-between mb-2">
-                                                <p className="font-medium text-gray-800 dark:text-white">
-                                                    {food.name}
-                                                </p>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRemoveFood(index)}
-                                                    className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1"
+                                            <p className="text-sm font-medium text-white">
+                                                {food.food_name}
+                                            </p>
+                                            <p className="text-xs text-gray-400">
+                                                {Math.round(food.calories_per_100g)} cal • {Math.round(food.protein_per_100g)}g protein • {Math.round(food.carbs_per_100g)}g carbs • {Math.round(food.fat_per_100g)}g fat (per 100g)
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            
+                            {searchQuery.trim() && searchResults.length === 0 && !isSearching && (
+                                <div className="mt-2 text-sm text-gray-400">
+                                    No food items found. Try a different search term or scan a barcode.
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Selected Foods */}
+                        <div className="space-y-3 mt-3">
+                            {selectedFoods.length === 0 ? (
+                                <div className="text-center py-6 border border-dashed border-gray-600 rounded-md">
+                                    <p className="text-sm text-gray-400">
+                                        No food items added yet. Search and add food items above.
+                                    </p>
+                                </div>
+                            ) : (
+                                selectedFoods.map((food, index) => (
+                                    <div 
+                                        key={index}
+                                        className="p-3 border border-gray-700 rounded-md bg-gray-800"
+                                    >
+                                        <div className="flex justify-between mb-2">
+                                            <p className="font-medium text-white">
+                                                {food.name}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveFood(index)}
+                                                className="text-red-400 hover:text-red-300 p-1"
+                                            >
+                                                <FiX className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
+                                            <div className="w-full sm:w-1/2">
+                                                <label className="block text-xs text-gray-400 mb-1">
+                                                    Quantity
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={food.quantity}
+                                                    onChange={(e) => handleUpdateQuantity(index, parseFloat(e.target.value) || 0)}
+                                                    min="0.1"
+                                                    step="0.1"
+                                                    className="w-full px-3 py-2 text-base border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-gray-700 text-white"
+                                                    inputMode="decimal"
+                                                />
+                                            </div>
+                                            <div className="w-full sm:w-1/2">
+                                                <label className="block text-xs text-gray-400 mb-1">
+                                                    Unit
+                                                </label>
+                                                <select
+                                                    value={food.unit}
+                                                    onChange={(e) => handleUpdateUnit(index, e.target.value)}
+                                                    className="w-full px-3 py-2 text-base border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-gray-700 text-white"
                                                 >
-                                                    <FiX className="w-5 h-5" />
-                                                </button>
+                                                    <option value="g">g</option>
+                                                    <option value="oz">oz</option>
+                                                    <option value="ml">ml</option>
+                                                    <option value="cup">cup</option>
+                                                    <option value="serving">serving</option>
+                                                </select>
                                             </div>
-                                            <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
-                                                <div className="w-full sm:w-1/2">
-                                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                                                        Quantity
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        value={food.quantity}
-                                                        onChange={(e) => handleUpdateQuantity(index, parseFloat(e.target.value) || 0)}
-                                                        min="0.1"
-                                                        step="0.1"
-                                                        className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                                                        inputMode="decimal"
-                                                    />
-                                                </div>
-                                                <div className="w-full sm:w-1/2">
-                                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                                                        Unit
-                                                    </label>
-                                                    <select
-                                                        value={food.unit}
-                                                        onChange={(e) => handleUpdateUnit(index, e.target.value)}
-                                                        className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                                                    >
-                                                        <option value="g">g</option>
-                                                        <option value="oz">oz</option>
-                                                        <option value="ml">ml</option>
-                                                        <option value="cup">cup</option>
-                                                        <option value="serving">serving</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            
-                                            {/* Add macro input form if this food needs manual macros */}
-                                            {foodsNeedingMacros[index] && (
-                                                <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
-                                                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mb-2 font-medium">
-                                                        Required: Enter nutrition info per {food.quantity} {food.unit} <span className="text-red-500">*</span>
-                                                    </p>
-                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                                        <div>
-                                                            <label className="block text-xs text-gray-500 dark:text-gray-400">
-                                                                Calories <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                value={foodsNeedingMacros[index].calories}
-                                                                onChange={(e) => handleMacroChange(index, 'calories', e.target.value)}
-                                                                className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-                                                                min="0"
-                                                                placeholder="kcal"
-                                                                inputMode="decimal"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-xs text-gray-500 dark:text-gray-400">
-                                                                Protein <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                value={foodsNeedingMacros[index].protein}
-                                                                onChange={(e) => handleMacroChange(index, 'protein', e.target.value)}
-                                                                className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-                                                                min="0"
-                                                                placeholder="g"
-                                                                inputMode="decimal"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-xs text-gray-500 dark:text-gray-400">
-                                                                Carbs <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                value={foodsNeedingMacros[index].carbs}
-                                                                onChange={(e) => handleMacroChange(index, 'carbs', e.target.value)}
-                                                                className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-                                                                min="0"
-                                                                placeholder="g"
-                                                                inputMode="decimal"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-xs text-gray-500 dark:text-gray-400">
-                                                                Fat <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                value={foodsNeedingMacros[index].fat}
-                                                                onChange={(e) => handleMacroChange(index, 'fat', e.target.value)}
-                                                                className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-                                                                min="0"
-                                                                placeholder="g"
-                                                                inputMode="decimal"
-                                                            />
-                                                        </div>
+                                        </div>
+                                        
+                                        {/* Macro input form */}
+                                        {foodsNeedingMacros[index] && (
+                                            <div className="mt-3 p-3 bg-yellow-900/20 rounded-md">
+                                                <p className="text-xs text-yellow-300 mb-2 font-medium">
+                                                    Required: Enter nutrition info per {food.quantity} {food.unit} <span className="text-red-500">*</span>
+                                                </p>
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                    <div>
+                                                        <label className="block text-xs text-gray-400">
+                                                            Calories <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={foodsNeedingMacros[index].calories}
+                                                            onChange={(e) => handleMacroChange(index, 'calories', e.target.value)}
+                                                            className="w-full px-3 py-2 text-base border border-gray-600 rounded-md bg-gray-700 text-white"
+                                                            min="0"
+                                                            placeholder="kcal"
+                                                            inputMode="decimal"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs text-gray-400">
+                                                            Protein <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={foodsNeedingMacros[index].protein}
+                                                            onChange={(e) => handleMacroChange(index, 'protein', e.target.value)}
+                                                            className="w-full px-3 py-2 text-base border border-gray-600 rounded-md bg-gray-700 text-white"
+                                                            min="0"
+                                                            placeholder="g"
+                                                            inputMode="decimal"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs text-gray-400">
+                                                            Carbs <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={foodsNeedingMacros[index].carbs}
+                                                            onChange={(e) => handleMacroChange(index, 'carbs', e.target.value)}
+                                                            className="w-full px-3 py-2 text-base border border-gray-600 rounded-md bg-gray-700 text-white"
+                                                            min="0"
+                                                            placeholder="g"
+                                                            inputMode="decimal"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs text-gray-400">
+                                                            Fat <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={foodsNeedingMacros[index].fat}
+                                                            onChange={(e) => handleMacroChange(index, 'fat', e.target.value)}
+                                                            className="w-full px-3 py-2 text-base border border-gray-600 rounded-md bg-gray-700 text-white"
+                                                            min="0"
+                                                            placeholder="g"
+                                                            inputMode="decimal"
+                                                        />
                                                     </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
                         </div>
-                        
-                        {/* Submit Button */}
-                        <div className="flex justify-end space-x-3 mt-6 modal-actions-mobile">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
-                                disabled={isLoading}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <div className="inline-block w-4 h-4 border-t-2 border-b-2 border-white rounded-full animate-spin"></div>
-                                ) : (
-                                    <>
-                                        <FiPlus className="inline-block mr-1" /> Log Meal
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    </div>
+                </form>
+            </div>
+            
+            {/* Fixed footer with buttons */}
+            <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 p-4 flex justify-between">
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-6 py-3 text-sm font-medium text-gray-300 bg-gray-800 rounded-md hover:bg-gray-700"
+                    disabled={isLoading}
+                >
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="px-6 py-3 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 flex items-center"
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <div className="inline-block w-4 h-4 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2"></div>
+                    ) : (
+                        <FiPlus className="mr-2" />
+                    )}
+                    Log Meal
+                </button>
             </div>
         </div>
     );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { FiCheck, FiX, FiPlus, FiClock, FiExternalLink, FiChevronDown, FiChevronUp, FiAlertCircle } from 'react-icons/fi';
+import { FiCheck, FiX, FiPlus, FiClock, FiExternalLink, FiChevronDown, FiChevronUp, FiAlertCircle, FiInfo } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { 
     DailyNutritionLog, 
@@ -420,6 +420,40 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
         }
     }, [dailyLog]);
 
+    // Auto-expand the first unlogged meal when data changes
+    useEffect(() => {
+        const meals = getPlannedMeals();
+        if (meals.length > 0 && dailyLog) {
+            // Find the first unlogged meal
+            const firstUnloggedMeal = meals.find(meal => !isMealLogged(meal.id));
+            
+            if (firstUnloggedMeal) {
+                // Expand only the first unlogged meal
+                const newExpandedState: Record<string, boolean> = {};
+                // First, collapse all meals
+                meals.forEach(meal => {
+                    newExpandedState[meal.id] = false;
+                });
+                // Then expand only the first unlogged meal
+                newExpandedState[firstUnloggedMeal.id] = true;
+                setExpandedMeals(newExpandedState);
+            }
+        }
+    }, [dailyLog, selectedDayType, nutritionPlan]);
+
+    // Get the planned meals and logged meals
+    const plannedMeals = getPlannedMeals();
+    const extraMeals = dailyLog?.logged_meals.filter(
+      meal => meal.is_extra_meal && meal.day_type === selectedDayType
+    ) || [];
+
+    // Calculate progress
+    const totalPlannedMeals = plannedMeals.length;
+    const completedPlannedMeals = plannedMeals.filter(meal => isMealLogged(meal.id)).length;
+    const completionPercentage = totalPlannedMeals > 0
+        ? Math.round((completedPlannedMeals / totalPlannedMeals) * 100)
+        : 0;
+
     // Define the header for the Card component
     const header = !hideHeader ? (
         <div className="flex items-center justify-between">
@@ -470,19 +504,6 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
             </Card>
         );
     }
-
-    // Get the planned meals and logged meals
-    const plannedMeals = getPlannedMeals();
-    const extraMeals = dailyLog?.logged_meals.filter(
-      meal => meal.is_extra_meal && meal.day_type === selectedDayType
-    ) || [];
-
-    // Calculate progress
-    const totalPlannedMeals = plannedMeals.length;
-    const completedPlannedMeals = plannedMeals.filter(meal => isMealLogged(meal.id)).length;
-    const completionPercentage = totalPlannedMeals > 0
-        ? Math.round((completedPlannedMeals / totalPlannedMeals) * 100)
-        : 0;
 
     return (
         <Card
@@ -828,35 +849,49 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
                                         </div>
                                         
                                         {/* Expanded ingredients section */}
-                                        {isExpanded && meal.food_items.length > 0 && (
+                                        {isExpanded && (
                                             <div className="px-4 pb-4 pt-0">
-                                                <div className="mt-2 border-t border-gray-200 dark:border-gray-700 pt-3">
-                                                    <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                        Ingredients
-                                                    </h5>
-                                                    <ul className="space-y-2">
-                                                        {meal.food_items.map((item) => (
-                                                            <li key={item.id} className="text-sm">
-                                                                <div className="flex justify-between">
-                                                                    <span className="text-gray-800 dark:text-gray-200">
-                                                                        {item.food_item?.food_name || 'Unknown Food'}
-                                                                    </span>
-                                                                    <span className="text-gray-600 dark:text-gray-400">
-                                                                        {item.quantity} {item.unit}
-                                                                    </span>
-                                                                </div>
-                                                                {item.food_item && (
-                                                                    <div className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
-                                                                        {Math.round(item.calculated_calories || 0)} cal • 
-                                                                        P: {Math.round(item.calculated_protein || 0)}g • 
-                                                                        C: {Math.round(item.calculated_carbs || 0)}g • 
-                                                                        F: {Math.round(item.calculated_fat || 0)}g
+                                                {/* Notes section - added to show meal notes when expanded */}
+                                                {meal.notes && (
+                                                    <div className="mt-2 border-t border-gray-200 dark:border-gray-700 pt-3 mb-2">
+                                                        <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-md flex items-start">
+                                                            <FiInfo className="text-indigo-600 dark:text-indigo-400 mt-0.5 mr-2 flex-shrink-0" />
+                                                            <p className="text-sm text-gray-700 dark:text-indigo-200 whitespace-pre-line">
+                                                                {meal.notes}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                
+                                                {meal.food_items.length > 0 && (
+                                                    <div className="mt-2 border-t border-gray-200 dark:border-gray-700 pt-3">
+                                                        <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                            Ingredients
+                                                        </h5>
+                                                        <ul className="space-y-2">
+                                                            {meal.food_items.map((item) => (
+                                                                <li key={item.id} className="text-sm">
+                                                                    <div className="flex justify-between">
+                                                                        <span className="text-gray-800 dark:text-gray-200">
+                                                                            {item.food_item?.food_name || 'Unknown Food'}
+                                                                        </span>
+                                                                        <span className="text-gray-600 dark:text-gray-400">
+                                                                            {item.quantity} {item.unit}
+                                                                        </span>
                                                                     </div>
-                                                                )}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
+                                                                    {item.food_item && (
+                                                                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
+                                                                            {Math.round(item.calculated_calories || 0)} cal • 
+                                                                            P: {Math.round(item.calculated_protein || 0)}g • 
+                                                                            C: {Math.round(item.calculated_carbs || 0)}g • 
+                                                                            F: {Math.round(item.calculated_fat || 0)}g
+                                                                        </div>
+                                                                    )}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         

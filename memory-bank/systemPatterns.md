@@ -1155,49 +1155,47 @@ flowchart TD
 
 ## Meal Planning Patterns
 
-### Data Structure
-- `meals` table with relationships to `nutrition_plans` and `food_items`
-- Day type categorization (rest, light, moderate, heavy, training)
-- `order_in_plan` field for meal sequencing
-- Time suggestion in 24-hour format
+### Day Type Management
+- Meals are organized by day type (Rest, Light, Moderate, Heavy, Training)
+- Day types serve as the primary organizational structure for meal plans
+- UI components for creating, editing, and filtering by day type
+- URL parameters preserve day type selection across navigation
+- Intelligent day type selection based on scheduled workouts when available
 
-### Meal Management Operations
-1. **Creation Pattern**:
-   - Modal dialog with form inputs
-   - Default values for new meals
-   - Day type selection with visual indicators
-   - Time selection with common presets
-   - Immediate database update and UI refresh
+### Meal Organization
+- Meals are sequenced using the `order_in_plan` field
+- Manual reordering with up/down controls to change order value
+- Direct order input available for quick reordering
+- Database transactions ensure consistent ordering
+- Parallel updates maintain proper order relationships
 
-2. **Edit Pattern**:
-   - Reuse of creation form with populated values
-   - Non-destructive operation with cancel option
-   - Immediate database update on save
-   - Data validation before submission
+### UI/UX Patterns
+- Collapsible/expandable sections for day types with visual distinction
+- Color-coded headers and icons to distinguish different day types
+- Information hierarchy emphasizes key nutritional data
+- Consistent styling across related components (MealLoggingWidget and MealPlanView)
+- Progressive disclosure reveals details on demand through expansion
 
-3. **Delete Pattern**:
-   - Two-step process with confirmation dialog
-   - Clear warning about consequences
-   - Visual distinction for destructive action (red button)
-   - Error handling with user feedback
+### Intelligent Defaults
+- First unlogged meal is automatically expanded to guide user focus
+- Day type sections can be collapsed by default for cleaner initial view
+- Meal notes displayed in expanded view for contextual information
+- Context-aware day type selection based on workout schedule
+- "Collapse All/Expand All" functionality for efficient management of large meal plans
 
-4. **Reordering Pattern**:
-   - In-place visual controls (up/down arrows)
-   - Order changes limited to within day type groups
-   - Database update of `order_in_plan` field
-   - Optimistic UI update with rollback on error
+### State Management
+- React useState for component-level state
+- useEffect hooks for synchronized behaviors
+- Record<string, boolean> pattern for tracking expanded state
+- Memo and dependency arrays to prevent unnecessary re-renders
+- TypeScript interfaces for strong typing
 
-5. **Time Selection Pattern**:
-   - 24-hour format for international compatibility
-   - Dropdown selectors for hour (00-23) and minute
-   - Common presets for quick selection
-   - Support for non-time text suggestions (e.g., "Post-Workout")
-
-### Food Item Handling
-- USDA database integration with local database caching
-- Custom food creation with nutritional data
-- Quantity and unit management
-- Automatic nutritional calculations based on quantity
+### Data Consistency
+- Database queries ensure data integrity
+- Optimistic UI updates with backend confirmation
+- Error handling with user feedback via toast notifications
+- Proper caching to prevent data loss during navigation
+- Consistent time format (24-hour) throughout the application
 
 ## Error Handling Patterns
 

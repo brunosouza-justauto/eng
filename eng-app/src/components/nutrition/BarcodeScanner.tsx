@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getFoodItemByBarcode } from '../../services/foodItemService';
 import { FoodItem } from '../../types/mealPlanning';
-import { FiX, FiCamera } from 'react-icons/fi';
+import { FiX, FiRefreshCw } from 'react-icons/fi';
 
 // Check if the BarcodeDetector API is available
 const isBarcodeDetectorSupported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
@@ -43,6 +43,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetect, onError, onCl
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [scanAttempts, setScanAttempts] = useState(0);
   const [torchEnabled, setTorchEnabled] = useState(false);
+  const [torchAvailable, setTorchAvailable] = useState(false);
+  const [torchError, setTorchError] = useState<string | null>(null);
   
   // Initialize camera and barcode detector
   useEffect(() => {
@@ -58,6 +60,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetect, onError, onCl
         if (stream) {
           stream.getTracks().forEach(track => track.stop());
         }
+        
+        // Reset torch state when changing cameras
+        setTorchAvailable(false);
+        setTorchError(null);
         
         // Request camera access with preferred settings for barcode scanning
         const constraints = {
@@ -85,19 +91,43 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetect, onError, onCl
           
           setIsScanning(true);
           
-          // Try to enable the flashlight for better scanning
+          // Check if torch is available
           if (facingMode === 'environment') {
             const track = stream.getVideoTracks()[0];
             try {
-              // Only apply if capabilities include torch
+              // Check if torch is supported
               const capabilities = track.getCapabilities() as ExtendedMediaTrackCapabilities;
               if (capabilities.torch) {
-                await track.applyConstraints({
-                  advanced: [{ torch: torchEnabled } as ExtendedMediaTrackConstraintSet]
-                });
+                setTorchAvailable(true);
+                // Only try to enable torch if user has toggled it on
+                if (torchEnabled) {
+                  try {
+                    await track.applyConstraints({
+                      advanced: [{ torch: true } as ExtendedMediaTrackConstraintSet]
+                    });
+                  } catch (torchErr) {
+                    console.error('Failed to enable torch:', torchErr);
+                    setTorchError('Could not enable flashlight');
+                  }
+                }
+              } else {
+                setTorchAvailable(false);
+                if (torchEnabled) {
+                  setTorchError('Flashlight not available on this device');
+                }
               }
             } catch (err) {
-              console.log('Torch not supported on this device', err);
+              console.error('Error checking torch capability:', err);
+              setTorchAvailable(false);
+              if (torchEnabled) {
+                setTorchError('Flashlight not supported');
+              }
+            }
+          } else {
+            // Front camera doesn't support torch
+            setTorchAvailable(false);
+            if (torchEnabled) {
+              setTorchError('Flashlight only available with rear camera');
             }
           }
           
@@ -314,11 +344,21 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetect, onError, onCl
   // Toggle camera between front and back
   const handleToggleCamera = () => {
     setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
+    // Reset torch when switching cameras
+    if (facingMode === 'user') {
+      setTorchEnabled(false);
+    }
   };
   
   // Toggle flashlight
   const handleToggleTorch = () => {
+    if (!torchAvailable && !torchEnabled) {
+      setTorchError('Flashlight not available on this device');
+      return;
+    }
+    
     setTorchEnabled(prev => !prev);
+    // Error message will be set/cleared in the useEffect
   };
   
   return (
@@ -344,6 +384,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetect, onError, onCl
       {loadingMessage && (
         <div className="absolute top-16 left-0 right-0 m-4 p-3 bg-blue-900 text-blue-100 rounded z-10">
           {loadingMessage}
+        </div>
+      )}
+      
+      {torchError && (
+        <div className="absolute top-16 left-0 right-0 m-4 p-3 bg-yellow-900 text-yellow-100 rounded z-10 flex justify-between">
+          <span>{torchError}</span>
+          <button onClick={() => setTorchError(null)} className="text-yellow-100">✕</button>
         </div>
       )}
       
@@ -375,22 +422,27 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetect, onError, onCl
         <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-6">
           <button 
             onClick={handleToggleCamera} 
-            className="p-3 bg-gray-800 rounded-full text-white"
+            className="p-3 bg-gray-800 rounded-full text-white flex flex-col items-center"
             aria-label="Switch Camera"
           >
-            <FiCamera size={24} />
+            <FiRefreshCw size={24} />
+            <span className="text-xs mt-1">Flip</span>
           </button>
           
           <button 
             onClick={handleToggleTorch} 
-            className={`p-3 rounded-full text-white ${torchEnabled ? 'bg-yellow-600' : 'bg-gray-800'}`}
+            className={`p-3 rounded-full text-white flex flex-col items-center ${
+              torchEnabled ? 'bg-yellow-600' : 'bg-gray-800'
+            } ${!torchAvailable && !torchEnabled ? 'opacity-50' : ''}`}
             aria-label="Toggle Flashlight"
+            disabled={!torchAvailable && !torchEnabled}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M9 2H15L17 8H7L9 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M7 8V14C7 16.7614 9.23858 19 12 19C14.7614 19 17 16.7614 17 14V8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M12 19V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
+            <span className="text-xs mt-1">Light</span>
           </button>
         </div>
       </div>
@@ -413,13 +465,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetect, onError, onCl
           </button>
         </form>
         
-        <div className="mt-4">
+        {/* Scrollable tips container */}
+        <div className="mt-2">
           <p className="text-sm text-gray-400">
-            <span className="block font-medium mb-1">Tips for scanning round items:</span>
             1. Position the barcode in the scanning box<br />
             2. Hold the item at a slight angle to reduce glare<br />
             3. Make sure the entire barcode is visible and flat<br />
-            4. Try rotating the item slowly
+            4. Try rotating the item slowly<br />
+            5. If flashlight is available, use it in low-light conditions
           </p>
         </div>
       </div>

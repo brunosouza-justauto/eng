@@ -396,60 +396,6 @@ We've implemented a comprehensive landing page to enable coaches to effectively 
 
 ## Current Focus
 
-We are currently enhancing the meal planning functionality in the ENG app. The most recent improvements include:
-
-### Meal Planner Management Features
-We've added comprehensive meal management capabilities to the `MealPlannerIntegrated` component:
-
-1. **Meal Reordering**: Implementation of up/down arrow controls to reorder meals within a day type
-   - Implemented in `handleMoveMealUp` and `handleMoveMealDown` functions
-   - Updates `order_in_plan` values in the database
-   - Provides immediate visual feedback with arrow buttons that change color on hover
-
-2. **Meal Editing**: Creation of modal dialog for editing existing meal properties
-   - Edit meal name, time suggestion, day type, description, and notes
-   - Uses the same UI components as the meal creation flow for consistency
-   - Updates are saved directly to the database via Supabase
-
-3. **Meal Deletion**: Addition of deletion capability with confirmation dialog
-   - Includes a confirmation dialog to prevent accidental deletions
-   - Properly removes the meal and associated food items from the database
-   - Uses a distinct red color scheme to indicate destructive action
-
-4. **Time Format Standardization**: Conversion from 12-hour (AM/PM) to 24-hour time format for consistency
-   - Changed hour selection from 1-12 to 00-23 range
-   - Removed AM/PM selector for a cleaner interface
-   - Updated time presets to use 24-hour format (e.g., "19:30" instead of "7:30 PM")
-   - Modified time parsing and formatting functions to handle 24-hour time
-
-5. **Enhanced Time Picker**: Implementation of a structured time picker with hour/minute dropdowns in 24-hour format
-   - Added hour and minute dropdowns to the time picker for better time selection
-   - Updated time parsing and formatting functions to handle 24-hour time
-
-6. **UI/UX Improvements**: General styling enhancements to the meal planner interface
-   - Added better spacing, consistent button styling, and improved layout
-   - Enhanced average nutrition calculation to properly account for different day types
-
-7. **Average Nutrition Calculation**: Improved calculation of average nutrition values by day type
-   - Updated meal logging logic to use meal_logs table for better data organization
-   - Fixed caching issues where meal items would disappear when switching between meal days
-   - Added TypeScript interfaces and types to ensure proper type safety
-
-## Recent Decisions
-
-- Adopted 24-hour time format for international compatibility and clarity
-- Used modals for complex operations to maintain a clean main interface
-- Implemented stopPropagation in button click handlers to prevent unwanted behavior
-- Added confirmation for destructive actions like deletion
-
-## Current Tasks
-
-- Test the new meal management features across different devices
-- Consider enhancing the mobile experience for these features
-- Identify any performance optimizations for large meal plans
-- Review accessibility of the new UI elements
-
-## Current Focus
 We are currently enhancing the meal planning functionality within the nutrition module of the ENG application. Recent work has focused on improving the user experience for meal management, including:
 
 1. **Meal Reordering**: Implementation of up/down arrow controls to reorder meals within a day type
@@ -459,6 +405,8 @@ We are currently enhancing the meal planning functionality within the nutrition 
 5. **Enhanced Time Picker**: Implementation of a structured time picker with hour/minute dropdowns in 24-hour format
 6. **UI/UX Improvements**: General styling enhancements to the meal planner interface
 7. **Average Nutrition Calculation**: Improved calculation of average nutrition values by day type
+8. **Meal Notes Display**: Added meal notes in expanded view of meal cards in MealLoggingWidget
+9. **Intelligent UI Expansion**: Auto-expansion of first unlogged meal to guide users through their meal plan
 
 ## Recent Changes
 
@@ -477,12 +425,17 @@ The `MealPlannerIntegrated.tsx` component has undergone significant enhancement:
 - Improved average nutrition calculation to properly account for different day types
 - Fixed caching issues where meal items would disappear when switching between meal days
 - Added TypeScript interfaces and types to ensure proper type safety
+- Improved day type groupings with visual distinction, collapse/expand functionality, and meal counts
+- Added "Collapse All/Expand All" functionality for better management of large meal plans
 
-### Supabase Database Interactions
-- Utilizing `order_in_plan` field to manage meal sequence
-- Implementing proper transaction handling for data operations
-- Optimistic UI updates with subsequent backend confirmation
-- Error handling with user feedback via toast notifications
+### MealLoggingWidget Component
+The `MealLoggingWidget.tsx` component has been enhanced with several user experience improvements:
+
+- Added meal notes section in expanded meal view using consistent design with MealPlanView
+- Implemented auto-expansion of the first unlogged meal to help users quickly identify what's next
+- Ensured proper handling of expanded state when meals are logged or unlogged
+- Maintained consistent styling between MealLoggingWidget and MealPlanView components
+- Improved information hierarchy to prioritize relevant meal details
 
 ## Next Steps
 
