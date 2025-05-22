@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import BackButton from '../common/BackButton';
-import { FiInfo, FiCheckCircle, FiPlusCircle, FiXCircle } from 'react-icons/fi';
+import { FiInfo, FiCheckCircle, FiPlusCircle, FiXCircle, FiShoppingCart } from 'react-icons/fi';
 import { logPlannedMeal, deleteLoggedMeal } from '../../services/mealLoggingService';
 import { getCurrentDate } from '../../utils/dateUtils';
 import { selectProfile } from '../../store/slices/authSlice';
@@ -82,6 +82,7 @@ const MealPlanView: React.FC = () => {
     const { planId } = useParams<MealPlanViewParams>();
     const userProfile = useSelector(selectProfile);
     const location = useLocation();
+    const navigate = useNavigate();
     
     // Get dayType from URL query parameters
     const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -102,13 +103,14 @@ const MealPlanView: React.FC = () => {
         return Array.from(new Set(plan.meals.map(meal => meal.day_type))).filter(Boolean);
     }, [plan?.meals]);
 
-    // Set initial day type from URL parameter when plan loads
+    // Set initial day type from URL parameter or default to the first available day type
     useEffect(() => {
-        if (dayTypeParam && plan) {
-            // Check if the day type from URL is valid for this plan
+        if (plan) {
             const validDayTypes = Array.from(new Set(plan.meals.map(meal => meal.day_type))).filter(Boolean);
-            if (validDayTypes.includes(dayTypeParam)) {
+            if (dayTypeParam && validDayTypes.includes(dayTypeParam)) {
                 setSelectedDayType(dayTypeParam);
+            } else if (validDayTypes.length > 0) {
+                setSelectedDayType(validDayTypes[0]);
             }
         }
     }, [dayTypeParam, plan]);
@@ -198,7 +200,7 @@ const MealPlanView: React.FC = () => {
                     .from('meal_logs')
                     .select('id, meal_id')
                     .eq('user_id', userProfile.id)
-                    .eq('log_date', today)
+                    .eq('date', today)
                     .not('is_extra_meal', 'eq', true);
                 
                 console.log('Fetched logged meals:', loggedMealsData, 'Errors:', logsError);
@@ -270,6 +272,13 @@ const MealPlanView: React.FC = () => {
             : plan.meals.filter(meal => meal.day_type === selectedDayType);
     }, [plan?.meals, selectedDayType]);
 
+    // Handle shopping list button click
+    const handleGenerateShoppingList = () => {
+        if (planId) {
+            navigate(`/shopping-cart?planId=${planId}`);
+        }
+    };
+
     return (
         <div className="container p-4 mx-auto">
             <BackButton to="/dashboard" />
@@ -280,23 +289,32 @@ const MealPlanView: React.FC = () => {
             {plan && (
                 <div>
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{plan.name}</h1>
-                        
-                        <div className="flex flex-wrap gap-2 mb-3">
-                            <div className="bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full text-sm text-blue-700 dark:text-blue-300">
-                                {plan.total_calories}kcal
-                            </div>
-                            <div className="bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-full text-sm text-red-700 dark:text-red-300">
-                                P: {plan.protein_grams}g
-                            </div>
-                            <div className="bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full text-sm text-green-700 dark:text-green-300">
-                                C: {plan.carbohydrate_grams}g
-                            </div>
-                            <div className="bg-yellow-50 dark:bg-yellow-900/20 px-3 py-1 rounded-full text-sm text-yellow-700 dark:text-yellow-300">
-                                F: {plan.fat_grams}g
+                        <div className="flex justify-between items-start mb-3">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{plan.name}</h1>
+                                
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full text-sm text-blue-700 dark:text-blue-300">
+                                        {plan.total_calories}kcal
+                                    </div>
+                                    <div className="bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-full text-sm text-red-700 dark:text-red-300">
+                                        P: {plan.protein_grams}g
+                                    </div>
+                                    <div className="bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full text-sm text-green-700 dark:text-green-300">
+                                        C: {plan.carbohydrate_grams}g
+                                    </div>
+                                    <div className="bg-yellow-50 dark:bg-yellow-900/20 px-3 py-1 rounded-full text-sm text-yellow-700 dark:text-yellow-300">
+                                        F: {plan.fat_grams}g
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        
+                        <button
+                            onClick={handleGenerateShoppingList}
+                            className="w-full flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded mb-4"
+                        >
+                            <FiShoppingCart className="mr-2" /> Generate Shopping List
+                        </button>
                         {plan.description && 
                             <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-4 whitespace-pre-line">{plan.description}</p>
                         }

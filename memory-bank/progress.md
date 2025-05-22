@@ -376,14 +376,44 @@
 
 ## Recently Completed Features
 
-### Workout Session Page
-- ✅ Automatic weight copying from previous sets
-- ✅ Toast notification system for user feedback
-- ✅ Bodyweight exercise support with BW marker
-- ✅ Rest timer integration
-- ✅ Workout completion tracking
+### Shopping Cart Feature Enhancements
+- ✅ **Improved Layout and Visual Design**
+  - Repositioned title and buttons for better visual hierarchy
+  - Enhanced table styling with borders, proper spacing, and visual separation
+  - Made action buttons more visually distinctive and accessible
 
-The workout session interface now provides a smoother experience for users through the automatic weight copying feature, reducing friction when logging multiple sets of the same exercise with identical weights.
+- ✅ **Print and PDF Optimization**
+  - Updated print styles to hide unnecessary elements (actions column, header, footer, back button)
+  - Fixed pagination issues to ensure all items appear in the printed output
+  - Enhanced the printed layout for better readability
+
+- ✅ **Search Integration Improvements**
+  - Modified search queries to use only the part of food names before the first comma
+  - Enhanced supermarket search integration for Woolworths and Coles
+  - Improved search results relevance for grocery shopping
+
+### Meal Plan View Improvements
+- ✅ **Enhanced Navigation and Usability**
+  - Repositioned the "Generate Shopping List" button for better visibility
+  - Made the button span the full width of the screen for easier interaction
+  - Added automatic selection of the first day type tab when no specific type is selected
+  - Improved user experience with intelligent default state selection
+
+### Bug Fixes
+- ✅ **Database Query Corrections**
+  - Fixed a critical error in meal logging by using the correct column name ('date' instead of 'log_date')
+  - Ensured proper data retrieval from the meal_logs table
+  - Aligned code with the actual database schema to prevent future issues
+
+## Current Status
+
+The Shopping Cart feature is now fully functional with:
+- ✅ Weekly day-type frequency dialog with localStorage persistence
+- ✅ Shopping list generation with ingredient aggregation
+- ✅ Supermarket search integration for Woolworths and Coles
+- ✅ Print-optimized layout for practical shopping use
+- ✅ Improved visual design and usability
+- ✅ Cross-page integration with the Meal Plan View
 
 ## Completed Features
 
@@ -428,6 +458,11 @@ The workout session interface now provides a smoother experience for users throu
 - Bulk operations for meals (copy, duplicate across day types)
 - Visual indicators for nutritional goals vs. actual intake
 - Printable/exportable meal plans
+- **Shopping cart and grocery list generation:**
+  - Weekly shopping list based on meal plan frequencies
+  - Supermarket integration with Woolworths/Coles search links
+  - Print functionality for shopping lists
+  - Ingredient quantity aggregation with unit standardization
 
 ### Admin Features
 - Enhanced CMS for content management
@@ -451,6 +486,11 @@ The workout session interface now provides a smoother experience for users throu
 3. Integration with fitness tracking devices/apps
 4. Social sharing capabilities
 5. Advanced search filters for exercises and food items
+6. **Expanded shopping list functionality:**
+   - Saving shopping lists to user profile
+   - Building lists across multiple meal plans
+   - Optional categorization by food groups
+   - Deeper supermarket integration with APIs (future)
 
 # Progress
 

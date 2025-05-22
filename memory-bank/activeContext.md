@@ -51,14 +51,20 @@ We are enhancing the app's user experience and marketing capabilities while cont
    - Improving mobile navigation usability and visual feedback
    - Streamlining user flows between dashboard sections
 
-8. **Bug Fixes and Optimizations** 🔧
+8. **Nutrition Shopping Cart** 🚧
+   - Creating a shopping list generator based on meal plans
+   - Adding print functionality for grocery shopping
+   - Implementing Woolworths/Coles search integration
+   - Enhancing meal plan utility for athletes' weekly shopping
+
+9. **Bug Fixes and Optimizations** 🔧
    - Addressing UI/UX issues in dark mode
    - Improving authentication stability
    - Enhancing data quality for food items
    - Fixing food data classification mapping
    - Resolving Supabase query issues in data aggregation
 
-9. **Previous Completed Focus Areas** ✅
+10. **Previous Completed Focus Areas** ✅
    - Exercise Data Fetching Performance
    - Dashboard Workout Display
    - Program Builder Improvements
@@ -394,80 +400,87 @@ We've implemented a comprehensive landing page to enable coaches to effectively 
 - Added proper dark/light mode support throughout the landing page
 - Implemented clear navigation and call-to-action buttons for visitor conversion
 
-## Current Focus
+## Current Focus: Shopping Cart Feature Implementation
 
-We are currently enhancing the meal planning functionality within the nutrition module of the ENG application. Recent work has focused on improving the user experience for meal management, including:
+We're implementing a comprehensive shopping list generator for meal plans with these key components:
 
-1. **Meal Reordering**: Implementation of up/down arrow controls to reorder meals within a day type
-2. **Meal Editing**: Creation of modal dialog for editing existing meal properties
-3. **Meal Deletion**: Addition of deletion capability with confirmation dialog
-4. **Time Format Standardization**: Conversion from 12-hour (AM/PM) to 24-hour time format for consistency
-5. **Enhanced Time Picker**: Implementation of a structured time picker with hour/minute dropdowns in 24-hour format
-6. **UI/UX Improvements**: General styling enhancements to the meal planner interface
-7. **Average Nutrition Calculation**: Improved calculation of average nutrition values by day type
-8. **Meal Notes Display**: Added meal notes in expanded view of meal cards in MealLoggingWidget
-9. **Intelligent UI Expansion**: Auto-expansion of first unlogged meal to guide users through their meal plan
+1. **Data Model Alignment**
+   - Adding `nutrition_day_type` column to the `program_days` table
+   - Creating link between workout plans and nutrition day types
+   - Enabling smart suggestions for weekly meal type frequencies
 
-## Recent Changes
+2. **Weekly Day-Type Frequency Dialog**
+   - Creating a modal wizard to collect day type frequencies
+   - Building algorithmic suggestions based on upcoming workouts
+   - Persisting user preferences for future shopping lists
+   - Allowing manual adjustments to suggested frequencies
 
-### MealPlannerIntegrated Component
-The `MealPlannerIntegrated.tsx` component has undergone significant enhancement:
+3. **Shopping Cart Page**
+   - Implementing a dedicated `/shopping-cart` route
+   - Building ingredient aggregation logic that converts all units to grams
+   - Creating a clean, printable interface for the shopping list
+   - Adding supermarket search links for individual ingredients
 
-- Added reordering functionality using `updateMealOrder` Supabase function
-- Implemented edit meal functionality with a modal dialog that supports:
-  - Changing meal name
-  - Updating time suggestion (using 24-hour format)
-  - Modifying day type
-  - Adding/editing description and notes
-- Added delete meal functionality with confirmation dialog
-- Converted time picker from 12-hour to 24-hour format
-- Enhanced UI with better spacing, consistent button styling, and improved layout
-- Improved average nutrition calculation to properly account for different day types
-- Fixed caching issues where meal items would disappear when switching between meal days
-- Added TypeScript interfaces and types to ensure proper type safety
-- Improved day type groupings with visual distinction, collapse/expand functionality, and meal counts
-- Added "Collapse All/Expand All" functionality for better management of large meal plans
-
-### MealLoggingWidget Component
-The `MealLoggingWidget.tsx` component has been enhanced with several user experience improvements:
-
-- Added meal notes section in expanded meal view using consistent design with MealPlanView
-- Implemented auto-expansion of the first unlogged meal to help users quickly identify what's next
-- Ensured proper handling of expanded state when meals are logged or unlogged
-- Maintained consistent styling between MealLoggingWidget and MealPlanView components
-- Improved information hierarchy to prioritize relevant meal details
-
-## Next Steps
-
-### Short-term Priorities
-1. Address remaining TypeScript linter errors in the MealPlannerIntegrated component
-2. Consider implementing drag-and-drop functionality for more intuitive meal reordering
-3. Explore bulk operations for meals (e.g., bulk delete, duplicate)
-4. Further enhance the UI with animations for smoother transitions
-
-### Medium-term Goals
-1. Implement meal templates for quick creation of common meal configurations
-2. Add nutritional goal tracking against meal plans
-3. Develop print/export functionality for meal plans
-4. Integrate with shopping list functionality
+4. **Print and Export Features**
+   - Adding a print-specific stylesheet for clean printed lists
+   - Implementing PDF export functionality for digital sharing
+   - Optimizing layout for both digital and physical use
 
 ## Active Decisions
-1. Using 24-hour format for all time inputs and displays for global consistency
-2. Following modal pattern for complex forms and confirmation dialogs
-3. Implementing optimistic UI updates for better perceived performance
-4. Structuring meal management with day types as the primary organization method
 
-## Current Challenges
-1. Some TypeScript linter errors related to property types and function parameters
-2. Need for better responsive design on smaller screen sizes
-3. Ensuring consistent state management across complex operations
-4. Performance optimization with larger meal plans
+1. **Day Type Frequency Management**
+   - Suggesting frequencies based on upcoming workouts
+   - Allowing manual override for all day type frequencies
+   - Persisting preferences in localStorage for convenience
+   - Adding ability to edit frequencies after list generation
 
-## Technical Considerations
-1. Proper use of React hooks and dependencies to prevent render issues
-2. Consistent error handling and user feedback mechanisms
-3. Type safety across component boundaries
-4. Optimized database queries to reduce latency
+2. **Unit Standardization**
+   - Converting all ingredient quantities to grams for consistency
+   - Using food_items.serving_size_g metadata for conversions
+   - Rounding to nearest whole gram for practical usability
+
+3. **Supermarket Integration**
+   - Implementing direct search links to Woolworths and Coles
+   - Using product name as the search query parameter
+   - Opening search results in new browser tabs
+
+4. **Print/Export Design**
+   - Creating a minimal, clean layout for printing
+   - Focusing on ingredient/quantity information
+   - Removing UI elements not relevant to shopping
+
+## Implementation Plan
+
+### Phase 0: Data-Model Alignment
+- Add `nutrition_day_type` column to workout program tables
+- Back-fill existing data
+- Update TypeScript interfaces
+
+### Phase 1: Weekly Day-Type Frequency Dialog
+- Create modal interface for frequency selection
+- Implement suggestion algorithm
+- Add localStorage persistence
+
+### Phase 2: Shopping Cart Page
+- Add protected route
+- Implement ingredient aggregation logic
+- Create UI with supermarket search links
+- Add print and export buttons
+
+### Phase 3: State Management
+- Create Redux slice for shopping cart
+- Implement selectors and persistence
+
+### Phase 4: Print/PDF Support
+- Create print-specific stylesheet
+- Implement PDF export functionality
+
+### Phase 5: QA & Testing
+- Test across devices and browsers
+- Verify print functionality
+
+### Phase 6: Documentation
+- Update project documentation
 
 ## Current Focus
 
@@ -500,3 +513,23 @@ We're enhancing the ENG app's supplement management and meal planning features:
 - Enhance the edit functionality for supplement assignments with proper type handling
 - Consider implementing more comprehensive search capabilities including partial matches
 - Test the workout-based day type selection across different user scenarios
+
+### Shopping Cart Feature Enhancement
+- Modified the shopping cart layout to place the title at the top and action buttons below for better visual hierarchy
+- Improved the search functionality to use only the part of the food name before the first comma for better supermarket search results
+- Enhanced CSS styling for the shopping list table with better borders, spacing, and visual separation
+- Updated print styles to hide action buttons, the "Actions" column, header, footer, and back button in the PDF output
+- Fixed pagination issues to ensure all items are visible across multiple pages in the printed output
+- Improved the overall usability with better button styling and layout
+
+### Meal Plan View Improvements
+- Repositioned the "Generate Shopping List" button to appear under the plan name and tags
+- Made the shopping list button span the full width of the screen for better visibility and interaction
+- Added automatic selection of the first day type tab when the page loads if no dayType is provided in the URL
+- Improved user experience by ensuring a day type is always selected by default
+- Enhanced visual hierarchy with consistent button placement
+
+### Database Bug Fixes
+- Fixed a critical error in meal logging by correcting the column name used in queries (from 'log_date' to 'date')
+- Ensured proper data retrieval from the meal_logs table with correct query parameters
+- Aligned code with the actual database schema to prevent similar issues in the future

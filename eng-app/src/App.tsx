@@ -49,6 +49,7 @@ import HomePage from './pages/HomePage'; // Import the new HomePage component
 import SupplementsPage from './pages/SupplementsPage';
 import SupplementManagement from './components/admin/supplements/SupplementManagement';
 import AthleteCheckInsPage from './pages/admin/AthleteCheckInsPage';
+import ShoppingCartPage from './pages/ShoppingCartPage';
 
 function App() {
   const dispatch = useDispatch();
@@ -613,6 +614,7 @@ function App() {
               <Route path="/workouts/history" element={<WorkoutHistoryPage />} />
               <Route path="/meal-plan/:planId" element={<MealPlanView />} />
               <Route path="/nutrition-plans" element={<NutritionPlansPage />} />
+              <Route path="/shopping-cart" element={<ShoppingCartPage />} />
               <Route path="/workout-programs" element={<WorkoutProgramsPage />} />
               <Route path="/workout-plan/:programId" element={<WorkoutPlanView />} />
               <Route path="/supplements" element={<SupplementsPage />} />

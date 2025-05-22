@@ -1409,3 +1409,100 @@ This pattern enables alerts throughout the application to direct users to exactl
 ## Workout Session Architecture
 
 The workout session timer and exercise demonstration system follows a sophisticated pattern to enhance the workout experience:
+
+## Shopping Cart & Grocery List System
+
+The shopping cart feature extends the meal planning functionality to generate practical shopping lists for athletes:
+
+```mermaid
+flowchart TD
+    NutritionPlan[Nutrition Plan View] --> ShoppingCart[Shopping Cart]
+    
+    ShoppingCart --> DayTypeFrequency[Day Type Frequency Dialog]
+    ShoppingCart --> IngredientAggregation[Ingredient Aggregation]
+    ShoppingCart --> PrintExport[Print/Export Module]
+    
+    DayTypeFrequency --> WorkoutSchedule[Workout Schedule Analysis]
+    DayTypeFrequency --> UserPreferences[User Preferences]
+    
+    IngredientAggregation --> UnitConversion[Unit Conversion]
+    IngredientAggregation --> TotalCalculation[Total Calculation]
+    
+    PrintExport --> PrintStylesheet[Print-Specific Stylesheet]
+    PrintExport --> PDFGeneration[PDF Generation]
+    
+    ShoppingCart --> SupermarketLinks[Supermarket Search Links]
+    SupermarketLinks --> Woolworths[Woolworths Search]
+    SupermarketLinks --> Coles[Coles Search]
+```
+
+### Data Model Extensions
+
+1. **Workout-Nutrition Day Type Linkage**
+   * The `program_days` table is extended with a `nutrition_day_type` column (enum: "Rest", "Light", "Moderate", "Heavy", "Training")
+   * This enables linking workout schedules to appropriate nutrition plans
+   * Allows for algorithmic suggestions of weekly day type frequencies
+
+2. **Redux State Management**
+   * New `shoppingCartSlice` for managing shopping cart state:
+     ```typescript
+     interface ShoppingCartState {
+       dayTypeCounts: Record<DayType, number>;  // How many days of each type per week
+       ingredientTotals: Record<string, number>; // food_item_id -> grams
+       userPreferences: {
+         lastUpdated: string;
+         preferredSupermarket: 'woolworths' | 'coles' | null;
+       }
+     }
+     ```
+
+### Key Technical Patterns
+
+1. **Unit Standardization**
+   * All ingredient quantities are converted to grams for consistency
+   * Uses food_items.serving_size_g metadata for unit conversions
+   * Fallback strategies for missing conversion data
+
+2. **Print-Specific Styling**
+   * Dedicated `@media print` CSS rules
+   * Clean, minimal layout optimized for printing
+   * Hidden navigation and UI elements in print view
+
+3. **localStorage Persistence**
+   * User preferences for day type frequencies stored in localStorage
+   * Enables quick shopping list regeneration with same parameters
+
+4. **Supermarket Integration**
+   * Direct search links using URL templates:
+     ```typescript
+     const SUPERMARKET_SEARCH_URLS = {
+       woolworths: 'https://www.woolworths.com.au/shop/search/products?searchTerm=',
+       coles: 'https://www.coles.com.au/search?q='
+     };
+     ```
+   * Opens search results in new browser tabs
+   * Properly encoded ingredient names as search parameters
+
+### Component Architecture
+
+1. **DayTypeFrequencyDialog**
+   * Modal component for collecting day type frequencies
+   * Pre-populated with suggested values from workout schedule
+   * Form validation to ensure at least one day is selected
+   * Persists user selections to localStorage
+
+2. **ShoppingCartPage**
+   * Dedicated route with print and export controls
+   * Table of aggregated ingredients with supermarket links
+   * "Edit frequencies" button to reopen dialog
+   * Print and PDF export buttons
+
+3. **PrintableShoppingList**
+   * Optimized component for print/PDF output
+   * Minimal styling focused on readability when printed
+   * Ingredient-only focus without extraneous UI elements
+
+4. **IngredientAggregator**
+   * Pure utility function for calculating ingredient totals
+   * Handles unit conversions and quantity summation
+   * Intelligent rounding for practical quantities
