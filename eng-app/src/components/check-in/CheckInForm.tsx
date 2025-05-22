@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -148,6 +148,15 @@ const ADHERENCE_OPTIONS = [
     { value: "Off Track", label: "Off Track - Did Not Follow Plan" }
 ];
 
+// Define our photo types for structure
+type PhotoPosition = 'front' | 'side' | 'back';
+
+interface PhotoCapture {
+  position: PhotoPosition;
+  file: File | null;
+  preview: string | null;
+}
+
 interface CheckInFormProps {
     defaultDate?: string; // YYYY-MM-DD format
     onSubmitSuccess?: () => void; // Add callback for submission success
@@ -161,10 +170,29 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [submitSuccess, setSubmitSuccess] = useState<boolean>(false);
     const profile = useSelector(selectProfile);
-    // State for selected files
-    const [photoFiles, setPhotoFiles] = useState<FileList | null>(null);
+    
+    // Replace single photoFiles state with structured photos
+    const [photos, setPhotos] = useState<Record<PhotoPosition, PhotoCapture>>({
+        front: { position: 'front', file: null, preview: null },
+        side: { position: 'side', file: null, preview: null },
+        back: { position: 'back', file: null, preview: null }
+    });
+    
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+    const [isCameraActive, setIsCameraActive] = useState<PhotoPosition | null>(null);
+    const [cameraReady, setCameraReady] = useState(false);
+    const [cameraError, setCameraError] = useState<string | null>(null);
+    
+    // Refs for camera functionality
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const fileInputRefs = {
+        front: useRef<HTMLInputElement>(null),
+        side: useRef<HTMLInputElement>(null),
+        back: useRef<HTMLInputElement>(null)
+    };
 
     const methods = useForm<CheckInData>({
         resolver: zodResolver(checkInSchema),
@@ -176,10 +204,214 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
 
     const { handleSubmit, reset } = methods;
 
-    const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            setPhotoFiles(event.target.files);
+    // Handle photo selection from device
+    const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>, position: PhotoPosition) => {
+        if (event.target.files && event.target.files.length > 0) {
+            const file = event.target.files[0];
+            const previewUrl = URL.createObjectURL(file);
+            
+            setPhotos(prev => ({
+                ...prev,
+                [position]: {
+                    ...prev[position],
+                    file,
+                    preview: previewUrl
+                }
+            }));
         }
+    };
+
+    // Start camera for capturing a photo
+    const startCamera = async (position: PhotoPosition) => {
+        setCameraReady(false);
+        setCameraError(null);
+        setIsCameraActive(position);
+        
+        // Try environment camera first (back camera)
+        try {
+            await initializeCamera('environment');
+            return;
+        } catch (err) {
+            console.log("Back camera failed, trying front camera", err);
+            try {
+                // Fallback to user camera (front camera)
+                await initializeCamera('user');
+                return;
+            } catch (frontErr) {
+                handleCameraError(frontErr);
+            }
+        }
+    };
+
+    const initializeCamera = async (facingMode: 'environment' | 'user') => {
+        try {
+            // First, ensure any previous stream is stopped
+            stopCameraStream();
+            
+            // Request camera with appropriate settings
+            const constraints = {
+                video: {
+                    facingMode: facingMode,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+            
+            console.log(`Requesting camera with facing mode: ${facingMode}`);
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            streamRef.current = stream;
+            
+            if (!videoRef.current) {
+                throw new Error("Video element reference not available");
+            }
+            
+            // Connect the stream to the video element
+            videoRef.current.srcObject = stream;
+            
+            // Wait for the video to be ready
+            await new Promise<void>((resolve, reject) => {
+                if (!videoRef.current) return reject("No video element");
+                
+                // Set up event handlers
+                const loadedHandler = () => {
+                    console.log("Video metadata loaded");
+                    resolve();
+                };
+                
+                const errorHandler = (e: Event | string) => {
+                    console.error("Video element error:", e);
+                    reject("Failed to load video");
+                };
+                
+                videoRef.current.onloadedmetadata = loadedHandler;
+                videoRef.current.onerror = errorHandler as OnErrorEventHandler;
+                
+                // If metadata is already loaded, resolve immediately
+                if (videoRef.current.readyState >= 2) {
+                    console.log("Video already loaded");
+                    resolve();
+                }
+            });
+            
+            // Start playing the video
+            await videoRef.current.play();
+            console.log("Camera initialized successfully with facing mode:", facingMode);
+            setCameraReady(true);
+        } catch (err) {
+            console.error("Camera initialization error:", err);
+            throw err;
+        }
+    };
+    
+    const handleCameraError = (err: Error | unknown) => {
+        console.error("Camera access error:", err);
+        let errorMessage = "Could not access camera. ";
+        
+        // Check if the error has a name property
+        const errorWithName = err as { name?: string };
+        
+        if (errorWithName.name === "NotAllowedError" || errorWithName.name === "PermissionDeniedError") {
+            errorMessage += "Please grant camera permission and try again.";
+        } else if (errorWithName.name === "NotFoundError" || errorWithName.name === "DevicesNotFoundError") {
+            errorMessage += "No camera found on your device.";
+        } else if (errorWithName.name === "NotReadableError" || errorWithName.name === "TrackStartError") {
+            errorMessage += "Camera is already in use by another application.";
+        } else if (errorWithName.name === "OverconstrainedError" || errorWithName.name === "ConstraintNotSatisfiedError") {
+            errorMessage += "Camera does not meet requirements. Try a different camera.";
+        } else {
+            errorMessage += "Please check your camera and try again.";
+        }
+        
+        setCameraError(errorMessage);
+        setIsCameraActive(null);
+        setCameraReady(false);
+    };
+
+    // Capture photo from camera
+    const capturePhoto = () => {
+        if (!isCameraActive || !videoRef.current || !canvasRef.current || !cameraReady) {
+            console.error("Cannot capture photo: camera not ready");
+            return;
+        }
+        
+        try {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            
+            // Set canvas dimensions to match video dimensions
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw the video frame to the canvas
+            const context = canvas.getContext('2d');
+            if (!context) {
+                throw new Error("Could not get canvas context");
+            }
+            
+            // Draw the current video frame
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert canvas to blob
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    throw new Error("Failed to create blob from canvas");
+                }
+                
+                // Create file from blob
+                const file = new File([blob], `${isCameraActive}-photo.jpg`, { type: 'image/jpeg' });
+                const previewUrl = URL.createObjectURL(blob);
+                
+                console.log(`Photo captured successfully: ${file.size} bytes, ${canvas.width}x${canvas.height}`);
+                
+                // Update state with the captured photo
+                setPhotos(prev => ({
+                    ...prev,
+                    [isCameraActive!]: {
+                        ...prev[isCameraActive!],
+                        file,
+                        preview: previewUrl
+                    }
+                }));
+                
+                // Stop the camera
+                stopCamera();
+            }, 'image/jpeg', 0.92);
+        } catch (err) {
+            console.error("Error capturing photo:", err);
+            alert("Failed to capture photo. Please try again.");
+        }
+    };
+    
+    // Stop the camera stream and reset state
+    const stopCamera = () => {
+        stopCameraStream();
+        setIsCameraActive(null);
+        setCameraReady(false);
+        setCameraError(null);
+    };
+    
+    // Helper to stop stream only
+    const stopCameraStream = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+    };
+
+    // Clear a specific photo
+    const clearPhoto = (position: PhotoPosition) => {
+        setPhotos(prev => ({
+            ...prev,
+            [position]: {
+                ...prev[position],
+                file: null,
+                preview: null
+            }
+        }));
     };
 
     const handleVideoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,10 +463,14 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
         let uploadedVideoPath: string | undefined = undefined;
 
         try {
-            // 1. Upload Photos
-            if (photoFiles && photoFiles.length > 0) {
+            // 1. Upload Photos (now structured as front, side, back)
+            const photoFiles = Object.values(photos)
+                .filter(photo => photo.file !== null)
+                .map(photo => photo.file) as File[];
+                
+            if (photoFiles.length > 0) {
                 console.log(`Starting upload of ${photoFiles.length} photos...`);
-                const uploadPromises = Array.from(photoFiles).map(async (file, index) => {
+                const uploadPromises = photoFiles.map(async (file, index) => {
                     const path = await uploadFile(file, 'photos');
                     // Rough progress update
                     setUploadProgress(Math.round(((index + 1) / (photoFiles.length + (videoFile ? 1 : 0))) * 100));
@@ -330,7 +566,13 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
             // 5. Handle Success
             setSubmitSuccess(true);
             reset(); // Reset the form
-            setPhotoFiles(null);
+            
+            // Reset photo and video states
+            setPhotos({
+                front: { position: 'front', file: null, preview: null },
+                side: { position: 'side', file: null, preview: null },
+                back: { position: 'back', file: null, preview: null }
+            });
             setVideoFile(null);
             
             // Call the callback if provided
@@ -558,24 +800,142 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
 
                 <section>
                     <h3 className="text-lg font-medium mb-3 border-b border-gray-300 dark:border-gray-600 pb-1">Progress Media</h3>
-                    {/* Photo Input */}
-                    <div className="mb-4">
-                        <label htmlFor="photos" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Progress Photos (select multiple)
-                        </label>
-                        <input
-                            id="photos"
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            onChange={handlePhotoChange}
-                            disabled={isSubmitting}
-                            className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 dark:file:bg-indigo-900 file:text-indigo-700 dark:file:text-indigo-300 hover:file:bg-indigo-100 dark:hover:file:bg-indigo-800 disabled:opacity-50"
-                        />
-                         {photoFiles && <p className="text-xs mt-1 text-gray-500">{photoFiles.length} photo(s) selected.</p>}
+                    
+                    {/* Camera UI - Only shown when camera is active */}
+                    {isCameraActive && (
+                        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex flex-col items-center justify-center p-4">
+                            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg w-full max-w-lg">
+                                <h4 className="text-lg font-semibold mb-4 text-center">
+                                    Take {isCameraActive.charAt(0).toUpperCase() + isCameraActive.slice(1)} Photo
+                                </h4>
+                                
+                                <div className="relative bg-black rounded-lg overflow-hidden mb-4">
+                                    {cameraError ? (
+                                        <div className="p-4 text-red-500 text-center">
+                                            <p>{cameraError}</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <video 
+                                                ref={videoRef} 
+                                                playsInline 
+                                                className="w-full h-auto"
+                                            />
+                                            {!cameraReady && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                                                    <div className="text-white text-center">
+                                                        <Spinner size="medium" />
+                                                        <p className="mt-2">Initializing camera...</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                                
+                                <div className="flex justify-between">
+                                    <button 
+                                        type="button"
+                                        onClick={stopCamera}
+                                        className="py-2 px-4 bg-gray-500 text-white rounded hover:bg-gray-600"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={capturePhoto}
+                                        disabled={!cameraReady || !!cameraError}
+                                        className={`py-2 px-4 rounded ${
+                                            cameraReady && !cameraError
+                                                ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                                                : "bg-gray-400 text-gray-200 cursor-not-allowed"
+                                        }`}
+                                    >
+                                        {cameraReady ? "Capture" : "Waiting..."}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Hidden canvas for processing camera capture */}
+                    <canvas ref={canvasRef} className="hidden" />
+                    
+                    {/* Structured Photo Upload UI */}
+                    <div className="mb-6">
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Progress Photos</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                            Please upload or take photos from three angles to track your physical progress. Photos should be taken in good lighting with minimal/fitted clothing for accurate assessment.
+                        </p>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {(['front', 'side', 'back'] as PhotoPosition[]).map((position) => (
+                                <div key={position} className="border border-gray-300 dark:border-gray-600 rounded-lg p-3">
+                                    <h5 className="text-sm font-medium mb-2 capitalize">
+                                        {position} View
+                                    </h5>
+                                    
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                                        {position === 'front' ? 
+                                            'Stand facing the camera with arms slightly away from sides, palms facing forward.' : 
+                                            position === 'side' ? 
+                                            'Stand sideways (right side preferred) with arms at sides or slightly forward.' : 
+                                            'Stand with your back to the camera, arms slightly away from body.'}
+                                    </p>
+                                    
+                                    {photos[position].preview ? (
+                                        <div className="relative">
+                                            <img 
+                                                src={photos[position].preview} 
+                                                alt={`${position} view`}
+                                                className="w-full h-32 object-cover rounded"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => clearPhoto(position)}
+                                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                                                disabled={isSubmitting}
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-2">
+                                            <input
+                                                id={`photo-${position}`}
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={(e) => handlePhotoChange(e, position)}
+                                                ref={fileInputRefs[position]}
+                                                disabled={isSubmitting}
+                                                className="hidden"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRefs[position].current?.click()}
+                                                className="w-full py-1 px-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                disabled={isSubmitting}
+                                            >
+                                                Select from Gallery
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => startCamera(position)}
+                                                className="w-full py-1 px-2 bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 rounded text-sm text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-800"
+                                                disabled={isSubmitting}
+                                            >
+                                                Take Photo
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                     
-                    {/* Video Input */}
+                    {/* Video Input - Keep existing functionality */}
                     <div className="mb-4">
                         <label htmlFor="video" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Progress Video (optional)

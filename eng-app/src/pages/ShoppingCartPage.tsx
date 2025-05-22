@@ -286,19 +286,19 @@ const ShoppingCartPage: React.FC = () => {
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
                   {shoppingItems.map((item) => (
                     <tr key={item.foodItemId} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                      <td className="px-4 py-4 text-gray-800 dark:text-gray-200">{item.foodName}</td>
+                      <td className="px-4 py-4 text-gray-800 dark:text-gray-200 whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px] sm:max-w-xs">{item.foodName}</td>
                       <td className="px-4 py-4 text-gray-800 dark:text-gray-200 text-right font-medium">
                         {Math.round(item.totalGrams)}g
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <div className="flex justify-center space-x-4">
+                        <div className="flex flex-col sm:flex-row justify-center sm:space-x-4 space-y-2 sm:space-y-0">
                           <button
                             onClick={() => openSupermarketSearch(item.foodName, 'woolworths')}
                             className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline transition-colors"
                             title="Search at Woolworths"
                           >
                             <span className="sr-only">Search at Woolworths</span>
-                            <div className="flex items-center">
+                            <div className="flex items-center justify-center">
                               <span className="mr-1 text-xs font-medium">Woolies</span>
                               <FiExternalLink size={14} />
                             </div>
@@ -310,7 +310,7 @@ const ShoppingCartPage: React.FC = () => {
                             title="Search at Coles"
                           >
                             <span className="sr-only">Search at Coles</span>
-                            <div className="flex items-center">
+                            <div className="flex items-center justify-center">
                               <span className="mr-1 text-xs font-medium">Coles</span>
                               <FiExternalLink size={14} />
                             </div>
@@ -341,6 +341,18 @@ const ShoppingCartPage: React.FC = () => {
       {/* Printable styles - these will only affect print media */}
       <style>
         {`
+        /* Mobile styles */
+        @media (max-width: 640px) {
+          .overflow-x-auto {
+            margin: 0 -1rem;
+            width: calc(100% + 2rem);
+          }
+          
+          table {
+            table-layout: fixed;
+          }
+        }
+        
         @media print {
           /* Hide elements that shouldn't be printed */
           button, .no-print, header, footer {
