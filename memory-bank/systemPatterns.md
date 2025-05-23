@@ -19,6 +19,7 @@
 *   **Database:** Supabase PostgreSQL with Row Level Security (RLS) enforced.
 *   **Exercise Data:** Local Supabase database instead of external HeyGainz API, providing better reliability and control.
 *   **Authentication:** Supabase Auth using Email Magic Link.
+*   **Exercise Feedback System:** Event-driven approach for tracking exercise completion, with reactive state updates and persisted data in Supabase.
 *   **Data Ingestion:** One-time script (`scripts/ingest-afcd.js`) used to populate `food_items` from the AFCD Excel source.
 
 ## 3. Data Models (High-Level)
