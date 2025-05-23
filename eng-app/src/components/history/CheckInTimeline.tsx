@@ -288,7 +288,7 @@ const CheckInTimeline: React.FC = () => {
                 return (
                     <div 
                         key={checkIn.id} 
-                        className="p-5 bg-white dark:bg-gray-800 rounded-lg shadow"
+                        className="bg-white dark:bg-gray-800 rounded-lg shadow"
                         ref={isLastItem ? lastCheckInCallback : undefined}
                     >
                         <div className="flex justify-between items-center mb-3">

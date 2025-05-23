@@ -106,7 +106,7 @@ const UserProfilePage: React.FC = () => {
   };
 
   return (
-    <div className="container max-w-4xl mx-auto px-4 py-8">
+    <div className="container mx-auto py-8">
       <BackButton />
       <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
         My Profile

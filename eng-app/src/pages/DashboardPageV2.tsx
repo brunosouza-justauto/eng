@@ -482,13 +482,13 @@ const DashboardPageV2: React.FC = () => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
         </svg>
         <div>
-          <h4 className="font-medium">New Dashboard Experience</h4>
+          <h4 className="font-medium">Mobile Dashboard Experience</h4>
           <p className="text-sm mt-1">
-            You're using our new streamlined dashboard. If you prefer the previous layout, you can switch back.
+            You're using the new mobile streamlined dashboard.<br />If you are browsing on a desktop you can switch back to the classic view.
           </p>
           <p className="text-sm mt-1">
             <a href="/dashboard-classic" className="inline-block mt-2 text-sm font-medium text-indigo-800 dark:text-indigo-200 hover:underline">
-              Switch to classic view →
+              Switch to desktop view →
             </a>
           </p>
         </div>

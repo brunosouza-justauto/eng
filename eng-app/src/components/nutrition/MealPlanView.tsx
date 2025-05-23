@@ -280,7 +280,7 @@ const MealPlanView: React.FC = () => {
     };
 
     return (
-        <div className="container p-4 mx-auto">
+        <div className="container mx-auto py-6">
             <BackButton to="/dashboard" />
 
             {isLoading && <div className="p-4 flex justify-center"><p>Loading meal plan details...</p></div>}

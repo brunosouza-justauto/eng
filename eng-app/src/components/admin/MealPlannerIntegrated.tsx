@@ -5,6 +5,7 @@ import { FiSearch, FiPlus, FiTrash2, FiX, FiInfo, FiBook, FiArrowLeft, FiSave, F
 import { TbBarcode } from 'react-icons/tb';
 import toast from 'react-hot-toast';
 import CustomFoodItemForm from '../nutrition/CustomFoodItemForm';
+import BarcodeScanner from '../nutrition/BarcodeScanner';
 import RecipeManager from './RecipeManager';
 import {
   searchFoodItems,
@@ -15,36 +16,9 @@ import {
   createMeal,
   updateMealFoodItem
 } from '../../services/mealPlanningService';
+import { FoodItem, MealFoodItem } from '../../types/mealPlanning';
 import './MealPlannerIntegrated.css';
 import { supabase } from '../../services/supabaseClient';
-
-// Define the types that aren't exported from the service
-interface FoodItem {
-  id: string;
-  food_name: string;
-  brand?: string;
-  calories_per_100g: number;
-  protein_per_100g: number;
-  carbs_per_100g: number;
-  fat_per_100g: number;
-  source: string;
-  barcode?: string;
-}
-
-interface MealFoodItem {
-  id: string;
-  food_item: FoodItem;
-  quantity: number;
-  unit: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  calculated_calories?: number;
-  calculated_protein?: number;
-  calculated_carbs?: number;
-  calculated_fat?: number;
-}
 
 interface MealData {
   id: string;
@@ -318,13 +292,16 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         total_fat: meal.total_fat || 0,
         food_items: (meal.food_items || []).map(item => ({
           id: item.id,
+          meal_id: meal.id,
+          food_item_id: item.food_item?.id || '',
           food_item: item.food_item as unknown as FoodItem,
           quantity: item.quantity,
           unit: item.unit,
           calories: item.calculated_calories || 0,
           protein: item.calculated_protein || 0,
           carbs: item.calculated_carbs || 0,
-          fat: item.calculated_fat || 0
+          fat: item.calculated_fat || 0,
+          created_at: item.created_at || new Date().toISOString()
         }))
       })) as MealData[];
       
@@ -377,24 +354,27 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
           id: meal.id,
           name: meal.name,
           day_type: meal.day_type || 'rest',
-          time_of_day: meal.time_suggestion || '',
           order_in_plan: meal.order_in_plan || 0,
+          time_of_day: meal.time_suggestion || '',
           total_calories: meal.total_calories || 0,
           total_protein: meal.total_protein || 0,
           total_carbs: meal.total_carbs || 0,
           total_fat: meal.total_fat || 0,
           food_items: (meal.food_items || []).map(item => ({
             id: item.id,
+            meal_id: meal.id,
+            food_item_id: item.food_item?.id || '',
             food_item: item.food_item as unknown as FoodItem,
             quantity: item.quantity,
             unit: item.unit,
             calories: item.calculated_calories || 0,
             protein: item.calculated_protein || 0,
             carbs: item.calculated_carbs || 0,
-            fat: item.calculated_fat || 0
+            fat: item.calculated_fat || 0,
+            created_at: item.created_at || new Date().toISOString()
           }))
-        }));
-        
+        })) as MealData[];
+
         setMeals(formattedMeals);
         
         // Just select the first meal if none is selected
@@ -546,7 +526,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
   };
   
   // Handle barcode detection
-  const handleBarcodeDetect = async (barcode: string) => {
+  const handleBarcodeDetect = async (foodItem: FoodItem | null, barcode: string) => {
     setShowBarcodeScanner(false);
     
     if (!barcode) {
@@ -557,19 +537,25 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     setIsLoading(true);
     
     try {
-      // Search for the food item by barcode (use the existing search function)
-      // This is a temporary solution until a proper barcode search is implemented
-      const result = await searchFoodItems(`barcode:${barcode}`, undefined, 1, 0);
-      
-      if (result.items && result.items.length > 0) {
-        // Food item found
-        setSelectedFoodItem(result.items[0] as unknown as FoodItem);
+      if (foodItem) {
+        // Food item found directly from barcode scanner
+        setSelectedFoodItem(foodItem);
         setQuantity('100');
         setUnit('g');
       } else {
-        // No food item found - set up for custom creation
-        setInitialFoodData({ barcode });
-        setShowCustomFoodForm(true);
+        // Try to search for the food item by barcode
+        const result = await searchFoodItems(`barcode:${barcode}`, undefined, 1, 0);
+        
+        if (result.items && result.items.length > 0) {
+          // Food item found
+          setSelectedFoodItem(result.items[0] as unknown as FoodItem);
+          setQuantity('100');
+          setUnit('g');
+        } else {
+          // No food item found - set up for custom creation
+          setInitialFoodData({ barcode });
+          setShowCustomFoodForm(true);
+        }
       }
     } catch (err) {
       console.error('Error searching by barcode:', err);
@@ -1065,15 +1051,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     }
   };
 
-  // Fix the BarcodeScanner component with a cleaner approach
-  const BarcodeScanner: React.FC<{
-    onDetect: (barcode: string) => void;
-    onClose: () => void;
-  }> = (props) => {
-    // This is just a placeholder that doesn't use the props
-    void props; // Explicitly marks props as intentionally unused
-    return <div>Barcode Scanner</div>;
-  };
+
   
   // Add function to handle edit food item button click
   const handleEditFoodItem = (mealId: string, foodItem: MealFoodItem) => {
@@ -1882,7 +1860,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       {showBarcodeScanner && (
         <div className="fixed inset-0 z-[60] bg-black">
           <BarcodeScanner
-            onDetect={(barcode: string) => handleBarcodeDetect(barcode)}
+            onDetect={handleBarcodeDetect}
             onClose={() => setShowBarcodeScanner(false)}
           />
         </div>

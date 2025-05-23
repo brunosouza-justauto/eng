@@ -131,7 +131,7 @@ const CheckInReview: React.FC = () => {
     };
 
     return (
-        <div className="container mx-auto py-6 px-4">
+        <div className="container mx-auto py-6">
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Check-in Review</h1>

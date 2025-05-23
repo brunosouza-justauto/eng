@@ -4,7 +4,7 @@ import BackButton from '../components/common/BackButton';
 
 const CheckInHistoryPage: React.FC = () => {
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto py-8">
       <BackButton to="/dashboard" />
 
       <h1 className="text-3xl font-bold mb-6">Check-in History</h1>

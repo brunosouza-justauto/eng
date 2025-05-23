@@ -29,7 +29,7 @@ const CheckInPage: React.FC = () => {
   // Success view
   if (isSubmitSuccess) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto py-8">
         <BackButton to="/dashboard" />
 
         <h1 className="text-3xl font-bold mb-6 text-center">Weekly Check-in</h1>
@@ -51,7 +51,7 @@ const CheckInPage: React.FC = () => {
 
   // Form view (pre-submission)
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto py-8">
       <BackButton to="/dashboard" />
 
       <h1 className="text-3xl font-bold mb-6 text-center">Weekly Check-in</h1>

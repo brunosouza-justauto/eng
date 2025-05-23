@@ -4,7 +4,7 @@ import CheckInTimeline from '../components/history/CheckInTimeline'; // Import T
 
 const HistoryPage: React.FC = () => {
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6 text-center">Check-in History & Progress</h1>
       
       <div className="mb-8 text-center max-w-2xl mx-auto">

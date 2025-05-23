@@ -93,7 +93,7 @@ const FoodItemManager: React.FC<FoodItemManagerProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md max-w-4xl mx-auto">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mx-auto">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold dark:text-white">Food Items</h2>
         <button 

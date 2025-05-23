@@ -78,28 +78,30 @@ const SupplementsPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <BackButton />
-      <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">My Supplements</h1>
-      
-      {orderedSchedules.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center">
-          <p className="text-gray-600 dark:text-gray-400 mb-2">
-            No supplements assigned yet.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {orderedSchedules.map(scheduleGroup => (
-            <div key={scheduleGroup.schedule} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
-              <SupplementScheduleList 
-                schedule={scheduleGroup.schedule} 
-                supplements={scheduleGroup.supplements}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="container mx-auto py-6">
+      <div className="mb-8">
+        <BackButton />
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">My Supplements</h1>
+        
+        {orderedSchedules.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center">
+            <p className="text-gray-600 dark:text-gray-400 mb-2">
+              No supplements assigned yet.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {orderedSchedules.map(scheduleGroup => (
+              <div key={scheduleGroup.schedule} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
+                <SupplementScheduleList 
+                  schedule={scheduleGroup.schedule} 
+                  supplements={scheduleGroup.supplements}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

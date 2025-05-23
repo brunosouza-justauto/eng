@@ -46,7 +46,7 @@ const FoodItemRouteHandler: React.FC<FoodItemRouteHandlerProps> = ({
   };
   
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto">
       {mode === 'browse' ? (
         <FoodItemManager
           onSelectFoodItem={handleFoodItemSelect}

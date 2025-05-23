@@ -217,7 +217,7 @@ const ShoppingCartPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto">
       <BackButton to={planId ? `/meal-plan/${planId}` : '/nutrition-plans'} />
       
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm mb-6">

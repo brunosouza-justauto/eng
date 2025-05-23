@@ -2189,7 +2189,7 @@ const ProgramBuilder: React.FC = () => {
 
     return (
         <DndProvider backend={HTML5Backend}>
-            <div className="container mx-auto py-6 px-4">
+            <div className="container mx-auto py-6">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Program Builder</h1>
                     

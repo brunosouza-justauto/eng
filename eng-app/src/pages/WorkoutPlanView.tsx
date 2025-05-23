@@ -315,7 +315,7 @@ const WorkoutPlanView: React.FC = () => {
   const hasWorkouts = programData.workouts && programData.workouts.length > 0;
   
   return (
-    <div className="container mx-auto py-6 px-4">
+    <div className="container mx-auto py-6">
       {/* Header with program details */}
       <div className="mb-8">
         <BackButton />

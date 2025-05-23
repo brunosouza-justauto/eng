@@ -48,6 +48,14 @@ interface ExerciseInstanceData {
   prescribed_sets: PrescribedSetRecord[];
   each_side: boolean;
   tempo: number | null;
+  feedback?: {
+    id: string;
+    pain_level: number | null;
+    pump_level: number | null;
+    workload_level: number | null;
+    notes: string | null;
+    created_at: string;
+  } | null;
 }
 
 interface CompletedSetRecord {
@@ -91,6 +99,54 @@ interface AthleteData {
   email: string;
   user_id: string;
 }
+
+// Component to display feedback in the AthleteWorkoutsPage
+const FeedbackDisplay = ({ feedback }: { feedback: ExerciseInstanceData['feedback'] }) => {
+  if (!feedback) return null;
+  
+  return (
+    <div className="mt-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+      <h4 className="text-sm font-semibold mb-2">Athlete Feedback</h4>
+      <div className="grid grid-cols-3 gap-2 mb-2">
+        <div className="flex flex-col items-center">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Pain</span>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            feedback.pain_level && feedback.pain_level >= 4 ? 'bg-red-500 text-white' :
+            feedback.pain_level && feedback.pain_level >= 2 ? 'bg-yellow-500 text-white' :
+            feedback.pain_level ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'
+          }`}>
+            {feedback.pain_level || '-'}
+          </div>
+        </div>
+        <div className="flex flex-col items-center">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Pump</span>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            feedback.pump_level && feedback.pump_level >= 4 ? 'bg-green-500 text-white' :
+            feedback.pump_level && feedback.pump_level >= 2 ? 'bg-yellow-500 text-white' :
+            feedback.pump_level ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-700'
+          }`}>
+            {feedback.pump_level || '-'}
+          </div>
+        </div>
+        <div className="flex flex-col items-center">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Workload</span>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            feedback.workload_level === 3 ? 'bg-green-500 text-white' :
+            feedback.workload_level && feedback.workload_level < 3 ? 'bg-blue-500 text-white' :
+            feedback.workload_level ? 'bg-orange-500 text-white' : 'bg-gray-300 text-gray-700'
+          }`}>
+            {feedback.workload_level || '-'}
+          </div>
+        </div>
+      </div>
+      {feedback.notes && (
+        <div className="mt-2">
+          <p className="text-xs italic">{feedback.notes}</p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const AthleteWorkoutsPage: React.FC = () => {
   const { id, logId: routeLogId } = useParams<{ id: string; logId: string }>();
@@ -229,7 +285,8 @@ const AthleteWorkoutsPage: React.FC = () => {
                   each_side: instance.each_side || false,
                   tempo: instance.tempo || null,
                   completed_sets: completedSets || [],
-                  prescribed_sets: [] as PrescribedSetRecord[]
+                  prescribed_sets: [] as PrescribedSetRecord[],
+                  feedback: null // Will be populated with feedback data
                 };
 
                 // Fetch prescribed sets for this exercise instance
@@ -247,6 +304,21 @@ const AthleteWorkoutsPage: React.FC = () => {
 
                 // Add the prescribed sets to our exercise instance
                 exerciseInstance.prescribed_sets = prescribedSets || [];
+                
+                // Fetch feedback for this exercise instance
+                const { data: feedbackData, error: feedbackError } = await supabase
+                  .from('exercise_feedback')
+                  .select('*')
+                  .eq('exercise_instance_id', instance.id)
+                  .eq('workout_session_id', sessionId)
+                  .single();
+                  
+                if (feedbackError && feedbackError.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
+                  console.error(`Error fetching feedback for instance ${instance.id}:`, feedbackError);
+                }
+                
+                // Add feedback data to exercise instance
+                exerciseInstance.feedback = feedbackData || null;
 
                 // Add log to debug weight related fields
                 console.log(`Exercise ${instance.exercise_name} data:`, {
@@ -259,7 +331,8 @@ const AthleteWorkoutsPage: React.FC = () => {
                   weight: exerciseInstance.weight,
                   has_prescribed_sets: (prescribedSets || []).length > 0,
                   has_weights_in_prescribed_sets: (prescribedSets || []).some(set => set.weight),
-                  prescribed_sets_sample: prescribedSets ? prescribedSets.slice(0, 2) : []
+                  prescribed_sets_sample: prescribedSets ? prescribedSets.slice(0, 2) : [],
+                  has_feedback: !!feedbackData
                 });
 
                 return exerciseInstance;

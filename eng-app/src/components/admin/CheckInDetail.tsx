@@ -194,7 +194,7 @@ const CheckInDetail: React.FC = () => {
     // Render loading state
     if (isLoading) {
         return (
-            <div className="container mx-auto py-6 px-4">
+            <div className="container mx-auto py-6">
                 <div className="text-center py-12">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
                     <p className="text-gray-600 dark:text-gray-300">Loading check-in details...</p>
@@ -206,7 +206,7 @@ const CheckInDetail: React.FC = () => {
     // Render error state
     if (error || !checkIn) {
         return (
-            <div className="container mx-auto py-6 px-4">
+            <div className="container mx-auto py-6">
                 <div className="bg-red-100 dark:bg-red-900/20 border-l-4 border-red-500 text-red-700 dark:text-red-400 p-4 rounded">
                     <p>{error || 'Check-in not found'}</p>
                 </div>
@@ -228,7 +228,7 @@ const CheckInDetail: React.FC = () => {
         : 'Unknown Athlete';
 
     return (
-        <div className="container mx-auto py-6 px-4">
+        <div className="container mx-auto py-6">
             {/* Header with back button */}
             <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
                 <div>

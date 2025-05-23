@@ -231,7 +231,7 @@ const WorkoutView: React.FC = () => {
     };
 
     return (
-        <div className="container p-4 mx-auto">
+        <div className="container mx-auto py-6">
             <BackButton to="/dashboard" />
             
             {isLoading && <p>Loading workout details...</p>}
