@@ -154,8 +154,8 @@ const RestTimerComponent: React.FC<RestTimerProps> = ({
               </div>
               
               {/* Middle column - Exercise Name (with truncation for very long names) */}
-              <div className="col-span-6 ml-2 sm:col-span-6 flex items-center">
-                <span className="font-medium text-white truncate max-w-full">
+              <div className={`col-span-6 ${!nextExerciseInfo.isSameExercise ? 'mx-3' : 'mr-3'} sm:col-span-6 flex items-center`}>
+                <span className={`font-medium ${!nextExerciseInfo.isSameExercise ? 'ml-2' : ''} text-white truncate max-w-full`}>
                   {nextExerciseInfo.exerciseName}
                 </span>
               </div>
