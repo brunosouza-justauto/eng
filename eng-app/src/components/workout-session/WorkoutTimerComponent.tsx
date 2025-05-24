@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { formatTime } from '../../utils/timerUtils';
 
 interface WorkoutTimerProps {
   isStarted: boolean;
@@ -18,18 +19,7 @@ const WorkoutTimerComponent: React.FC<WorkoutTimerProps> = ({
   const startTimeRef = useRef<Date | null>(null);
   const pausedTimeRef = useRef<number>(initialElapsedTime);
   
-  // Format seconds into HH:MM:SS
-  const formatTime = (totalSeconds: number): string => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    
-    return [
-      hours > 0 ? String(hours).padStart(2, '0') : null,
-      String(minutes).padStart(2, '0'),
-      String(seconds).padStart(2, '0')
-    ].filter(Boolean).join(':');
-  };
+  // We now use formatTime from timerUtils.ts
 
   // Start the timer
   useEffect(() => {

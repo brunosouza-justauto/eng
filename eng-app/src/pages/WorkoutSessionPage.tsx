@@ -7,7 +7,8 @@ import { SetType, ExerciseSet } from '../types/adminTypes';
 import { fetchExerciseById, searchExercises } from '../utils/exerciseAPI';
 import BackButton from '../components/common/BackButton';
 import { ExerciseFeedbackSystem } from '../components/workout-session/feedback';
-import { WorkoutTimerComponent } from '../components/workout-session';
+import { WorkoutTimerComponent, RestTimerManager, RestTimerManagerHandle } from '../components/workout-session';
+import { playCountdownBeep, playAlertSound, formatTime } from '../utils/timerUtils';
 import { 
   ExerciseFeedback,
   FeedbackRecommendation,
@@ -556,13 +557,8 @@ const WorkoutSessionPage: React.FC = () => {
   const [existingSessionId, setExistingSessionId] = useState<string | null>(null);
   const [sessionDialogLoading, setSessionDialogLoading] = useState<boolean>(false);
   
-  // Add new state for rest timer
-  const [activeRestTimer, setActiveRestTimer] = useState<{
-    exerciseId: string;
-    setIndex: number;
-    timeLeft: number;
-    totalTime: number;
-  } | null>(null);
+  // Reference to the rest timer manager
+  const restTimerRef = useRef<RestTimerManagerHandle>(null);
   
   // Add toast state for announcements
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -577,8 +573,7 @@ const WorkoutSessionPage: React.FC = () => {
   // Add a flag to track if we've already announced the first exercise
   const hasAnnouncedFirstExercise = useRef<boolean>(false);
   
-  // Audio ref for timer alert
-  const alertSoundRef = useRef<HTMLAudioElement | null>(null);
+  // We now use Web Audio API directly through timerUtils instead of audio elements
   
   // Timer reference for cleanup
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -1042,11 +1037,7 @@ const WorkoutSessionPage: React.FC = () => {
             clearInterval(countdownInterval);
             
             // Play alert sound
-            if (alertSoundRef.current) {
-              alertSoundRef.current.play().catch(err => 
-                console.error('Failed to play timer sound:', err)
-              );
-            }
+            playAlertSound();
             
             // Reset the announcement flag whenever a new workout starts
             hasAnnouncedFirstExercise.current = false;
@@ -1289,7 +1280,7 @@ const WorkoutSessionPage: React.FC = () => {
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
-      // We don't clear activeRestTimer so we can resume it later
+      // We don't need to clear the timer - RestTimerManager handles pausing
     }
     
     setIsPaused(true);
@@ -1311,39 +1302,8 @@ const WorkoutSessionPage: React.FC = () => {
       }
     }, 1000);
     
-    // Also resume the rest timer if it was active
-    if (activeRestTimer && !timerIntervalRef.current) {
-      // Create a new timer with the current remaining time
-      let timeRemaining = activeRestTimer.timeLeft;
-      
-      timerIntervalRef.current = setInterval(() => {
-        timeRemaining -= 1;
-        
-        // Update the visible timer
-        setActiveRestTimer(prev => {
-          if (!prev) return null;
-          return {...prev, timeLeft: timeRemaining};
-        });
-        
-        if (timeRemaining <= 0) {
-          // Timer complete - clear interval
-          if (timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current);
-            timerIntervalRef.current = null;
-          }
-          
-          // Play alert sound
-          if (alertSoundRef.current) {
-            alertSoundRef.current.play().catch(err => 
-              console.error('Failed to play timer sound:', err)
-            );
-          }
-          
-          // Reset the timer state
-          setActiveRestTimer(null);
-        }
-      }, 1000);
-    }
+    // No need to resume the rest timer - RestTimerManager handles this internally
+    // based on the isPaused prop being set to false
     
     showAnnouncementToast('Workout resumed');
   };
@@ -1477,7 +1437,10 @@ const WorkoutSessionPage: React.FC = () => {
             setWorkoutSessionId(null);
             setElapsedTime(0);
             pausedTimeRef.current = 0;
-            setActiveRestTimer(null);
+            // Clear any active rest timer using the ref
+            if (restTimerRef.current) {
+              restTimerRef.current.clearTimer();
+            }
             setInitialCountdown(null); // Also reset the initial countdown if active
             
             // Hide dialog and navigate back to dashboard
@@ -1521,7 +1484,10 @@ const WorkoutSessionPage: React.FC = () => {
       setWorkoutSessionId(null);
       setElapsedTime(0);
       pausedTimeRef.current = 0;
-      setActiveRestTimer(null);
+      // Clear any active rest timer using the ref
+      if (restTimerRef.current) {
+        restTimerRef.current.clearTimer();
+      }
       setInitialCountdown(null);
       
       // Ensure scroll to top before navigation
@@ -1708,18 +1674,17 @@ const WorkoutSessionPage: React.FC = () => {
             return prevSets; // Return previous state without changes
           }
         } else {
-          // If user is unchecking a set and there's an active rest timer for this set,
+          // If user is unchecking a set and there's an active rest timer,
           // stop the timer (user doesn't want to rest after an incomplete set)
-          if (!newIsCompleted && activeRestTimer && 
-              activeRestTimer.exerciseId === exerciseId && 
-              activeRestTimer.setIndex === setIndex) {
-            // Clear the timer interval
+          if (!newIsCompleted && restTimerRef.current?.isTimerActive()) {
+            // Clear the timer through the manager component
+            restTimerRef.current.clearTimer();
+            
+            // Also clean up any lingering intervals
             if (timerIntervalRef.current) {
               clearInterval(timerIntervalRef.current);
               timerIntervalRef.current = null;
             }
-            // Reset the timer state
-            setActiveRestTimer(null);
           }
           
           exerciseSets[setIndex] = {
@@ -1770,11 +1735,11 @@ const WorkoutSessionPage: React.FC = () => {
             }));
                 
             // Show toast notification suggesting feedback if all sets are completed
-              if (!exerciseFeedback[exerciseId]) {
-                setTimeout(() => {
-                  showAnnouncementToast("Exercise completed! Please provide feedback.");
-                }, 500); // Slight delay to ensure it appears after any rest timer
-              }
+            if (!exerciseFeedback[exerciseId]) {
+              setTimeout(() => {
+                showAnnouncementToast("Exercise completed! Please provide feedback.");
+              }, 500); // Slight delay to ensure it appears after any rest timer
+            }
             } else if (!allSetsComplete && completedExercises[exerciseId]) {
               // If a set was unchecked and the exercise was previously marked as complete,
               // update the state to reflect that it's no longer complete
@@ -1790,7 +1755,7 @@ const WorkoutSessionPage: React.FC = () => {
               if (customRestTime !== null) {
                 // Only show rest timer if rest time is greater than 0
                 if (customRestTime > 0) {
-                  startRestTimer(exerciseId, setIndex, customRestTime);
+                  showRestTimer(exerciseId, setIndex, customRestTime);
                 }
               } else {
                 // Get the rest time for this specific set
@@ -1803,7 +1768,7 @@ const WorkoutSessionPage: React.FC = () => {
                 
                 // Only start the timer if rest time is greater than 0
                 if (restSeconds !== null && restSeconds !== undefined && restSeconds > 0) {
-                  startRestTimer(exerciseId, setIndex, restSeconds);
+                  showRestTimer(exerciseId, setIndex, restSeconds);
                 }
               }
             }
@@ -1895,31 +1860,7 @@ const WorkoutSessionPage: React.FC = () => {
     });
   };
 
-  // Function to play countdown beep
-  const playCountdownBeep = () => {
-    try {
-      const AudioContext: typeof window.AudioContext = 
-        window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
-      const audioContext = new AudioContext();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.value = 440; // A4 note, different from the final beep
-      gainNode.gain.value = 0.3; // Lower volume for countdown
-      
-      oscillator.start();
-      
-      setTimeout(() => {
-        oscillator.stop();
-      }, 200); // Shorter beep for countdown
-    } catch (err) {
-      console.error('Failed to play countdown beep:', err);
-    }
-  };
+  // playCountdownBeep function moved to RestTimerComponent
 
   // Visual toast notification for announcements (fallback for speech)
   const showAnnouncementToast = (message: string) => {
@@ -2041,94 +1982,14 @@ const WorkoutSessionPage: React.FC = () => {
     }
   };
 
-  // Start the rest timer function - modified to focus only on the timer
-  const startRestTimer = (exerciseId: string, setIndex: number, duration: number) => {
-    console.log('Starting rest timer for', duration, 'seconds');
+  // Show the rest timer using the RestTimerManager
+  const showRestTimer = (exerciseId: string, setIndex: number, duration: number) => {
+    console.log('Showing rest timer for', duration, 'seconds');
     
-    // Clear any existing timer
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
+    // Use the restTimerRef to start a timer
+    if (restTimerRef.current) {
+      restTimerRef.current.startRestTimer(exerciseId, setIndex, duration);
     }
-    
-    // Set the initial timer state
-    setActiveRestTimer({
-      exerciseId,
-      setIndex,
-      timeLeft: duration,
-      totalTime: duration
-    });
-    
-    // Vibrate when timer starts (if supported)
-    if (navigator.vibrate && window.matchMedia('(max-width: 768px)').matches) {
-      navigator.vibrate(200); // Short vibration to indicate timer start
-    }
-    
-    // Start the timer interval
-    let timeRemaining = duration;
-    timerIntervalRef.current = setInterval(() => {
-      if (isPaused) return; // Don't update if workout is paused
-      
-      timeRemaining -= 1;
-      console.log('Timer tick, remaining:', timeRemaining);
-      
-      if (timeRemaining <= 0) {
-        // Timer complete - clear timer first
-        if (timerIntervalRef.current) {
-          clearInterval(timerIntervalRef.current);
-          timerIntervalRef.current = null;
-        }
-        
-        // Play alert sound
-        if (alertSoundRef.current) {
-          alertSoundRef.current.play().catch(err => 
-            console.error('Failed to play timer sound:', err)
-          );
-        }
-        
-        // Vibrate when timer ends (if supported) - longer pattern for emphasis
-        if (navigator.vibrate && window.matchMedia('(max-width: 768px)').matches) {
-          navigator.vibrate([300, 100, 300]); // Vibrate, pause, vibrate pattern
-        }
-        
-        // Slight delay before announcement to ensure sound finishes
-        setTimeout(() => {
-          // Announce the next exercise - ensure browser doesn't block this
-          if (window.speechSynthesis) {
-            // Cancel any queued speech
-            window.speechSynthesis.cancel();
-            
-            // Make sure system is not paused (some browsers pause after inactivity)
-            window.speechSynthesis.resume();
-          }
-          
-          announceNextExercise(exerciseId, setIndex);
-        }, 500);
-        
-        // Clear timer state 
-        setActiveRestTimer(null);
-        return;
-      }
-      
-      // Play countdown beeps for last 5 seconds
-      if (timeRemaining <= 5 && timeRemaining > 0) {
-        playCountdownBeep();
-        
-        // Short vibration for each second of countdown (if supported)
-        if (navigator.vibrate && window.matchMedia('(max-width: 768px)').matches) {
-          navigator.vibrate(100);
-        }
-      }
-      
-      // Update the visible timer
-      setActiveRestTimer(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          timeLeft: timeRemaining
-        };
-      });
-    }, 1000);
   };
   
   // Clean up timer on unmount
@@ -2144,21 +2005,8 @@ const WorkoutSessionPage: React.FC = () => {
     };
   }, []);
   
-  // Update timer behavior when workout is paused/resumed
-  useEffect(() => {
-    // If workout is paused, we don't need to do anything special with the timer
-    // The interval check will prevent updates while isPaused is true
-    
-    // If workout is resumed and we have an active timer, make sure it's running
-    if (!isPaused && activeRestTimer && !timerIntervalRef.current) {
-      // Restart the timer with the current state
-      startRestTimer(
-        activeRestTimer.exerciseId,
-        activeRestTimer.setIndex,
-        activeRestTimer.timeLeft
-      );
-    }
-  }, [isPaused, activeRestTimer]);
+  // No need for special timer handling anymore - RestTimerManager handles all this internally
+  // based on the isPaused prop that we pass to it
   
   // formatTime function moved to WorkoutTimerComponent
 
@@ -2179,67 +2027,10 @@ const WorkoutSessionPage: React.FC = () => {
     return totalSets > 0 ? Math.round((completedSetsCount / totalSets) * 100) : 0;
   };
 
-  // Initialize audio element on mount
-  useEffect(() => {
-    // Create an audio element for the timer alert
-    const audio = new Audio('/sounds/timer-beep.mp3');
-    audio.preload = 'auto';
-    alertSoundRef.current = audio;
-    
-    // Create a fallback beep function in case the audio file doesn't load
-    const fallbackBeep = () => {
-      try {
-        // Properly type AudioContext
-        const AudioContext: typeof window.AudioContext = 
-          window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
-        const audioContext = new AudioContext();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.value = 800;
-        gainNode.gain.value = 0.5;
-        
-        oscillator.start();
-        
-        setTimeout(() => {
-          oscillator.stop();
-        }, 500);
-        
-        // Return a Promise to match the Audio.play() signature
-        return Promise.resolve();
-      } catch (err) {
-        console.error('Failed to create fallback beep:', err);
-        return Promise.resolve(); // Return resolved promise on error
-      }
-    };
-    
-    // Test if the audio loads properly
-    audio.addEventListener('error', () => {
-      console.warn('Timer sound not loaded, using fallback beep');
-      // Replace the play method with our fallback
-      audio.play = fallbackBeep;
-    });
-    
-    return () => {
-      // Clean up audio element on unmount
-      if (alertSoundRef.current) {
-        alertSoundRef.current = null;
-      }
-    };
-  }, []);
+  // Note: We've removed the audio initialization useEffect
+  // We now use the Web Audio API directly through playAlertSound() and playCountdownBeep()
+  // from timerUtils.ts for all sound effects
 
-  // Formatting for rest timer display
-  const formatRestTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Function to request speech permission through user interaction
   const enableSpeech = () => {
     // Immediately update UI state to hide prompt
     setIsSpeechEnabled(true);
@@ -2409,98 +2200,22 @@ const WorkoutSessionPage: React.FC = () => {
     }));
   };
 
-  // Rest Timer Component with integrated next exercise info
-  const RestTimerDisplay = React.memo(() => {
-    if (!activeRestTimer) return null;
-    
-    const progress = (activeRestTimer.timeLeft / activeRestTimer.totalTime) * 100;
-    const isCountingDown = activeRestTimer.timeLeft <= 5;
-    
-    // Get next exercise information directly
-    const nextExerciseInfo = activeRestTimer ? 
-      getNextExerciseInfo(activeRestTimer.exerciseId, activeRestTimer.setIndex) : null;
-    
-    // Function to handle timer skip
-    const handleSkipTimer = () => {
-      // Clear the timer interval
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
+  // Function to handle rest timer completion
+  const handleRestTimerComplete = (exerciseId: string, setIndex: number) => {
+    // Slight delay before announcement to ensure sound finishes
+    setTimeout(() => {
+      // Announce the next exercise - ensure browser doesn't block this
+      if (window.speechSynthesis) {
+        // Cancel any queued speech
+        window.speechSynthesis.cancel();
+        
+        // Make sure system is not paused (some browsers pause after inactivity)
+        window.speechSynthesis.resume();
       }
       
-      // Clear the timer state
-      setActiveRestTimer(null);
-    };
-    
-    return (
-      <div className="fixed top-0 inset-x-0 z-50">
-        {/* Timer Display - Full width on mobile, centered with max-width on desktop */}
-        <div className={`${isCountingDown ? 'bg-red-600' : 'bg-indigo-600'} 
-          text-white p-3 shadow-lg flex flex-col items-center w-full
-          transition-all ${isCountingDown ? 'scale-105' : ''}`}>
-          
-          <div className="w-full max-w-screen-sm mx-auto px-3">
-            <div className="flex justify-between items-center mb-1">
-              <div className="text-sm font-medium">
-                {isCountingDown ? 'Get Ready!' : 'Rest Timer'}
-              </div>
-              
-              <div className={`text-2xl font-bold ${isCountingDown ? 'animate-pulse' : ''}`}>
-                {isCountingDown 
-                  ? <span className="text-3xl">{activeRestTimer.timeLeft}</span> 
-                  : formatRestTime(activeRestTimer.timeLeft)
-                }
-              </div>
-              
-              <button 
-                onClick={handleSkipTimer}
-                className="text-xs text-white/80 hover:text-white rounded px-2 py-1 bg-white/10"
-              >
-                Skip
-              </button>
-            </div>
-            
-            {/* Progress bar */}
-            <div className="w-full bg-indigo-800/50 rounded-full h-2 mb-1">
-              <div 
-                className={`h-2 rounded-full transition-all duration-200 ${isCountingDown ? 'bg-red-300' : 'bg-white'}`}
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-            
-            {/* Next exercise info - improved layout with grid for consistent alignment */}
-            {nextExerciseInfo && (
-              <div className="grid grid-cols-12 gap-2 text-xs text-white/90 py-1">
-                {/* Left column - Next Set/Exercise Label */}
-                <div className="col-span-2 sm:col-span-2 flex items-center">
-                  <span className="whitespace-nowrap">
-                    {nextExerciseInfo.isSameExercise ? 'Next Set:' : 'Next Exercise:'}
-                  </span>
-                </div>
-                
-                {/* Middle column - Exercise Name (with truncation for very long names) */}
-                <div className="col-span-6 ml-2 sm:col-span-6 flex items-center">
-                  <span className="font-medium text-white truncate max-w-full">
-                    {nextExerciseInfo.exerciseName}
-                  </span>
-                </div>
-                
-                {/* Right column - Set Type and Reps Badges (always on the same line) */}
-                <div className="col-span-4 sm:col-span-4 flex items-center justify-end space-x-2 whitespace-nowrap">
-                  <span className="px-2 py-0.5 bg-white/20 rounded-full inline-block">
-                    {nextExerciseInfo.setType}
-                  </span>
-                  <span className="px-2 py-0.5 bg-green-500/30 rounded-full inline-block">
-                    {nextExerciseInfo.reps} reps
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  });
+      announceNextExercise(exerciseId, setIndex);
+    }, 500);
+  };
 
   // Completion Dialog Component
   const CompletionDialog = () => {
@@ -2760,12 +2475,8 @@ const WorkoutSessionPage: React.FC = () => {
               // Last second - clear the interval
               clearInterval(countdownInterval);
               
-              // Play alert sound
-              if (alertSoundRef.current) {
-                alertSoundRef.current.play().catch(err => 
-                  console.error('Failed to play timer sound:', err)
-                );
-              }
+              // Play alert sound using Web Audio API
+              playAlertSound();
               
               // Reset the announcement flag whenever a new workout starts
               hasAnnouncedFirstExercise.current = false;
@@ -3134,13 +2845,13 @@ const WorkoutSessionPage: React.FC = () => {
   
   // Update the openRestTimeDialog function
   const openRestTimeDialog = () => {
-    // Preserve the current timer state
-    if (activeRestTimer) {
-      // Completely stop the interval timer
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
+    // No need to preserve timer state manually - RestTimerManager handles this
+    // internally based on the isPaused prop
+    
+    // Clean up any legacy interval timers
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
     }
     
     // Set the initial input value
@@ -3182,16 +2893,11 @@ const WorkoutSessionPage: React.FC = () => {
     resumeTimerIfNeeded();
   };
   
-  // Helper to resume timer if needed
+  // Helper to resume timer if needed - no longer needed with the new RestTimerManager
+  // which automatically handles pausing/resuming based on the isPaused prop
   const resumeTimerIfNeeded = () => {
-    if (activeRestTimer && !timerIntervalRef.current && isWorkoutStarted && !isPaused) {
-      // Restart the timer with the current state
-      startRestTimer(
-        activeRestTimer.exerciseId,
-        activeRestTimer.setIndex,
-        activeRestTimer.timeLeft
-      );
-    }
+    // The timer will automatically resume via the isPaused prop
+    // when we close dialogs and set isPaused back to false
   };
 
   // Add this to the WorkoutSessionPage component, near other state variables
@@ -3245,12 +2951,8 @@ const WorkoutSessionPage: React.FC = () => {
             customCountdownRef.current = null;
           }
           
-          // Play alert sound
-          if (alertSoundRef.current) {
-            alertSoundRef.current.play().catch(err => 
-              console.error('Failed to play timer sound:', err)
-            );
-          }
+          // Play alert sound using Web Audio API
+          playAlertSound();
           
           // Vibrate if supported
           if (navigator.vibrate && window.matchMedia('(max-width: 768px)').matches) {
@@ -3309,11 +3011,7 @@ const WorkoutSessionPage: React.FC = () => {
             }
             
             // Play alert sound
-            if (alertSoundRef.current) {
-              alertSoundRef.current.play().catch(err => 
-                console.error('Failed to play timer sound:', err)
-              );
-            }
+            playAlertSound();
             
             // Vibrate if supported
             if (navigator.vibrate && window.matchMedia('(max-width: 768px)').matches) {
@@ -3414,6 +3112,20 @@ const WorkoutSessionPage: React.FC = () => {
       </div>
     );
   };
+
+  const FeedbackButton = React.memo(({ exercise }: { exercise: ExerciseInstanceData }) => {
+    return (
+      <button
+        onClick={() => setShowingFeedbackForm(exercise.id)}
+        className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm flex items-center"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+        </svg>
+        Add Feedback
+      </button>
+    );
+  });
 
   // Add a countdown button component that can be reused in each exercise card
   const CountdownButton = React.memo(() => {
@@ -3624,12 +3336,16 @@ const WorkoutSessionPage: React.FC = () => {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 font-mono">
-                    <WorkoutTimerComponent 
-                      isStarted={isWorkoutStarted}
-                      isPaused={isPaused}
-                      initialElapsedTime={elapsedTime}
-                      onTimeUpdate={setElapsedTime}
-                    />
+                    { !isPaused ? (
+                      <WorkoutTimerComponent 
+                        isStarted={isWorkoutStarted}
+                        isPaused={isPaused}
+                        initialElapsedTime={elapsedTime}
+                        onTimeUpdate={setElapsedTime}
+                      />
+                    ) : (
+                      formatTime(pausedTimeRef.current)
+                    )}
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">
                     {isWorkoutStarted ? (isPaused ? 'Paused' : 'Active') : 'Not Started'}
@@ -3961,18 +3677,7 @@ const WorkoutSessionPage: React.FC = () => {
                                 {/* Add countdown button after the sets table */}
                                 <div className="mt-4 flex justify-center gap-3">
                                   <CountdownButton />
-                                  {/* Only show feedback button when all sets for this exercise are completed */}
-                                  {completedExercises[exercise.id] && (
-                                    <button
-                                      onClick={() => setShowingFeedbackForm(exercise.id)}
-                                      className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm flex items-center"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                                      </svg>
-                                      Add Feedback
-                                    </button>
-                                  )}
+                                  <FeedbackButton exercise={exercise} />
                                 </div>
                                 
                                 {/* Show submitted feedback if available */}
@@ -4268,18 +3973,7 @@ const WorkoutSessionPage: React.FC = () => {
                         {/* Add countdown and feedback buttons after the sets table */}
                         <div className="mt-4 flex justify-center gap-3">
                           <CountdownButton />
-                          {/* Only show feedback button when all sets for this exercise are completed */}
-                          {completedExercises[exercise.id] && (
-                            <button
-                              onClick={() => setShowingFeedbackForm(exercise.id)}
-                              className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm flex items-center"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                              </svg>
-                              Add Feedback
-                            </button>
-                          )}
+                          <FeedbackButton exercise={exercise} />
                         </div>
                         
                         {/* Show submitted feedback if available */}
@@ -4354,7 +4048,12 @@ const WorkoutSessionPage: React.FC = () => {
         )}
         
         {/* Render only the timer component, which now includes the next exercise info */}
-        <RestTimerDisplay />
+        <RestTimerManager
+          ref={restTimerRef}
+          isPaused={isPaused}
+          getNextExerciseInfo={getNextExerciseInfo}
+          onRestComplete={handleRestTimerComplete}
+        />
         <SpeechPermissionPrompt />
         <CustomCountdownDisplay />
       </div>
