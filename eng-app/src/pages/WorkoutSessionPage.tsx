@@ -7,6 +7,7 @@ import { SetType, ExerciseSet } from '../types/adminTypes';
 import { fetchExerciseById, searchExercises } from '../utils/exerciseAPI';
 import BackButton from '../components/common/BackButton';
 import { ExerciseFeedbackSystem } from '../components/workout-session/feedback';
+import { WorkoutTimerComponent } from '../components/workout-session';
 import { 
   ExerciseFeedback,
   FeedbackRecommendation,
@@ -2159,17 +2160,7 @@ const WorkoutSessionPage: React.FC = () => {
     }
   }, [isPaused, activeRestTimer]);
   
-  const formatTime = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  // formatTime function moved to WorkoutTimerComponent
 
   // Calculate workout progress percentage
   const calculateProgress = (): number => {
@@ -3633,7 +3624,12 @@ const WorkoutSessionPage: React.FC = () => {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 font-mono">
-                    {isPaused ? '' : formatTime(elapsedTime)}
+                    <WorkoutTimerComponent 
+                      isStarted={isWorkoutStarted}
+                      isPaused={isPaused}
+                      initialElapsedTime={elapsedTime}
+                      onTimeUpdate={setElapsedTime}
+                    />
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">
                     {isWorkoutStarted ? (isPaused ? 'Paused' : 'Active') : 'Not Started'}
