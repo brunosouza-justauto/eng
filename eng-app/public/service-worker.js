@@ -1,5 +1,5 @@
 // Service Worker for ENG App PWA
-const CACHE_VERSION = '2.2.0';
+const CACHE_VERSION = '2.3.0';
 const CACHE_NAME = `eng-app-v${CACHE_VERSION}`;
 
 // List of static assets to cache for offline use
