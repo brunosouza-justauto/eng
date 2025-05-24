@@ -339,6 +339,8 @@ const AthleteWorkoutsPage: React.FC = () => {
               })
             );
             
+            console.log("Exercise Instances:", exerciseInstances);
+            
             setExercises(exerciseInstances);
           } else {
             setExercises([]);
@@ -503,6 +505,8 @@ const AthleteWorkoutsPage: React.FC = () => {
                   {exercise.exercise.description && (
                     <p className="text-sm text-gray-400 mb-4">{exercise.exercise.description}</p>
                   )}
+
+                  <FeedbackDisplay feedback={exercise.feedback} />
                   
                   <div className="mb-2">
                     <span className="text-sm text-gray-400">

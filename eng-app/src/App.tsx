@@ -468,11 +468,29 @@ function App() {
         
         // Skip processing certain non-critical events
         if (event === 'TOKEN_REFRESHED') {
-            // Only update the session object, but don't trigger profile fetches or redirects
+            // For token refreshes, we do an extremely minimal update to prevent component rerenders
+            // We directly update the JWT in localStorage without triggering Redux state changes
             if (session) {
-                dispatch(setSession(session));
+                // Only update the local storage JWT value instead of using Redux dispatch
+                // This prevents components from re-rendering but keeps auth valid
+                try {
+                    const storageKey = 'eng_supabase_auth';
+                    const authData = JSON.parse(localStorage.getItem(storageKey) || '{}');
+                    if (authData && authData.access_token) {
+                        authData.access_token = session.access_token;
+                        localStorage.setItem(storageKey, JSON.stringify(authData));
+                        console.log('Token silently refreshed without triggering state updates');
+                    } else {
+                        // Fallback to normal update if we can't find the current token
+                        dispatch(setSession(session));
+                        console.log('Token refresh - using normal dispatch as fallback');
+                    }
+                } catch (err) {
+                    // Fallback to normal update if anything goes wrong
+                    console.error('Error during silent token refresh:', err);
+                    dispatch(setSession(session));
+                }
             }
-            console.log('Token refresh event - only updating session object');
             return;
         }
         

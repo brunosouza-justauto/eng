@@ -6,6 +6,17 @@ import { supabase } from '../services/supabaseClient';
 import { SetType, ExerciseSet } from '../types/adminTypes';
 import { fetchExerciseById, searchExercises } from '../utils/exerciseAPI';
 import BackButton from '../components/common/BackButton';
+import { ExerciseFeedbackSystem } from '../components/workout-session/feedback';
+import { 
+  ExerciseFeedback,
+  FeedbackRecommendation,
+  WorkoutData,
+  CompletedSetData,
+  CompletedSetRecord,
+  WorkoutSessionParams,
+  ExerciseInstanceData,
+  DatabaseExerciseSet
+} from '../types/workoutTypes';
 
 // Helper function to sanitize text with encoding issues
 const sanitizeText = (text: string | null | undefined): string | null => {
@@ -33,93 +44,6 @@ const cleanExerciseName = (name: string): string => {
             .replace(/\s+/g, ' ')  // Remove multiple spaces
             .trim();
 };
-
-// Define types for the component
-interface ExerciseInstanceData {
-  id: string;
-  exercise_db_id: string | null;
-  exercise_name: string;
-  sets: string | null;
-  reps: string | null;
-  rest_period_seconds: number | null;
-  tempo: string | null;
-  notes: string | null;
-  order_in_workout: number | null;
-  set_type?: SetType | null;
-  sets_data?: ExerciseSet[]; // Add support for individual set data
-  superset_group_id?: string | null; // Added field for superset group ID
-  is_bodyweight?: boolean; // Added field for bodyweight exercises
-  each_side?: boolean; // Added field for each side exercises
-}
-
-// Interface for database exercise set
-interface DatabaseExerciseSet {
-  id: string;
-  exercise_instance_id: string;
-  set_order: number;
-  type: SetType;
-  reps: string;
-  weight?: string | null;
-  rest_seconds?: number | null;
-  duration?: string | null;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface WorkoutData {
-  id: string;
-  name: string;
-  day_of_week: number | null;
-  week_number: number | null;
-  order_in_program: number | null;
-  description: string | null;
-  exercise_instances: ExerciseInstanceData[];
-}
-
-interface WorkoutSessionParams extends Record<string, string | undefined> {
-  workoutId: string;
-}
-
-interface CompletedSetData {
-  exerciseInstanceId: string;
-  setOrder: number;
-  weight: string;
-  reps: number;
-  isCompleted: boolean;
-  notes: string;
-  setType?: SetType | null;
-}
-
-// Interface for the database record
-interface CompletedSetRecord {
-  workout_session_id: string;
-  exercise_instance_id: string;
-  set_order: number;
-  weight: string;
-  reps: number;
-  is_completed: boolean;
-  notes: string;
-  set_type?: SetType | null;
-}
-
-// Add new interfaces for feedback
-interface ExerciseFeedback {
-  id?: string;
-  workout_session_id: string;
-  exercise_instance_id: string;
-  pain_level: number | null;
-  pump_level: number | null;
-  workload_level: number | null;
-  notes: string | null;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface FeedbackRecommendation {
-  type: 'pain' | 'pump' | 'workload';
-  message: string;
-  action: 'increase_weight' | 'decrease_weight' | 'change_exercise' | 'adjust_reps' | 'no_change';
-}
 
 // Create a global cache for exercise images to prevent redundant API calls
 const exerciseImageCache = new Map<string, { 
@@ -602,137 +526,6 @@ const IsolatedCountdownDialog = ({
   );
 };
 
-// Component for collecting feedback after an exercise is completed
-const ExerciseFeedbackForm = ({ 
-  exerciseInstanceId, 
-  workoutSessionId, 
-  onSubmit, 
-  previousFeedback,
-  onCancel
-}: { 
-  exerciseInstanceId: string; 
-  workoutSessionId: string; 
-  onSubmit: (feedback: ExerciseFeedback) => void;
-  previousFeedback?: FeedbackRecommendation | null;
-  onCancel: () => void;
-}) => {
-  const [painLevel, setPainLevel] = useState<number | null>(null);
-  const [pumpLevel, setPumpLevel] = useState<number | null>(null);
-  const [workloadLevel, setWorkloadLevel] = useState<number | null>(null);
-  const [notes, setNotes] = useState<string>('');
-  
-  const handleSubmit = () => {
-    const feedback: ExerciseFeedback = {
-      exercise_instance_id: exerciseInstanceId,
-      workout_session_id: workoutSessionId,
-      pain_level: painLevel,
-      pump_level: pumpLevel,
-      workload_level: workloadLevel,
-      notes: notes || null
-    };
-    
-    onSubmit(feedback);
-  };
-  
-  return (
-    <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg my-4">
-      <h3 className="text-lg font-semibold mb-3">Exercise Feedback</h3>
-      
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Pain Level</label>
-        <div className="flex space-x-2">
-          {[1, 2, 3, 4, 5].map(level => (
-            <button
-              key={`pain-${level}`}
-              type="button"
-              className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                painLevel === level 
-                  ? 'bg-red-500 text-white' 
-                  : 'bg-gray-200 dark:bg-gray-700'
-              }`}
-              onClick={() => setPainLevel(level)}
-            >
-              {level}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs mt-1">1 = No pain, 5 = Severe pain</p>
-      </div>
-      
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Pump Level</label>
-        <div className="flex space-x-2">
-          {[1, 2, 3, 4, 5].map(level => (
-            <button
-              key={`pump-${level}`}
-              type="button"
-              className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                pumpLevel === level 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 dark:bg-gray-700'
-              }`}
-              onClick={() => setPumpLevel(level)}
-            >
-              {level}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs mt-1">1 = No pump, 5 = Great pump</p>
-      </div>
-      
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Workload Level</label>
-        <div className="flex space-x-2">
-          {[1, 2, 3, 4, 5].map(level => (
-            <button
-              key={`workload-${level}`}
-              type="button"
-              className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                workloadLevel === level 
-                  ? 'bg-yellow-500 text-white' 
-                  : 'bg-gray-200 dark:bg-gray-700'
-              }`}
-              onClick={() => setWorkloadLevel(level)}
-            >
-              {level}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs mt-1">1 = Too easy, 3 = Just right, 5 = Too difficult</p>
-      </div>
-      
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Notes (Optional)</label>
-        <textarea
-          className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Add any additional notes about this exercise..."
-        />
-      </div>
-      
-      <div className="flex space-x-3">
-        <button
-          type="button"
-          className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-          onClick={onCancel}
-        >
-          Skip
-        </button>
-        <button
-          type="button"
-          className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400"
-          onClick={handleSubmit}
-          disabled={painLevel === null || pumpLevel === null || workloadLevel === null}
-        >
-          Submit Feedback
-        </button>
-      </div>
-    </div>
-  );
-};
-
 const WorkoutSessionPage: React.FC = () => {
   const { workoutId } = useParams<WorkoutSessionParams>();
   const profile = useSelector(selectProfile);
@@ -754,8 +547,7 @@ const WorkoutSessionPage: React.FC = () => {
   
   // State for exercise feedback
   const [exerciseFeedback, setExerciseFeedback] = useState<Record<string, ExerciseFeedback>>({});
-  const [previousFeedback, setPreviousFeedback] = useState<Record<string, ExerciseFeedback>>({});
-  const [feedbackRecommendations, setFeedbackRecommendations] = useState<Record<string, FeedbackRecommendation>>({});
+  const [feedbackRecommendations, setFeedbackRecommendations] = useState<Record<string, FeedbackRecommendation[]>>({});
   const [showingFeedbackForm, setShowingFeedbackForm] = useState<string | null>(null);
   
   // Add state for session resumption dialog
@@ -823,261 +615,6 @@ const WorkoutSessionPage: React.FC = () => {
       console.log('Speech enabled from saved preference');
     }
   }, []);
-
-  // Function to fetch previous feedback for this exercise
-  const fetchPreviousFeedback = async (exerciseInstanceId: string) => {
-    try {
-      if (!workout || !workoutId || !profile?.id) return null;
-      
-      // Get previous workout sessions for this workout
-      const { data: previousSessions, error: sessionsError } = await supabase
-        .from('workout_sessions')
-        .select('id')
-        .eq('workout_id', workoutId)
-        .eq('user_id', profile.id)
-        .order('start_time', { ascending: false })
-        .limit(5); // Get the last 5 sessions
-        
-      if (sessionsError) throw sessionsError;
-      
-      if (previousSessions && previousSessions.length > 0) {
-        // Get previous exercise instances with same name
-        const exerciseInstance = workout?.exercise_instances.find(
-          ex => ex.id === exerciseInstanceId
-        );
-        
-        if (!exerciseInstance) return null;
-        
-        // Get previous feedback for similar exercises
-        const { data: feedback, error: feedbackError } = await supabase
-          .from('exercise_feedback')
-          .select('*, exercise_instance:exercise_instances(exercise_name)')
-          .in('workout_session_id', previousSessions.map(s => s.id))
-          .eq('exercise_instance_id', exerciseInstanceId)
-          .order('created_at', { ascending: false })
-          .limit(1); // Get the most recent feedback
-          
-        if (feedbackError) throw feedbackError;
-        
-        if (feedback && feedback.length > 0) {
-          setPreviousFeedback(prev => ({
-            ...prev,
-            [exerciseInstanceId]: feedback[0]
-          }));
-          
-          // Generate recommendation based on feedback
-          const recommendation = generateRecommendation(feedback[0], exerciseInstance);
-          
-          if (recommendation) {
-            setFeedbackRecommendations(prev => ({
-              ...prev,
-              [exerciseInstanceId]: recommendation
-            }));
-          }
-          
-          return feedback[0];
-        }
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Error fetching previous feedback:', error);
-      return null;
-    }
-  };
-
-  // Function to generate recommendations based on previous feedback
-  const generateRecommendation = (
-    feedback: ExerciseFeedback, 
-    exercise: ExerciseInstanceData
-  ): FeedbackRecommendation | null => {
-    if (!feedback) return null;
-    
-    // Pain takes priority - if pain is high, recommend changing the exercise
-    if (feedback.pain_level && feedback.pain_level >= 4) {
-      return {
-        type: 'pain',
-        message: `Based on your previous feedback, this exercise caused significant pain. Consider a different exercise or consult your coach.`,
-        action: 'change_exercise'
-      };
-    }
-    
-    // Workload level recommendations
-    if (feedback.workload_level) {
-      if (feedback.workload_level <= 2) {
-        return {
-          type: 'workload',
-          message: `Last time, this exercise felt too easy. Consider increasing the weight to challenge yourself more.`,
-          action: 'increase_weight'
-        };
-      } else if (feedback.workload_level > 4) {
-        return {
-          type: 'workload',
-          message: `Last time, this exercise felt too difficult. Consider decreasing the weight to maintain proper form.`,
-          action: 'decrease_weight'
-        };
-      }
-    }
-    
-    // Pump level recommendations
-    if (feedback.pump_level && feedback.pump_level <= 2) {
-      return {
-        type: 'pump',
-        message: `You didn't feel much pump with this exercise last time. Consider increasing the number of reps or adjusting the tempo.`,
-        action: 'adjust_reps'
-      };
-    }
-    
-    return null;
-  };
-  
-  // Function to save feedback for an exercise
-  const saveFeedback = async (feedback: ExerciseFeedback) => {
-    try {
-      const { data, error } = await supabase
-        .from('exercise_feedback')
-        .insert(feedback)
-        .select();
-        
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        // Update the local state with the saved feedback
-        setExerciseFeedback(prev => ({
-          ...prev,
-          [feedback.exercise_instance_id]: data[0]
-        }));
-        
-        // Hide the feedback form
-        setShowingFeedbackForm(null);
-        
-        // Show confirmation message
-        showAnnouncementToast('Thank you for your feedback!');
-      }
-    } catch (error) {
-      console.error('Error saving feedback:', error);
-      showAnnouncementToast('Error saving feedback. Please try again.');
-    }
-  };
-  
-  // Function to load previously saved exercise feedback from prior completed sessions
-  const loadExerciseFeedback = async (currentSessionId: string | null, workoutData: WorkoutData | null) => {
-
-    console.log('Loading exercise feedback from previous completed sessions...');
-    console.log('Current workout ID:', workoutId);
-    console.log('Current user ID:', profile?.user_id);
-    console.log('Current workout:', workoutData);
-
-    if (!profile?.user_id || !workoutId || !workoutData) return;
-    
-    try {
-      console.log('Loading exercise feedback from previous completed sessions...');
-      
-      // First, find previous completed sessions for this workout
-      const { data: previousSessions, error: sessionsError } = await supabase
-        .from('workout_sessions')
-        .select('id')
-        .eq('user_id', profile.user_id)
-        .eq('workout_id', workoutId)
-        .not('end_time', 'is', null) // Only get completed sessions
-        .order('end_time', { ascending: false }) // Most recent first
-        .limit(5); // Get a few recent sessions to ensure we have data
-
-      console.log('Previous sessions:', previousSessions);
-      
-      if (sessionsError) throw sessionsError;
-      
-      if (!previousSessions || previousSessions.length === 0) {
-        console.log('No previous completed sessions found');
-        return;
-      }
-      
-      console.log(`Found ${previousSessions.length} previous completed sessions`);
-      
-      // Now process feedback for each exercise in the current workout
-      const processedExercises = new Set<string>(); // Track which exercises we've already processed
-      const feedbackObj: Record<string, ExerciseFeedback> = {};
-      
-      // For each exercise in the current workout
-      for (const exercise of workoutData?.exercise_instances || []) {
-        // Skip if we've already processed this exercise
-        if (processedExercises.has(exercise.id)) continue;
-        
-        // Get the most recent feedback for this exercise from any previous session
-        const { data: feedbackData, error: feedbackError } = await supabase
-          .from('exercise_feedback')
-          .select('*')
-          .in('workout_session_id', previousSessions.map(s => s.id)) // From any previous completed session
-          .eq('exercise_instance_id', exercise.id)
-          .order('created_at', { ascending: false }) // Most recent first
-          .limit(1);
-
-        console.log('Feedback data:', feedbackData);
-        
-        if (feedbackError) {
-          console.error(`Error fetching feedback for exercise ${exercise.id}:`, feedbackError);
-          continue;
-        }
-        
-        if (feedbackData && feedbackData.length > 0) {
-          const feedback = feedbackData[0];
-          console.log(`Found previous feedback for exercise ${exercise.exercise_name}:`, feedback);
-          
-          // Store the feedback
-          feedbackObj[exercise.id] = feedback;
-          
-          // Generate recommendation based on the feedback
-          const recommendation = generateRecommendation(feedback, exercise);
-          if (recommendation) {
-            console.log(`Generated recommendation for ${exercise.exercise_name}:`, recommendation);
-            setFeedbackRecommendations(prev => ({
-              ...prev,
-              [exercise.id]: recommendation
-            }));
-          }
-          
-          // Mark exercise as processed
-          processedExercises.add(exercise.id);
-        }
-      }
-      
-      // Now check if there's feedback for the current session too
-      if (currentSessionId) {
-        const { data: currentFeedback, error: currentFeedbackError } = await supabase
-          .from('exercise_feedback')
-          .select('*')
-          .eq('workout_session_id', currentSessionId);
-        
-        if (currentFeedbackError) throw currentFeedbackError;
-        
-        if (currentFeedback && currentFeedback.length > 0) {
-          console.log(`Found ${currentFeedback.length} feedback items for current session`);
-          
-          // Add current session feedback and mark exercises as completed
-          for (const feedback of currentFeedback) {
-            feedbackObj[feedback.exercise_instance_id] = feedback;
-            
-            // Mark this exercise as completed since feedback exists
-            setCompletedExercises(prev => ({
-              ...prev,
-              [feedback.exercise_instance_id]: true
-            }));
-            
-            // Mark as processed
-            processedExercises.add(feedback.exercise_instance_id);
-          }
-        }
-      }
-      
-      // Update the feedback state if we found any feedback
-      if (Object.keys(feedbackObj).length > 0) {
-        setExerciseFeedback(feedbackObj);
-        console.log('Loaded feedback data:', feedbackObj);
-      }
-    } catch (error) {
-      console.error('Error loading exercise feedback:', error);
-    }
-  };
   
   // Note: We're now using the completedExercises state to track completed exercises
   // instead of checking on demand, which is more efficient and avoids potential issues
@@ -1204,9 +741,7 @@ const WorkoutSessionPage: React.FC = () => {
             console.log('Loading previous workout data immediately on page load');
             fetchPreviousWorkoutData();
             
-            // Load exercise feedback from previous sessions
-            // We pass null as the current session ID since we don't have one yet
-            loadExerciseFeedback(null, data);
+            // Exercise feedback will be loaded via the ExerciseFeedbackSystem component
             
             // Check for auto-resume after loading everything else
             checkAndAutoResumeSession();
@@ -2219,75 +1754,61 @@ const WorkoutSessionPage: React.FC = () => {
             // Dont display rest timer.
             dontShowRestTimer = true;
           }
-          
-          /*if (progressPercentage === 100) {
-            // All sets are now completed - show the completion prompt
-            console.log('Workout 100% complete! Showing completion prompt');
-            setCompletionMessage('Congratulations! You\'ve completed all sets in this workout. You can now mark the workout as complete.');
-            
-            setCompletedExercises(prev => ({
-              ...prev,
-              [exerciseId]: true
-            }));
 
-            setShowCompletionDialog(true);
-          } else { */
-            // Not complete yet, handle rest timer as usual
-            const exercise = workout?.exercise_instances.find(ex => ex.id === exerciseId);
-            if (exercise) {
-              // Check if all sets for this exercise are now completed
-              const exerciseSets = [...(newSets.get(exerciseId) || [])];
-              const allSetsComplete = exerciseSets.length > 0 && exerciseSets.every(set => set.isCompleted);
+          const exercise = workout?.exercise_instances.find(ex => ex.id === exerciseId);
+          if (exercise) {
+            // Check if all sets for this exercise are now completed
+            const exerciseSets = [...(newSets.get(exerciseId) || [])];
+            const allSetsComplete = exerciseSets.length > 0 && exerciseSets.every(set => set.isCompleted);
               
-              // Update the completedExercises state if all sets are completed
-              if (allSetsComplete && !completedExercises[exerciseId]) {
-                setCompletedExercises(prev => ({
-                  ...prev,
-                  [exerciseId]: true
-                }));
+            // Update the completedExercises state if all sets are completed
+            if (allSetsComplete && !completedExercises[exerciseId]) {
+              setCompletedExercises(prev => ({
+                ...prev,
+                [exerciseId]: true
+            }));
                 
-                // Show toast notification suggesting feedback if all sets are completed
-                if (!exerciseFeedback[exerciseId]) {
-                  setTimeout(() => {
-                    showAnnouncementToast("Exercise completed! Please provide feedback.");
-                  }, 500); // Slight delay to ensure it appears after any rest timer
-                }
-              } else if (!allSetsComplete && completedExercises[exerciseId]) {
-                // If a set was unchecked and the exercise was previously marked as complete,
-                // update the state to reflect that it's no longer complete
-                setCompletedExercises(prev => {
-                  const newState = { ...prev };
-                  delete newState[exerciseId];
-                  return newState;
-                });
+            // Show toast notification suggesting feedback if all sets are completed
+              if (!exerciseFeedback[exerciseId]) {
+                setTimeout(() => {
+                  showAnnouncementToast("Exercise completed! Please provide feedback.");
+                }, 500); // Slight delay to ensure it appears after any rest timer
               }
+            } else if (!allSetsComplete && completedExercises[exerciseId]) {
+              // If a set was unchecked and the exercise was previously marked as complete,
+              // update the state to reflect that it's no longer complete
+              setCompletedExercises(prev => {
+                const newState = { ...prev };
+                delete newState[exerciseId];
+                return newState;
+              });
+            }
 
-              if (!dontShowRestTimer) {
-                // Use custom rest time if available, otherwise get from exercise
-                if (customRestTime !== null) {
-                  // Only show rest timer if rest time is greater than 0
-                  if (customRestTime > 0) {
-                    startRestTimer(exerciseId, setIndex, customRestTime);
-                  }
-                } else {
-                  // Get the rest time for this specific set
-                  let restSeconds = null;
-                  if (exercise.sets_data && exercise.sets_data[setIndex]) {
-                    restSeconds = exercise.sets_data[setIndex].rest_seconds;
-                  }
-                  // Fall back to exercise rest_period_seconds if no specific rest time
-                  restSeconds = restSeconds ?? exercise.rest_period_seconds;
-                  
-                  // Only start the timer if rest time is greater than 0
-                  if (restSeconds !== null && restSeconds !== undefined && restSeconds > 0) {
-                    startRestTimer(exerciseId, setIndex, restSeconds);
+            if (!dontShowRestTimer) {
+              // Use custom rest time if available, otherwise get from exercise
+              if (customRestTime !== null) {
+                // Only show rest timer if rest time is greater than 0
+                if (customRestTime > 0) {
+                  startRestTimer(exerciseId, setIndex, customRestTime);
+                }
+              } else {
+                // Get the rest time for this specific set
+                let restSeconds = null;
+                if (exercise.sets_data && exercise.sets_data[setIndex]) {
+                  restSeconds = exercise.sets_data[setIndex].rest_seconds;
+                }
+                // Fall back to exercise rest_period_seconds if no specific rest time
+                restSeconds = restSeconds ?? exercise.rest_period_seconds;
+                
+                // Only start the timer if rest time is greater than 0
+                if (restSeconds !== null && restSeconds !== undefined && restSeconds > 0) {
+                  startRestTimer(exerciseId, setIndex, restSeconds);
                 }
               }
             }
           }
         }
       }
-      
       return newSets;
     });
   };
@@ -3986,6 +3507,21 @@ const WorkoutSessionPage: React.FC = () => {
         onStart={handleStartCountdown}
       />
       
+      {/* Add ExerciseFeedbackSystem to manage feedback logic */}
+      {workout && profile?.user_id && (
+        <ExerciseFeedbackSystem
+          workoutSessionId={workoutSessionId}
+          workoutId={workoutId || ''}
+          userId={profile.user_id}
+          workout={workout}
+          showingFeedbackForm={showingFeedbackForm}
+          setExerciseFeedback={setExerciseFeedback}
+          setFeedbackRecommendations={setFeedbackRecommendations}
+          setShowingFeedbackForm={setShowingFeedbackForm}
+          onFeedbackSubmitted={(message) => setToastMessage(message)}
+        />
+      )}
+      
       <div className="container mx-auto">
         {isLoading ? (
           <div className="flex justify-center py-12">
@@ -4202,15 +3738,17 @@ const WorkoutSessionPage: React.FC = () => {
                                     : 'bg-white dark:bg-gray-800'
                                 } relative`}
                               >
-                                {/* Display recommendation notification if available */}
+                                {/* Display all the recommendation notifications if available */}
                                 {feedbackRecommendations[exercise.id] && (
-                                  <div className={`p-3 mb-3 rounded-lg ${
-                                    feedbackRecommendations[exercise.id].type === 'pain' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100' : 
-                                    feedbackRecommendations[exercise.id].type === 'pump' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100' : 
-                                    'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100'
-                                  }`}>
-                                    <p className="font-medium">{feedbackRecommendations[exercise.id].message}</p>
-                                  </div>
+                                  feedbackRecommendations[exercise.id].map((recommendation) => (
+                                    <div className={`p-3 mb-3 rounded-lg ${
+                                      recommendation.type === 'pain' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100' : 
+                                      recommendation.type === 'pump' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100' : 
+                                      'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100'
+                                    }`}>
+                                      <p className="font-medium">{recommendation.message}</p>
+                                    </div>
+                                  ))
                                 )}
                                 {/* Connecting line for all but the last exercise */}
                                 {idx < exerciseGroup.group.length - 1 && (
@@ -4313,7 +3851,6 @@ const WorkoutSessionPage: React.FC = () => {
                                     </button>
                                   </div>
                                 </div>
-                                
                                 {/* Exercise notes - moved into the title div */}
                                 
                                 {/* Exercise Demonstration - Collapsible */}
@@ -4442,17 +3979,6 @@ const WorkoutSessionPage: React.FC = () => {
                                   )}
                                 </div>
                                 
-                                {/* Add feedback form at the bottom of each exercise */}
-                                {showingFeedbackForm === exercise.id && (
-                                  <ExerciseFeedbackForm
-                                    exerciseInstanceId={exercise.id}
-                                    workoutSessionId={workoutSessionId || ''}
-                                    onSubmit={saveFeedback}
-                                    previousFeedback={feedbackRecommendations[exercise.id]}
-                                    onCancel={() => setShowingFeedbackForm(null)}
-                                  />
-                                )}
-                                
                                 {/* Show submitted feedback if available */}
                                 {exerciseFeedback[exercise.id] && (
                                   <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg mt-4 mx-4 mb-4">
@@ -4480,21 +4006,10 @@ const WorkoutSessionPage: React.FC = () => {
                                   </div>
                                 )}
                                 
-                                {/* Add feedback form at the bottom of each exercise */}
-                                {showingFeedbackForm === exercise.id && (
-                                  <ExerciseFeedbackForm
-                                    exerciseInstanceId={exercise.id}
-                                    workoutSessionId={workoutSessionId || ''}
-                                    onSubmit={saveFeedback}
-                                    previousFeedback={feedbackRecommendations[exercise.id]}
-                                    onCancel={() => setShowingFeedbackForm(null)}
-                                  />
-                                )}
-                                
                                 {/* Show submitted feedback if available */}
                                 {exerciseFeedback[exercise.id] && (
                                   <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg mt-4 mx-4 mb-4">
-                                    <h3 className="text-lg font-semibold mb-2">Your Feedback</h3>
+                                    <h3 className="text-lg font-semibold mb-2">Your Current Session Feedback</h3>
                                     <div className="flex space-x-4 mb-2">
                                       <div>
                                         <span className="text-sm text-gray-500 dark:text-gray-400">Pain:</span>
@@ -4526,289 +4041,279 @@ const WorkoutSessionPage: React.FC = () => {
                   } else {
                     // Regular exercise (non-superset)
                     const exercise = exerciseGroup.group[0];
-                  const exerciseSets = completedSets.get(exercise.id) || [];
-                  const isExerciseComplete = exerciseSets.length > 0 && exerciseSets.every(set => set.isCompleted);
-                  // Use the component-level state instead of local useState
-                  const showDemonstration = shownDemonstrations[exercise.id] || false;
-                  
-                  return (
-                    <div 
-                      key={exercise.id} 
-                      className={`p-3 rounded-lg shadow ${
-                        isExerciseComplete 
-                          ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500' 
-                          : 'bg-white dark:bg-gray-800'
-                      }`}
-                    >
-                      {/* Display recommendation notification if available */}
-                      {feedbackRecommendations[exercise.id] && (
-                        <div className={`p-3 mb-3 rounded-lg ${
-                          feedbackRecommendations[exercise.id].type === 'pain' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100' : 
-                          feedbackRecommendations[exercise.id].type === 'pump' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100' : 
-                          'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100'
-                        }`}>
-                          <p className="font-medium">{feedbackRecommendations[exercise.id].message}</p>
-                        </div>
-                      )}
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-lg font-semibold flex items-center">
-                            <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-2">
-                                {groupExercisesBySuperset(workout.exercise_instances)
-                                  .slice(0, groupIndex)
-                                  .flatMap(g => g.group)
-                                  .length + 1}
-                            </span>
-                            <span className="text-gray-800 dark:text-white">
-                              {cleanExerciseName(exercise.exercise_name)}
-                              {/* Add "Each Side" indicator */}
-                              {exercise.each_side && (
-                                <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full">
-                                  Each Side
-                                </span>
-                              )}
-                            </span>
-                          </h3>
-                          
-                          {/* Exercise notes */}
-                          {exercise.notes && (
-                            <div className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
-                              <p>
-                                {expandedNotes[exercise.id] ? exercise.notes : truncateNotes(exercise.notes)}
-                              </p>
-                              {exercise.notes.length > 120 && (
-                                <button 
-                                  onClick={() => toggleNotesExpansion(exercise.id)}
-                                  className="text-indigo-600 dark:text-indigo-400 hover:underline mt-1 text-xs font-medium"
-                                >
-                                  {expandedNotes[exercise.id] ? 'Show less' : 'See more'}
-                                </button>
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Tempo display */}
-                          {exercise.tempo && (
-                            <div className="mt-1 ml-9 flex items-center">
-                              <span className="text-xs bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 px-2 py-0.5 rounded-full flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Tempo: {exercise.tempo}
+                    const exerciseSets = completedSets.get(exercise.id) || [];
+                    const isExerciseComplete = exerciseSets.length > 0 && exerciseSets.every(set => set.isCompleted);
+                    // Use the component-level state instead of local useState
+                    const showDemonstration = shownDemonstrations[exercise.id] || false;
+                    
+                    return (
+                      <div 
+                        key={exercise.id} 
+                        className={`p-3 rounded-lg shadow ${
+                          isExerciseComplete 
+                            ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500' 
+                            : 'bg-white dark:bg-gray-800'
+                        }`}
+                      >
+                        {/* Display recommendation notifications if available */}
+                        {feedbackRecommendations[exercise.id] && feedbackRecommendations[exercise.id].length > 0 && (
+                          <div className="p-4 mb-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">
+                            <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Previous Session Feedback</h4>
+                            {feedbackRecommendations[exercise.id].map((recommendation, index) => (
+                              <div key={index} className={`mt-2 p-2 rounded ${recommendation.type === 'pain' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200' : recommendation.type === 'pump' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200'}`}>
+                                <p className="text-sm font-medium">{recommendation.message}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="text-lg font-semibold flex items-center">
+                              <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-2">
+                                  {groupExercisesBySuperset(workout.exercise_instances)
+                                    .slice(0, groupIndex)
+                                    .flatMap(g => g.group)
+                                    .length + 1}
                               </span>
-                            </div>
+                              <span className="text-gray-800 dark:text-white">
+                                {cleanExerciseName(exercise.exercise_name)}
+                                {/* Add "Each Side" indicator */}
+                                {exercise.each_side && (
+                                  <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full">
+                                    Each Side
+                                  </span>
+                                )}
+                              </span>
+                            </h3>
+                            
+                            {/* Exercise notes */}
+                            {exercise.notes && (
+                              <div className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
+                                <p>
+                                  {expandedNotes[exercise.id] ? exercise.notes : truncateNotes(exercise.notes)}
+                                </p>
+                                {exercise.notes.length > 120 && (
+                                  <button 
+                                    onClick={() => toggleNotesExpansion(exercise.id)}
+                                    className="text-indigo-600 dark:text-indigo-400 hover:underline mt-1 text-xs font-medium"
+                                  >
+                                    {expandedNotes[exercise.id] ? 'Show less' : 'See more'}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Tempo display */}
+                            {exercise.tempo && (
+                              <div className="mt-1 ml-9 flex items-center">
+                                <span className="text-xs bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 px-2 py-0.5 rounded-full flex items-center">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Tempo: {exercise.tempo}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center space-x-3">
+                            {/* Bodyweight toggle button - moved to header area */}
+                            <button
+                              onClick={() => toggleBodyweightForExercise(exercise.id)}
+                              disabled={!isWorkoutStarted || isPaused}
+                              className={`flex items-center px-2 py-1 text-xs rounded-md ${
+                                (completedSets.get(exercise.id) || []).some(set => set.weight === 'BW')
+                                  ? 'bg-indigo-600 text-white'
+                                  : 'bg-gray-600 text-white'
+                              }`}
+                              title="Toggle bodyweight exercise"
+                            >
+                              <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              Bodyweight
+                            </button>
+                            
+                            {/* Toggle button for demonstration */}
+                            <button 
+                              onClick={() => toggleDemonstration(exercise.id)}
+                              className="flex text-center items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-xs"
+                            >
+                              {showDemonstration ? (
+                                <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
+                                  </svg>
+                                  Hide Demo
+                                </>
+                              ) : (
+                                <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                  </svg>
+                                  View Demo
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {/* Exercise notes - moved into the title div */}
+                        
+                        {/* Exercise Demonstration - Collapsible */}
+                        {showDemonstration && (
+                          <div className="mt-3 animate-fadeIn">
+                            <ExerciseDemonstration 
+                              exerciseName={exercise.exercise_name} 
+                              exerciseDbId={exercise.exercise_db_id} 
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Sets table */}
+                        <div className="mt-3 max-w-full">
+                          <table className="w-full text-xs text-left table-auto">
+                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                              <tr>
+                                <th scope="col" className="px-1 py-2 w-[8%] hidden sm:table-cell">Set</th>
+                                <th scope="col" className="px-1 py-2 w-[20%]">Type</th>
+                                <th scope="col" className="px-1 py-2 w-[22%]">Weight</th>
+                                <th scope="col" className="px-1 py-2 w-[15%]">Reps</th>
+                                <th scope="col" className="px-1 py-2 w-[15%]">Rest</th>
+                                <th scope="col" className="px-1 py-2 w-[20%] text-center">Done</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {exerciseSets.map((set, setIndex) => {
+                                // Get the rest time for this specific set from sets_data if available
+                                let restSeconds = null;
+                                if (exercise.sets_data && exercise.sets_data[setIndex]) {
+                                  restSeconds = exercise.sets_data[setIndex].rest_seconds;
+                                }
+                                // Fall back to exercise rest_period_seconds if no specific rest time
+                                restSeconds = restSeconds ?? exercise.rest_period_seconds;
+                                
+                                return (
+                                  <tr 
+                                    key={`${exercise.id}-set-${setIndex}`} 
+                                    className={`border-b dark:border-gray-700 ${
+                                      set.isCompleted ? 'bg-green-50 dark:bg-green-900/10' : ''
+                                    }`}
+                                  >
+                                    <td className="px-1 py-2 font-medium hidden sm:table-cell">
+                                      {setIndex + 1}
+                                    </td>
+                                    <td className="px-1 py-2">
+                                      <span className={`inline-block px-2 py-1 text-xs rounded-full truncate max-w-full ${
+                                        set.setType === SetType.WARM_UP 
+                                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+                                          : set.setType === SetType.FAILURE
+                                          ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+                                          : set.setType === SetType.DROP_SET
+                                          ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
+                                          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                      }`}>
+                                        {set.setType ? getSetTypeName(set.setType) : 'Regular'}
+                                      </span>
+                                    </td>
+                                    <td className="px-1 py-2">
+                                      <div className="flex items-center">
+                                        <input
+                                          type="text"
+                                          value={set.weight === 'BW' ? 'BW' : set.weight}
+                                          onChange={(e) => updateSetWeight(exercise.id, setIndex, e.target.value)}
+                                          disabled={!isWorkoutStarted || isPaused || set.weight === 'BW'}
+                                          placeholder="kg"
+                                          className={`w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                                            set.weight === 'BW' ? 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-medium' : ''
+                                          }`}
+                                          readOnly={set.weight === 'BW'}
+                                          inputMode="decimal"
+                                        />
+                                      </div>
+                                    </td>
+                                    <td className="px-1 py-2">
+                                      <input
+                                        type="number"
+                                        value={set.reps || ''}
+                                        onChange={(e) => updateSetReps(exercise.id, setIndex, e.target.value)}
+                                        disabled={!isWorkoutStarted || isPaused}
+                                        className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        min="0"
+                                      />
+                                    </td>
+                                    <td className="px-1 py-2">
+                                      {restSeconds !== null && restSeconds !== undefined ? (
+                                        <div className="flex items-center text-blue-600 dark:text-blue-400">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                          </svg>
+                                          <span>{restSeconds}s</span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-400 dark:text-gray-500">-</span>
+                                      )}
+                                    </td>
+                                    <td className="px-1 py-2 text-center">
+                                      <input
+                                        type="checkbox"
+                                        checked={set.isCompleted}
+                                        onChange={() => toggleSetCompletion(exercise.id, setIndex)}
+                                        disabled={!isWorkoutStarted || isPaused}
+                                        className="w-6 h-6 text-indigo-600 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+                                      />
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        {/* Add countdown and feedback buttons after the sets table */}
+                        <div className="mt-4 flex justify-center gap-3">
+                          <CountdownButton />
+                          {/* Only show feedback button when all sets for this exercise are completed */}
+                          {completedExercises[exercise.id] && (
+                            <button
+                              onClick={() => setShowingFeedbackForm(exercise.id)}
+                              className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm flex items-center"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                              </svg>
+                              Add Feedback
+                            </button>
                           )}
                         </div>
                         
-                        <div className="flex items-center space-x-3">
-                          {/* Bodyweight toggle button - moved to header area */}
-                          <button
-                            onClick={() => toggleBodyweightForExercise(exercise.id)}
-                            disabled={!isWorkoutStarted || isPaused}
-                            className={`flex items-center px-2 py-1 text-xs rounded-md ${
-                              (completedSets.get(exercise.id) || []).some(set => set.weight === 'BW')
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-gray-600 text-white'
-                            }`}
-                            title="Toggle bodyweight exercise"
-                          >
-                            <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            Bodyweight
-                          </button>
-                          
-                          {/* Toggle button for demonstration */}
-                          <button 
-                            onClick={() => toggleDemonstration(exercise.id)}
-                            className="flex text-center items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-xs"
-                          >
-                            {showDemonstration ? (
-                              <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
-                                </svg>
-                                Hide Demo
-                              </>
-                            ) : (
-                              <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                </svg>
-                                View Demo
-                              </>
+                        {/* Show submitted feedback if available */}
+                        {exerciseFeedback[exercise.id] && (
+                          <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg mt-4 mb-4">
+                            <h3 className="text-lg font-semibold mb-2">Your Current Session Feedback</h3>
+                            <div className="flex space-x-4 mb-2">
+                              <div>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Pain:</span>
+                                <span className="ml-2 font-medium">{exerciseFeedback[exercise.id].pain_level}/5</span>
+                              </div>
+                              <div>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Pump:</span>
+                                <span className="ml-2 font-medium">{exerciseFeedback[exercise.id].pump_level}/5</span>
+                              </div>
+                              <div>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Workload:</span>
+                                <span className="ml-2 font-medium">{exerciseFeedback[exercise.id].workload_level}/5</span>
+                              </div>
+                            </div>
+                            {exerciseFeedback[exercise.id].notes && (
+                              <div>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Notes:</span>
+                                <p className="mt-1">{exerciseFeedback[exercise.id].notes}</p>
+                              </div>
                             )}
-                          </button>
-                        </div>
-                      </div>
-                      
-                      {/* Exercise notes - moved into the title div */}
-                      
-                      {/* Exercise Demonstration - Collapsible */}
-                      {showDemonstration && (
-                        <div className="mt-3 animate-fadeIn">
-                          <ExerciseDemonstration 
-                            exerciseName={exercise.exercise_name} 
-                            exerciseDbId={exercise.exercise_db_id} 
-                          />
-                        </div>
-                      )}
-                      
-                      {/* Sets table */}
-                      <div className="mt-3 max-w-full">
-                        <table className="w-full text-xs text-left table-auto">
-                          <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                              <th scope="col" className="px-1 py-2 w-[8%] hidden sm:table-cell">Set</th>
-                              <th scope="col" className="px-1 py-2 w-[20%]">Type</th>
-                              <th scope="col" className="px-1 py-2 w-[22%]">Weight</th>
-                              <th scope="col" className="px-1 py-2 w-[15%]">Reps</th>
-                              <th scope="col" className="px-1 py-2 w-[15%]">Rest</th>
-                              <th scope="col" className="px-1 py-2 w-[20%] text-center">Done</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {exerciseSets.map((set, setIndex) => {
-                              // Get the rest time for this specific set from sets_data if available
-                              let restSeconds = null;
-                              if (exercise.sets_data && exercise.sets_data[setIndex]) {
-                                restSeconds = exercise.sets_data[setIndex].rest_seconds;
-                              }
-                              // Fall back to exercise rest_period_seconds if no specific rest time
-                              restSeconds = restSeconds ?? exercise.rest_period_seconds;
-                              
-                              return (
-                                <tr 
-                                  key={`${exercise.id}-set-${setIndex}`} 
-                                  className={`border-b dark:border-gray-700 ${
-                                    set.isCompleted ? 'bg-green-50 dark:bg-green-900/10' : ''
-                                  }`}
-                                >
-                                  <td className="px-1 py-2 font-medium hidden sm:table-cell">
-                                    {setIndex + 1}
-                                  </td>
-                                  <td className="px-1 py-2">
-                                    <span className={`inline-block px-2 py-1 text-xs rounded-full truncate max-w-full ${
-                                      set.setType === SetType.WARM_UP 
-                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
-                                        : set.setType === SetType.FAILURE
-                                        ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
-                                        : set.setType === SetType.DROP_SET
-                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
-                                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                                    }`}>
-                                      {set.setType ? getSetTypeName(set.setType) : 'Regular'}
-                                    </span>
-                                  </td>
-                                  <td className="px-1 py-2">
-                                    <div className="flex items-center">
-                                      <input
-                                        type="text"
-                                        value={set.weight === 'BW' ? 'BW' : set.weight}
-                                        onChange={(e) => updateSetWeight(exercise.id, setIndex, e.target.value)}
-                                        disabled={!isWorkoutStarted || isPaused || set.weight === 'BW'}
-                                        placeholder="kg"
-                                        className={`w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                                          set.weight === 'BW' ? 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-medium' : ''
-                                        }`}
-                                        readOnly={set.weight === 'BW'}
-                                        inputMode="decimal"
-                                      />
-                                    </div>
-                                  </td>
-                                  <td className="px-1 py-2">
-                                    <input
-                                      type="number"
-                                      value={set.reps || ''}
-                                      onChange={(e) => updateSetReps(exercise.id, setIndex, e.target.value)}
-                                      disabled={!isWorkoutStarted || isPaused}
-                                      className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                      min="0"
-                                    />
-                                  </td>
-                                  <td className="px-1 py-2">
-                                    {restSeconds !== null && restSeconds !== undefined ? (
-                                      <div className="flex items-center text-blue-600 dark:text-blue-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <span>{restSeconds}s</span>
-                                      </div>
-                                    ) : (
-                                      <span className="text-gray-400 dark:text-gray-500">-</span>
-                                    )}
-                                  </td>
-                                  <td className="px-1 py-2 text-center">
-                                    <input
-                                      type="checkbox"
-                                      checked={set.isCompleted}
-                                      onChange={() => toggleSetCompletion(exercise.id, setIndex)}
-                                      disabled={!isWorkoutStarted || isPaused}
-                                      className="w-6 h-6 text-indigo-600 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                                    />
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      {/* Add countdown and feedback buttons after the sets table */}
-                      <div className="mt-4 flex justify-center gap-3">
-                        <CountdownButton />
-                        {/* Only show feedback button when all sets for this exercise are completed */}
-                        {completedExercises[exercise.id] && (
-                          <button
-                            onClick={() => setShowingFeedbackForm(exercise.id)}
-                            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm flex items-center"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                            </svg>
-                            Add Feedback
-                          </button>
+                          </div>
                         )}
                       </div>
-                      
-                      {/* Add feedback form at the bottom of the exercise */}
-                      {showingFeedbackForm === exercise.id && (
-                        <ExerciseFeedbackForm
-                          exerciseInstanceId={exercise.id}
-                          workoutSessionId={workoutSessionId || ''}
-                          onSubmit={saveFeedback}
-                          previousFeedback={feedbackRecommendations[exercise.id]}
-                          onCancel={() => setShowingFeedbackForm(null)}
-                        />
-                      )}
-                      
-                      {/* Show submitted feedback if available */}
-                      {exerciseFeedback[exercise.id] && (
-                        <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg mt-4 mb-4">
-                          <h3 className="text-lg font-semibold mb-2">Your Feedback</h3>
-                          <div className="flex space-x-4 mb-2">
-                            <div>
-                              <span className="text-sm text-gray-500 dark:text-gray-400">Pain:</span>
-                              <span className="ml-2 font-medium">{exerciseFeedback[exercise.id].pain_level}/5</span>
-                            </div>
-                            <div>
-                              <span className="text-sm text-gray-500 dark:text-gray-400">Pump:</span>
-                              <span className="ml-2 font-medium">{exerciseFeedback[exercise.id].pump_level}/5</span>
-                            </div>
-                            <div>
-                              <span className="text-sm text-gray-500 dark:text-gray-400">Workload:</span>
-                              <span className="ml-2 font-medium">{exerciseFeedback[exercise.id].workload_level}/5</span>
-                            </div>
-                          </div>
-                          {exerciseFeedback[exercise.id].notes && (
-                            <div>
-                              <span className="text-sm text-gray-500 dark:text-gray-400">Notes:</span>
-                              <p className="mt-1">{exerciseFeedback[exercise.id].notes}</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
+                    );
                   }
                 })
               ) : (
