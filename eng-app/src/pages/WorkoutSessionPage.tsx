@@ -2750,7 +2750,7 @@ const WorkoutSessionPage: React.FC = () => {
         />
       )}
       
-      <div className="container mx-auto">
+      <div className="container mx-auto py-6">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
@@ -2762,7 +2762,7 @@ const WorkoutSessionPage: React.FC = () => {
         ) : workout ? (
           <div>
             {/* Back Button */}
-            <div className="mb-3 flex justify-end">
+            <div className="flex justify-end">
               <BackButton onClick={handleBackButtonClick} />
             </div>
 
