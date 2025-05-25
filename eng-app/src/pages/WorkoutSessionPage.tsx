@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectProfile } from '../store/slices/authSlice';
 import { supabase } from '../services/supabaseClient';
 import { SetType, ExerciseSet } from '../types/adminTypes';
-import { fetchExerciseById, searchExercises } from '../utils/exerciseAPI';
 import BackButton from '../components/common/BackButton';
 import { ExerciseFeedbackSystem } from '../components/workout-session/feedback';
-import { WorkoutTimerComponent, RestTimerManager, RestTimerManagerHandle } from '../components/workout-session';
+import { WorkoutTimerComponent, RestTimerManager, RestTimerManagerHandle, ExerciseDemonstration, IsolatedRestTimeDialog, IsolatedCountdownDialog } from '../components/workout-session';
 import { playCountdownBeep, playAlertSound, formatTime } from '../utils/timerUtils';
 import { 
   ExerciseFeedback,
@@ -20,25 +19,6 @@ import {
   DatabaseExerciseSet
 } from '../types/workoutTypes';
 
-// Helper function to sanitize text with encoding issues
-const sanitizeText = (text: string | null | undefined): string | null => {
-  if (!text) return null;
-  
-  // Fix common encoding issues
-  return text
-    .replace(/DonÃ†t/g, "Don't")
-    .replace(/DonÃ¢â‚¬â„¢t/g, "Don't")
-    .replace(/canÃ†t/g, "can't")
-    .replace(/canÃ¢â‚¬â„¢t/g, "can't")
-    .replace(/wonÃ†t/g, "won't")
-    .replace(/wonÃ¢â‚¬â„¢t/g, "won't")
-    .replace(/Ã†/g, "'")
-    .replace(/Ã¢â‚¬â„¢/g, "'")
-    .replace(/Ã¢â‚¬â€/g, "\"")
-    .replace(/Ã¢â‚¬Â/g, "\"");
-};
-
-// Add this helper function after the sanitizeText function (near the top of the file)
 // Helper function to clean exercise names from gender and version indicators
 const cleanExerciseName = (name: string): string => {
   // Remove gender indicators, version numbers, and other common parenthetical notes
@@ -47,492 +27,16 @@ const cleanExerciseName = (name: string): string => {
             .trim();
 };
 
-// Create a global cache for exercise images to prevent redundant API calls
-const exerciseImageCache = new Map<string, { 
-  url: string; 
-  isAnimation: boolean; 
-  instructions?: string | null;
-  tips?: string | null;
-  youtubeLink?: string | null 
-}>();
-// Add a static DOM cache to prevent GIF reloading issues
-const staticImageElements = new Map<string, HTMLImageElement>();
 
-// Exercise Demonstration Component wrapped in React.memo to prevent unnecessary rerenders
-const ExerciseDemonstration = React.memo(({ exerciseName, exerciseDbId, expanded = true }: { 
-  exerciseName: string; 
-  exerciseDbId?: string | null;
-  expanded?: boolean;
-}) => {
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [isAnimation, setIsAnimation] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [imageError, setImageError] = useState(false);
-  const [instructions, setInstructions] = useState<string | null>(null);
-  const [tips, setTips] = useState<string | null>(null);
-  const [youtubeLink, setYoutubeLink] = useState<string | null>(null);
-  // Track if component is mounted to prevent state updates after unmount
-  const isMounted = useRef(true);
-  // Reference to the container div
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Create a cache key that combines ID and name
-  const cacheKey = useMemo(() => {
-    return `${exerciseDbId || ''}:${exerciseName}`;
-  }, [exerciseDbId, exerciseName]);
-  
-  useEffect(() => {
-    // Set up the mounted flag
-    isMounted.current = true;
-    
-    // Check if we already have a DOM element for this exercise
-    if (staticImageElements.has(cacheKey) && containerRef.current) {
-      console.log('Using cached DOM element for', cacheKey);
-      setIsLoading(false);
-      
-      // Clear container and add the cached element
-      const container = containerRef.current;
-      while (container.firstChild) {
-        container.removeChild(container.firstChild);
-      }
-      
-      const cachedImg = staticImageElements.get(cacheKey);
-      if (cachedImg) {
-        // Add a wrapper div for better centering
-        const centeringWrapper = document.createElement('div');
-        centeringWrapper.className = 'flex justify-center items-center w-full h-full';
-        centeringWrapper.appendChild(cachedImg.cloneNode(true));
-        container.appendChild(centeringWrapper);
-        
-        // Add the GIF label if needed
-        if (cachedImg.src.toLowerCase().endsWith('.gif')) {
-          const gifLabel = document.createElement('div');
-          gifLabel.className = 'absolute top-1 right-1 bg-black/50 text-white text-xs px-2 py-1 rounded-full';
-          gifLabel.textContent = 'GIF';
-          container.appendChild(gifLabel);
-        }
-        
-        return;
-      }
-    }
-    
-    // Check URL cache first (different from DOM element cache)
-    if (exerciseImageCache.has(cacheKey)) {
-      const cachedData = exerciseImageCache.get(cacheKey)!;
-      setImageUrl(cachedData.url);
-      setIsAnimation(cachedData.isAnimation);
-      setInstructions(cachedData.instructions || null);
-      setTips(cachedData.tips || null);
-      setYoutubeLink(cachedData.youtubeLink || null);
-      setIsLoading(false);
-      return;
-    }
-    
-    const loadExerciseImage = async () => {
-      if (!isMounted.current) return;
-      
-      setIsLoading(true);
-      setImageError(false);
-      
-      try {
-        // Try to fetch from exercise database if we have an exercise DB ID
-        if (exerciseDbId) {
-          console.log(`Fetching exercise image for ID: ${exerciseDbId}`);
-          const exercise = await fetchExerciseById(exerciseDbId);
-          
-          if (exercise && exercise.image && isMounted.current) {
-            console.log(`Found image from API: ${exercise.image}`);
-            console.log(`Instructions: ${exercise.instructions || 'None available'}`);
-            console.log(`Tips: ${exercise.tips || 'None available'}`);
-            console.log(`YouTube Link: ${exercise.youtube_link || 'None available'}`);
-            
-            // Store in cache
-            exerciseImageCache.set(cacheKey, {
-              url: exercise.image,
-              isAnimation: exercise.image.toLowerCase().endsWith('.gif'),
-              instructions: Array.isArray(exercise.instructions) 
-                ? sanitizeText(exercise.instructions.join('\n')) 
-                : sanitizeText(typeof exercise.instructions === 'string' ? exercise.instructions : null),
-              tips: Array.isArray(exercise.tips) 
-                ? sanitizeText(exercise.tips.join('\n')) 
-                : sanitizeText(typeof exercise.tips === 'string' ? exercise.tips : null),
-              youtubeLink: exercise.youtube_link || null
-            });
-            
-            setImageUrl(exercise.image);
-            setIsAnimation(exercise.image.toLowerCase().endsWith('.gif'));
-            setInstructions(Array.isArray(exercise.instructions) 
-              ? sanitizeText(exercise.instructions.join('\n')) 
-              : sanitizeText(typeof exercise.instructions === 'string' ? exercise.instructions : null));
-            setTips(Array.isArray(exercise.tips) 
-              ? sanitizeText(exercise.tips.join('\n')) 
-              : sanitizeText(typeof exercise.tips === 'string' ? exercise.tips : null));
-            setYoutubeLink(exercise.youtube_link || null);
-            setIsLoading(false);
-            return;
-          }
-        }
-        
-        if (!isMounted.current) return;
-        
-        // If we don't have an ID or couldn't find the exercise, try to search by name
-        console.log(`Searching for exercise by name: ${exerciseName}`);
-        
-        // Try to find a close match in the exercises database
-        const results = await searchExercises(exerciseName);
-        
-        if (results.results && results.results.length > 0 && isMounted.current) {
-          const matchedExercise = results.results[0];
-          console.log(`Found exercise match: ${matchedExercise.name} with image: ${matchedExercise.image}`);
-          console.log(`Instructions: ${matchedExercise.instructions || 'None available'}`);
-          console.log(`Tips: ${matchedExercise.tips || 'None available'}`);
-          console.log(`YouTube Link: ${matchedExercise.youtube_link || 'None available'}`);
-          
-          if (matchedExercise.image) {
-            // Store in cache
-            exerciseImageCache.set(cacheKey, {
-              url: matchedExercise.image,
-              isAnimation: matchedExercise.image.toLowerCase().endsWith('.gif'),
-              instructions: Array.isArray(matchedExercise.instructions) 
-                ? sanitizeText(matchedExercise.instructions.join('\n')) 
-                : sanitizeText(typeof matchedExercise.instructions === 'string' ? matchedExercise.instructions : null),
-              tips: Array.isArray(matchedExercise.tips) 
-                ? sanitizeText(matchedExercise.tips.join('\n')) 
-                : sanitizeText(typeof matchedExercise.tips === 'string' ? matchedExercise.tips : null),
-              youtubeLink: matchedExercise.youtube_link || null
-            });
-            
-            setImageUrl(matchedExercise.image);
-            setIsAnimation(matchedExercise.image.toLowerCase().endsWith('.gif'));
-            setInstructions(Array.isArray(matchedExercise.instructions) 
-              ? sanitizeText(matchedExercise.instructions.join('\n')) 
-              : sanitizeText(typeof matchedExercise.instructions === 'string' ? matchedExercise.instructions : null));
-            setTips(Array.isArray(matchedExercise.tips) 
-              ? sanitizeText(matchedExercise.tips.join('\n')) 
-              : sanitizeText(typeof matchedExercise.tips === 'string' ? matchedExercise.tips : null));
-            setYoutubeLink(matchedExercise.youtube_link || null);
-          } else {
-            console.log(`No image found for exercise: ${matchedExercise.name}`);
-            setImageUrl(null);
-          }
-        } else if (isMounted.current) {
-          console.log(`No exercise found for name: ${exerciseName}`);
-          setImageUrl(null);
-        }
-      } catch (error) {
-        if (isMounted.current) {
-          console.error('Error loading exercise image:', error);
-          setImageError(true);
-          setImageUrl(null);
-        }
-      } finally {
-        if (isMounted.current) {
-          setIsLoading(false);
-        }
-      }
-    };
-    
-    loadExerciseImage();
-    
-    // Cleanup
-    return () => {
-      isMounted.current = false;
-    };
-  }, [cacheKey]); // Only cacheKey as dependency, which is memoized
 
-  // Effect to cache the DOM element once loaded
-  useEffect(() => {
-    if (imageUrl && !isLoading && !imageError && containerRef.current) {
-      // Create a new image element to cache
-      const img = new Image();
-      img.src = imageUrl;
-      img.alt = `${exerciseName} demonstration`;
-      img.className = 'max-w-full max-h-full object-contain';
-      
-      // Store in static DOM element cache when loaded
-      img.onload = () => {
-        staticImageElements.set(cacheKey, img);
-      };
-    }
-  }, [imageUrl, isLoading, imageError, cacheKey, exerciseName]);
-
-  // If not expanded, don't render anything
-  if (!expanded) return null;
-  
-  // When loading
-  if (isLoading) {
-    return (
-      <div className="mb-3 bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden h-48 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-      </div>
-    );
-  }
-  
-  // If we have an image and no error
-  if (imageUrl && !imageError) {
-    return (
-      <div className="mb-3">
-        <div 
-          ref={containerRef}
-          className="bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden h-48 relative flex justify-center items-center"
-        >
-          <img 
-            src={imageUrl} 
-            alt={`${exerciseName} demonstration`}
-            className="max-w-full max-h-full object-contain"
-            onError={() => setImageError(true)}
-          />
-          {isAnimation && (
-            <div className="absolute top-1 right-1 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-              GIF
-            </div>
-          )}
-        </div>
-        
-        {/* YouTube button if a link is available */}
-        {youtubeLink && (
-          <div className="mt-2 text-center">
-            <a 
-              href={youtubeLink} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 transition-colors"
-            >
-              <svg 
-                className="w-4 h-4 mr-1.5" 
-                xmlns="http://www.w3.org/2000/svg" 
-                viewBox="0 0 24 24" 
-                fill="currentColor"
-              >
-                <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
-              </svg>
-              Watch on YouTube
-            </a>
-          </div>
-        )}
-        
-        {/* Exercise help section combining instructions and tips */}
-        <div className="mt-2 space-y-3">
-          {/* Add exercise instructions if available */}
-          {instructions && (
-            <div className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-md">
-              <h4 className="font-medium text-xs uppercase text-gray-500 dark:text-gray-400 mb-1">Instructions</h4>
-              <p className="text-xs">{instructions}</p>
-            </div>
-          )}
-          
-          {/* Add exercise tips if available */}
-          {tips && (
-            <div className="text-sm text-gray-700 dark:text-gray-300 bg-yellow-50 dark:bg-yellow-900/10 p-3 rounded-md">
-              <h4 className="font-medium text-xs uppercase text-yellow-600 dark:text-yellow-500 mb-1">Tips</h4>
-              <p className="text-xs">{tips}</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-  
-  // Fallback to placeholder with exercise name and icon
-  return (
-    <div className="mb-3 bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden h-48 flex items-center justify-center">
-      <div className="text-center text-gray-500 dark:text-gray-400 text-sm p-2">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-        <div>{exerciseName}</div>
-      </div>
-    </div>
-  );
-});
-
-// Add a completely isolated component for the rest time dialog
-// The component is defined outside the main component to prevent re-renders
-const IsolatedRestTimeDialog = ({ 
-  isOpen, 
-  onClose, 
-  onSave, 
-  onClear, 
-  initialValue, 
-  hasCustomValue 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onSave: (time: number) => void;
-  onClear: () => void;
-  initialValue: string;
-  hasCustomValue: boolean;
-}) => {
-  const [inputValue, setInputValue] = React.useState(initialValue);
-  
-  // Reset input value when dialog opens with a new initialValue
-  React.useEffect(() => {
-    if (isOpen) {
-      setInputValue(initialValue);
-    }
-  }, [isOpen, initialValue]);
-  
-  if (!isOpen) return null;
-  
-  const handleSave = () => {
-    const time = parseInt(inputValue, 10);
-    if (!isNaN(time) && time >= 0) {
-      onSave(time);
-    }
-  };
-  
-  // Prevent clicks from propagating outside the dialog
-  const handleContainerClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-  
-  return (
-    <div 
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[99999]"
-      // Prevent interaction with anything behind the dialog
-      style={{ touchAction: 'none' }}
-    >
-      <div 
-        className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md mx-4"
-        onClick={handleContainerClick}
-      >
-        <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
-          Set Custom Rest Time
-        </h2>
-        <p className="text-gray-600 dark:text-gray-300 mb-4">
-          This will override the default rest time for all exercises in this workout.
-        </p>
-        
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Rest Time (seconds)
-          </label>
-          <input
-            type="number"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            min="0"
-            // Auto focus the input when dialog opens for better UX
-            autoFocus
-          />
-        </div>
-        
-        <div className="flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
-          >
-            Cancel
-          </button>
-          {hasCustomValue && (
-            <button
-              onClick={onClear}
-              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-            >
-              Clear Custom
-            </button>
-          )}
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Add a completely isolated component for the countdown timer dialog
-// Placed outside the main component to prevent re-renders
-const IsolatedCountdownDialog = ({ 
-  isOpen, 
-  onClose, 
-  onStart
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onStart: (seconds: number) => void;
-}) => {
-  const [inputValue, setInputValue] = React.useState('60');
-  
-  // Reset input value when dialog opens
-  React.useEffect(() => {
-    if (isOpen) {
-      setInputValue('60');
-    }
-  }, [isOpen]);
-  
-  if (!isOpen) return null;
-  
-  const handleStart = () => {
-    const seconds = parseInt(inputValue, 10);
-    if (!isNaN(seconds) && seconds > 0) {
-      onStart(seconds);
-    }
-  };
-  
-  // Prevent clicks from propagating outside the dialog
-  const handleContainerClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-  
-  return (
-    <div 
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[99999]"
-      style={{ touchAction: 'none' }}
-    >
-      <div 
-        className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md mx-4"
-        onClick={handleContainerClick}
-      >
-        <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
-          Set Countdown Timer
-        </h2>
-        <p className="text-gray-600 dark:text-gray-300 mb-4">
-          Set a custom countdown timer in seconds.
-        </p>
-        
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Countdown Time (seconds)
-          </label>
-          <input
-            type="number"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            min="1"
-            autoFocus
-          />
-        </div>
-        
-        <div className="flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleStart}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-          >
-            Start Countdown
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const WorkoutSessionPage: React.FC = () => {
   const { workoutId } = useParams<WorkoutSessionParams>();
   const profile = useSelector(selectProfile);
   const navigate = useNavigate();
   const location = useLocation();
+
+
 
   // State for workout data
   const [workout, setWorkout] = useState<WorkoutData | null>(null);
@@ -3117,12 +2621,12 @@ const WorkoutSessionPage: React.FC = () => {
     return (
       <button
         onClick={() => setShowingFeedbackForm(exercise.id)}
-        className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm flex items-center"
+        className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm flex items-center"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
         </svg>
-        Add Feedback
+        Feedback
       </button>
     );
   });
@@ -3132,14 +2636,35 @@ const WorkoutSessionPage: React.FC = () => {
     return (
       <button
         onClick={openCountdownDialog}
-        className="flex items-center justify-center px-3 py-1.5 text-sm bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 transition-colors"
+        className="flex items-center justify-center px-3 py-1.5 text-xs bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 transition-colors"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        Start Countdown
+        Countdown
       </button>
     );
+  });
+
+  const BodyweightButton = React.memo(({ exercise }: { exercise: ExerciseInstanceData }) => {
+    return (
+      exercise.is_bodyweight && (
+      <button
+        onClick={() => toggleBodyweightForExercise(exercise.id)}
+        disabled={!isWorkoutStarted || isPaused}
+        className={`flex items-center px-2 py-1 text-xs rounded-md ${
+          (completedSets.get(exercise.id) || []).some(set => set.weight === 'BW')
+            ? 'bg-indigo-600 text-white'
+            : 'bg-gray-600 text-white'
+        }`}
+        title="Toggle bodyweight exercise"
+      >
+        <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        Bodyweight
+      </button>
+    ));
   });
 
   // Add a new state variable to track if the description is expanded
@@ -3475,72 +3000,43 @@ const WorkoutSessionPage: React.FC = () => {
                                 <div className="flex justify-between items-start">
                                   <div>
                                     <h3 className="text-lg font-semibold flex items-center">
+                                      {/* Exercise number */}
                                       <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-2">
                                         {groupExercisesBySuperset(workout.exercise_instances)
                                           .slice(0, groupIndex)
                                           .flatMap(g => g.group)
-                                          .length + idx + 1}
+                                          .length + 1}
                                       </span>
+                                      
+                                      {/* Exercise name */}
                                       <span className="text-gray-800 dark:text-white">
                                         {cleanExerciseName(exercise.exercise_name)}
-                                        {/* Add "Each Side" indicator */}
-                                        {exercise.each_side && (
-                                          <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full">
-                                            Each Side
-                                          </span>
-                                        )}
                                       </span>
                                     </h3>
                                     
-                                    {/* Exercise notes */}
-                                    {exercise.notes && (
-                                      <div className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
-                                        <p>
-                                          {expandedNotes[exercise.id] ? exercise.notes : truncateNotes(exercise.notes)}
-                                        </p>
-                                        {exercise.notes.length > 120 && (
-                                          <button 
-                                            onClick={() => toggleNotesExpansion(exercise.id)}
-                                            className="text-indigo-600 dark:text-indigo-400 hover:underline mt-1 text-xs font-medium"
-                                          >
-                                            {expandedNotes[exercise.id] ? 'Show less' : 'See more'}
-                                          </button>
-                                        )}
-                                      </div>
-                                    )}
-                                    
-                                    {/* Tempo display */}
-                                    {exercise.tempo && (
-                                      <div className="mt-1 ml-9 flex items-center">
-                                        <span className="text-xs bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 px-2 py-0.5 rounded-full flex items-center">
+                                    {/* Tags container - placed below the title */}
+                                    <div className="flex flex-wrap gap-2 mt-1 ml-9">
+                                      {/* "Each Side" indicator */}
+                                      {exercise.each_side && (
+                                        <span className="inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full">
+                                          Each Side
+                                        </span>
+                                      )}
+                                      
+                                      {/* Tempo display */}
+                                      {exercise.tempo && (
+                                        <span className="inline-flex items-center px-2 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 text-xs rounded-full">
                                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                           </svg>
                                           Tempo: {exercise.tempo}
                                         </span>
-                                      </div>
-                                    )}
+                                      )}
+                                    </div>
                                   </div>
                                   
-                                  <div className="flex items-center space-x-3">
-                                    {/* Bodyweight toggle button - moved to header area */}
-                                    <button
-                                      onClick={() => toggleBodyweightForExercise(exercise.id)}
-                                      disabled={!isWorkoutStarted || isPaused}
-                                      className={`flex items-center px-2 py-1 text-xs rounded-md ${
-                                        (completedSets.get(exercise.id) || []).some(set => set.weight === 'BW')
-                                          ? 'bg-indigo-600 text-white'
-                                          : 'bg-gray-600 text-white'
-                                      }`}
-                                      title="Toggle bodyweight exercise"
-                                    >
-                                      <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                      </svg>
-                                      Bodyweight
-                                    </button>
-                                    
-                                    {/* Toggle button for demonstration */}
+                                  {/* Demo toggle button */}
+                                  <div className="flex items-center">
                                     <button 
                                       onClick={() => toggleDemonstration(exercise.id)}
                                       className="flex text-center items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-xs"
@@ -3563,8 +3059,24 @@ const WorkoutSessionPage: React.FC = () => {
                                     </button>
                                   </div>
                                 </div>
-                                {/* Exercise notes - moved into the title div */}
-                                
+                                  
+                                {/* Exercise notes */}
+                                {exercise.notes && (
+                                  <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 ml-9">
+                                    <p>
+                                      {expandedNotes[exercise.id] ? exercise.notes : truncateNotes(exercise.notes)}
+                                    </p>
+                                    {exercise.notes.length > 120 && (
+                                      <button 
+                                        onClick={() => toggleNotesExpansion(exercise.id)}
+                                        className="text-indigo-600 dark:text-indigo-400 hover:underline mt-1 text-xs font-medium"
+                                      >
+                                        {expandedNotes[exercise.id] ? 'Show less' : 'See more'}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+
                                 {/* Exercise Demonstration - Collapsible */}
                                 {showDemonstration && (
                                   <div className="mt-3 animate-fadeIn">
@@ -3674,8 +3186,10 @@ const WorkoutSessionPage: React.FC = () => {
                                     </tbody>
                                   </table>
                                 </div>
+
                                 {/* Add countdown button after the sets table */}
-                                <div className="mt-4 flex justify-center gap-3">
+                                <div className="mt-4 flex justify-center gap-2">
+                                  <BodyweightButton exercise={exercise} />
                                   <CountdownButton />
                                   <FeedbackButton exercise={exercise} />
                                 </div>
@@ -3767,75 +3281,47 @@ const WorkoutSessionPage: React.FC = () => {
                             ))}
                           </div>
                         )}
+
                         <div className="flex justify-between items-start">
                           <div>
                             <h3 className="text-lg font-semibold flex items-center">
+                              {/* Exercise number */}
                               <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-medium text-indigo-800 dark:text-indigo-300 mr-2">
-                                  {groupExercisesBySuperset(workout.exercise_instances)
-                                    .slice(0, groupIndex)
-                                    .flatMap(g => g.group)
-                                    .length + 1}
+                                {groupExercisesBySuperset(workout.exercise_instances)
+                                  .slice(0, groupIndex)
+                                  .flatMap(g => g.group)
+                                  .length + 1}
                               </span>
+                              
+                              {/* Exercise name */}
                               <span className="text-gray-800 dark:text-white">
                                 {cleanExerciseName(exercise.exercise_name)}
-                                {/* Add "Each Side" indicator */}
-                                {exercise.each_side && (
-                                  <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full">
-                                    Each Side
-                                  </span>
-                                )}
                               </span>
                             </h3>
                             
-                            {/* Exercise notes */}
-                            {exercise.notes && (
-                              <div className="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-9">
-                                <p>
-                                  {expandedNotes[exercise.id] ? exercise.notes : truncateNotes(exercise.notes)}
-                                </p>
-                                {exercise.notes.length > 120 && (
-                                  <button 
-                                    onClick={() => toggleNotesExpansion(exercise.id)}
-                                    className="text-indigo-600 dark:text-indigo-400 hover:underline mt-1 text-xs font-medium"
-                                  >
-                                    {expandedNotes[exercise.id] ? 'Show less' : 'See more'}
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                            
-                            {/* Tempo display */}
-                            {exercise.tempo && (
-                              <div className="mt-1 ml-9 flex items-center">
-                                <span className="text-xs bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 px-2 py-0.5 rounded-full flex items-center">
+                            {/* Tags container - placed below the title */}
+                            <div className="flex flex-wrap gap-2 mt-1 ml-9">
+                              {/* "Each Side" indicator */}
+                              {exercise.each_side && (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-full">
+                                  Each Side
+                                </span>
+                              )}
+                              
+                              {/* Tempo display */}
+                              {exercise.tempo && (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 text-xs rounded-full">
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
                                   Tempo: {exercise.tempo}
                                 </span>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
                           
-                          <div className="flex items-center space-x-3">
-                            {/* Bodyweight toggle button - moved to header area */}
-                            <button
-                              onClick={() => toggleBodyweightForExercise(exercise.id)}
-                              disabled={!isWorkoutStarted || isPaused}
-                              className={`flex items-center px-2 py-1 text-xs rounded-md ${
-                                (completedSets.get(exercise.id) || []).some(set => set.weight === 'BW')
-                                  ? 'bg-indigo-600 text-white'
-                                  : 'bg-gray-600 text-white'
-                              }`}
-                              title="Toggle bodyweight exercise"
-                            >
-                              <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                              </svg>
-                              Bodyweight
-                            </button>
-                            
-                            {/* Toggle button for demonstration */}
+                          {/* Demo toggle button */}
+                          <div className="flex items-center">
                             <button 
                               onClick={() => toggleDemonstration(exercise.id)}
                               className="flex text-center items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-xs"
@@ -3859,7 +3345,22 @@ const WorkoutSessionPage: React.FC = () => {
                           </div>
                         </div>
                         
-                        {/* Exercise notes - moved into the title div */}
+                        {/* Exercise notes */}
+                        {exercise.notes && (
+                          <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 ml-9">
+                            <p>
+                              {expandedNotes[exercise.id] ? exercise.notes : truncateNotes(exercise.notes)}
+                            </p>
+                            {exercise.notes.length > 120 && (
+                              <button 
+                                onClick={() => toggleNotesExpansion(exercise.id)}
+                                className="text-indigo-600 dark:text-indigo-400 hover:underline mt-1 text-xs font-medium"
+                              >
+                                {expandedNotes[exercise.id] ? 'Show less' : 'See more'}
+                              </button>
+                            )}
+                          </div>
+                        )}
                         
                         {/* Exercise Demonstration - Collapsible */}
                         {showDemonstration && (
@@ -3970,8 +3471,10 @@ const WorkoutSessionPage: React.FC = () => {
                             </tbody>
                           </table>
                         </div>
+
                         {/* Add countdown and feedback buttons after the sets table */}
                         <div className="mt-4 flex justify-center gap-3">
+                          <BodyweightButton exercise={exercise} />
                           <CountdownButton />
                           <FeedbackButton exercise={exercise} />
                         </div>
@@ -4089,4 +3592,4 @@ const WorkoutSessionPage: React.FC = () => {
   );
 };
 
-export default WorkoutSessionPage; 
+export default WorkoutSessionPage;
