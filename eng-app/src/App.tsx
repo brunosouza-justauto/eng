@@ -49,6 +49,7 @@ import HomePage from './pages/HomePage'; // Import the new HomePage component
 import SupplementsPage from './pages/SupplementsPage';
 import SupplementManagement from './components/admin/supplements/SupplementManagement';
 import AthleteCheckInsPage from './pages/admin/AthleteCheckInsPage';
+import AthleteMeasurementsPage from './pages/admin/AthleteMeasurementsPage'; // Import the new measurements page
 import ShoppingCartPage from './pages/ShoppingCartPage';
 
 function App() {
@@ -650,6 +651,7 @@ function App() {
                 <Route path="athletes/:id/steps" element={<AthleteStepsPage />} />
                 <Route path="athletes/:id/nutrition" element={<AthleteNutritionPage />} />
                 <Route path="athletes/:id/check-ins" element={<AthleteCheckInsPage />} />
+                <Route path="athletes/:id/measurements" element={<AthleteMeasurementsPage />} />
                 <Route path="coaches" element={<CoachManager />} />
                 <Route path="coaches/:id" element={<CoachDetailsPage />} />
                 <Route path="programs" element={<ProgramBuilder />} />

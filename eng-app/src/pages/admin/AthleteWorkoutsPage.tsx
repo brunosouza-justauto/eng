@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import { format } from 'date-fns';
 import { FiCalendar, FiClock, FiCheck, FiX } from 'react-icons/fi';
 import PageHeader from '../../components/ui/PageHeader';
 import Card from '../../components/ui/Card';
 import Spinner from '../../components/ui/Spinner';
+import Button from '../../components/ui/Button';
 
 interface WorkoutSessionData {
   id: string;
@@ -152,6 +153,7 @@ const AthleteWorkoutsPage: React.FC = () => {
   const { id, logId: routeLogId } = useParams<{ id: string; logId: string }>();
   const [searchParams] = useSearchParams();
   const queryLogId = searchParams.get('log');
+  const navigate = useNavigate();
   
   // Use route parameter first, fall back to query parameter for backward compatibility
   const logId = routeLogId || queryLogId;
@@ -437,6 +439,21 @@ const AthleteWorkoutsPage: React.FC = () => {
           title={`${athlete.first_name} ${athlete.last_name}'s Workouts`} 
           subtitle="View workout history and details"
         />
+
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
+            <div className="mb-4 sm:mb-0">
+              <Button
+                onClick={() => navigate(`/admin/athletes/${id}`)}
+                variant="secondary"
+                className="mr-2"
+              >
+                Back to Athlete
+              </Button>
+            </div>
+          </div>
+        </div>
+
         <div className="mb-4">
           <WorkoutHistory athleteId={athlete.id} athleteUserId={athlete.user_id} />
         </div>

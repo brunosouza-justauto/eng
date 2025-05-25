@@ -348,12 +348,39 @@ export async function getAthleteLatestMeasurement(athleteId: string) {
       .order('measurement_date', { ascending: false })
       .limit(1)
       .single();
-      
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "No rows returned" which we handle
+    
+    if (error) {
+      console.error('Error fetching latest measurement:', error);
+      return { data: null, error };
+    }
     
     return { data, error: null };
   } catch (error) {
-    console.error('Error fetching latest measurement:', error);
+    console.error('Exception fetching latest measurement:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Get recent measurements for a specific athlete (limited to a specific count)
+ */
+export async function getAthleteRecentMeasurements(athleteId: string, limit: number = 5) {
+  try {
+    const { data, error } = await supabase
+      .from('athlete_measurements')
+      .select('*')
+      .eq('user_id', athleteId)
+      .order('measurement_date', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.error('Error fetching recent measurements:', error);
+      return { data: null, error };
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    console.error('Exception fetching recent measurements:', error);
     return { data: null, error };
   }
 }

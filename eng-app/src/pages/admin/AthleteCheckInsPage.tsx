@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import { format, subDays, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { FiClipboard, FiTrendingUp, FiBarChart2, FiImage, FiActivity } from 'react-icons/fi';
@@ -192,6 +192,7 @@ const MeasurementBar: React.FC<{
 
 const AthleteCheckInsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   
   const [athlete, setAthlete] = useState<AthleteData | null>(null);
   const [checkIns, setCheckIns] = useState<CheckInData[]>([]);
@@ -437,6 +438,20 @@ const AthleteCheckInsPage: React.FC = () => {
         subtitle="View check-in history, body measurements, and progress"
       />
       
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
+          <div className="mb-4 sm:mb-0">
+            <Button
+              onClick={() => navigate(`/admin/athletes/${id}`)}
+              variant="secondary"
+              className="mr-2"
+            >
+              Back to Athlete
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-4 mb-6">
         {/* Stats Card */}
         <Card>
