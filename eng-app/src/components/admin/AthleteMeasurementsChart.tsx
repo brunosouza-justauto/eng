@@ -40,6 +40,7 @@ const AthleteMeasurementsChart: React.FC<AthleteMeasurementsChartProps> = ({
   className = '',
   hideTitle = false
 }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef = useRef<any>(null);
   
   // Cleanup chart instance on unmount or data change
