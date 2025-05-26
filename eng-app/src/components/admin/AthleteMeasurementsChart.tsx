@@ -180,6 +180,7 @@ const AthleteMeasurementsChart: React.FC<AthleteMeasurementsChartProps> = ({
             try {
               const date = new Date(tooltipItems[0].parsed.x);
               return format(date, 'MMMM d, yyyy');
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (error) {
               return 'Unknown date';
             }

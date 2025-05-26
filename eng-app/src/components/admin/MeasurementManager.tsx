@@ -63,7 +63,6 @@ const MeasurementManager: React.FC = () => {
   const [filteredMeasurements, setFilteredMeasurements] = useState<BodyMeasurement[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   
-  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
   const [selectedMeasurement, setSelectedMeasurement] = useState<BodyMeasurement | null>(null);
   
   const [isEditing, setIsEditing] = useState(false);
@@ -74,17 +73,6 @@ const MeasurementManager: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  
-  // Form state
-  const [weightKg, setWeightKg] = useState<string>('');
-  const [waistCm, setWaistCm] = useState<string>('');
-  const [neckCm, setNeckCm] = useState<string>('');
-  const [hipsCm, setHipsCm] = useState<string>('');
-  const [bodyFatPercentage, setBodyFatPercentage] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
-  const [measurementDate, setMeasurementDate] = useState<string>(
-    new Date().toISOString().substring(0, 10)
-  );
   
   const user = useSelector(selectUser);
   const profile = useSelector(selectProfile);
@@ -182,23 +170,12 @@ const MeasurementManager: React.FC = () => {
 
   // Reset form
   const resetForm = () => {
-    setSelectedProfileId('');
-    setWeightKg('');
-    setWaistCm('');
-    setNeckCm('');
-    setHipsCm('');
-    setBodyFatPercentage('');
-    setNotes('');
-    setMeasurementDate(new Date().toISOString().substring(0, 10));
     setSelectedMeasurement(null);
   };
 
   // Create new measurement form
   const handleCreateNew = () => {
     resetForm();
-    if (selectedAthlete) {
-      setSelectedProfileId(selectedAthlete.user_id);
-    }
     setIsCreating(true);
     setIsEditing(false);
   };
@@ -207,17 +184,7 @@ const MeasurementManager: React.FC = () => {
   const handleEdit = (measurement: BodyMeasurement) => {
     setIsEditing(true);
     setIsCreating(false);
-    setSelectedProfileId(measurement.user_id);
     setSelectedMeasurement(measurement);
-    
-    // Set form values
-    setWeightKg(measurement.weight_kg?.toString() || '');
-    setWaistCm(measurement.waist_cm?.toString() || '');
-    setNeckCm(measurement.neck_cm?.toString() || '');
-    setHipsCm(measurement.hips_cm?.toString() || '');
-    setBodyFatPercentage(measurement.body_fat_percentage?.toString() || '');
-    setNotes(measurement.notes || '');
-    setMeasurementDate(measurement.measurement_date);
   };
 
   // Cancel form logic
@@ -225,86 +192,6 @@ const MeasurementManager: React.FC = () => {
     setIsCreating(false);
     setIsEditing(false);
     resetForm();
-  };
-
-  // Save measurement logic
-  const handleSaveMeasurement = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!selectedProfileId && !selectedAthlete) {
-      setError('Please select an athlete');
-      return;
-    }
-    
-    // Use selected athlete ID if no profile ID is explicitly set
-    const athleteUserId = selectedProfileId || (selectedAthlete ? selectedAthlete.user_id : '');
-    
-    setIsSaving(true);
-    setError(null);
-    setSaveMessage(null);
-
-    try {
-      // Prepare measurement data
-      const measurementData: any = {
-        user_id: athleteUserId,
-        measurement_date: measurementDate,
-        created_by: profile?.id
-      };
-      
-      // Add optional fields if they have values
-      if (weightKg) measurementData.weight_kg = parseFloat(weightKg);
-      if (waistCm) measurementData.waist_cm = parseFloat(waistCm);
-      if (neckCm) measurementData.neck_cm = parseFloat(neckCm);
-      if (hipsCm) measurementData.hips_cm = parseFloat(hipsCm);
-      if (bodyFatPercentage) measurementData.body_fat_percentage = parseFloat(bodyFatPercentage);
-      if (notes) measurementData.notes = notes;
-
-      if (isEditing && selectedMeasurement) {
-        // Update existing measurement
-        const { error: updateError } = await supabase
-          .from('athlete_measurements')
-          .update(measurementData)
-          .eq('id', selectedMeasurement.id);
-        
-        if (updateError) throw updateError;
-        
-        setSaveMessage(`Measurement updated successfully for ${selectedAthlete?.first_name || 'athlete'}.`);
-      } else {
-        // Create new measurement
-        const { error: insertError } = await supabase
-          .from('athlete_measurements')
-          .insert(measurementData);
-        
-        if (insertError) throw insertError;
-        
-        setSaveMessage(`New measurement added for ${selectedAthlete?.first_name || 'athlete'}.`);
-      }
-      
-      // Refresh measurements list
-      const { data: updatedMeasurements, error: fetchError } = await supabase
-        .from('athlete_measurements')
-        .select('*')
-        .eq('user_id', selectedAthlete?.user_id)
-        .order('measurement_date', { ascending: false });
-      
-      if (fetchError) throw fetchError;
-      
-      const measurementsWithUserData = updatedMeasurements?.map(measurement => {
-        return { ...measurement, user: selectedAthlete };
-      }) || [];
-      
-      setMeasurements(measurementsWithUserData);
-      setFilteredMeasurements(measurementsWithUserData);
-      
-      // Reset form
-      resetForm();
-      setIsEditing(false);
-      setIsCreating(false);
-    } catch (err) {
-      console.error("Error saving measurement:", err);
-      setError('Failed to save measurement. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   // Delete measurement logic
@@ -340,6 +227,7 @@ const MeasurementManager: React.FC = () => {
     try {
       const date = new Date(dateString);
       return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       return dateString;
     }

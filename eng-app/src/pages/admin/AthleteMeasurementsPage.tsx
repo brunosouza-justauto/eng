@@ -48,6 +48,7 @@ const AthleteMeasurementsPage: React.FC = () => {
         if (error) throw error;
 
         if (data) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           setAthlete(data as any);
         } else {
           throw new Error('Athlete not found');
@@ -177,6 +178,7 @@ const AthleteMeasurementsPage: React.FC = () => {
                 height_cm: athlete.height_cm || 0,
                 first_name: athlete.first_name || '',
                 last_name: athlete.last_name || ''
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
               } as any}
               onSaved={handleMeasurementSaved}
             />
@@ -221,6 +223,7 @@ const AthleteMeasurementsPage: React.FC = () => {
               height_cm: athlete.height_cm || 0,
               first_name: athlete.first_name || '',
               last_name: athlete.last_name || ''
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any}
             refreshTrigger={refreshTrigger}
           />
