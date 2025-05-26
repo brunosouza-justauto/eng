@@ -49,7 +49,8 @@ import HomePage from './pages/HomePage'; // Import the new HomePage component
 import SupplementsPage from './pages/SupplementsPage';
 import SupplementManagement from './components/admin/supplements/SupplementManagement';
 import AthleteCheckInsPage from './pages/admin/AthleteCheckInsPage';
-import AthleteMeasurementsPage from './pages/admin/AthleteMeasurementsPage'; // Import the new measurements page
+import AthleteMeasurementsPage from './pages/admin/AthleteMeasurementsPage'; // Import the measurements page
+import MeasurementManager from './components/admin/MeasurementManager';
 import ShoppingCartPage from './pages/ShoppingCartPage';
 
 function App() {
@@ -659,6 +660,7 @@ function App() {
                 <Route path="mealplans/edit/:planId" element={<MealPlannerPage />} />
                 <Route path="mealplans/new" element={<MealPlannerPage />} />
                 <Route path="stepgoals" element={<StepGoalSetter />} />
+                <Route path="measurements" element={<MeasurementManager />} />
                 <Route path="checkins" element={<CheckInReview />} />
                 <Route path="checkins/:checkInId" element={<CheckInDetail />} />
                 <Route path="bmr-calculator" element={<BMRCalculatorPage />} />

@@ -2,7 +2,7 @@ import React, { ButtonHTMLAttributes, forwardRef } from 'react';
 import { Link, LinkProps } from 'react-router-dom';
 
 // Define the variants, sizes, and colors available
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text' | 'danger';
 export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
 export type ButtonColor = 'indigo' | 'green' | 'red' | 'gray';
 
@@ -54,6 +54,12 @@ const variantStyles: Record<ButtonVariant, Record<ButtonColor, string>> = {
     green: 'text-green-600 hover:bg-green-50 focus:ring-green-300 dark:text-green-400 dark:hover:bg-green-900/20',
     red: 'text-red-600 hover:bg-red-50 focus:ring-red-300 dark:text-red-400 dark:hover:bg-red-900/20',
     gray: 'text-gray-700 hover:bg-gray-50 focus:ring-gray-300 dark:text-gray-400 dark:hover:bg-gray-700',
+  },
+  danger: {
+    indigo: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700',
+    green: 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 dark:bg-green-600 dark:hover:bg-green-700',
+    red: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 dark:bg-red-600 dark:hover:bg-red-700',
+    gray: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500 dark:bg-gray-600 dark:hover:bg-gray-700',
   },
 };
 

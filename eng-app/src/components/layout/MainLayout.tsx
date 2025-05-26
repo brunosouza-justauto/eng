@@ -7,7 +7,7 @@ import { supabase } from '../../services/supabaseClient';
 import Footer from './Footer';
 import ThemeToggle from '../common/ThemeToggle';
 import NotificationBell from '../common/NotificationBell';
-import { FiLogOut, FiMenu, FiX, FiHome, FiUsers, FiUser, FiFileText, FiCalendar, FiActivity, FiMessageSquare, FiSettings, FiHelpCircle, FiArrowLeft } from 'react-icons/fi';
+import { FiLogOut, FiMenu, FiX, FiHome, FiUsers, FiUser, FiFileText, FiCalendar, FiActivity, FiMessageSquare, FiSettings, FiHelpCircle, FiArrowLeft, FiClipboard } from 'react-icons/fi';
 
 // NavItem component for sidebar navigation
 const NavItem = ({ to, icon, label, active, onClick }: { to: string; icon: React.ReactNode; label: string; active: boolean; onClick?: () => void }) => {
@@ -253,17 +253,24 @@ const MainLayout: React.FC = () => {
                 onClick={handleNavItemClick}
               />
               <NavItem 
-                to="/admin/bmr-calculator" 
-                icon={<FiFileText className="w-5 h-5" />} 
-                label="BMR & TDEE Calculator" 
-                active={location.pathname.startsWith('/admin/bmr-calculator')} 
-                onClick={handleNavItemClick}
-              />
-              <NavItem 
                 to="/admin/mealplans" 
                 icon={<FiCalendar className="w-5 h-5" />} 
                 label="Meal Planning" 
                 active={location.pathname.startsWith('/admin/mealplans')} 
+                onClick={handleNavItemClick}
+              />
+              <NavItem 
+                to="/admin/measurements" 
+                icon={<FiClipboard className="w-5 h-5" />} 
+                label="Body Measurements" 
+                active={location.pathname.startsWith('/admin/body-measurements')} 
+                onClick={handleNavItemClick}
+              />
+              <NavItem 
+                to="/admin/bmr-calculator" 
+                icon={<FiFileText className="w-5 h-5" />} 
+                label="BMR & TDEE Calculator" 
+                active={location.pathname.startsWith('/admin/bmr-calculator')} 
                 onClick={handleNavItemClick}
               />
               <NavItem 
