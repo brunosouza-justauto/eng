@@ -42,15 +42,31 @@ const AthleteMeasurementsChart: React.FC<AthleteMeasurementsChartProps> = ({
 }) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef = useRef<any>(null);
+  const chartInstanceRef = useRef<ChartJS | null>(null);
   
-  // Cleanup chart instance on unmount or data change
+  // Enhanced cleanup for chart instance on unmount or data change
   useEffect(() => {
+    // Make sure to properly clean up the chart on unmount
     return () => {
-      if (chartRef.current) {
-        chartRef.current.destroy();
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.destroy();
+        chartInstanceRef.current = null;
       }
     };
+  }, []);
+  
+  // Handle safe chart initialization
+  useEffect(() => {
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      if (chartRef.current?.chartInstance) {
+        chartInstanceRef.current = chartRef.current.chartInstance;
+      }
+    }, 50);
+    
+    return () => clearTimeout(timer);
   }, [measurements]);
+
   // Sort measurements by date (oldest to newest)
   const sortedMeasurements = useMemo(() => {
     if (!measurements || measurements.length === 0) return [];

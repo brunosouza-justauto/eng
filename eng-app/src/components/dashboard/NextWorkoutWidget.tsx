@@ -625,9 +625,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
             `}
           >
             {day}
-            {completed && (
-              <div className="absolute -top-1 -right-1 bg-green-500 rounded-full w-2 h-2 border border-white dark:border-gray-800"></div>
-            )}
           </div>
         </div>
       );

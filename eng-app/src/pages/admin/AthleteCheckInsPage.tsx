@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import { format, subDays, startOfMonth, endOfMonth, parseISO } from 'date-fns';
-import { FiClipboard, FiTrendingUp, FiBarChart2, FiImage, FiActivity } from 'react-icons/fi';
+import { FiClipboard, FiTrendingUp, FiBarChart2, FiImage, FiActivity, FiRefreshCw } from 'react-icons/fi';
 import PageHeader from '../../components/ui/PageHeader';
 import Card from '../../components/ui/Card';
 import Spinner from '../../components/ui/Spinner';
 import { Button } from '../../components/ui/Button';
 import AthleteMeasurementsChart from '../../components/admin/AthleteMeasurementsChart';
 import { BodyMeasurement } from '../../services/measurementService';
+
 
 // Types for check-in data
 interface CheckInData {
@@ -193,13 +194,14 @@ const MeasurementBar: React.FC<{
 const AthleteCheckInsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
   const [athlete, setAthlete] = useState<AthleteData | null>(null);
   const [checkIns, setCheckIns] = useState<CheckInData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [chartTimeframe, setChartTimeframe] = useState<'week' | 'month' | 'year' | 'all'>('week');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [selectedCheckIns, setSelectedCheckIns] = useState<string[]>([]);
+  const [showChart, setShowChart] = useState<boolean>(true);
 
   // Fetch athlete data
   useEffect(() => {
@@ -219,7 +221,6 @@ const AthleteCheckInsPage: React.FC = () => {
         
         // Fetch check-in data
         await fetchCheckIns();
-        
       } catch (err) {
         console.error('Error fetching athlete data:', err);
         setError('Failed to load athlete data');
@@ -227,12 +228,13 @@ const AthleteCheckInsPage: React.FC = () => {
         setLoading(false);
       }
     };
-    
+
     fetchAthleteData();
   }, [id]);
 
   // Fetch check-ins based on timeframe
   const fetchCheckIns = async () => {
+    setLoading(true);
     try {
       if (!athlete?.user_id) return;
       
@@ -321,20 +323,32 @@ const AthleteCheckInsPage: React.FC = () => {
         console.log("Transformed check-in data:", transformedData);
         
         setCheckIns(transformedData);
+        setLoading(false); // Move setLoading(false) here
       }
       
     } catch (err) {
       console.error('Error fetching check-ins:', err);
       setError('Failed to load check-in data');
+      setLoading(false); // Add setLoading(false) here
     }
   };
 
-  // Refresh data when timeframe changes
+  // Effect to handle timeframe and date changes
   useEffect(() => {
     if (athlete?.user_id) {
       fetchCheckIns();
     }
   }, [chartTimeframe, currentDate, athlete?.user_id]);
+  
+  // Effect to handle date navigation
+  useEffect(() => {
+    const handleDateChange = () => {
+      setShowChart(false);
+      setTimeout(() => setShowChart(true), 100);
+    };
+    
+    return () => handleDateChange();
+  }, [currentDate]);
 
   // Calculate statistics
   const calculateStats = () => {
@@ -508,45 +522,90 @@ const AthleteCheckInsPage: React.FC = () => {
                 <Button 
                   variant={chartTimeframe === 'week' ? 'primary' : 'secondary'} 
                   size="sm"
-                  onClick={() => setChartTimeframe('week')}
+                  onClick={() => {
+                    setShowChart(false);
+                    setTimeout(() => {
+                      setChartTimeframe('week');
+                      setTimeout(() => setShowChart(true), 50);
+                    }, 50);
+                  }}
                 >
                   Past 30 Days
                 </Button>
                 <Button 
                   variant={chartTimeframe === 'month' ? 'primary' : 'secondary'} 
                   size="sm"
-                  onClick={() => setChartTimeframe('month')}
+                  onClick={() => {
+                    setShowChart(false);
+                    setTimeout(() => {
+                      setChartTimeframe('month');
+                      setTimeout(() => setShowChart(true), 50);
+                    }, 50);
+                  }}
                 >
                   Month View
                 </Button>
                 <Button 
                   variant={chartTimeframe === 'year' ? 'primary' : 'secondary'} 
                   size="sm"
-                  onClick={() => setChartTimeframe('year')}
+                  onClick={() => {
+                    setShowChart(false);
+                    setTimeout(() => {
+                      setChartTimeframe('year');
+                      setTimeout(() => setShowChart(true), 50);
+                    }, 50);
+                  }}
                 >
                   Year View
                 </Button>
                 <Button 
                   variant={chartTimeframe === 'all' ? 'primary' : 'secondary'} 
                   size="sm"
-                  onClick={() => setChartTimeframe('all')}
+                  onClick={() => {
+                    setShowChart(false);
+                    setTimeout(() => {
+                      setChartTimeframe('all');
+                      setTimeout(() => setShowChart(true), 50);
+                    }, 50);
+                  }}
                 >
                   All Time
                 </Button>
               </div>
             </div>
             
-            {checkIns.length > 1 ? (
-              <div className="h-[400px]">
-                <AthleteMeasurementsChart 
-                  measurements={checkInsToBodyMeasurements(sortedForCharts)}
-                  className="h-full"
-                  hideTitle={true}
-                />
-              </div>
+            {/* Only render the chart when no check-ins are selected to prevent Chart.js errors */}
+            {selectedCheckIns.length === 0 ? (
+              checkIns.length > 1 ? (
+                <div className="h-[400px]">
+                  <div className="w-full h-full" key={`chart-container-${chartTimeframe}-${currentDate.toISOString()}`}>
+                    {showChart && checkIns.length > 0 && (
+                      <AthleteMeasurementsChart 
+                        measurements={checkInsToBodyMeasurements(sortedForCharts)}
+                        className="h-full"
+                        hideTitle={true}
+                        key={`chart-${chartTimeframe}-${currentDate.toISOString()}`}
+                      />
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-64 text-gray-500">
+                  At least two measurements are needed to display a chart.
+                </div>
+              )
             ) : (
-              <div className="flex items-center justify-center h-64 text-gray-500">
-                At least two measurements are needed to display a chart.
+              <div className="flex items-center justify-center h-64 bg-indigo-50 dark:bg-indigo-900/20 rounded-md">
+                <div className="text-center p-4">
+                  <p className="text-indigo-700 dark:text-indigo-300 font-medium mb-2">
+                    Chart hidden while selecting check-ins
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                    {selectedCheckIns.length === 2 ? 
+                      "Press 'Compare Selected' to view detailed comparison" : 
+                      "Select exactly 2 check-ins to compare"}
+                  </p>
+                </div>
               </div>
             )}
 
@@ -653,12 +712,54 @@ const AthleteCheckInsPage: React.FC = () => {
         {/* Detailed history table */}
         <Card>
           <div className="p-4">
-            <h2 className="mb-4 text-xl font-semibold">Check-in History</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Check-in History</h2>
+              
+              <div className="flex items-center">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={selectedCheckIns.length !== 2}
+                  onClick={() => {
+                    if (selectedCheckIns.length === 2) {
+                      navigate(`/admin/athletes/${id}/compare-checkins/${selectedCheckIns[0]}/${selectedCheckIns[1]}`);
+                    }
+                  }}
+                  className="flex items-center"
+                >
+                  <FiRefreshCw className="mr-1.5" />
+                  Compare Selected
+                </Button>
+                
+                {selectedCheckIns.length > 0 && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setSelectedCheckIns([])}
+                    className="ml-2"
+                  >
+                    Clear ({selectedCheckIns.length})
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            {selectedCheckIns.length === 1 && (
+              <div className="mb-3 px-3 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded-md text-sm">
+                Select one more check-in to compare
+              </div>
+            )}
+            {selectedCheckIns.length > 2 && (
+              <div className="mb-3 px-3 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded-md text-sm">
+                Only two check-ins can be compared. Please deselect {selectedCheckIns.length - 2} check-in(s).
+              </div>
+            )}
             
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-700">
                 <thead>
                   <tr>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-400">Select</th>
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-400">Date</th>
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-400">Weight</th>
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-400">Body Fat %</th>
@@ -670,7 +771,26 @@ const AthleteCheckInsPage: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-700">
                   {checkIns.map((checkIn) => (
-                    <tr key={checkIn.id}>
+                    <tr 
+                      key={checkIn.id}
+                      className={`${selectedCheckIns.includes(checkIn.id) ? 'bg-indigo-900/20' : ''}`}
+                    >
+                      <td className="px-2 py-2 text-sm">
+                        <input 
+                          type="checkbox"
+                          checked={selectedCheckIns.includes(checkIn.id)}
+                          onChange={() => {
+                            if (selectedCheckIns.includes(checkIn.id)) {
+                              // Remove if already selected
+                              setSelectedCheckIns(prev => prev.filter(id => id !== checkIn.id));
+                            } else {
+                              // Add if not selected
+                              setSelectedCheckIns(prev => [...prev, checkIn.id]);
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </td>
                       <td className="px-2 py-2 text-sm">
                         {format(parseISO(checkIn.check_in_date), 'MMM dd, yyyy')}
                       </td>
