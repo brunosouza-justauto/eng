@@ -41,6 +41,8 @@ const CheckInReminderWidget: React.FC = () => {
 
   useEffect(() => {
     const fetchCheckIns = async () => {
+      const today = new Date();
+
       if (!profile || !profile.user_id) {
         console.log("No valid profile found");
         setIsLoading(false);
@@ -73,8 +75,14 @@ const CheckInReminderWidget: React.FC = () => {
         
         if (weeklyError) throw weeklyError;
         
-        // Set the check-in status
-        const hasCheckInThisWeek = weeklyData && weeklyData.length > 0;
+        // Set the check-in status if today is friday, saturday or sunday.
+        let hasCheckInThisWeek = weeklyData && weeklyData.length > 0;
+
+        // If there is no check-in for the week and today is not Friday, Saturday or Sunday, set the check-in status to true
+        if ((!weeklyData || weeklyData.length === 0) && (today.getDay() !== 5 && today.getDay() !== 6 && today.getDay() !== 0)) {
+          hasCheckInThisWeek = true;
+        }
+
         setHasWeeklyCheckIn(hasCheckInThisWeek);
         
         // Set the most recent check-in date if available

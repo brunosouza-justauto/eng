@@ -3,38 +3,7 @@ import { useSelector } from 'react-redux';
 import { selectProfile } from '../../store/slices/authSlice';
 import { supabase } from '../../services/supabaseClient';
 import { format } from 'date-fns'; // For formatting dates
-
-// Define types for the data needed in our component
-interface CheckInTimelineData {
-    id: string;
-    check_in_date: string; // Date string
-    notes: string | null;
-    photos: string[] | null;
-    video_url: string | null;
-    diet_adherence: string | null;
-    training_adherence: string | null;
-    steps_adherence: string | null;
-    // Expanded metrics
-    body_metrics: { 
-        weight_kg: number | null;
-        body_fat_percentage: number | null;
-        waist_cm: number | null;
-        hip_cm: number | null;
-        left_arm_cm: number | null;
-        right_arm_cm: number | null;
-        chest_cm: number | null;
-        left_thigh_cm: number | null;
-        right_thigh_cm: number | null;
-    } | null;
-    wellness_metrics: { 
-        sleep_hours: number | null;
-        sleep_quality: number | null;
-        stress_level: number | null;
-        fatigue_level: number | null;
-        motivation_level: number | null;
-        digestion: string | null;
-    } | null;
-}
+import { FiEdit2, FiX, FiImage } from 'react-icons/fi';
 
 // Interface for Supabase response structure
 interface CheckInSupabaseResponse {
@@ -72,43 +41,22 @@ interface CheckInSupabaseResponse {
 const ITEMS_PER_PAGE = 5; // Set a smaller number of items per page for better UX
 
 const CheckInTimeline: React.FC = () => {
-    const [checkIns, setCheckIns] = useState<CheckInTimelineData[]>([]);
+    const [checkIns, setCheckIns] = useState<CheckInSupabaseResponse[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [hasMore, setHasMore] = useState<boolean>(true);
+    const [editingCheckIn, setEditingCheckIn] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState<boolean>(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
     const profile = useSelector(selectProfile);
     
     // Reference for the intersection observer
     const observer = useRef<IntersectionObserver | null>(null);
     // Reference for the last item element
     const lastCheckInRef = useRef<HTMLDivElement | null>(null);
-
-    // Helper function to transform the Supabase response to match our component data structure
-    const transformCheckInData = (data: CheckInSupabaseResponse[]): CheckInTimelineData[] => {
-        return data.map(item => ({
-            ...item,
-            body_metrics: item.body_metrics && item.body_metrics[0] ? {
-                weight_kg: item.body_metrics[0].weight_kg,
-                body_fat_percentage: item.body_metrics[0].body_fat_percentage,
-                waist_cm: item.body_metrics[0].waist_cm,
-                hip_cm: item.body_metrics[0].hip_cm,
-                left_arm_cm: item.body_metrics[0].left_arm_cm,
-                right_arm_cm: item.body_metrics[0].right_arm_cm,
-                chest_cm: item.body_metrics[0].chest_cm,
-                left_thigh_cm: item.body_metrics[0].left_thigh_cm,
-                right_thigh_cm: item.body_metrics[0].right_thigh_cm,
-            } : null,
-            wellness_metrics: item.wellness_metrics && item.wellness_metrics[0] ? {
-                sleep_hours: item.wellness_metrics[0].sleep_hours,
-                sleep_quality: item.wellness_metrics[0].sleep_quality,
-                stress_level: item.wellness_metrics[0].stress_level,
-                fatigue_level: item.wellness_metrics[0].fatigue_level,
-                motivation_level: item.wellness_metrics[0].motivation_level,
-                digestion: item.wellness_metrics[0].digestion,
-            } : null
-        }));
-    };
+    // Reference for file input - create a separate ref for each check-in to avoid conflicts
+    const fileInputRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
 
     // Function to fetch check-ins
     const fetchCheckIns = useCallback(async (pageNumber: number, append: boolean = false) => {
@@ -170,21 +118,16 @@ const CheckInTimeline: React.FC = () => {
             
             if (fetchError) throw fetchError;
 
-            console.log(`Fetched ${data?.length || 0} check-ins`);
-            
             // Check if we've reached the end of the data
             if (!data || data.length < ITEMS_PER_PAGE) {
                 setHasMore(false);
             }
             
-            // Transform the data to match our component structure
-            const transformedData = transformCheckInData(data as CheckInSupabaseResponse[]);
-            
             // Update state with new data
             if (append) {
-                setCheckIns(prev => [...prev, ...transformedData]);
+                setCheckIns(prev => [...prev, ...data]);
             } else {
-                setCheckIns(transformedData);
+                setCheckIns(data);
             }
 
         } catch (err: unknown) {
@@ -228,6 +171,66 @@ const CheckInTimeline: React.FC = () => {
         }
     }, [hasMore, isLoadingMore, fetchCheckIns, checkIns.length]);
 
+    // Function to handle file upload for a check-in
+    const handlePhotoUpload = async (checkInId: string, files: FileList) => {
+        if (!profile?.user_id) return;
+        
+        setIsUploading(true);
+        setUploadError(null);
+        
+        try {
+            const uploadPromises = Array.from(files).map(async (file) => {
+                // Create a unique file name to avoid collisions
+                const fileName = `${profile.user_id}/${checkInId}/${Date.now()}-${file.name}`;
+                
+                // Upload the file to Supabase storage
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { data, error } = await supabase.storage
+                    .from('progress-media')
+                    .upload(fileName, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+                
+                if (error) throw error;
+                return fileName;
+            });
+            
+            // Wait for all uploads to complete
+            const uploadedFilePaths = await Promise.all(uploadPromises);
+            
+            // Get the current check-in to update its photos
+            const checkInToUpdate = checkIns.find(checkIn => checkIn.id === checkInId);
+            if (!checkInToUpdate) throw new Error('Check-in not found');
+            
+            // Combine existing photos with new ones
+            const updatedPhotos = [...(checkInToUpdate.photos || []), ...uploadedFilePaths];
+            
+            // Update the check-in in the database
+            const { error: updateError } = await supabase
+                .from('check_ins')
+                .update({ photos: updatedPhotos })
+                .eq('id', checkInId);
+            
+            if (updateError) throw updateError;
+            
+            // Update the local state
+            setCheckIns(prevCheckIns => 
+                prevCheckIns.map(checkIn => 
+                    checkIn.id === checkInId ? { ...checkIn, photos: updatedPhotos } : checkIn
+                )
+            );
+            
+            // Exit edit mode
+            setEditingCheckIn(null);
+        } catch (err) {
+            console.error('Error uploading photos:', err);
+            setUploadError('Failed to upload photos. Please try again.');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+    
     // Function to get public URL for storage items
     const getPublicUrl = (filePath: string | null | undefined): string | null => {
         if (!filePath) return null;
@@ -260,7 +263,10 @@ const CheckInTimeline: React.FC = () => {
         // Check explicitly for null or undefined, but allow 0 values
         return value !== null && value !== undefined ? `${value}${unit}` : 'N/A';
     };
-
+    
+    console.log('HERE');
+    console.log(checkIns);
+    
     return (
         <div className="space-y-6">
             {isLoading && checkIns.length === 0 && (
@@ -297,7 +303,7 @@ const CheckInTimeline: React.FC = () => {
                             </h3>
                             {/* Could add action buttons here (view details, delete, etc.) */}
                         </div>
-                        
+
                         {/* Display metrics in a grid for better organization */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             {/* Body Metrics Card */}
@@ -354,10 +360,31 @@ const CheckInTimeline: React.FC = () => {
                             </div>
                         )}
                         
-                        {/* Media Section */}
-                        {(checkIn.photos?.length || checkIn.video_url) && (
+                        {/* Media Section - Always show even if no photos, to allow adding photos */}
+                        {(
                             <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
-                                <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2 border-b dark:border-gray-600 pb-1">Media</h4>
+                                <div className="flex justify-between items-center mb-2 border-b dark:border-gray-600 pb-1">
+                                    <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">Media</h4>
+                                    {editingCheckIn !== checkIn.id ? (
+                                        <button 
+                                            onClick={() => setEditingCheckIn(checkIn.id)}
+                                            className="text-indigo-600 hover:text-indigo-500 p-1 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition"
+                                            aria-label="Edit check-in"
+                                        >
+                                            <FiEdit2 size={16} />
+                                        </button>
+                                    ) : (
+                                        <div className="flex items-center space-x-2">
+                                            <button 
+                                                onClick={() => setEditingCheckIn(null)}
+                                                className="text-gray-600 hover:text-gray-500 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                                                aria-label="Cancel editing"
+                                            >
+                                                <FiX size={16} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="flex flex-wrap gap-2">
                                     {checkIn.photos?.map((photoPath) => {
                                         const url = getPublicUrl(photoPath);
@@ -386,6 +413,44 @@ const CheckInTimeline: React.FC = () => {
                                         </a>
                                     )}
                                 </div>
+                                    {editingCheckIn === checkIn.id && (
+                                        <div className="mt-3 pt-3 border-t dark:border-gray-600">
+                                            <input 
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                ref={(el) => {
+                                                    if (el) fileInputRefs.current[checkIn.id] = el;
+                                                }}
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    if (e.target.files?.length) {
+                                                        handlePhotoUpload(checkIn.id, e.target.files);
+                                                    }
+                                                }}
+                                            />
+                                            {uploadError && (
+                                                <div className="text-red-500 text-xs mb-2">{uploadError}</div>
+                                            )}
+                                            <button 
+                                                onClick={() => fileInputRefs.current[checkIn.id]?.click()}
+                                                disabled={isUploading}
+                                                className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {isUploading ? (
+                                                    <>
+                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                                        Uploading...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <FiImage className="mr-2" />
+                                                        Add Photos
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
                             </div>
                         )}
                     </div>

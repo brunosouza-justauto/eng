@@ -197,6 +197,7 @@ const DashboardPageV2: React.FC = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user || !profile) return; // Don't fetch if user is not available
+      const today = new Date();
 
       setIsLoadingData(true);
       setFetchError(null);
@@ -300,8 +301,16 @@ const DashboardPageV2: React.FC = () => {
         
         if (weeklyError) throw weeklyError;
         
+        console.log("today", today.getDay());
+
         // Set the check-in status
-        const hasCheckInThisWeek = weeklyData && weeklyData.length > 0;
+        let hasCheckInThisWeek = weeklyData && weeklyData.length > 0;
+        
+        // If there is no check-in for the week and today is not Friday, Saturday or Sunday, set the check-in status to true
+        if ((!weeklyData || weeklyData.length === 0) && (today.getDay() !== 5 && today.getDay() !== 6 && today.getDay() !== 0)) {
+          hasCheckInThisWeek = true;
+        }
+        
         setHasWeeklyCheckIn(hasCheckInThisWeek);
 
       } catch (err) {
