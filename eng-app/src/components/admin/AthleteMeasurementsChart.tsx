@@ -40,7 +40,7 @@ const AthleteMeasurementsChart: React.FC<AthleteMeasurementsChartProps> = ({
   className = '',
   hideTitle = false
 }) => {
-  const chartRef = useRef<ChartJS | null>(null);
+  const chartRef = useRef<any>(null);
   
   // Cleanup chart instance on unmount or data change
   useEffect(() => {
@@ -215,7 +215,7 @@ const AthleteMeasurementsChart: React.FC<AthleteMeasurementsChartProps> = ({
           data={chartData} 
           ref={(reference) => {
             if (reference) {
-              chartRef.current = reference.current;
+              chartRef.current = reference;
             }
           }}
         />
