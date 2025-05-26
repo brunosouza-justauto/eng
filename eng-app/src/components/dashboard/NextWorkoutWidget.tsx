@@ -6,7 +6,7 @@ import Card from '../ui/Card';
 import { ButtonLink } from '../ui/Button';
 import { SetType, ExerciseSet } from '../../types/adminTypes';
 import { Link } from 'react-router-dom';
-import { FiChevronRight, FiExternalLink } from 'react-icons/fi';
+import { FiChevronRight, FiExternalLink, FiCalendar } from 'react-icons/fi';
 
 interface NextWorkoutWidgetProps {
   programTemplateId: string | null | undefined;
@@ -46,6 +46,11 @@ interface WorkoutCompletionStatus {
   completionTime: string | null;
 }
 
+interface CompletedWorkoutDate {
+  date: string; // ISO date string YYYY-MM-DD
+  workoutId: string;
+}
+
 // Helper function to clean exercise names from gender and version indicators
 const cleanExerciseName = (name: string): string => {
   if (!name) return name;
@@ -71,6 +76,11 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
     isCompleted: false,
     completionTime: null
   });
+  
+  // State to track completed workout dates for the calendar
+  const [completedWorkoutDates, setCompletedWorkoutDates] = useState<CompletedWorkoutDate[]>([]);
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [isCalendarLoading, setIsCalendarLoading] = useState<boolean>(false);
   
   // Number of exercises to show in the preview
   const PREVIEW_COUNT = 3;
@@ -250,7 +260,74 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
 
     fetchWorkout();
   }, [programTemplateId, profile?.user_id]);
+  
+  // Effect to fetch completed workout dates when user or month changes
+  useEffect(() => {
+    if (profile?.user_id) {
+      fetchCompletedWorkoutDates();
+    }
+  }, [profile?.user_id, currentMonth]);
 
+  // Function to fetch all dates when the athlete completed workouts
+  const fetchCompletedWorkoutDates = async () => {
+    if (!profile?.user_id) return;
+    
+    setIsCalendarLoading(true);
+    
+    try {
+      // Get the first and last day of the current month
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      // Format dates for query
+      const startDate = firstDay.toISOString().split('T')[0];
+      const endDate = lastDay.toISOString().split('T')[0];
+      
+      console.log(`Fetching completed workouts from ${startDate} to ${endDate}`);
+      
+      // Query for all completed workout sessions in the selected month
+      const { data, error } = await supabase
+        .from('workout_sessions')
+        .select('id, workout_id, start_time, end_time')
+        .eq('user_id', profile.user_id)
+        .not('end_time', 'is', null) // Only completed sessions
+        .gte('start_time', `${startDate}T00:00:00`) // From start of month
+        .lte('start_time', `${endDate}T23:59:59`); // To end of month
+      
+      if (error) {
+        console.error('Error fetching workout completion dates:', error);
+        return;
+      }
+      
+      if (data) {
+        // Process the data to get unique dates with completed workouts
+        const uniqueDates: CompletedWorkoutDate[] = [];
+        const dateMap = new Map<string, string>();
+        
+        data.forEach(session => {
+          const date = session.start_time.split('T')[0];
+          // Only add each date once
+          if (!dateMap.has(date)) {
+            dateMap.set(date, session.workout_id);
+            uniqueDates.push({
+              date,
+              workoutId: session.workout_id
+            });
+          }
+        });
+        
+        console.log(`Found ${uniqueDates.length} completed workout dates:`, uniqueDates);
+        setCompletedWorkoutDates(uniqueDates);
+      }
+    } catch (err) {
+      console.error('Error in fetchCompletedWorkoutDates:', err);
+    } finally {
+      setIsCalendarLoading(false);
+    }
+  };
+  
   // Add a new function to check if the workout has been completed today
   const checkWorkoutCompletion = async (workoutId: string, userId: string) => {
     try {
@@ -452,6 +529,169 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
     );
   };
   
+  // Calendar component to display completed workout dates
+  const WorkoutCalendar = () => {
+    // Helper to get days in month
+    const getDaysInMonth = (year: number, month: number) => {
+      return new Date(year, month + 1, 0).getDate();
+    };
+    
+    // Get first day of month (0 = Sunday, 1 = Monday, etc.)
+    const getFirstDayOfMonth = (year: number, month: number) => {
+      return new Date(year, month, 1).getDay();
+    };
+    
+    // Helper to navigate to previous month
+    const goToPreviousMonth = () => {
+      const newMonth = new Date(currentMonth);
+      newMonth.setMonth(newMonth.getMonth() - 1);
+      setCurrentMonth(newMonth);
+    };
+    
+    // Helper to navigate to next month
+    const goToNextMonth = () => {
+      const newMonth = new Date(currentMonth);
+      newMonth.setMonth(newMonth.getMonth() + 1);
+      setCurrentMonth(newMonth);
+    };
+    
+    // Format month name
+    const formatMonth = (date: Date) => {
+      return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    };
+    
+    // Check if a date has a completed workout
+    const hasCompletedWorkout = (day: number) => {
+      const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      return completedWorkoutDates.some(d => d.date === dateStr);
+    };
+    
+    // Check if a day is today
+    const isToday = (day: number) => {
+      const today = new Date();
+      return day === today.getDate() && 
+             currentMonth.getMonth() === today.getMonth() && 
+             currentMonth.getFullYear() === today.getFullYear();
+    };
+    
+    // Build calendar
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const daysInMonth = getDaysInMonth(year, month);
+    const firstDay = getFirstDayOfMonth(year, month);
+    
+    // Create day cells
+    const dayCells = [];
+    
+    // Days of the week header
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    // Add day names
+    dayCells.push(
+      <div key="header" className="grid grid-cols-7 mb-2">
+        {dayNames.map(day => (
+          <div key={day} className="text-center text-xs font-medium text-gray-500 dark:text-gray-400 pb-1">
+            {day}
+          </div>
+        ))}
+      </div>
+    );
+    
+    // Add empty cells for days before the first day of the month
+    const days = [];
+    for (let i = 0; i < firstDay; i++) {
+      days.push(
+        <div key={`empty-${i}`} className="p-1"></div>
+      );
+    }
+    
+    // Add cells for each day in the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const completed = hasCompletedWorkout(day);
+      const today = isToday(day);
+      
+      days.push(
+        <div 
+          key={`day-${day}`} 
+          className={`relative flex items-center justify-center p-1`}
+        >
+          <div 
+            className={`
+              w-7 h-7 flex items-center justify-center rounded-full text-xs 
+              ${completed ? 'bg-green-500 dark:bg-green-600 text-white font-medium' : ''}
+              ${today && !completed ? 'bg-indigo-100 dark:bg-indigo-800/40 font-medium' : ''}
+              ${!today && !completed ? 'hover:bg-gray-100 dark:hover:bg-gray-700/40' : ''}
+              transition-all duration-200
+            `}
+          >
+            {day}
+            {completed && (
+              <div className="absolute -top-1 -right-1 bg-green-500 rounded-full w-2 h-2 border border-white dark:border-gray-800"></div>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    dayCells.push(
+      <div key="days" className="grid grid-cols-7 gap-1">
+        {days}
+      </div>
+    );
+    
+    return (
+      <div className="mt-4 border-t border-gray-100 dark:border-gray-700 pt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium flex items-center">
+            <FiCalendar className="mr-1.5 h-4 w-4 text-indigo-500" />
+            Workout Activity
+          </h3>
+          <div className="flex items-center">
+            <button 
+              onClick={goToPreviousMonth}
+              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <span className="text-sm font-medium px-2">{formatMonth(currentMonth)}</span>
+            <button 
+              onClick={goToNextMonth}
+              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        {/* Legend */}
+        <div className="flex items-center justify-end gap-3 mb-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <span className="text-xs text-gray-600 dark:text-gray-400">Workout completed</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-indigo-100 dark:bg-indigo-800/40"></div>
+            <span className="text-xs text-gray-600 dark:text-gray-400">Today</span>
+          </div>
+        </div>
+        
+        {isCalendarLoading ? (
+          <div className="flex justify-center py-6">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
+          </div>
+        ) : (
+          <div className="py-1 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+            {dayCells}
+          </div>
+        )}
+      </div>
+    );
+  };
+  
   return (
     <Card
       header={header}
@@ -575,6 +815,11 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
               </div>
             )}
           </>
+        )}
+        
+        {/* Add the calendar component */}
+        {!isLoading && !error && programTemplateId && !isRestDay && (
+          <WorkoutCalendar />
         )}
       </div>
     </Card>
