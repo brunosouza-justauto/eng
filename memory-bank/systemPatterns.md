@@ -20,6 +20,7 @@
 *   **Exercise Data:** Local Supabase database instead of external HeyGainz API, providing better reliability and control.
 *   **Authentication:** Supabase Auth using Email Magic Link.
 *   **Exercise Feedback System:** Event-driven approach for tracking exercise completion, with reactive state updates and persisted data in Supabase.
+*   **Water Tracking System:** Component-based architecture with state lifting for data synchronization between related components. Uses refreshKey pattern to trigger UI updates when data changes.
 *   **Data Ingestion:** One-time script (`scripts/ingest-afcd.js`) used to populate `food_items` from the AFCD Excel source.
 
 ## 3. Data Models (High-Level)
@@ -29,6 +30,7 @@
 User
  ├─ profile: (age, weight, height, bodyFat%, goals, demographics, training habits, nutrition habits, lifestyle info, supplements/meds, motivation)
  ├─ stepGoal: (dailySteps: number)
+ ├─ waterGoal: (dailyWaterMl: number)
  ├─ program: (ref → ProgramTemplate)
  ├─ mealPlan: (ref → NutritionPlan)
  └─ checkIns: (array → CheckIn)
@@ -46,6 +48,20 @@ NutritionPlan
  ├─ totalCalories: number
  ├─ macros: { protein: number, carbs: number, fat: number }
  └─ meals: (array → MealFoodItem → FoodItem) // Linked to AFCD ID via FoodItem
+
+// Water Tracking Structure
+WaterGoal
+ ├─ user_id: uuid
+ ├─ water_goal_ml: number
+ └─ created_at: timestamp
+
+WaterTracking
+ ├─ id: uuid
+ ├─ user_id: uuid
+ ├─ date: date
+ ├─ amount_ml: number
+ ├─ created_at: timestamp
+ └─ updated_at: timestamp
 
 FoodItem // Populated from AFCD, stored in `food_items` table
  ├─ id: uuid
