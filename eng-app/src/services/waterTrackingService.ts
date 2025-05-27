@@ -2,7 +2,8 @@ import { supabase } from './supabaseClient';
 import { 
   WaterTrackingEntry, 
   CreateWaterTrackingEntry, 
-  UpdateWaterTrackingEntry
+  UpdateWaterTrackingEntry,
+  UserProfile
 } from '../types/waterTracking';
 import { format } from 'date-fns';
 
@@ -94,6 +95,24 @@ export const waterTrackingService = {
     if (error) {
       throw error;
     }
+  },
+
+  async getUserProfile(userId: string): Promise<UserProfile | null> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error) {
+      // If no profile found, return null instead of throwing an error
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+    
+    return data;
   },
 
   /**

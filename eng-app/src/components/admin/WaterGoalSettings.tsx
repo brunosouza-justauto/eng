@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiDroplet, FiSave } from 'react-icons/fi';
 import { waterTrackingService } from '../../services/waterTrackingService';
+import { getAthleteLatestBodyMetrics } from '../../services/measurementService';
 import { toast } from 'react-hot-toast';
 
 interface WaterGoalSettingsProps {
@@ -15,10 +16,38 @@ const WaterGoalSettings: React.FC<WaterGoalSettingsProps> = ({
   onUpdate 
 }) => {
   const [waterGoal, setWaterGoal] = useState<number>(defaultValue);
+  const [athleteWeight, setAthleteWeight] = useState<number>(defaultValue);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!userId) return;
+      
+      try {
+        setLoading(true);
+        const profile = await waterTrackingService.getUserProfile(userId);
+
+        if (profile) {
+          setAthleteWeight(profile.weight_kg);
+        }
+
+        // Check for last check-in
+        const lastCheckIn = await getAthleteLatestBodyMetrics(userId);
+
+        if (lastCheckIn?.data && lastCheckIn.data.body_metrics) {
+          setAthleteWeight(lastCheckIn.data.body_metrics.weight_kg);
+        }
+
+        //setWaterGoal(profile.water_goal);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        toast.error('Failed to load user profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     const fetchWaterGoal = async () => {
       if (!userId) return;
       
@@ -35,6 +64,7 @@ const WaterGoalSettings: React.FC<WaterGoalSettingsProps> = ({
     };
     
     fetchWaterGoal();
+    fetchUserProfile();
   }, [userId]);
 
   const handleSaveGoal = async () => {
@@ -86,7 +116,7 @@ const WaterGoalSettings: React.FC<WaterGoalSettingsProps> = ({
                 step="50"
                 value={waterGoal}
                 onChange={handleWaterGoalChange}
-                className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white outline-none transition-all"
               />
               <button
                 onClick={handleSaveGoal}
@@ -100,6 +130,8 @@ const WaterGoalSettings: React.FC<WaterGoalSettingsProps> = ({
           
           <div className="text-sm text-gray-500">
             <p>Recommended daily water intake:</p>
+            <p>Based on the athlete weight: {athleteWeight}kg</p>
+            <p>Recommended daily water intake between: {athleteWeight * 30}ml - {athleteWeight * 40}ml</p>
             <ul className="list-disc ml-5 mt-1">
               <li>General recommendation: 2000-3000 ml</li>
               <li>Active individuals: 3000-4000 ml</li>

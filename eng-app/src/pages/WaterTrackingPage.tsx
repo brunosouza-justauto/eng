@@ -1,16 +1,31 @@
+import React, { useState } from 'react';
 import WaterTrackingCard from '../components/water/WaterTrackingCard';
 import WaterTrackingHistory from '../components/water/WaterTrackingHistory';
 import PageHeader from '../components/ui/PageHeader';
 
-const WaterTrackingPage: React.FC<{ userId: string }> = ({ userId }) => {
+const WaterTrackingPage: React.FC<{ userId: string }> = ({ userId }) => { 
+  // Add a refresh key state to trigger refreshes in child components
+  const [refreshKey, setRefreshKey] = useState(0);
   
+  // Function to handle water updates and trigger a refresh
+  const handleWaterUpdated = () => {
+    // Increment the refresh key to trigger a re-render of the history component
+    setRefreshKey(prevKey => prevKey + 1);
+  };
+
   return (
     <div className="container mx-auto px-4 pb-20">
       <PageHeader title="Water Tracking" />
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <WaterTrackingCard userId={userId} />
-        <WaterTrackingHistory userId={userId} />
+        <WaterTrackingCard 
+          userId={userId} 
+          onWaterUpdated={handleWaterUpdated} 
+        />
+        <WaterTrackingHistory 
+          userId={userId} 
+          refreshKey={refreshKey} 
+        />
       </div>
       
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">

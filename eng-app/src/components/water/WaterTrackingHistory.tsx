@@ -6,9 +6,10 @@ import { WaterTrackingEntry } from '../../types/waterTracking';
 
 interface WaterTrackingHistoryProps {
   userId: string;
+  refreshKey?: number; // Optional refresh key to trigger data refresh
 }
 
-const WaterTrackingHistory: React.FC<WaterTrackingHistoryProps> = ({ userId }) => {
+const WaterTrackingHistory: React.FC<WaterTrackingHistoryProps> = ({ userId, refreshKey = 0 }) => {
   const [history, setHistory] = useState<WaterTrackingEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [waterGoal, setWaterGoal] = useState<number>(2500);
@@ -45,7 +46,7 @@ const WaterTrackingHistory: React.FC<WaterTrackingHistoryProps> = ({ userId }) =
     };
     
     fetchWaterHistory();
-  }, [userId]);
+  }, [userId, refreshKey]); // Include refreshKey to trigger refresh when water is added
   
   // Generate entries for each day of the week
   const getDailyEntries = () => {

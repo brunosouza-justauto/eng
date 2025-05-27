@@ -1047,7 +1047,7 @@ const AthleteDetailsPage: React.FC = () => {
                         className="mt-4" 
                         onClick={() => navigate('/admin/athletes')}
                     >
-                        Back to Athletes
+                        Return to Athletes List
                     </Button>
                 </Card>
             </div>
@@ -1065,7 +1065,7 @@ const AthleteDetailsPage: React.FC = () => {
                         className="mt-4" 
                         onClick={() => navigate('/admin/athletes')}
                     >
-                        Back to Athletes
+                        Return to Athletes List
                     </Button>
                 </Card>
             </div>
@@ -1077,7 +1077,7 @@ const AthleteDetailsPage: React.FC = () => {
             <div className="flex flex-col items-start justify-between mb-4 sm:flex-row sm:items-center sm:mb-6">
                 <h1 className="mb-3 text-2xl font-bold text-gray-800 dark:text-white sm:mb-0">Athlete Details</h1>
                 <Button onClick={() => navigate('/admin/athletes')} variant="secondary" className="text-sm">
-                    Back to Athletes
+                    Return to Athletes List
                 </Button>
             </div>
 
@@ -1136,6 +1136,8 @@ const AthleteDetailsPage: React.FC = () => {
                 <>
                     <div className="flex flex-col mb-4 space-y-2 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                         <h2 className="text-xl font-semibold text-gray-800 dark:text-white">{athleteDetails.first_name} {athleteDetails.last_name}</h2>
+                    </div>
+                    <div className="flex flex-wrap gap-2 sm:flex-row sm:space-y-0 mb-4">
                         <div className="flex flex-wrap gap-2 sm:flex-row sm:space-y-0">
                             <Button 
                                 onClick={() => setIsEditing(true)}
@@ -1171,6 +1173,13 @@ const AthleteDetailsPage: React.FC = () => {
                                 className="w-full sm:w-auto"
                             >
                                 View Check-ins
+                            </Button>
+                            <Button 
+                                onClick={() => navigate(`/admin/athletes/${id}/water`)}
+                                variant="secondary"
+                                className="w-full sm:w-auto"
+                            >
+                                View Water History
                             </Button>
                             <Button
                                 onClick={() => navigate(`/admin/athletes/${id}/measurements`)}

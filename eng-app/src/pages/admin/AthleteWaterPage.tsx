@@ -43,44 +43,81 @@ const WaterBarChart: React.FC<{
     );
   }
 
+  // Make sure all entries have their dates properly formatted
+  const processedData = data.map(entry => {
+    // Ensure date is in YYYY-MM-DD format
+    const dateObj = new Date(entry.date);
+    const formattedDate = dateObj.toISOString().split('T')[0];
+    
+    return {
+      ...entry,
+      date: formattedDate,
+    };
+  });
+  
+  // Sort data by date (ascending)
+  const sortedData = [...processedData].sort((a, b) => {
+    const dateA = new Date(a.date);
+    const dateB = new Date(b.date);
+    return dateA.getTime() - dateB.getTime();
+  });
+
   // Find maximum value for scaling
   const maxAmount = Math.max(
-    ...data.map(entry => entry.amount_ml),
-    goal || 0
+    ...sortedData.map(entry => entry.amount_ml),
+    goal || 0,
+    // Set a minimum max value to ensure bars are visible even with small values
+    1000
   );
 
+  // Calculate chart statistics
+  const nonZeroEntries = sortedData.filter(entry => entry.amount_ml > 0);
+  const hasEntries = nonZeroEntries.length > 0;
+
+  // No special date handling needed
+  
   return (
     <div className="h-64">
-      <div className="flex h-full">
-        {data.map((entry, index) => {
+      {/* Chart container */}
+      <div className="flex h-full relative">
+        {/* Goal line that spans across the chart */}
+        {goal && goal > 0 && (
+          <div 
+            className="absolute w-full border-t-2 border-dashed border-red-500 z-10"
+            style={{ 
+              bottom: `${(goal / maxAmount) * 100}%`,
+              display: (goal / maxAmount) * 100 <= 100 ? 'block' : 'none'
+            }}
+          >
+            <span className="absolute right-0 -top-5 text-xs text-red-500 font-medium bg-white dark:bg-gray-800 px-1 rounded">
+              {goal / 1000}L
+            </span>
+          </div>
+        )}
+
+        {sortedData.map((entry, index) => {
+          // Calculate percentage with a minimum height for better visualization
           const percentage = maxAmount > 0 ? (entry.amount_ml / maxAmount) * 100 : 0;
           const isAboveGoal = goal && entry.amount_ml >= goal;
+          const isEmpty = entry.amount_ml === 0;
           
           return (
             <div 
               key={entry.id || index} 
-              className="flex flex-col items-center justify-end flex-1"
+              className="flex flex-col items-center justify-end flex-1 relative"
             >
               {/* The bar */}
-              <div className="w-full px-1 flex justify-center">
+              <div className="w-full h-full px-1 flex justify-center">
                 <div 
-                  className={`w-full relative ${isAboveGoal ? 'bg-green-500' : 'bg-blue-500'}`}
+                  className={`w-full h-full relative rounded ${
+                    isEmpty ? 'bg-gray-200 rounded dark:bg-gray-700' : 
+                    isAboveGoal ? 'bg-green-500 rounded' : 'bg-blue-500 rounded'
+                  } ${hasEntries ? 'shadow-md' : ''}`}
                   style={{ 
-                    height: `${Math.max(percentage, 1)}%`,
+                    height: `${isEmpty ? 15 : Math.max(percentage, 10)}%`,
                     transition: 'height 0.3s ease-in-out',
                   }}
-                >
-                  {/* Goal line marker */}
-                  {goal && (
-                    <div 
-                      className="absolute w-full border-t-2 border-dashed border-red-500"
-                      style={{ 
-                        bottom: `${(goal / maxAmount) * 100}%`,
-                        display: (goal / maxAmount) * 100 <= 100 ? 'block' : 'none'
-                      }}
-                    />
-                  )}
-                </div>
+                />
               </div>
               
               {/* Day label */}
@@ -89,21 +126,33 @@ const WaterBarChart: React.FC<{
               </div>
               
               {/* Day value */}
-              <div className="text-xs text-gray-500 dark:text-gray-500 -mt-1">
-                {Math.round(entry.amount_ml / 100) / 10}L
+              <div className={`text-xs ${isEmpty ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300 font-medium'} -mt-1`}>
+                {isEmpty ? '0L' : `${Math.round(entry.amount_ml / 100) / 10}L`}
               </div>
             </div>
           );
         })}
       </div>
       
-      {/* Show a goal legend if there's a goal */}
-      {goal && (
-        <div className="mt-2 flex items-center justify-end">
-          <div className="h-0.5 w-4 bg-red-500 border-dashed"></div>
-          <span className="text-xs text-gray-500 ml-1">Goal: {goal / 1000}L</span>
+      {/* Legend */}
+      <div className="mt-3 flex flex-wrap items-center justify-end text-xs gap-2">       
+        <div className="flex items-center">
+          <span className="inline-block w-3 h-3 bg-green-500 mr-1 rounded-sm"></span>
+          <span className="text-gray-600 dark:text-gray-400">Above goal</span>
         </div>
-      )}
+        
+        <div className="flex items-center">
+          <span className="inline-block w-3 h-3 bg-gray-200 dark:bg-gray-700 mr-1 rounded-sm"></span>
+          <span className="text-gray-600 dark:text-gray-400">No water</span>
+        </div>
+        
+        {goal && (
+          <div className="flex items-center">
+            <span className="inline-block w-4 h-0 border-t-2 border-dashed border-red-500 mr-1"></span>
+            <span className="text-gray-600 dark:text-gray-400">Goal: {goal / 1000}L</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -190,8 +239,8 @@ const AthleteWaterPage: React.FC = () => {
         
         // Fetch water data and goal
         await Promise.all([
-          fetchWaterEntries(),
-          fetchWaterGoal()
+          fetchWaterEntries(athleteData.user_id),
+          fetchWaterGoal(athleteData.user_id)
         ]);
         
       } catch (err) {
@@ -206,9 +255,9 @@ const AthleteWaterPage: React.FC = () => {
   }, [id]);
 
   // Fetch water entries based on timeframe
-  const fetchWaterEntries = async () => {
+  const fetchWaterEntries = async (userId: string) => {
     try {
-      if (!athlete?.user_id) return;
+      if (!userId) return;
       
       let startDate: Date;
       let endDate = new Date();
@@ -227,7 +276,7 @@ const AthleteWaterPage: React.FC = () => {
       const { data, error } = await supabase
         .from('water_tracking')
         .select('*')
-        .eq('user_id', athlete.user_id)
+        .eq('user_id', userId)
         .gte('date', formattedStartDate)
         .lte('date', formattedEndDate)
         .order('date', { ascending: false });
@@ -247,7 +296,7 @@ const AthleteWaterPage: React.FC = () => {
         // Return placeholder entry for days without data
         return {
           id: `placeholder-${formattedDay}`,
-          user_id: athlete.user_id,
+          user_id: userId,
           date: formattedDay,
           amount_ml: 0,
           created_at: format(day, 'yyyy-MM-dd\'T\'HH:mm:ss'),
@@ -267,17 +316,17 @@ const AthleteWaterPage: React.FC = () => {
   };
 
   // Fetch current water goal
-  const fetchWaterGoal = async () => {
+  const fetchWaterGoal = async (userId: string) => {
     try {
-      if (!athlete?.user_id) return;
+      if (!userId) return;
       
       // Fetch water goal from water_goals table
       const { data, error } = await supabase
         .from('water_goals')
         .select('water_goal_ml')
-        .eq('user_id', athlete.user_id)
+        .eq('user_id', userId)
         .single();
-        
+
       if (error) {
         if (error.code === 'PGRST116') {
           // No goal found, use default
@@ -299,7 +348,7 @@ const AthleteWaterPage: React.FC = () => {
   // Refresh data when timeframe changes
   useEffect(() => {
     if (athlete?.user_id) {
-      fetchWaterEntries();
+      fetchWaterEntries(athlete.user_id);
     }
   }, [chartTimeframe, currentDate, athlete?.user_id]);
 
@@ -403,7 +452,7 @@ const AthleteWaterPage: React.FC = () => {
                 onUpdate={(newGoalValue) => {
                   setWaterGoal(newGoalValue);
                   // Refresh data
-                  fetchWaterEntries();
+                  fetchWaterEntries(athlete.user_id);
                 }}
               />
             )}
@@ -474,7 +523,11 @@ const AthleteWaterPage: React.FC = () => {
             setCurrentDate={setCurrentDate}
             timeframe={chartTimeframe}
           />
-          <WaterBarChart data={waterEntries} goal={waterGoal} />
+          <WaterBarChart 
+            key={`water-chart-${waterEntries.length}-${waterGoal}-${Date.now()}`}
+            data={waterEntries} 
+            goal={waterGoal} 
+          />
         </div>
       </Card>
 
