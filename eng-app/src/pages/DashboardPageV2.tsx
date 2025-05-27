@@ -3,17 +3,20 @@ import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { selectUser, selectProfile } from '../store/slices/authSlice';
 import { supabase } from '../services/supabaseClient';
-import NextWorkoutWidget from '../components/dashboard/NextWorkoutWidget';
 import DashboardNutritionWidget from '../components/dashboard/DashboardNutritionWidget';
-import StepGoalWidget from '../components/dashboard/StepGoalWidget';
 import CheckInReminderWidget from '../components/dashboard/CheckInReminderWidget';
 import LatestCheckInWidget from '../components/dashboard/LatestCheckInWidget';
+import NextWorkoutWidget from '../components/dashboard/NextWorkoutWidget';
+import StepGoalWidget from '../components/dashboard/StepGoalWidget';
 import MissedMealsAlert from '../components/dashboard/MissedMealsAlert';
 import SupplementDashboard from '../components/supplements/SupplementDashboard';
 import { startOfWeek, endOfWeek } from 'date-fns';
 import { FiActivity, FiCheck } from 'react-icons/fi';
 import { GiMuscleUp, GiMeal } from 'react-icons/gi';
 import { FaWalking } from 'react-icons/fa';
+import WaterBottleIcon from '../components/navigation/WaterBottleIcon';
+import { format } from 'date-fns';
+import WaterTrackingPage from './WaterTrackingPage';
 
 // Define types for the fetched data
 interface AssignedPlan {
@@ -32,7 +35,7 @@ interface StepGoal {
 }
 
 // Tab type enum
-type TabType = 'workout' | 'supplements' | 'nutrition' | 'steps' | 'checkin';
+type TabType = 'workout' | 'supplements' | 'nutrition' | 'steps' | 'checkin' | 'water';
 
 // Bottom Navigation Item Type
 interface NavItem {
@@ -84,6 +87,9 @@ const DashboardPageV2: React.FC = () => {
     };
   }, []);
 
+  // State for water tracking notification
+  const [waterGoalCompleted, setWaterGoalCompleted] = useState<boolean>(false);
+  
   // Navigation items for bottom menu with notification status
   const navItems: NavItem[] = useMemo(() => [
     {
@@ -93,16 +99,16 @@ const DashboardPageV2: React.FC = () => {
       hasNotification: !workoutCompleted && assignedPlan?.program_template_id !== null
     },
     {
-      name: 'Supplements',
-      icon: <FiActivity className="text-xl" />,
-      tab: 'supplements',
-      hasNotification: false // No specific notification for supplements currently
-    },
-    {
       name: 'Nutrition',
       icon: <GiMeal className="text-xl" />,
       tab: 'nutrition',
       hasNotification: hasMissedMeals
+    },
+    {
+      name: 'Supps',
+      icon: <FiActivity className="text-xl" />,
+      tab: 'supplements',
+      hasNotification: false // No specific notification for supplements currently
     },
     {
       name: 'Steps',
@@ -111,12 +117,18 @@ const DashboardPageV2: React.FC = () => {
       hasNotification: !stepsCompleted && stepGoal !== null
     },
     {
+      name: 'Water',
+      icon: <WaterBottleIcon className="text-xl" />,
+      tab: 'water',
+      hasNotification: !waterGoalCompleted
+    },
+    {
       name: 'Check-in',
       icon: <FiCheck className="text-xl" />,
       tab: 'checkin',
       hasNotification: !hasWeeklyCheckIn
     }
-  ], [workoutCompleted, hasMissedMeals, stepsCompleted, hasWeeklyCheckIn, assignedPlan, stepGoal]);
+  ], [workoutCompleted, hasMissedMeals, stepsCompleted, hasWeeklyCheckIn, waterGoalCompleted, assignedPlan, stepGoal]);
 
   // Memoize the date calculations to prevent re-renders
   const { currentWeekStart, currentWeekEnd } = useMemo(() => {
@@ -132,19 +144,20 @@ const DashboardPageV2: React.FC = () => {
       
       try {
         // Get today's date in ISO format (YYYY-MM-DD)
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
+        const today = format(new Date(), 'yyyy-MM-dd')
         
         // Check for completed workouts today
         const { data, error } = await supabase
           .from('workout_sessions')
           .select('id')
           .eq('user_id', user.id)
-          .gte('start_time', `${todayStr}T00:00:00`)
-          .lte('start_time', `${todayStr}T23:59:59`)
+          .gte('start_time', `${today}T00:00:00`)
+          .lte('start_time', `${today}T23:59:59`)
           .limit(1);
         
         if (error) throw error;
+
+        console.log('Workout data:', data);
         
         // If we found completed workouts today, mark as completed
         setWorkoutCompleted(data && data.length > 0);
@@ -193,6 +206,55 @@ const DashboardPageV2: React.FC = () => {
     
     checkStepCompletion();
   }, [user?.id, stepGoal?.daily_steps]);
+  
+  // Check water goal completion for notification badge
+  useEffect(() => {
+    const checkWaterGoalCompletion = async () => {
+      if (!user?.id) return;
+      
+      try {
+        // Get today's date in ISO format
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Get water goal from settings
+        const { data: settingsData, error: settingsError } = await supabase
+          .from('water_goals')
+          .select('water_goal_ml')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (settingsError && settingsError.code !== 'PGRST116') throw settingsError;
+        
+        const waterGoal = settingsData?.water_goal_ml || 2500; // Default to 2.5L if no goal set
+        
+        // Get today's water tracking entry
+        const { data: trackingData, error: trackingError } = await supabase
+          .from('water_tracking')
+          .select('amount_ml')
+          .eq('user_id', user.id)
+          .eq('date', today)
+          .single();
+        
+        if (trackingError && trackingError.code !== 'PGRST116') throw trackingError;
+        
+        const waterAmount = trackingData?.amount_ml || 0;
+        
+        // Check if goal is reached (>= 100%)
+        setWaterGoalCompleted(waterAmount >= waterGoal);
+      } catch (err) {
+        console.error('Error checking water goal completion:', err);
+        // Default to false if there's an error
+        setWaterGoalCompleted(false);
+      }
+    };
+    
+    checkWaterGoalCompletion();
+    
+    // Set up interval to check every 5 minutes
+    const interval = setInterval(checkWaterGoalCompletion, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -281,8 +343,8 @@ const DashboardPageV2: React.FC = () => {
         setStepGoal(goalData); // Will be null if no active goal
 
         // Get the most recent check-in
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { data: recentData, error: recentError } = await supabase
+        // We only need to check for errors, but don't need the data
+        const { error: recentError } = await supabase
           .from('check_ins')
           .select('check_in_date')
           .eq('user_id', profile.user_id)
@@ -372,6 +434,14 @@ const DashboardPageV2: React.FC = () => {
           <div className="grid grid-cols-1 gap-6">
             <div className="col-span-1">
               <StepGoalWidget dailyGoal={stepGoal?.daily_steps} />
+            </div>
+          </div>
+        );
+      case 'water':
+        return (
+          <div className="grid grid-cols-1 gap-6">
+            <div className="col-span-1">
+              {user && <WaterTrackingPage userId={user.id} />}
             </div>
           </div>
         );
@@ -530,11 +600,11 @@ const DashboardPageV2: React.FC = () => {
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 md:hidden">
-        <div className="grid grid-cols-5 h-16">
+        <div className="grid grid-cols-6 h-16">
           {navItems.map((item) => (
             <button 
               key={item.name} 
-              className={`flex flex-col items-center justify-center ${
+              className={`flex flex-col items-center justify-center px-1 ${
                 activeTab === item.tab 
                   ? 'text-indigo-600 dark:text-indigo-400 font-medium' 
                   : 'text-gray-600 dark:text-gray-400'
@@ -542,7 +612,7 @@ const DashboardPageV2: React.FC = () => {
               onClick={() => handleTabChange(item.tab)}
             >
               <div className="relative">
-                <div className={`w-6 h-6 flex items-center justify-center ${
+                <div className={`w-5 h-5 flex items-center justify-center ${
                   activeTab === item.tab 
                     ? 'text-indigo-600 dark:text-indigo-400' 
                     : ''
@@ -550,10 +620,10 @@ const DashboardPageV2: React.FC = () => {
                   {item.icon}
                 </div>
                 {item.hasNotification && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white dark:border-gray-800"></div>
+                  <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white dark:border-gray-800"></div>
                 )}
               </div>
-              <span className="text-xs mt-1">{item.name}</span>
+              <span className="text-xs mt-0.5 truncate w-full text-center">{item.name}</span>
             </button>
           ))}
         </div>

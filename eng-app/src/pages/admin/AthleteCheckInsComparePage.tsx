@@ -108,11 +108,13 @@ const PhotoComparison: React.FC<{
   date1: string;
   date2: string;
 }> = ({ photos1, photos2, date1, date2 }) => {
-  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  // State for photo comparison component
+  const [selectedImage1, setSelectedImage1] = useState<string | null>(null);
+  const [selectedImage2, setSelectedImage2] = useState<string | null>(null);
   const [imageUrls1, setImageUrls1] = useState<string[]>([]);
   const [imageUrls2, setImageUrls2] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     const fetchPhotos = async () => {
@@ -132,6 +134,11 @@ const PhotoComparison: React.FC<{
             })
           );
           setImageUrls1(urls1);
+          
+          // Set first photo as default selected for comparison
+          if (urls1.length > 0 && !selectedImage1) {
+            setSelectedImage1(urls1[0]);
+          }
         }
         
         // Fetch URLs for the second check-in
@@ -147,6 +154,11 @@ const PhotoComparison: React.FC<{
             })
           );
           setImageUrls2(urls2);
+          
+          // Set first photo as default selected for comparison
+          if (urls2.length > 0 && !selectedImage2) {
+            setSelectedImage2(urls2[0]);
+          }
         }
       } catch (err) {
         console.error('Error fetching photo URLs:', err);
@@ -156,84 +168,92 @@ const PhotoComparison: React.FC<{
     };
     
     fetchPhotos();
-  }, [photos1, photos2]);
+  }, [photos1, photos2, selectedImage1, selectedImage2]);
   
-  // Determine the number of photo pairs to display
-  const maxPhotos = Math.max(
-    photos1 ? photos1.length : 0,
-    photos2 ? photos2.length : 0
-  );
-  
-  // Function to export the comparison as an image
-  const exportAsImage = async () => {
-    const element = document.getElementById('photo-collage');
-    if (!element) return;
-    
-    try {
-      // Add a temporary class for export styling
-      element.classList.add('exporting');
-      
-      // Create a higher quality canvas
-      const canvas = await html2canvas(element, {
-        backgroundColor: '#2a3142', // Dark navy background to match the app theme
-        useCORS: true,
-        scale: 3, // Higher resolution for better quality
-        logging: false,
-        allowTaint: true,
-        imageTimeout: 15000, // Longer timeout for image loading
-        foreignObjectRendering: false // Better compatibility
-      });
-      
-      // Remove the temporary class
-      element.classList.remove('exporting');
-      
-      // Add text at the bottom of the canvas
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        // Add a gradient at the bottom for the text background
-        const gradient = ctx.createLinearGradient(0, canvas.height - 40, 0, canvas.height);
-        gradient.addColorStop(0, 'rgba(0,0,0,0)');
-        gradient.addColorStop(1, 'rgba(0,0,0,0.5)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
-        
-        // Add text for the transformation period
-        ctx.font = 'bold 20px Arial';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        const progressText = `Progress: ${format(parseISO(date1), 'MMM d, yyyy')} to ${format(parseISO(date2), 'MMM d, yyyy')}`;
-        ctx.fillText(progressText, canvas.width / 2, canvas.height - 15);
-      }
-      
-      // Create a download link
-      const link = document.createElement('a');
-      link.download = `progress-comparison-${format(parseISO(date1), 'yyyyMMdd')}-vs-${format(parseISO(date2), 'yyyyMMdd')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    } catch (err) {
-      console.error('Error exporting image:', err);
-      alert('Failed to export the comparison as an image');
-    }
-  };
-
-  // Handle fullscreen view
+  // Function to open fullscreen view for detailed inspection
   const openFullscreen = (imageUrl: string) => {
     setFullscreenImage(imageUrl);
   };
-
-  // Handle photo navigation
-  const navigatePhotos = (direction: 'prev' | 'next') => {
-    if (direction === 'prev') {
-      setSelectedPhotoIndex(prev => 
-        prev === 0 ? maxPhotos - 1 : prev - 1
-      );
-    } else {
-      setSelectedPhotoIndex(prev => 
-        prev === maxPhotos - 1 ? 0 : prev + 1
-      );
+  
+  // Function to export the comparison as an image
+  const exportAsImage = async () => {
+    const container = document.getElementById('photo-comparison-container');
+    if (!container || !selectedImage1 || !selectedImage2) {
+      alert('Please select images to compare before exporting');
+      return;
+    }
+    
+    try {
+      // Create a temporary container for export with better styling
+      const exportContainer = document.createElement('div');
+      exportContainer.style.background = '#f9fafb';
+      exportContainer.style.padding = '20px';
+      exportContainer.style.borderRadius = '8px';
+      exportContainer.style.width = '800px';
+      
+      // Add title
+      const titleElement = document.createElement('div');
+      titleElement.innerHTML = `<div style="text-align: center; font-weight: bold; margin-bottom: 16px; font-size: 18px">
+        Progress Comparison: ${format(parseISO(date1), 'MMMM d, yyyy')} to ${format(parseISO(date2), 'MMMM d, yyyy')}
+      </div>`;
+      exportContainer.appendChild(titleElement);
+      
+      // Add images container
+      const imagesContainer = document.createElement('div');
+      imagesContainer.style.display = 'flex';
+      imagesContainer.style.justifyContent = 'space-between';
+      imagesContainer.style.gap = '16px';
+      
+      // Add first image with date
+      const image1Container = document.createElement('div');
+      image1Container.style.flex = '1';
+      image1Container.innerHTML = `
+        <div style="text-align: center; font-weight: 500; margin-bottom: 8px;">${format(parseISO(date1), 'MMMM d, yyyy')}</div>
+        <div style="background-color: #f3f4f6; border-radius: 8px; padding: 12px; display: flex; justify-content: center; align-items: center; height: 400px;">
+          <img src="${selectedImage1}" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+        </div>
+      `;
+      imagesContainer.appendChild(image1Container);
+      
+      // Add second image with date
+      const image2Container = document.createElement('div');
+      image2Container.style.flex = '1';
+      image2Container.innerHTML = `
+        <div style="text-align: center; font-weight: 500; margin-bottom: 8px;">${format(parseISO(date2), 'MMMM d, yyyy')}</div>
+        <div style="background-color: #f3f4f6; border-radius: 8px; padding: 12px; display: flex; justify-content: center; align-items: center; height: 400px;">
+          <img src="${selectedImage2}" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+        </div>
+      `;
+      imagesContainer.appendChild(image2Container);
+      
+      // Add images to export container
+      exportContainer.appendChild(imagesContainer);
+      
+      // Add to document temporarily for html2canvas to work
+      document.body.appendChild(exportContainer);
+      
+      // Create canvas from the export container
+      const canvas = await html2canvas(exportContainer, {
+        useCORS: true,
+        scale: 2, // Higher resolution
+        allowTaint: true,
+        backgroundColor: '#f9fafb',
+      });
+      
+      // Remove the temporary container
+      document.body.removeChild(exportContainer);
+      
+      // Create a download link
+      const link = document.createElement('a');
+      link.download = `progress-comparison-${format(parseISO(date1), 'yyyyMMdd')}-to-${format(parseISO(date2), 'yyyyMMdd')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('Error exporting comparison:', err);
+      alert('Failed to export the comparison. Please try again.');
     }
   };
-  
+
   if (loading) {
     return (
       <div className="flex justify-center py-8">
@@ -242,7 +262,7 @@ const PhotoComparison: React.FC<{
     );
   }
   
-  if (maxPhotos === 0) {
+  if (imageUrls1.length === 0 && imageUrls2.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
         No photos available for comparison
@@ -251,36 +271,9 @@ const PhotoComparison: React.FC<{
   }
 
   return (
-    <div id="photo-comparison" className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
-        {/* Photo navigation controls */}
-        <div className="flex items-center space-x-3">
-          <button 
-            onClick={() => navigatePhotos('prev')}
-            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-            disabled={maxPhotos <= 1}
-            aria-label="Previous photo"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-          </button>
-          <div className="text-sm font-medium">
-            Photo {selectedPhotoIndex + 1} of {maxPhotos}
-          </div>
-          <button 
-            onClick={() => navigatePhotos('next')}
-            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-            disabled={maxPhotos <= 1}
-            aria-label="Next photo"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Export button */}
+    <div id="photo-comparison-container" className="space-y-6">
+      {/* Controls */}
+      <div className="flex justify-end items-center">
         <Button
           variant="secondary"
           size="sm"
@@ -288,141 +281,143 @@ const PhotoComparison: React.FC<{
           className="flex items-center"
         >
           <FiDownload className="mr-1.5" />
-          Export as Image
+          Export Comparison
         </Button>
       </div>
-
-      {/* Thumbnails */}
-      <div className="flex space-x-2 overflow-x-auto pb-2 mb-2">
-        {Array.from({ length: maxPhotos }).map((_, index) => (
-          <button
-            key={index}
-            onClick={() => setSelectedPhotoIndex(index)}
-            className={`min-w-12 w-12 h-12 rounded-md overflow-hidden border-2 flex-shrink-0 ${
-              selectedPhotoIndex === index
-                ? 'border-indigo-500 shadow-md'
-                : 'border-gray-300 dark:border-gray-700'
-            } hover:border-indigo-300 transition-all duration-200`}
-          >
-            {imageUrls1[index] ? (
-              <img
-                src={imageUrls1[index]}
-                alt={`Thumbnail ${index + 1}`}
-                className="w-full h-full object-cover"
-              />
-            ) : imageUrls2[index] ? (
-              <img
-                src={imageUrls2[index]}
-                alt={`Thumbnail ${index + 1}`}
-                className="w-full h-full object-cover"
-              />
+      
+      {/* Main photo comparison */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* First check-in photo */}
+        <div className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm">
+          <h3 className="text-lg font-semibold mb-3 text-center">
+            {format(parseISO(date1), 'MMMM d, yyyy')}
+          </h3>
+          <div className="flex justify-center items-center h-[400px] bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+            {selectedImage1 ? (
+              <div className="relative w-full h-full flex justify-center items-center">
+                <img
+                  src={selectedImage1}
+                  alt={`Check-in photo from ${date1}`}
+                  className="max-w-full max-h-full object-contain cursor-pointer"
+                  onClick={() => openFullscreen(selectedImage1)}
+                />
+                <button
+                  className="absolute top-2 right-2 bg-white/30 dark:bg-black/30 text-gray-700 dark:text-white rounded-full p-2 hover:bg-white/50 dark:hover:bg-black/50 transition-all"  
+                  onClick={() => openFullscreen(selectedImage1)}
+                >
+                  <FiZoomIn />
+                </button>
+              </div>
             ) : (
-              <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs text-gray-500">
-                {index + 1}
+              <div className="text-gray-500 text-center p-4">
+                Select a photo from below
               </div>
             )}
-          </button>
-        ))}
+          </div>
+        </div>
+        
+        {/* Second check-in photo */}
+        <div className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm">
+          <h3 className="text-lg font-semibold mb-3 text-center">
+            {format(parseISO(date2), 'MMMM d, yyyy')}
+          </h3>
+          <div className="flex justify-center items-center h-[400px] bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+            {selectedImage2 ? (
+              <div className="relative w-full h-full flex justify-center items-center">
+                <img
+                  src={selectedImage2}
+                  alt={`Check-in photo from ${date2}`}
+                  className="max-w-full max-h-full object-contain cursor-pointer"
+                  onClick={() => openFullscreen(selectedImage2)}
+                />
+                <button
+                  className="absolute top-2 right-2 bg-white/30 dark:bg-black/30 text-gray-700 dark:text-white rounded-full p-2 hover:bg-white/50 dark:hover:bg-black/50 transition-all"
+                  onClick={() => openFullscreen(selectedImage2)}
+                >
+                  <FiZoomIn />
+                </button>
+              </div>
+            ) : (
+              <div className="text-gray-500 text-center p-4">
+                Select a photo from below
+              </div>
+            )}
+          </div>
+        </div>
       </div>
       
-      {/* Main photo comparison - tighter layout for better comparison */}
-      <div className="flex justify-center w-full">
-        <div id="photo-collage" className="flex flex-col md:flex-row md:space-x-3 space-y-4 md:space-y-0 bg-gray-100 dark:bg-gray-800 p-4 rounded-lg max-w-2xl mx-auto">
-          <div className="flex-1 flex flex-col max-w-sm">
-            <div className="text-center font-medium mb-1 bg-white dark:bg-gray-700 px-4 py-2 rounded-t-lg">
-              {format(parseISO(date1), 'MMM d, yyyy')} <span className="text-gray-500 text-sm">(Before)</span>
-            </div>
-            <div className="bg-white dark:bg-gray-700 w-full aspect-[3/4] md:h-[400px] flex items-center justify-center rounded-b-lg overflow-hidden relative group py-2">
-              {imageUrls1[selectedPhotoIndex] ? (
-                <>
-                  <img
-                    src={imageUrls1[selectedPhotoIndex]}
-                    alt={`Check-in 1 photo ${selectedPhotoIndex + 1}`}
-                    className="max-w-full max-h-full object-contain cursor-pointer rounded-lg"
-                    onClick={() => openFullscreen(imageUrls1[selectedPhotoIndex])}
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <button
-                      className="absolute top-2 right-2 bg-white bg-opacity-25 rounded-full p-2 text-white hover:bg-opacity-50 transition-all"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openFullscreen(imageUrls1[selectedPhotoIndex]);
-                      }}
-                    >
-                      <FiZoomIn />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="text-gray-500 text-sm p-4 text-center">
-                  No photo available for this angle
+      {/* Photo selection thumbnails */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        {/* First check-in thumbnails */}
+        <div>
+          <h4 className="text-md font-medium mb-3">Select photo from {format(parseISO(date1), 'MMMM d, yyyy')}</h4>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {imageUrls1.map((url, index) => (
+              <div 
+                key={`photo1-${index}`} 
+                className={`relative cursor-pointer rounded-md overflow-hidden ${selectedImage1 === url ? 'ring-2 ring-primary shadow-md' : 'hover:ring-1 hover:ring-gray-300'}`}
+                onClick={() => setSelectedImage1(url)}
+              >
+                <img 
+                  src={url} 
+                  alt={`Check-in thumbnail ${index + 1}`} 
+                  className="w-full h-24 object-cover"
+                />
+                <div className="absolute bottom-0 right-0 bg-black/50 px-2 py-0.5 text-xs text-white">
+                  {index + 1}
                 </div>
-              )}
-            </div>
+              </div>
+            ))}
           </div>
-          
-          <div className="flex-1 flex flex-col max-w-sm">
-            <div className="text-center font-medium mb-1 bg-white dark:bg-gray-700 px-4 py-2 rounded-t-lg">
-              {format(parseISO(date2), 'MMM d, yyyy')} <span className="text-gray-500 text-sm">(After)</span>
-            </div>
-            <div className="bg-white dark:bg-gray-700 w-full aspect-[3/4] md:h-[400px] flex items-center justify-center rounded-b-lg overflow-hidden relative group py-2">
-              {imageUrls2[selectedPhotoIndex] ? (
-                <>
-                  <img
-                    src={imageUrls2[selectedPhotoIndex]}
-                    alt={`Check-in 2 photo ${selectedPhotoIndex + 1}`}
-                    className="max-w-full max-h-full object-contain cursor-pointer rounded-lg"
-                    onClick={() => openFullscreen(imageUrls2[selectedPhotoIndex])}
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <button
-                      className="absolute top-2 right-2 bg-white bg-opacity-25 rounded-full p-2 text-white hover:bg-opacity-50 transition-all"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openFullscreen(imageUrls2[selectedPhotoIndex]);
-                      }}
-                    >
-                      <FiZoomIn />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="text-gray-500 text-sm p-4 text-center">
-                  No photo available for this angle
+        </div>
+
+        {/* Second check-in thumbnails */}
+        <div>
+          <h4 className="text-md font-medium mb-3">Select photo from {format(parseISO(date2), 'MMMM d, yyyy')}</h4>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {imageUrls2.map((url, index) => (
+              <div 
+                key={`photo2-${index}`} 
+                className={`relative cursor-pointer rounded-md overflow-hidden ${selectedImage2 === url ? 'ring-2 ring-primary shadow-md' : 'hover:ring-1 hover:ring-gray-300'}`}
+                onClick={() => setSelectedImage2(url)}
+              >
+                <img 
+                  src={url} 
+                  alt={`Check-in thumbnail ${index + 1}`} 
+                  className="w-full h-24 object-cover"
+                />
+                <div className="absolute bottom-0 right-0 bg-black/50 px-2 py-0.5 text-xs text-white">
+                  {index + 1}
                 </div>
-              )}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Fullscreen modal - positioned outside the main div to ensure proper z-index */}
+      {/* Fullscreen modal */}
       {fullscreenImage && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
           onClick={() => setFullscreenImage(null)}
-          style={{ position: 'fixed', zIndex: 9999 }}
         >
-          <div className="relative max-w-full max-h-full overflow-hidden">
-            <img 
-              src={fullscreenImage} 
-              alt="Fullscreen view" 
-              className="max-w-full max-h-[90vh] object-contain shadow-xl"
-            />
-            <button 
-              className="absolute top-4 right-4 bg-white bg-opacity-25 rounded-full p-2 text-white hover:bg-opacity-50 transition-all"
-              onClick={(e) => {
-                e.stopPropagation();
-                setFullscreenImage(null);
-              }}
-              aria-label="Close fullscreen view"
-              style={{ cursor: 'pointer' }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+          <img 
+            src={fullscreenImage} 
+            alt="Fullscreen view" 
+            className="max-w-[90%] max-h-[90vh] object-contain shadow-lg"
+          />
+          <button 
+            className="absolute top-4 right-4 rounded-full p-2 bg-white/20 text-white hover:bg-white/40 transition-all"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFullscreenImage(null);
+            }}
+            aria-label="Close fullscreen view"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       )}
     </div>

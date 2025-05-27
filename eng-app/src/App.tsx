@@ -25,7 +25,8 @@ import CoachManager from './components/admin/CoachManager'; // Import CoachManag
 import ProgramBuilder from './components/admin/ProgramBuilder'; // Import ProgramBuilder
 import MealPlanner from './components/admin/MealPlanner'; // Import MealPlanner
 import MealPlannerPage from './pages/MealPlannerPage'; // Import our integrated meal planner page
-import StepGoalSetter from './components/admin/StepGoalSetter'; // Import StepGoalSetter
+import StepGoalSetter from './components/admin/StepGoalSetter';
+import WaterGoalSetter from './components/admin/WaterGoalSetter'; // Import StepGoalSetter
 import CheckInReview from './components/admin/CheckInReview'; // Import CheckInReview
 import CheckInDetail from './components/admin/CheckInDetail'; // Import CheckInDetail
 import AdminDashboard from './components/admin/AdminDashboard'; // Import AdminDashboard
@@ -44,6 +45,7 @@ import UserProfilePage from './pages/UserProfilePage'; // Import the profile pag
 import PasswordResetPage from './pages/auth/PasswordResetPage'; // Import the password reset page
 import AthleteStepsPage from './pages/admin/AthleteStepsPage';
 import AthleteNutritionPage from './pages/admin/AthleteNutritionPage';
+import AthleteWaterPage from './pages/admin/AthleteWaterPage';
 import NotFoundPage from './pages/NotFoundPage'; // Import the custom NotFoundPage
 import HomePage from './pages/HomePage'; // Import the new HomePage component
 import SupplementsPage from './pages/SupplementsPage';
@@ -651,6 +653,7 @@ function App() {
                 <Route path="athletes/:id/workouts" element={<AthleteWorkoutsPage />} />
                 <Route path="athletes/:id/workouts/log/:logId" element={<AthleteWorkoutsPage />} />
                 <Route path="athletes/:id/steps" element={<AthleteStepsPage />} />
+                <Route path="athletes/:id/water" element={<AthleteWaterPage />} />
                 <Route path="athletes/:id/nutrition" element={<AthleteNutritionPage />} />
                 <Route path="athletes/:id/check-ins" element={<AthleteCheckInsPage />} />
                 <Route path="athletes/:id/compare-checkins/:checkInId1/:checkInId2" element={<AthleteCheckInsComparePage />} />
@@ -662,6 +665,7 @@ function App() {
                 <Route path="mealplans/edit/:planId" element={<MealPlannerPage />} />
                 <Route path="mealplans/new" element={<MealPlannerPage />} />
                 <Route path="stepgoals" element={<StepGoalSetter />} />
+                <Route path="watergoals" element={<WaterGoalSetter />} />
                 <Route path="measurements" element={<MeasurementManager />} />
                 <Route path="checkins" element={<CheckInReview />} />
                 <Route path="checkins/:checkInId" element={<CheckInDetail />} />

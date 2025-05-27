@@ -47,6 +47,24 @@ interface StepGoal {
     is_active: boolean;
 }
 
+// Add interface for water goals
+interface WaterGoal {
+    id: string;
+    user_id: string;
+    water_goal_ml: number;
+    created_at: string;
+    updated_at: string;
+}
+
+interface WaterEntry {
+    id: string;
+    user_id: string;
+    amount_ml: number;
+    date: string;
+    created_at: string;
+    updated_at: string;
+}
+
 // Add interface for step entries
 interface StepEntry {
     id: string;
@@ -183,7 +201,12 @@ const AthleteDetailsPage: React.FC = () => {
     // Step goal states
     const [stepGoal, setStepGoal] = useState<StepGoal | null>(null);
     const [stepEntries, setStepEntries] = useState<StepEntry[]>([]);
-    const [isLoadingStepData, setIsLoadingStepData] = useState<boolean>(false);
+    const [isLoadingStepData, setIsLoadingStepData] = useState<boolean>(true);
+    
+    // Water goal states
+    const [waterGoal, setWaterGoal] = useState<WaterGoal | null>(null);
+    const [waterEntries, setWaterEntries] = useState<WaterEntry[]>([]);
+    const [isLoadingWaterData, setIsLoadingWaterData] = useState<boolean>(true);
     
     // Check-in states
     const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
@@ -326,19 +349,65 @@ const AthleteDetailsPage: React.FC = () => {
                     .order('date', { ascending: false });
                 
                 if (entriesError) throw entriesError;
-                
-                if (entriesData) {
-                    setStepEntries(entriesData as StepEntry[]);
-                }
+                setStepEntries(entriesData || []);
             } catch (err) {
-                console.error("Error fetching step data:", err);
-                // Don't display error to user, just log it
+                console.error('Error fetching step data:', err);
+                // Don't set error state, just silently fail this section
             } finally {
                 setIsLoadingStepData(false);
             }
         };
         
         fetchStepData();
+    }, [athleteDetails]);
+
+    // Fetch water goal
+    useEffect(() => {
+        const fetchWaterGoal = async () => {
+            if (!athleteDetails || !athleteDetails.user_id) return;
+            setIsLoadingWaterData(true);
+            
+            try {               
+                // Fetch current water goal
+                const { data: waterGoalData, error: waterGoalError } = await supabase
+                    .from('water_goals')
+                    .select('*')
+                    .eq('user_id', athleteDetails.user_id)
+                    .single();
+                
+                if (waterGoalError && waterGoalError.code !== 'PGRST116') {
+                    throw waterGoalError;
+                }
+                
+                setWaterGoal(waterGoalData || null);
+
+                // Fetch water entries for the last 7 days
+                const sevenDaysAgo = format(subDays(new Date(), 6), 'yyyy-MM-dd');
+                const today = format(new Date(), 'yyyy-MM-dd');
+                
+                const { data: entriesData, error: entriesError } = await supabase
+                    .from('water_tracking')
+                    .select('*')
+                    .eq('user_id', athleteDetails.user_id)
+                    .gte('date', sevenDaysAgo)
+                    .lte('date', today)
+                    .order('date', { ascending: false });
+
+                console.log('Water entries:', entriesData);
+                
+                if (entriesError) throw entriesError;
+
+                setWaterEntries(entriesData || []);
+
+            } catch (err) {
+                console.error('Error fetching water goal data:', err);
+                // Don't set error state, just silently fail this section
+            } finally {
+                setIsLoadingWaterData(false);
+            }
+        };
+        
+        fetchWaterGoal();
     }, [athleteDetails]);
 
     // Fetch check-ins
@@ -591,7 +660,7 @@ const AthleteDetailsPage: React.FC = () => {
         setTimeout(() => setSuccessMessage(null), 5000);
     };
 
-    // Add this JSX section inside the main return section where you want to display the Step Goal Card
+    // Render the Step Goal Card
     const renderStepGoalCard = () => {
         return (
             <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
@@ -717,7 +786,134 @@ const AthleteDetailsPage: React.FC = () => {
         );
     };
 
-    // Add this JSX section inside the main return section for the Check-In Card
+    // Render the Water Goal Card
+    const renderWaterGoalCard = () => {
+        return (
+            <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
+                <div className="flex items-center justify-between pb-2 mb-4 border-b">
+                    <h3 className="text-lg font-medium text-gray-800 dark:text-white">Water Goal</h3>
+                </div>
+                
+                {isLoadingWaterData ? (
+                    <div className="flex items-center justify-center h-24">
+                        <div className="w-10 h-10 border-t-2 border-b-2 border-blue-500 rounded-full animate-spin"></div>
+                    </div>
+                ) : (
+                    <>
+                        <div className="mb-4">
+                            {waterGoal ? (
+                                <>
+                                    <div>
+                                        <p className="mb-2 font-medium text-blue-600 dark:text-blue-400">
+                                            {waterGoal.water_goal_ml.toLocaleString()} ml per day
+                                        </p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            Last updated: {new Date(waterGoal.created_at).toLocaleDateString()}
+                                        </p>
+                                        <div className="flex flex-wrap mt-3 gap-2">
+                                            <button 
+                                                onClick={() => navigate('/admin/watergoals')}
+                                                className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-sm px-4 py-2"
+                                            >
+                                                Manage Water Goals
+                                            </button>
+                                            <button 
+                                                onClick={() => navigate(`/admin/athletes/${id}/water`)}
+                                                className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 text-sm px-4 py-2"
+                                            >
+                                                View Water History
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="font-medium text-gray-800 dark:text-white flex items-center">
+                                                <FiCalendar className="mr-2" /> Recent Water Log
+                                            </h4>
+                                        </div>
+
+                                        {waterEntries.length > 0 ? (
+                                            <div className="overflow-hidden bg-white rounded-lg shadow dark:bg-gray-800">
+                                                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                                    <thead className="bg-gray-50 dark:bg-gray-700">
+                                                        <tr>
+                                                            <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">
+                                                                Date
+                                                            </th>
+                                                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                                                                Water Intake
+                                                            </th>
+                                                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                                                                Goal Met
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                                                        {waterEntries.map((entry) => {
+                                                            const goalMet = waterGoal && entry.amount_ml >= waterGoal.water_goal_ml;
+                                                            
+                                                            return (
+                                                                <tr key={entry.id}>
+                                                                    <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
+                                                                        {format(parseISO(entry.date), 'MMM d, yyyy')}
+                                                                    </td>
+                                                                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                                                        {entry.amount_ml}
+                                                                    </td>
+                                                                    <td className="px-3 py-4 text-sm">
+                                                                        {stepGoal ? (
+                                                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                                                goalMet 
+                                                                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                                                                                    : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                                                            }`}>
+                                                                                {goalMet ? 'Yes' : 'No'} 
+                                                                                <FiActivity className={`ml-1 ${goalMet ? 'text-green-500' : 'text-red-500'}`} />
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="text-gray-400 dark:text-gray-500">No goal set</span>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 text-center text-gray-500 bg-gray-50 rounded dark:bg-gray-700/50 dark:text-gray-400">
+                                                No water logs recorded in the last 7 days.
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            ) : (
+                                <div>
+                                    <p className="text-gray-600 dark:text-gray-400">No water goal assigned yet.</p>
+                                    <div className="flex flex-wrap mt-3 gap-2">
+                                        <button 
+                                            onClick={() => navigate('/admin/watergoals')}
+                                            className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 dark:bg-blue-600 dark:hover:bg-blue-700 text-sm px-4 py-2"
+                                        >
+                                            Assign Water Goal
+                                        </button>
+                                        <button 
+                                            onClick={() => navigate(`/admin/athletes/${id}/water`)}
+                                            className="inline-flex items-center justify-center font-medium shadow-sm rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors dark:focus:ring-offset-gray-900 disabled:opacity-70 disabled:cursor-not-allowed bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 text-sm px-4 py-2"
+                                        >
+                                            View Water History
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+            </Card>
+        );
+    };
+
+    // Render check-in history card
     const renderCheckInCard = () => {
         return (
             <Card className="p-4 mb-4 sm:p-6 sm:mb-6">
@@ -1271,10 +1467,13 @@ const AthleteDetailsPage: React.FC = () => {
                         />
                     </Card>
 
-                    {/* Step Goal Card - Add this new section */}
+                    {/* Step Goal Card */}
                     {renderStepGoalCard()}
 
-                    {/* Check-in Card - Add this new section */}
+                    {/* Water Goal Card */}
+                    {renderWaterGoalCard()}
+
+                    {/* Check-in Card */}
                     {renderCheckInCard()}
                 </>
             )}

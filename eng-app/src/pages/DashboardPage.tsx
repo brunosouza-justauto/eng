@@ -264,7 +264,7 @@ const DashboardPage: React.FC = () => {
       {/* Missed Meals Alert */}
       {assignedPlan?.nutrition_plan_id && (
         <MissedMealsAlert 
-          nutritionPlanId={assignedPlan.nutrition_plan_id} 
+          nutritionPlanId={assignedPlan.nutrition_plan_id}
           testMode={false} 
         />
       )}
