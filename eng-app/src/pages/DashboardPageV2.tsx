@@ -507,39 +507,6 @@ const DashboardPageV2: React.FC = () => {
           <div className="w-2/3 h-12 mb-4 bg-gray-200 rounded dark:bg-gray-700"></div>
           <div className="w-1/3 h-4 bg-gray-200 rounded dark:bg-gray-700"></div>
         </div>
-        
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="overflow-hidden bg-white rounded-lg shadow-md dark:bg-gray-800 animate-pulse">
-              <div className="p-4">
-                <div className="w-3/4 h-6 mb-4 bg-gray-200 rounded dark:bg-gray-700"></div>
-                <div className="space-y-3">
-                  <div className="h-4 bg-gray-200 rounded dark:bg-gray-700"></div>
-                  <div className="w-5/6 h-4 bg-gray-200 rounded dark:bg-gray-700"></div>
-                  <div className="w-4/6 h-4 bg-gray-200 rounded dark:bg-gray-700"></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom Navigation - Fixed even in loading state */}
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 md:hidden">
-          <div className="grid grid-cols-5 h-16">
-            {navItems.map((item) => (
-              <button 
-                key={item.name} 
-                className="flex flex-col items-center justify-center"
-                disabled
-              >
-                <div className="w-6 h-6 flex items-center justify-center">
-                  {item.icon}
-                </div>
-                <span className="text-xs mt-1">{item.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     );
   }
