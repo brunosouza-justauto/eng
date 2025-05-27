@@ -14,7 +14,7 @@ const WaterTrackingPage: React.FC<{ userId: string }> = ({ userId }) => {
   };
 
   return (
-    <div className="container mx-auto px-4 pb-20">
+    <div className="container mx-auto pb-20">
       <PageHeader title="Water Tracking" />
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
