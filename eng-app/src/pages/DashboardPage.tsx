@@ -61,7 +61,6 @@ const DashboardPage: React.FC = () => {
         };
 
         // Fetch most recent program assignment
-        console.log("Fetching program for athlete profile ID:", profile.id);
         const { data: programData, error: programError } = await supabase
           .from('assigned_plans')
           .select(`
@@ -77,7 +76,6 @@ const DashboardPage: React.FC = () => {
         if (programError) {
           console.error("Error fetching program assignment:", programError);
         } else if (programData) {
-          console.log("Program assignment found:", programData);
           combinedPlan.program_template_id = programData.program_template_id;
           // Add program info to the combined plan if available
           if (programData.program) {
@@ -112,12 +110,10 @@ const DashboardPage: React.FC = () => {
         if (nutritionError) {
           console.error("Error fetching nutrition plan assignment:", nutritionError);
         } else if (nutritionData) {
-          console.log("Nutrition plan assignment found:", nutritionData);
           combinedPlan.nutrition_plan_id = nutritionData.nutrition_plan_id;
         }
         
         // Set the combined plan data
-        console.log("Setting assigned plan:", combinedPlan);
         setAssignedPlan(combinedPlan);
 
         // Fetch active step goal
@@ -172,11 +168,6 @@ const DashboardPage: React.FC = () => {
 
     fetchDashboardData();
   }, [user, profile, currentWeekStart, currentWeekEnd]);
-
-  // Effect for debug logging
-  useEffect(() => {
-    console.log("DashboardPage - Nutrition Plan ID:", assignedPlan?.nutrition_plan_id);
-  }, [assignedPlan?.nutrition_plan_id]);
 
   // Combine loading states
   const isLoading = !profile || isLoadingData;

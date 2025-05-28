@@ -59,7 +59,6 @@ const NutritionPlanAssignmentModal: React.FC<NutritionPlanAssignmentModalProps> 
                 if (assignmentError) throw assignmentError;
                 
                 if (assignmentData && assignmentData.nutrition_plan_id) {
-                    console.log("Current nutrition plan assignment:", assignmentData);
                     
                     // Then fetch the nutrition plan details separately
                     const { data: planData, error: planError } = await supabase

@@ -314,11 +314,7 @@ const AthleteDetailsPage: React.FC = () => {
         const fetchStepData = async () => {
             setIsLoadingStepData(true);
             
-            try {
-
-                console.log("athleteDetails", athleteDetails);
-
-                // Fetch current step goal
+            try {// Fetch current step goal
                 const { data: goalData, error: goalError } = await supabase
                     .from('step_goals')
                     .select('*')
@@ -327,8 +323,6 @@ const AthleteDetailsPage: React.FC = () => {
                     .order('assigned_at', { ascending: false })
                     .limit(1)
                     .maybeSingle();
-
-                console.log("goalData", goalData);
                 
                 if (goalError) throw goalError;
                 
@@ -520,7 +514,6 @@ const AthleteDetailsPage: React.FC = () => {
                 delete updatePayload[key as keyof typeof updatePayload]
             );
 
-            console.log("Updating athlete profile:", id, updatePayload);
             const { data, error } = await supabase
                 .from('profiles')
                 .update(updatePayload)

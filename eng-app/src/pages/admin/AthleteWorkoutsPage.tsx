@@ -207,8 +207,6 @@ const AthleteWorkoutsPage: React.FC = () => {
         if (sessionError) throw sessionError;
         
         setWorkoutSession(sessionData);
-
-        console.log("Workout Session:", sessionData);
         
         // Fetch workout details
         if (sessionData.workout_id) {
@@ -220,8 +218,6 @@ const AthleteWorkoutsPage: React.FC = () => {
             
           if (workoutError) throw workoutError;
           setWorkout(workoutData);
-
-          console.log("Workout Data:", workoutData);
           
           // Fetch exercise instances directly related to this workout
           const { data: exerciseInstanceData, error: exerciseInstanceError } = await supabase
@@ -237,9 +233,7 @@ const AthleteWorkoutsPage: React.FC = () => {
             console.error('Error fetching exercise instances:', exerciseInstanceError);
             throw exerciseInstanceError;
           }
-          
-          console.log("Exercise Instances:", exerciseInstanceData);
-          
+                    
           if (exerciseInstanceData && exerciseInstanceData.length > 0) {
             // For each exercise instance, fetch any completed sets (if they exist)
             const exerciseInstances = await Promise.all(
@@ -255,9 +249,7 @@ const AthleteWorkoutsPage: React.FC = () => {
                 if (completedSetsError) {
                   console.error(`Error fetching completed sets for instance ${instance.id}:`, completedSetsError);
                 }
-
-                console.log("Completed Sets:", completedSets);
-                
+      
                 // Process instance data with any completed sets
                 const exerciseInstance = {
                   id: instance.id,
@@ -301,9 +293,7 @@ const AthleteWorkoutsPage: React.FC = () => {
                 if (prescribedSetsError) {
                   console.error(`Error fetching prescribed sets for instance ${instance.id}:`, prescribedSetsError);
                 }
-
-                console.log("Prescribed Sets:", prescribedSets);
-
+                
                 // Add the prescribed sets to our exercise instance
                 exerciseInstance.prescribed_sets = prescribedSets || [];
                 
@@ -322,26 +312,9 @@ const AthleteWorkoutsPage: React.FC = () => {
                 // Add feedback data to exercise instance
                 exerciseInstance.feedback = feedbackData || null;
 
-                // Add log to debug weight related fields
-                console.log(`Exercise ${instance.exercise_name} data:`, {
-                  sets_data: instance.sets_data,
-                  each_side: instance.each_side,
-                  is_bodyweight: instance.is_bodyweight
-                });
-
-                console.log(`Exercise ${instance.exercise_name} after processing:`, {
-                  weight: exerciseInstance.weight,
-                  has_prescribed_sets: (prescribedSets || []).length > 0,
-                  has_weights_in_prescribed_sets: (prescribedSets || []).some(set => set.weight),
-                  prescribed_sets_sample: prescribedSets ? prescribedSets.slice(0, 2) : [],
-                  has_feedback: !!feedbackData
-                });
-
                 return exerciseInstance;
               })
             );
-            
-            console.log("Exercise Instances:", exerciseInstances);
             
             setExercises(exerciseInstances);
           } else {

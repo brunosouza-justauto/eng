@@ -98,12 +98,10 @@ const MealPlanner: React.FC = () => {
     // Check if there's pre-filled data from the BMR Calculator
     useEffect(() => {
         const newMealPlanData = localStorage.getItem('newMealPlanData');
-        console.log("Checking for BMR Calculator data:", newMealPlanData);
         
         if (newMealPlanData) {
             try {
                 const data = JSON.parse(newMealPlanData);
-                console.log("Parsed BMR Calculator data:", data);
                 
                 // Set creating mode
                 setIsCreating(true);
@@ -120,8 +118,6 @@ const MealPlanner: React.FC = () => {
                 methods.setValue('fat_grams', data.fat_grams);
                 methods.setValue('description', data.description);
                 methods.setValue('is_public', data.is_public);
-                
-                console.log("Form values set from BMR Calculator data");
                 
                 // Clear localStorage
                 localStorage.removeItem('newMealPlanData');
@@ -311,7 +307,7 @@ const MealPlanner: React.FC = () => {
                                 
                                 // Show success message
                                 setAlertMessage({
-                                    message: 'AI-generated meal plan created successfully!',
+                                    message: 'AI-generated meal plan ' + _planId + ' created successfully!',
                                     type: 'success'
                                 });
                                 setTimeout(() => setAlertMessage(null), 3000);

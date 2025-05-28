@@ -164,7 +164,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
   useEffect(() => {
     const fetchWorkout = async () => {
       if (!programTemplateId) {
-        console.log("No program template ID provided to NextWorkoutWidget");
         setWorkoutData(null);
         setError(null);
         setIsLoading(false);
@@ -172,7 +171,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
         return; // No ID, nothing to fetch
       }
 
-      console.log("Fetching workout data for program ID:", programTemplateId);
       setIsLoading(true);
       setError(null);
       setWorkoutData(null);
@@ -209,8 +207,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
 
         if (fetchError) throw fetchError;
         
-        console.log("Program template data:", data);
-
         if (data?.workouts && data.workouts.length > 0) {
           // Store all workouts
           const typedWorkouts = data.workouts as WorkoutDataWithId[];
@@ -218,13 +214,11 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
           
           // Get the current day of the week (1-7, Monday-Sunday)
           const currentDayOfWeek = getCurrentDayOfWeek();
-          console.log("Current day of week:", currentDayOfWeek);
           
           // Find workout for the current day
           const todaysWorkout = typedWorkouts.find(w => w.day_of_week === currentDayOfWeek);
           
           if (todaysWorkout) {
-            console.log("Found workout for today:", todaysWorkout);
             setWorkoutData(todaysWorkout);
             setIsRestDay(false);
             
@@ -233,12 +227,10 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
               await checkWorkoutCompletion(todaysWorkout.id, profile.user_id);
             }
           } else {
-            console.log("No workout found for today (day", currentDayOfWeek, ") - it's a rest day");
             setWorkoutData(null);
             setIsRestDay(true);
           }
         } else {
-          console.log("No workouts found for program ID:", programTemplateId);
           setWorkoutData(null);
           setError('No workouts found for the assigned program.');
           setIsRestDay(false);
@@ -285,8 +277,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
       const startDate = firstDay.toISOString().split('T')[0];
       const endDate = lastDay.toISOString().split('T')[0];
       
-      console.log(`Fetching completed workouts from ${startDate} to ${endDate}`);
-      
       // Query for all completed workout sessions in the selected month
       const { data, error } = await supabase
         .from('workout_sessions')
@@ -297,7 +287,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
         .lte('start_time', `${endDate}T23:59:59`); // To end of month
       
       if (error) {
-        console.error('Error fetching workout completion dates:', error);
         return;
       }
       

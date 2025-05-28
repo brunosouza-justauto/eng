@@ -47,7 +47,6 @@ const LatestCheckInWidget: React.FC = () => {
   useEffect(() => {
     const fetchLatestCheckIn = async () => {
       if (!profile || !profile.user_id) {
-        console.log("No valid profile found");
         setIsLoading(false);
         return;
       }
@@ -56,7 +55,6 @@ const LatestCheckInWidget: React.FC = () => {
       setError(null);
 
       try {
-        console.log("Fetching latest check-in for user_id:", profile.user_id);
         const { data, error: fetchError } = await supabase
           .from('check_ins')
           .select(`
@@ -97,11 +95,9 @@ const LatestCheckInWidget: React.FC = () => {
         
         if (fetchError) throw fetchError;
 
-        console.log("Fetched latest check-in:", data);
         setLatestCheckIn(data as unknown as CheckInData);
 
       } catch (err: unknown) {
-        console.error("Error fetching latest check-in:", err);
         let message = 'Failed to load check-in data.';
         if (typeof err === 'object' && err !== null && 'message' in err) {
           message = (err as Error).message;

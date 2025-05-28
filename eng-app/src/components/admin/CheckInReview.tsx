@@ -38,7 +38,6 @@ const CheckInReview: React.FC = () => {
     useEffect(() => {
         const fetchAthletes = async () => {
             if (!profile || !profile.id) {
-                console.log("No coach profile available");
                 setIsLoadingUsers(false);
                 return;
             }
@@ -47,7 +46,6 @@ const CheckInReview: React.FC = () => {
             setError(null);
             
             try {
-                console.log("Fetching athletes for coach ID:", profile.id);
                 const { data, error: fetchError } = await supabase
                     .from('profiles')
                     .select('id, user_id, email, username')
@@ -56,7 +54,6 @@ const CheckInReview: React.FC = () => {
                     
                 if (fetchError) throw fetchError;
                 
-                console.log("Fetched athletes:", data);
                 setUsers(data || []);
                 setFilteredUsers(data || []);
             } catch (err) { 

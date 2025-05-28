@@ -4,7 +4,7 @@ import { ProfileData } from '../../store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 
-export const nutritionCalculator = (height: number, weight: number, age: number, gender: string, activityLevel: string, proteinMultiplier: number, fatMultiplier: number, carbMultiplier: number, goal: string) => {
+export const nutritionCalculator = (height: number, weight: number, age: number, gender: string, activityLevel: string, proteinMultiplier: number, fatMultiplier: number, goal: string) => {
     const h = parseFloat(height.toString());
     const w = parseFloat(weight.toString());
     const a = parseInt(age.toString(), 10);

@@ -90,7 +90,6 @@ const CheckInDetail: React.FC = () => {
                 if (error) throw error;
                 if (!data) throw new Error('Check-in not found.');
 
-                console.log("Check-in data loaded:", data);
                 setCheckIn(data as CheckInFullData);
                 setFeedback(data.coach_feedback || '');
 

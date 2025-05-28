@@ -44,7 +44,6 @@ const CheckInReminderWidget: React.FC = () => {
       const today = new Date();
 
       if (!profile || !profile.user_id) {
-        console.log("No valid profile found");
         setIsLoading(false);
         return;
       }
@@ -53,8 +52,6 @@ const CheckInReminderWidget: React.FC = () => {
       setError(null);
 
       try {
-        console.log("Checking for weekly check-ins for user_id:", profile.user_id);
-        
         // Get the most recent check-in
         const { data: recentData, error: recentError } = await supabase
           .from('check_ins')

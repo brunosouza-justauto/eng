@@ -1737,8 +1737,6 @@ const ProgramBuilder: React.FC = () => {
                         });
                     }
                 }
-
-                console.log("MUSCLE MAP DEBUG: Data:", data);
                 
                 setCurrentWorkouts(data);
                 
@@ -1996,7 +1994,6 @@ const ProgramBuilder: React.FC = () => {
 
     // Add this new function to calculate muscle data for all workouts in the template
     const calculateCombinedMuscleDataFromWorkouts = (workouts: WorkoutAdminData[]): MuscleData[] => {
-        console.log("MUSCLE MAP DEBUG: Starting calculation with direct data");
         // Map to hold sets per muscle group across all workouts
         const muscleMap: Record<string, number> = {};
         
@@ -2004,24 +2001,19 @@ const ProgramBuilder: React.FC = () => {
         const exerciseTracker: Record<string, Set<string>> = {};
         
         // Process all workouts and their exercises
-        console.log("MUSCLE MAP DEBUG: Processing", workouts.length, "workouts directly");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         workouts.forEach((workout, widx) => {
             if (!workout.exercise_instances) return;
             
-            console.log(`MUSCLE MAP DEBUG: Workout ${widx+1}: ${workout.name} has ${workout.exercise_instances.length} exercises`);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             workout.exercise_instances.forEach((exercise, eidx) => {
                 // Count total sets for this exercise
                 const setCount = exercise.sets_data?.length || parseInt(exercise.sets as string) || 0;
-                console.log(`MUSCLE MAP DEBUG: Exercise ${eidx+1}: ${exercise.exercise_name} has ${setCount} sets`);
-                
-                console.log("MUSCLE MAP DEBUG: Exercise with muscles:", exercise);
                 
                 // Get primary muscle from the joined exercises data if available
                 let primaryMuscle = null;
                 let secondaryMuscles: string[] = [];
 
-                console.log("MUSCLE MAP DEBUG: Exercise exercises:", exercise.exercises);
-                
                 // Define the exercise data type for the joined data
                 interface ExerciseData {
                     id: number | string;
@@ -2133,12 +2125,9 @@ const ProgramBuilder: React.FC = () => {
                 });
             });
         });
-        
-        console.log("MUSCLE MAP DEBUG: Final muscle map:", muscleMap);
-        
+
         // Find the maximum sets for any muscle to calculate intensity
         const maxSets = Math.max(...Object.values(muscleMap), 1);
-        console.log("MUSCLE MAP DEBUG: Max sets for any muscle:", maxSets);
         
         // Convert the map to an array of objects sorted by volume
         const muscleData = Object.entries(muscleMap).map(([name, setsCount]) => ({
@@ -2149,9 +2138,7 @@ const ProgramBuilder: React.FC = () => {
         
         // Sort by volume descending
         muscleData.sort((a, b) => b.setsCount - a.setsCount);
-        
-        console.log("MUSCLE MAP DEBUG: Final sorted muscle data:", muscleData);
-        
+                
         return muscleData;
     };
 

@@ -302,8 +302,6 @@ const AthleteCheckInsPage: React.FC = () => {
       
       const { data, error } = await query;
 
-      console.log("Check-in data:", data);
-        
       if (error) throw error;
       
       if (data) {
@@ -320,8 +318,6 @@ const AthleteCheckInsPage: React.FC = () => {
           };
         }) as CheckInData[];
 
-        console.log("Transformed check-in data:", transformedData);
-        
         setCheckIns(transformedData);
         setLoading(false); // Move setLoading(false) here
       }
@@ -360,22 +356,16 @@ const AthleteCheckInsPage: React.FC = () => {
         bodyFatChange: 0
       };
     }
-
-    console.log("Check-ins:", checkIns);
     
     // Get check-ins with weight data
     const checkInsWithWeight = checkIns.filter(
       checkIn => checkIn.body_metrics && checkIn.body_metrics.weight_kg !== null
     );
-
-    console.log("Check-ins with weight data:", checkInsWithWeight);
     
     // Get check-ins with body fat data
     const checkInsWithBodyFat = checkIns.filter(
       checkIn => checkIn.body_metrics && checkIn.body_metrics.body_fat_percentage !== null
     );
-
-    console.log("Check-ins with body fat data:", checkInsWithBodyFat);
     
     // Calculate average weight
     const totalWeight = checkInsWithWeight.reduce(

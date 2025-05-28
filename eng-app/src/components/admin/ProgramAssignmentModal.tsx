@@ -50,7 +50,6 @@ const ProgramAssignmentModal: React.FC<ProgramAssignmentModalProps> = ({ athlete
                 if (error) throw error;
                 
                 if (data) {
-                    console.log("Current program assignment:", data);
                     // Fix the program property structure
                     const fixedAssignment: ProgramAssignment = {
                         id: data.id,

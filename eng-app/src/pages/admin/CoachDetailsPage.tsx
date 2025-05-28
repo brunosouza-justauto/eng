@@ -70,8 +70,7 @@ const CoachDetailsPage: React.FC = () => {
                 updatePayload[key as keyof typeof updatePayload] === undefined && 
                 delete updatePayload[key as keyof typeof updatePayload]
             );
-
-            console.log("Updating coach profile:", id, updatePayload);
+            
             const { data, error } = await supabase
                 .from('profiles')
                 .update(updatePayload)

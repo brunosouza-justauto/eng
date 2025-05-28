@@ -61,7 +61,6 @@ const CheckInTimeline: React.FC = () => {
     // Function to fetch check-ins
     const fetchCheckIns = useCallback(async (pageNumber: number, append: boolean = false) => {
         if (!profile || !profile.user_id) {
-            console.log("No valid profile found");
             setIsLoading(false);
             return;
         }

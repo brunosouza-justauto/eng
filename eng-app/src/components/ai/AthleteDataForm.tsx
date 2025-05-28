@@ -174,7 +174,6 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
 
         let proteinMultiplier = 2;
         let fatMultiplier = 1;
-        let carbMultiplier = 0;
 
         if (athlete.goal_type === 'fat_loss') {
           setValue('protein_multiplier', 2.4);
@@ -206,7 +205,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
         setValue('gender', athlete.gender || '');
                
         // Macros distribution (approximate)
-        const nutritionCalculatorResult = nutritionCalculator(athlete.height_cm, athlete.weight_kg, athlete.age, athlete.gender, activityLevel, proteinMultiplier, fatMultiplier, carbMultiplier, athlete.goal_type);
+        const nutritionCalculatorResult = nutritionCalculator(athlete.height_cm, athlete.weight_kg, athlete.age, athlete.gender, activityLevel, proteinMultiplier, fatMultiplier, athlete.goal_type);
       
         setValue('calories_target', nutritionCalculatorResult.tdee);
         setValue('protein_target', Math.round(nutritionCalculatorResult.protein_grams));

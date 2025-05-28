@@ -61,7 +61,6 @@ const UserManager: React.FC = () => {
         
         setIsLoading(true);
         setError(null);
-        console.log("Fetching athletes for coach_id:", profile.id);
 
         try {
             // Get all users where coach_id matches the current coach's profile ID
@@ -83,7 +82,6 @@ const UserManager: React.FC = () => {
                 
             if (error) throw error;
             
-            console.log("Fetched users with programs:", data);
             setUsers(data as UserProfileListItem[]);
         } catch (err: unknown) {
             console.error("Error fetching users:", err);
@@ -207,7 +205,6 @@ const UserManager: React.FC = () => {
     const debugProfileInfo = async () => {
         try {
             console.log("Current coach profile:", profile);
-            
             // Check if there are any profiles at all
             const { data: allProfiles, error: allProfilesError } = await supabase
                 .from('profiles')
@@ -216,8 +213,7 @@ const UserManager: React.FC = () => {
                 
             if (allProfilesError) throw allProfilesError;
             
-            console.log("Sample of all profiles in the database:", allProfiles);
-            
+            console.log("Sample of all profiles in the database:", allProfiles);                        
             // Check if the coach profile is correctly set
             if (profile && profile.id) {
                 const { data: myProfile, error: myProfileError } = await supabase
@@ -226,9 +222,9 @@ const UserManager: React.FC = () => {
                     .eq('id', profile.id)
                     .single();
                     
-                if (myProfileError) throw myProfileError;
+                if (myProfileError) throw myProfileError;  
                 
-                console.log("My coach profile details:", myProfile);
+                console.log("My coach profile details:", myProfile);  
             }
         } catch (err) {
             console.error("Debug error:", err);

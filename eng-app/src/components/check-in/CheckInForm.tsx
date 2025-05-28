@@ -231,8 +231,8 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
         try {
             await initializeCamera('environment');
             return;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
-            console.log("Back camera failed, trying front camera", err);
             try {
                 // Fallback to user camera (front camera)
                 await initializeCamera('user');
@@ -244,63 +244,55 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
     };
 
     const initializeCamera = async (facingMode: 'environment' | 'user') => {
-        try {
-            // First, ensure any previous stream is stopped
-            stopCameraStream();
+        // First, ensure any previous stream is stopped
+        stopCameraStream();
+        
+        // Request camera with appropriate settings
+        const constraints = {
+            video: {
+                facingMode: facingMode,
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        };
+        
+        console.log(`Requesting camera with facing mode: ${facingMode}`);
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        streamRef.current = stream;
+        
+        if (!videoRef.current) {
+            throw new Error("Video element reference not available");
+        }
+        
+        // Connect the stream to the video element
+        videoRef.current.srcObject = stream;
+        
+        // Wait for the video to be ready
+        await new Promise<void>((resolve, reject) => {
+            if (!videoRef.current) return reject("No video element");
             
-            // Request camera with appropriate settings
-            const constraints = {
-                video: {
-                    facingMode: facingMode,
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
+            // Set up event handlers
+            const loadedHandler = () => {
+                resolve();
             };
             
-            console.log(`Requesting camera with facing mode: ${facingMode}`);
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            streamRef.current = stream;
+            const errorHandler = (e: Event | string) => {
+                console.error("Video element error:", e);
+                reject("Failed to load video");
+            };
             
-            if (!videoRef.current) {
-                throw new Error("Video element reference not available");
+            videoRef.current.onloadedmetadata = loadedHandler;
+            videoRef.current.onerror = errorHandler as OnErrorEventHandler;
+            
+            // If metadata is already loaded, resolve immediately
+            if (videoRef.current.readyState >= 2) {
+                resolve();
             }
-            
-            // Connect the stream to the video element
-            videoRef.current.srcObject = stream;
-            
-            // Wait for the video to be ready
-            await new Promise<void>((resolve, reject) => {
-                if (!videoRef.current) return reject("No video element");
-                
-                // Set up event handlers
-                const loadedHandler = () => {
-                    console.log("Video metadata loaded");
-                    resolve();
-                };
-                
-                const errorHandler = (e: Event | string) => {
-                    console.error("Video element error:", e);
-                    reject("Failed to load video");
-                };
-                
-                videoRef.current.onloadedmetadata = loadedHandler;
-                videoRef.current.onerror = errorHandler as OnErrorEventHandler;
-                
-                // If metadata is already loaded, resolve immediately
-                if (videoRef.current.readyState >= 2) {
-                    console.log("Video already loaded");
-                    resolve();
-                }
-            });
-            
-            // Start playing the video
-            await videoRef.current.play();
-            console.log("Camera initialized successfully with facing mode:", facingMode);
-            setCameraReady(true);
-        } catch (err) {
-            console.error("Camera initialization error:", err);
-            throw err;
-        }
+        });
+        
+        // Start playing the video
+        await videoRef.current.play();
+        setCameraReady(true);
     };
     
     const handleCameraError = (err: Error | unknown) => {
@@ -455,9 +447,6 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
         setSubmitError(null);
         setSubmitSuccess(false);
         setUploadProgress(0); // Start progress at 0
-
-        console.log("Starting check-in submission for user:", profile.user_id);
-        console.log("Profile data:", profile);
 
         let uploadedPhotoPaths: string[] = [];
         let uploadedVideoPath: string | undefined = undefined;
