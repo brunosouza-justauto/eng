@@ -9,6 +9,7 @@ import { FiSearch, FiPlus, FiBook } from 'react-icons/fi';
 import MealManager from './MealManager';
 import RecipeManager from './RecipeManager';
 import { useNavigate } from 'react-router-dom';
+import MealPlannerAI from '../ai/MealPlannerAI';
 
 // Basic type for plan list item
 interface NutritionPlanListItem {
@@ -300,6 +301,23 @@ const MealPlanner: React.FC = () => {
                             )}
                         </div>
                     </div>
+                    
+                    {/* AI Meal Planner Assistant */}
+                    {!selectedPlan && !isCreating && (
+                        <MealPlannerAI 
+                            onMealPlanCreated={(_planId: string) => {
+                                // Fetch plans to update the list with the new plan
+                                fetchPlans();
+                                
+                                // Show success message
+                                setAlertMessage({
+                                    message: 'AI-generated meal plan created successfully!',
+                                    type: 'success'
+                                });
+                                setTimeout(() => setAlertMessage(null), 3000);
+                            }} 
+                        />
+                    )}
 
                     {error && (
                         <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-md dark:bg-red-900/20 dark:text-red-300">

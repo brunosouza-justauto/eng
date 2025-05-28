@@ -4,6 +4,44 @@ import { ProfileData } from '../../store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 
+export const nutritionCalculator = (height: number, weight: number, age: number, gender: string, activityLevel: string, proteinMultiplier: number, fatMultiplier: number, carbMultiplier: number, goal: string) => {
+    const h = parseFloat(height.toString());
+    const w = parseFloat(weight.toString());
+    const a = parseInt(age.toString(), 10);
+    let bmrValue = 0;
+
+    if (gender === 'male') {
+        bmrValue = 10 * w + 6.25 * h - 5 * a + 5;
+    } else {
+        bmrValue = 10 * w + 6.25 * h - 5 * a - 161;
+    }
+
+    const tdeeValue = bmrValue * parseFloat(activityLevel);
+
+    let adjustedTDEE = tdeeValue;
+    if (goal === 'muscle_gain') {
+        adjustedTDEE *= 1.10; // 10% surplus for bulking
+    } else if (goal === 'fat_loss') {
+        adjustedTDEE *= 0.80; // 20% deficit for cutting
+    }
+
+    const proteinCalories = w * proteinMultiplier * 4;
+    const fatCalories = w * fatMultiplier * 9;
+    const carbCalories = adjustedTDEE - (proteinCalories + fatCalories);
+    const carbGrams = carbCalories / 4;
+
+    return {
+        bmr: bmrValue,
+        tdee: adjustedTDEE,
+        protein_calories: proteinCalories,
+        protein_grams: proteinCalories / 4,
+        fat_calories: fatCalories,
+        fat_grams: fatCalories / 9,
+        carb_calories: carbCalories,
+        carb_grams: carbGrams
+    };
+}
+
 const BMRCalculatorPage: React.FC = () => {
     const navigate = useNavigate();
     // const profile = useSelector(selectProfile);
