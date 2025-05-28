@@ -49,9 +49,6 @@ const formatExerciseFromDb = (dbExercise: DbExercise): Exercise => {
       ? [dbExercise.tips]
       : [];
 
-  // Log muscle info for debugging
-  console.log(`Formatted exercise ${dbExercise.id} - ${dbExercise.name}: Primary muscle: ${primaryMuscle}, Secondary muscles: ${secondaryMuscles.join(', ') || 'None'}`);
-  
   return {
     id: dbExercise.id.toString(),
     name: dbExercise.name || 'Unknown Exercise',
@@ -117,9 +114,6 @@ export const getMuscleGroups = async (): Promise<Muscle[]> => {
     
     const processedData = processDistinctValues(data);
     
-    // Log the result for debugging
-    console.log(`Found ${processedData.length} unique muscle groups/categories`);
-    
     // Convert to Muscle objects
     return processedData.map((name) => ({
       name
@@ -163,7 +157,6 @@ const getMuscleGroupsFallback = async (): Promise<Muscle[]> => {
     
     // Convert to array, sort and map to Muscle objects
     const sortedValues = Array.from(uniqueValues).sort();
-    console.log(`Fallback method found ${sortedValues.length} unique muscle groups/categories`);
     
     return sortedValues.map((name) => ({
       name
@@ -198,7 +191,6 @@ export const getGenderOptions = async (): Promise<string[]> => {
     if (!uniqueGenders.includes('Male')) uniqueGenders.push('Male');
     if (!uniqueGenders.includes('Female')) uniqueGenders.push('Female');
     
-    console.log(`Found ${uniqueGenders.length} unique gender options`);
     return uniqueGenders;
   } catch (error) {
     console.error('Error in getGenderOptions:', error);
@@ -219,7 +211,6 @@ const getGenderOptionsFallback = async (): Promise<string[]> => {
       .limit(1);
       
     if (testError || !genderTest || genderTest.length === 0) {
-      console.log('No explicit gender field found, returning default options');
       // Return default options if there's no gender field
       return ['Male', 'Female'];
     }
@@ -249,7 +240,6 @@ const getGenderOptionsFallback = async (): Promise<string[]> => {
     if (!uniqueGenders.includes('Male')) uniqueGenders.push('Male');
     if (!uniqueGenders.includes('Female')) uniqueGenders.push('Female');
     
-    console.log(`Fallback method found ${uniqueGenders.length} unique gender options`);
     return uniqueGenders;
   } catch (error) {
     console.error('Error in getGenderOptionsFallback:', error);
@@ -277,8 +267,6 @@ export const getCategories = async (): Promise<ExerciseCategory[]> => {
       ? data.map(item => typeof item === 'string' ? item : String(item.value)) 
       : [];
     
-    // Log the result for debugging
-    console.log(`Found ${safeData.length} unique categories`);
     
     // Convert to ExerciseCategory objects
     return safeData.map((name, index) => ({
@@ -314,9 +302,7 @@ const getCategoriesFallback = async (): Promise<ExerciseCategory[]> => {
         .filter(Boolean)
         .map(item => typeof item === 'string' ? item.trim() : String(item).trim())
     )].sort();
-    
-    console.log(`Fallback method found ${uniqueCategories.length} unique categories`);
-    
+
     // Convert to ExerciseCategory objects
     return uniqueCategories.map((name, index) => ({
       id: index + 1,
@@ -339,25 +325,15 @@ export const searchExercises = async (
   genderFilter?: string | null,
   equipmentFilter?: string | null
 ): Promise<PaginatedResponse<Exercise>> => {
-  try {
-    console.log('Database search started with parameters:', { 
-      query, 
-      page, 
-      perPage, 
-      categoryFilter,
-      genderFilter,
-      equipmentFilter
-    });
-    
+  try {   
     // First, do a simple check to see if the database is accessible and has data
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { count: tableCount, error: countError } = await supabase
       .from('exercises')
       .select('*', { count: 'exact', head: true });
       
     if (countError) {
       console.error('Error accessing exercises table:', countError);
-    } else {
-      console.log(`Exercises table access check: table contains approximately ${tableCount} records`);
     }
     
     const offset = (page - 1) * perPage;
@@ -393,8 +369,6 @@ export const searchExercises = async (
           
         // Fix: Safely check if categories exists and has elements before accessing
         if (categories && categories.length > 0) {
-          console.log('Category filter found:', categories[0]?.primary_muscle_group);
-          
           if (categories[0]?.primary_muscle_group) {
             dbQuery = dbQuery.eq('primary_muscle_group', categories[0].primary_muscle_group);
           }
@@ -415,11 +389,9 @@ export const searchExercises = async (
           
         if (!genderCheckError && genderCheck && genderCheck.length > 0) {
           // Gender field exists and has values, use it for filtering
-          console.log('Using gender field for filtering', genderFilter);
           dbQuery = dbQuery.eq('gender', genderFilter);
         } else {
           // Fall back to filtering by name containing 'female' or 'male'
-          console.log('Falling back to name-based gender filtering');
           if (genderFilter.toLowerCase() === 'female') {
             dbQuery = dbQuery.ilike('name', '%Female%');
           } else if (genderFilter.toLowerCase() === 'male') {
@@ -448,22 +420,6 @@ export const searchExercises = async (
       .range(offset, offset + perPage - 1)
       .order('name');
     
-    // Log query details in a more useful format
-    console.log('Database query details:', {
-      table: 'exercises',
-      filters: {
-        searchTerm: query && query.trim() !== '' ? `name ilike '%${query}%'` : 'none',
-        categoryFilter: categoryFilter || 'none',
-        genderFilter: genderFilter || 'none',
-        equipmentFilter: equipmentFilter || 'none'
-      },
-      pagination: {
-        range: [offset, offset + perPage - 1],
-        page,
-        perPage
-      }
-    });
-    
     // Execute the query
     const { data, error, count } = await dbQuery;
     
@@ -478,13 +434,6 @@ export const searchExercises = async (
         results: []
       };
     }
-    
-    // Log the raw response data
-    console.log('Raw database response:', { 
-      count, 
-      dataLength: data?.length || 0, 
-      firstRecord: data && data.length > 0 ? data[0] : null 
-    });
     
     // Check if data is valid
     if (!data || !Array.isArray(data)) {
@@ -511,8 +460,6 @@ export const searchExercises = async (
       previous: hasPrevious ? `/exercises?page=${page - 1}&per_page=${perPage}` : null,
       results: exercises
     };
-    
-    console.log('Search results:', { count: result.count, hasNext, resultCount: exercises.length });
     
     return result;
   } catch (error) {
@@ -618,7 +565,6 @@ export const getEquipmentOptions = async (): Promise<string[]> => {
     }
     
     const processedData = processDistinctValues(data);
-    console.log(`Found ${processedData.length} unique equipment types`);
     return processedData;
   } catch (error) {
     console.error('Error in getEquipmentOptions:', error);
@@ -650,7 +596,6 @@ const getEquipmentOptionsFallback = async (): Promise<string[]> => {
         .map(item => typeof item === 'string' ? item.trim() : String(item).trim())
     )].sort();
     
-    console.log(`Fallback method found ${uniqueEquipment.length} unique equipment types`);
     return uniqueEquipment;
   } catch (error) {
     console.error('Error in getEquipmentOptionsFallback:', error);
@@ -668,8 +613,6 @@ export const getExercisesByIds = async (ids: string[] | number[]): Promise<Exerc
     // Convert all IDs to strings for consistent comparison
     const stringIds = ids.map(id => id.toString());
     
-    console.log(`Fetching ${stringIds.length} exercises by IDs:`, stringIds);
-    
     const { data, error } = await supabase
       .from('exercises')
       .select('*')
@@ -684,9 +627,6 @@ export const getExercisesByIds = async (ids: string[] | number[]): Promise<Exerc
       console.warn(`No exercises found for IDs: ${stringIds.join(', ')}`);
       return [];
     }
-    
-    // Log how many exercises were found vs requested
-    console.log(`Found ${data.length} exercises out of ${stringIds.length} requested IDs`);
     
     // Format the data and ensure muscle groups are properly processed
     const exercises = data.map(formatExerciseFromDb);

@@ -267,12 +267,10 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     if (!profile?.id || !planId) return;
     
     try {
-      console.log('Fetching meals data...');
       // Get the nutrition plan with meals
       const nutritionPlan = await getNutritionPlanById(planId);
       
       if (!nutritionPlan) {
-        console.error('Nutrition plan not found');
         return;
       }
       
@@ -338,7 +336,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
   // Initialize with initialPlan data if provided
   useEffect(() => {
     if (initialPlan) {
-      console.log('Initial plan data:', initialPlan);
       setPlanName(initialPlan.name || 'New Nutrition Plan');
       setPlanDescription(initialPlan.description || '');
       setPlanCalories(initialPlan.total_calories);
@@ -348,7 +345,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       setIsPublic(initialPlan.is_public || false);
       
       if (initialPlan.meals && initialPlan.meals.length > 0) {
-        console.log('Processing meals from initialPlan:', initialPlan.meals);
         // Transform meals to match the expected MealData format
         const formattedMeals = initialPlan.meals.map(meal => ({
           id: meal.id,
@@ -384,19 +380,13 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       } else {
         // Only fetch meals if we have a planId (editing mode)
         if (planId) {
-          console.log('No meals in initialPlan, fetching meals...');
           fetchMeals();
-        } else {
-          console.log('Creating new plan, no meals to fetch');
         }
       }
     } else {
       // If no initialPlan and we have a planId, fetch plan data
       if (planId) {
-        console.log('No initialPlan but planId exists, fetching plan data...');
         fetchMeals();
-      } else {
-        console.log('New plan creation mode, no initialPlan or planId');
       }
     }
   }, [initialPlan, planId, selectedMealId, fetchMeals]);
@@ -489,9 +479,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     setError(null);
     
     try {
-
-      console.log('Performing search with includeExternalSources:', includeExternalSources);
-
       const result = await searchFoodItems(
         searchQuery,
         category,
@@ -585,8 +572,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       // Check if this is a USDA item (ID starts with "usda-")
       if (selectedFoodItem.id.startsWith('usda-')) {
         // This is a USDA food item, we need to create a local copy first
-        console.log('Creating local copy of USDA food item:', selectedFoodItem.food_name);
-        
         // Extract the original USDA ID without the prefix
         const originalUsdaId = selectedFoodItem.id.replace('usda-', '');
         
@@ -602,7 +587,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         if (existingItems && existingItems.length > 0) {
           // Use the existing item
           actualFoodItemId = existingItems[0].id;
-          console.log('Found existing local copy with ID:', actualFoodItemId);
         } else {
           // Create a new food item record
           const { data: newItem, error: insertError } = await supabase
@@ -626,7 +610,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
           if (insertError) throw insertError;
           
           actualFoodItemId = newItem.id;
-          console.log('Created new local copy with ID:', actualFoodItemId);
         }
       } else if (customFoodName.trim() && customFoodName.trim() !== selectedFoodItem.food_name) {
         // Not a USDA item, but name is customized - create a new food item
@@ -663,7 +646,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         message: `Added ${customFoodName.trim() || selectedFoodItem.food_name} to meal`
       });
       
-      console.log('Food item added, refreshing meals data...');
       // Refresh meals data with a forced fetch from database
       await fetchMeals();
       
@@ -750,8 +732,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         return orderA - orderB;
       });
     });
-
-    console.log('Grouped meals:', groupedMeals);
     
     return groupedMeals;
   };

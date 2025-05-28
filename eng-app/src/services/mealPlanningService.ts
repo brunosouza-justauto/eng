@@ -407,8 +407,6 @@ export const searchFoodItems = async (
 // Helper function to search USDA database
 const searchUsdaFoodItems = async (query: string, limit: number = 10): Promise<FoodItem[]> => {
     try {
-        console.log(`Searching USDA for "${query}", limit: ${limit}`);
-        
         // Get API key from environment variables
         const apiKey = import.meta.env.VITE_USDA_API_KEY;
         
@@ -1037,8 +1035,6 @@ export const duplicateDayType = async (
                 if (insertError) throw insertError;
             }
         }
-        
-        console.log(`Successfully duplicated ${duplicatedMeals.length} meals from "${sourceDayType}" to "${newDayType}"`);
     } catch (error) {
         console.error('Error duplicating day type:', error);
         throw error;

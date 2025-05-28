@@ -158,8 +158,6 @@ const MealPlannerAI: React.FC<MealPlannerAIProps> = ({ onMealPlanCreated }) => {
         .single();
      
       if (planError) throw planError;
-
-      console.log(planData);
       
       if (!planData?.id) {
         throw new Error('Failed to create nutrition plan');
@@ -188,8 +186,6 @@ const MealPlannerAI: React.FC<MealPlannerAIProps> = ({ onMealPlanCreated }) => {
           if (!mealData?.id) {
             throw new Error('Failed to create meal');
           }
-
-          console.log(mealData);
           
           const mealId = mealData.id;
           
@@ -203,15 +199,11 @@ const MealPlannerAI: React.FC<MealPlannerAIProps> = ({ onMealPlanCreated }) => {
               .limit(1);
             
             if (foodError) throw foodError;
-
-            console.log(foodData);
             
             let foodItemId = foodData && foodData.length > 0 ? foodData[0].id : null;
             
             // If we couldn't find a matching food, create a custom one
             if (!foodItemId) {
-              console.log('Creating custom food item');
-              console.log(food);
               const { data: newFoodData, error: newFoodError } = await supabase
                 .from('food_items')
                 .insert({
@@ -236,10 +228,8 @@ const MealPlannerAI: React.FC<MealPlannerAIProps> = ({ onMealPlanCreated }) => {
               }
               
               foodItemId = newFoodData.id;
-              console.log('Custom food item created:', foodItemId);
             }
 
-            console.log('Food item associated with meal:', mealId);
             // Now associate the food with the meal
             const { error: mealFoodError } = await supabase
               .from('meal_food_items')
@@ -251,7 +241,6 @@ const MealPlannerAI: React.FC<MealPlannerAIProps> = ({ onMealPlanCreated }) => {
               });
             
             if (mealFoodError) throw mealFoodError;
-            console.log('Food item associated with meal:', mealId);
           }
         }
       }

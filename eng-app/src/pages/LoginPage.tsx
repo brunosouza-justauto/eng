@@ -26,21 +26,6 @@ const LoginPage: React.FC = () => {
     const checkForInvitationLink = async () => {
       // Parse query parameters
       const searchParams = new URLSearchParams(location.search);
-      const hash = window.location.hash;
-      const queryParams = Object.fromEntries(searchParams.entries());
-      
-      console.log('LoginPage mounted', { 
-        hash,
-        hasAuthToken: hash.includes('access_token'),
-        search: location.search,
-        query: queryParams,
-        hasType: searchParams.has('type'),
-        pathname: location.pathname,
-        href: window.location.href,
-        verified: searchParams.get('verified'),
-        type: searchParams.get('type'),
-        email: searchParams.get('email')
-      });
       
       // Check for token, type, or other invitation parameters
       let token = searchParams.get('token');
@@ -50,13 +35,11 @@ const LoginPage: React.FC = () => {
       
       // Special case for when we're redirected with 'verified=true'
       if (verified && type) {
-        console.log('Detected verification redirect with type:', type);
         setConfirmationType(type);
         setConfirmationSuccess(true);
         
         // If an email is provided, use it
         if (invitationEmail) {
-          console.log('Setting email from verification redirect:', invitationEmail);
           setEmail(invitationEmail);
         }
         
@@ -72,8 +55,6 @@ const LoginPage: React.FC = () => {
                                 
       // If we detect a verification URL but don't have the parameters yet, try to extract them
       if (isVerificationUrl && (!token || !type)) {
-        console.log('Detected verification URL format, extracting parameters');
-        
         // Try to extract the token from the URL
         const tokenMatch = window.location.href.match(/token=([^&]+)/);
         if (tokenMatch && tokenMatch[1]) {
@@ -97,7 +78,6 @@ const LoginPage: React.FC = () => {
       
       // If we have a type and token, show confirmation success message
       if (token && (type === 'invite' || type === 'signup' || type === 'magiclink' || type === 'recovery')) {
-        console.log('Verification detected:', { type, token: token ? `${token.substring(0, 10)}...` : null });
         setConfirmationType(type);
         setConfirmationSuccess(true);
         
@@ -109,20 +89,14 @@ const LoginPage: React.FC = () => {
         // The token processing is handled automatically by Supabase,
         // but we can explicitly try to get the session
         try {
-          console.log('Processing verification for:', { type });
           const { data, error } = await supabase.auth.getSession();
           
           if (error) {
             console.error('Error getting session from verification link:', error);
             // Instead of showing an error, we'll show the confirmation success message
           } else if (data?.session) {
-            console.log('Session established from verification link, redirecting...');
-            // Session exists, will be handled by app routing
             navigate('/dashboard');
             return;
-          } else {
-            // No session but we have a confirmation token - show confirmation message
-            console.log('Email verified but no active session - showing confirmation message');
           }
         } catch (e) {
           console.error('Exception processing verification link:', e);
@@ -180,7 +154,6 @@ const LoginPage: React.FC = () => {
       try {
         const { data } = await supabase.auth.getSession();
         if (data.session) {
-          console.log('User already authenticated, redirecting to dashboard');
           navigate('/dashboard');
         }
       } catch (e) {
@@ -204,8 +177,6 @@ const LoginPage: React.FC = () => {
     try {
       if (authMethod === 'magic-link') {
         // Magic link login (existing functionality)
-        console.log('Sending magic link to:', email);
-        
         const { error } = await supabase.auth.signInWithOtp({
           email: email,
           options: {
@@ -225,8 +196,6 @@ const LoginPage: React.FC = () => {
         setMessage('Check your email for the login link!');
       } else {
         // Password login (new functionality)
-        console.log('Signing in with email and password');
-        
         const { data, error } = await supabase.auth.signInWithPassword({
           email: email,
           password: password,
@@ -237,7 +206,6 @@ const LoginPage: React.FC = () => {
         }
 
         if (data.session) {
-          console.log('Password authentication successful, redirecting to dashboard');
           navigate('/dashboard');
         }
       }

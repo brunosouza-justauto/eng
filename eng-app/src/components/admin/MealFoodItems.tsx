@@ -9,14 +9,13 @@ interface MealFoodItemsProps {
     onUpdate: () => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const MealFoodItems: React.FC<MealFoodItemsProps> = ({ mealId, foodItems, onUpdate }) => {
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editQuantity, setEditQuantity] = useState<string>('');
     const [editUnit, setEditUnit] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-
-    console.log('MEAL FOOD ITEMS', mealId, foodItems);
 
     if (foodItems.length === 0) {
         return (

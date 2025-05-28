@@ -159,8 +159,6 @@ const OnboardingWizard: React.FC = () => {
                 onboarding_complete: true
             };
 
-            console.log('Saving onboarding data:', profileUpdate);
-
             // Save the data to the profile
             const { error } = await supabase
                 .from('profiles')

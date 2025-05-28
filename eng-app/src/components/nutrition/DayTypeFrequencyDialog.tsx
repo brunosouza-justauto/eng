@@ -72,8 +72,6 @@ const DayTypeFrequencyDialog: React.FC<DayTypeFrequencyDialogProps> = ({
           `)
           .eq('id', planId)
           .single();
-
-        console.log('Data:', data);
           
         if (error) throw error;
         
@@ -109,13 +107,6 @@ const DayTypeFrequencyDialog: React.FC<DayTypeFrequencyDialogProps> = ({
   // Fetch upcoming workouts to suggest frequencies
   const fetchUpcomingWorkouts = async () => {
     try {
-      // This would ideally query the user's upcoming workouts for the next 7 days
-      // For now, we'll create placeholder logic
-      
-      // Simulate fetching workouts for next 7 days with nutrition day types
-      console.log('Profile:', profile);
-      console.log('User:', user);
-
       const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select(`
@@ -133,8 +124,6 @@ const DayTypeFrequencyDialog: React.FC<DayTypeFrequencyDialogProps> = ({
       .eq('id', profile.id)
       .single();
 
-      console.log('Profile data:', profileData);
-      
       if (profileError) throw profileError;
 
       if (profileData.program_assignments.length === 0) {
@@ -163,8 +152,6 @@ const DayTypeFrequencyDialog: React.FC<DayTypeFrequencyDialogProps> = ({
       .order('order_in_program', { ascending: true });
       
       if (workoutsError) throw workoutsError;
-
-      console.log('Workouts data:', workoutsData);
 
       if (!workoutsData) {
         setSuggestedFrequencies({

@@ -30,19 +30,10 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
     
     // Generate a unique component ID for debugging
     const componentId = React.useId();
-    
-    useEffect(() => {
-        console.log(`MissedMealsAlert [${componentId}] - Component mounted with nutritionPlanId:`, nutritionPlanId);
-        
-        return () => {
-            console.log(`MissedMealsAlert [${componentId}] - Component unmounted`);
-        };
-    }, [componentId, nutritionPlanId]);
 
     // For test mode - create test data
     useEffect(() => {
         if (testMode) {
-            console.log(`MissedMealsAlert [${componentId}] - TEST MODE ENABLED - Always showing alert`);
             setMissedMeals([
                 {id: 'test1', name: 'Breakfast', time: '09:00'},
                 {id: 'test2', name: 'Lunch', time: '12:00'}
@@ -67,46 +58,34 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
         // Skip normal fetch if in test mode
         if (testMode) return;
 
-        console.log(`MissedMealsAlert [${componentId}] - Starting to check for missed meals`, { nutritionPlanId });
-        
         const fetchMissedMeals = async () => {
             if (!nutritionPlanId || !user?.id) {
-                console.log(`MissedMealsAlert [${componentId}] - Missing nutritionPlanId or user`, { nutritionPlanId, userId: user?.id });
                 setIsLoading(false);
                 return;
             }
 
             try {
-                console.log(`MissedMealsAlert [${componentId}] - Fetching nutrition plan`, nutritionPlanId);
-                
                 // Get the nutrition plan with meals
                 const nutritionPlan = await getNutritionPlanById(nutritionPlanId);
-                console.log(`MissedMealsAlert [${componentId}] - Nutrition plan data:`, nutritionPlan);
                 
                 if (!nutritionPlan || !nutritionPlan.meals || nutritionPlan.meals.length === 0) {
-                    console.log(`MissedMealsAlert [${componentId}] - No meals in nutrition plan`);
                     setIsLoading(false);
                     return;
                 }
 
                 // Get logged meals for today
-                console.log(`MissedMealsAlert [${componentId}] - Fetching logged meals for today`);
                 const dailyLog = await getLoggedMealsForDate(user.id, todayDate);
-                console.log(`MissedMealsAlert [${componentId}] - Daily log data:`, dailyLog);
                 
                 // Check for missed meals
                 const now = new Date();
                 const currentHour = now.getHours();
                 const currentMinute = now.getMinutes();
                 const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
-                console.log(`MissedMealsAlert [${componentId}] - Current time:`, currentTime);
                 
                 // Get the day type from the log
                 const dayType = dailyLog.day_type || nutritionPlan.dayTypes?.[0];
-                console.log(`MissedMealsAlert [${componentId}] - Using day type:`, dayType);
                 
                 if (!dayType) {
-                    console.log(`MissedMealsAlert [${componentId}] - No day type found`);
                     setIsLoading(false);
                     return;
                 }
@@ -116,24 +95,15 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
                     (meal: MealWithFoodItems) => meal.day_type === dayType
                 );
                 
-                // Log all meals for this day type with their IDs to help diagnose duplication issues
-                console.log(`MissedMealsAlert [${componentId}] - All meals for day type with IDs:`, 
-                    mealsForDayType.map(m => ({ id: m.id, name: m.name, time: m.time_suggestion }))
-                );
-                
                 // If no meals found for this day type, use all meals as fallback
                 if (mealsForDayType.length === 0) {
-                    console.log(`MissedMealsAlert [${componentId}] - No meals found for day type, using all meals`);
                     mealsForDayType = nutritionPlan.meals;
                 }
-                
-                console.log(`MissedMealsAlert [${componentId}] - Meals for day type:`, mealsForDayType);
                 
                 // Find missed meals (meals with time_suggestion in the past that aren't logged)
                 const newMissedMeals = mealsForDayType.filter(meal => {
                     // Only check meals that have a time suggestion
                     if (!meal.time_suggestion) {
-                        console.log(`MissedMealsAlert [${componentId}] - Meal ${meal.name} has no time suggestion`);
                         return false;
                     }
                     
@@ -144,7 +114,6 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
                     
                     // If meal is not logged and the suggested time has passed, it's missed
                     const isMissed = !isLogged && meal.time_suggestion < currentTime;
-                    console.log(`MissedMealsAlert [${componentId}] - Meal ${meal.name} - Time: ${meal.time_suggestion} - Logged: ${isLogged} - Missed: ${isMissed}`);
                     
                     return isMissed;
                 }).map(meal => ({
@@ -153,18 +122,10 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
                     time: meal.time_suggestion as string
                 }));
                 
-                console.log(`MissedMealsAlert [${componentId}] - Raw missed meals before deduplication:`, newMissedMeals);
-                
                 // Create a map to identify duplicate meals
                 const mealNameMap = new Map();
                 newMissedMeals.forEach(meal => {
-                    if (mealNameMap.has(meal.name)) {
-                        console.log(`MissedMealsAlert [${componentId}] - Duplicate meal detected:`, {
-                            name: meal.name,
-                            existingId: mealNameMap.get(meal.name).id,
-                            newId: meal.id
-                        });
-                    } else {
+                    if (!mealNameMap.has(meal.name)) {
                         mealNameMap.set(meal.name, meal);
                     }
                 });
@@ -175,11 +136,9 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
                     new Map(newMissedMeals.map(meal => [meal.name, meal])).values()
                 );
                 
-                console.log(`MissedMealsAlert [${componentId}] - Final missed meals after deduplication:`, uniqueMissedMeals);
-                console.log(`MissedMealsAlert [${componentId}] - Removed ${newMissedMeals.length - uniqueMissedMeals.length} duplicate meal(s)`);
                 setMissedMeals(uniqueMissedMeals);
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (error) {
-                console.error(`MissedMealsAlert [${componentId}] - Error checking for missed meals:`, error);
                 setError("Error fetching meal data");
             } finally {
                 setIsLoading(false);
@@ -209,17 +168,13 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
     
     // Don't render anything while loading or if there are no missed meals
     if (isLoading) {
-        console.log(`MissedMealsAlert [${componentId}] - Still loading, not rendering`);
         return null;
     }
     
     if (missedMeals.length === 0) {
-        console.log(`MissedMealsAlert [${componentId}] - No missed meals, not rendering`);
         return null;
     }
     
-    console.log(`MissedMealsAlert [${componentId}] - Rendering alert with missed meals:`, missedMeals);
-
     // Handle click to navigate to meal logging
     const handleMealLoggingClick = () => {
         // Check if we're on the DashboardPageV2 (which has the tab-based interface)

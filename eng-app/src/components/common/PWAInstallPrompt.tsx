@@ -80,10 +80,8 @@ const PWAInstallPrompt: React.FC = () => {
       const result = await promptInstall();
       
       if (result && result.outcome === 'accepted') {
-        console.log('User accepted the install prompt');
         setShowPrompt(false);
       } else {
-        console.log('User dismissed the install prompt');
         setShowPrompt(false);
         // Store dismissal time
         localStorage.setItem('pwa_prompt_dismissed_at', Date.now().toString());

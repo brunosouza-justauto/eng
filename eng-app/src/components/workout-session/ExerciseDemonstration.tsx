@@ -65,7 +65,6 @@ const ExerciseDemonstration = React.memo(({
     
     // Check if we already have a DOM element for this exercise
     if (staticImageElements.has(cacheKey) && containerRef.current) {
-      console.log('Using cached DOM element for', cacheKey);
       setIsLoading(false);
       
       // Clear container and add the cached element
@@ -115,15 +114,9 @@ const ExerciseDemonstration = React.memo(({
       try {
         // Try to fetch from exercise database if we have an exercise DB ID
         if (exerciseDbId) {
-          console.log(`Fetching exercise image for ID: ${exerciseDbId}`);
           const exercise = await fetchExerciseById(exerciseDbId);
           
           if (exercise && exercise.image && isMounted.current) {
-            console.log(`Found image from API: ${exercise.image}`);
-            console.log(`Instructions: ${exercise.instructions || 'None available'}`);
-            console.log(`Tips: ${exercise.tips || 'None available'}`);
-            console.log(`YouTube Link: ${exercise.youtube_link || 'None available'}`);
-            
             // Store in cache
             exerciseImageCache.set(cacheKey, {
               url: exercise.image,
@@ -154,17 +147,11 @@ const ExerciseDemonstration = React.memo(({
         if (!isMounted.current) return;
         
         // If we don't have an ID or couldn't find the exercise, try to search by name
-        console.log(`Searching for exercise by name: ${exerciseName}`);
-        
         // Try to find a close match in the exercises database
         const results = await searchExercises(exerciseName);
         
         if (results.results && results.results.length > 0 && isMounted.current) {
           const matchedExercise = results.results[0];
-          console.log(`Found exercise match: ${matchedExercise.name} with image: ${matchedExercise.image}`);
-          console.log(`Instructions: ${matchedExercise.instructions || 'None available'}`);
-          console.log(`Tips: ${matchedExercise.tips || 'None available'}`);
-          console.log(`YouTube Link: ${matchedExercise.youtube_link || 'None available'}`);
           
           if (matchedExercise.image) {
             // Store in cache
@@ -190,11 +177,9 @@ const ExerciseDemonstration = React.memo(({
               : sanitizeText(typeof matchedExercise.tips === 'string' ? matchedExercise.tips : null));
             setYoutubeLink(matchedExercise.youtube_link || null);
           } else {
-            console.log(`No image found for exercise: ${matchedExercise.name}`);
             setImageUrl(null);
           }
         } else if (isMounted.current) {
-          console.log(`No exercise found for name: ${exerciseName}`);
           setImageUrl(null);
         }
       } catch (error) {

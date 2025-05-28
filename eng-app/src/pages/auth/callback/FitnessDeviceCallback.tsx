@@ -43,11 +43,9 @@ const FitnessDeviceCallback: React.FC = () => {
       // Before showing the error, check if we've already succeeded
       // by checking session storage again
       if (sessionStorage.getItem(`${sessionKey}_success`) === 'true') {
-        console.log('Not showing error because another instance succeeded');
         return;
       }
       
-      console.log('Showing error after delay:', message);
       setStatus('error');
       setErrorMessage(message);
       errorTimerRef.current = null;
@@ -62,15 +60,8 @@ const FitnessDeviceCallback: React.FC = () => {
     const normalizedProvider = rawProviderName === 'google-fit' ? 'google_fit' : rawProviderName;
     setProvider(normalizedProvider);
     
-    console.log(`FitnessDeviceCallback mounted for provider: ${rawProviderName}`, {
-      pathname: location.pathname,
-      search: location.search,
-      normalizedProvider 
-    });
-    
     // Check session storage immediately
     if (sessionStorage.getItem(`${sessionKey}_success`) === 'true') {
-      console.log('This OAuth callback has already been processed successfully in this session');
       setStatus('success');
       setDeviceName(getDeviceName(normalizedProvider));
       
@@ -97,7 +88,6 @@ const FitnessDeviceCallback: React.FC = () => {
     
     // Skip if auth is still loading
     if (authLoading) {
-      console.log('Waiting for authentication state to load...');
       return;
     }
     
@@ -107,12 +97,9 @@ const FitnessDeviceCallback: React.FC = () => {
       setErrorWithDelay('Authentication required. Please log in and try again.');
       return;
     }
-
-    console.log('Auth state loaded, user is authenticated:', profile.user_id);
     
     // Use ref to prevent duplicate processing across effect reruns
     if (processingRef.current) {
-      console.log('Already processing callback in another effect instance, skipping');
       return;
     }
     
@@ -123,18 +110,10 @@ const FitnessDeviceCallback: React.FC = () => {
       try {
         // Set a process flag in session storage
         sessionStorage.setItem(`${sessionKey}_processing`, 'true');
-        console.log(`Set processing flag: ${sessionKey}_processing`);
         
         // Extract authorization code and state from URL
         const code = params.get('code');
         
-        console.log('Processing OAuth callback', { 
-          hasCode: !!code, 
-          hasState: !!oauthState,
-          provider,
-          userId: profile.user_id
-        });
-
         if (!code || !oauthState) {
           throw new Error('Missing authorization code or state');
         }
@@ -155,7 +134,6 @@ const FitnessDeviceCallback: React.FC = () => {
         }
           
         if (existingConnections && existingConnections.length > 0) {
-          console.log(`Found existing connection for ${provider}, skipping token exchange`);
           setDeviceName(getDeviceName(provider));
           setStatus('success');
           
@@ -170,17 +148,13 @@ const FitnessDeviceCallback: React.FC = () => {
           return;
         }
 
-        console.log('Starting OAuth token exchange...');
         // Exchange authorization code for tokens
         const providerData = await handleOAuthCallback(code, oauthState);
-        console.log('OAuth token exchange successful', { provider: providerData.provider });
         
         setDeviceName(getDeviceName(providerData.provider));
 
         // Store the connection in the database
-        console.log('Storing device connection in database...');
         await storeDeviceConnection(profile.user_id, providerData);
-        console.log('Device connection stored successfully');
 
         // Clean up OAuth state now that we're done with it
         cleanupOAuthState();
@@ -234,7 +208,6 @@ const FitnessDeviceCallback: React.FC = () => {
 
   // Function to retry the connection
   const handleRetry = () => {
-    console.log(`Retrying connection for provider: ${provider}`);
     cleanupOAuthState();
     sessionStorage.removeItem(sessionKey);
     sessionStorage.removeItem(`${sessionKey}_success`);

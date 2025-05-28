@@ -267,8 +267,6 @@ export const fetchFromOpenFoodFacts = async (barcode: string): Promise<FoodItem 
  */
 export const searchFromOpenFoodFacts = async (query: string, limit: number = 20): Promise<FoodItem[]> => {
     try {
-        console.log(`Searching Open Food Facts v2 API for "${query}" (limit: ${limit})`);
-        
         // Add a timeout to the fetch request so it doesn't hang indefinitely
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
@@ -281,8 +279,6 @@ export const searchFromOpenFoodFacts = async (query: string, limit: number = 20)
         // Encode search terms properly and specify exact needed fields
         const url = `${OPEN_FOOD_FACTS_API}/search?categories_tags_en=${encodeURIComponent(query)}&page_size=${safeLimit}` + 
                    `&fields=code,product_name,brands,categories_tags,nutriments,_id`;
-        
-        console.log(`Using v2 API: ${url}`);
         
         // Set proper headers including User-Agent with contact information
         const response = await fetch(
@@ -311,11 +307,8 @@ export const searchFromOpenFoodFacts = async (query: string, limit: number = 20)
         const products = data.products || [];
         
         if (!products.length) {
-            console.log('No products found in Open Food Facts for query:', query);
             return [];
         }
-        
-        console.log(`Found ${products.length} products in Open Food Facts for query: ${query}`);
         
         // Process all valid products
         interface OpenFoodFactsProduct {
@@ -339,8 +332,6 @@ export const searchFromOpenFoodFacts = async (query: string, limit: number = 20)
             (product.nutriments.energy_value || product.nutriments.energy) &&
             product._id // Ensure we have a source_id
         );
-        
-        console.log(`Found ${validProducts.length} valid products with complete data`);
         
         // Map to our data structure and save to database
         const foodItems: FoodItem[] = [];

@@ -202,8 +202,10 @@ const MealPlanView: React.FC = () => {
                     .eq('user_id', userProfile.id)
                     .eq('date', today)
                     .not('is_extra_meal', 'eq', true);
-                
-                console.log('Fetched logged meals:', loggedMealsData, 'Errors:', logsError);
+
+                if (logsError) {
+                    console.error('Error fetching logged meals:', logsError);
+                }
                 
                 if (loggedMealsData) {
                     // Create lookup maps

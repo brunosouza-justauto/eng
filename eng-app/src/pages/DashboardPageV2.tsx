@@ -156,8 +156,6 @@ const DashboardPageV2: React.FC = () => {
           .limit(1);
         
         if (error) throw error;
-
-        console.log('Workout data:', data);
         
         // If we found completed workouts today, mark as completed
         setWorkoutCompleted(data && data.length > 0);

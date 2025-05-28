@@ -13,6 +13,7 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import WorkoutArrangement from './WorkoutArrangement';
 import { z } from 'zod';
+import ProgramBuilderAI from '../ai/ProgramBuilderAI';
 
 // Define options for dropdowns
 const TRAINING_PHASE_OPTIONS = [
@@ -1124,7 +1125,6 @@ const ProgramBuilder: React.FC = () => {
                 });
                 
                 // 4.2 Insert exercise instances and get their IDs
-                console.log('Inserting exercise instances:', exerciseData);
                 const { data: insertedExercises, error: insertError } = await supabase
                     .from('exercise_instances')
                     .insert(exerciseData)
@@ -1134,8 +1134,6 @@ const ProgramBuilder: React.FC = () => {
                     console.error('Error inserting exercise instances:', insertError);
                     throw insertError;
                 }
-                
-                console.log('Inserted exercise instances:', insertedExercises);
                 
                 if (insertedExercises) {
                     // Create a map of exercise index to ID for referencing when creating sets
@@ -1153,11 +1151,6 @@ const ProgramBuilder: React.FC = () => {
                     // Use the array index to look up the ID instead of order_in_workout
                     const exerciseId = newExerciseIds.get(i);
                     
-                    console.log(`Processing exercise ${i+1}/${exercises.length}:`, exercise.exercise_name);
-                    console.log(`Exercise ID mapped: ${exerciseId}`);
-                    console.log(`Exercise has ${exercise.sets_data?.length || 0} sets`);
-                    console.log(`Exercise group type: ${exercise.group_type || 'none'}`);
-                    
                     if (exerciseId && exercise.sets_data && exercise.sets_data.length > 0) {
                         // Map each set to include the exercise_instance_id
                         const setData = exercise.sets_data.map(set => ({
@@ -1170,7 +1163,6 @@ const ProgramBuilder: React.FC = () => {
                             duration: set.duration || null
                         }));
                         
-                        console.log('Sets to insert:', JSON.stringify(setData));
                         allSetsToInsert.push(...setData);
                     } else {
                         console.warn(`No sets to insert for exercise ${exercise.exercise_name}:`, {
@@ -1183,7 +1175,7 @@ const ProgramBuilder: React.FC = () => {
                 
                 // Insert all sets in a batch if we have any
                 if (allSetsToInsert.length > 0) {
-                    console.log(`Inserting ${allSetsToInsert.length} sets...`);
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const { data: insertedSets, error: insertSetsError } = await supabase
                         .from('exercise_sets')
                         .insert(allSetsToInsert)
@@ -1193,10 +1185,6 @@ const ProgramBuilder: React.FC = () => {
                         console.error('Error inserting exercise sets:', insertSetsError);
                         throw insertSetsError;
                     }
-                    
-                    console.log(`Successfully inserted ${insertedSets?.length || 0} sets`);
-                } else {
-                    console.warn('No sets to insert for any exercises');
                 }
             }
             
@@ -1226,8 +1214,6 @@ const ProgramBuilder: React.FC = () => {
                     }
                 });
                 
-                console.log('Fetching exercise sets for refreshed workout data:', exerciseInstanceIds);
-                
                 // Fetch all exercise sets for these instances
                 if (exerciseInstanceIds.length > 0) {
                     const { data: setsData, error: setsError } = await supabase
@@ -1239,8 +1225,6 @@ const ProgramBuilder: React.FC = () => {
                     if (setsError) {
                         console.error('Error fetching exercise sets:', setsError);
                     } else if (setsData) {
-                        console.log('Fetched exercise sets for refresh:', setsData);
-                        
                         // Group sets by exercise instance ID
                         const setsByExerciseId = new Map<string, ExerciseSet[]>();
                         
@@ -1282,7 +1266,6 @@ const ProgramBuilder: React.FC = () => {
                                     // Attach sets if available
                                     if (instance.id && setsByExerciseId.has(instance.id)) {
                                         instance.sets_data = setsByExerciseId.get(instance.id);
-                                        console.log(`Attached ${instance.sets_data?.length} sets to ${instance.exercise_name}`);
                                     }
                                     
                                     // Map group fields to superset fields for the UI component
@@ -1355,7 +1338,6 @@ const ProgramBuilder: React.FC = () => {
 
         try {
             setIsLoading(true);
-            console.log('Starting workout duplication:', workout.name);
             
             // Create a new workout object without ID (to create a new record)
             const newWorkoutData = {
@@ -1377,7 +1359,6 @@ const ProgramBuilder: React.FC = () => {
             if (workoutError) throw workoutError;
             if (!newWorkout?.id) throw new Error('No workout ID returned from insert');
 
-            console.log('Created new workout with ID:', newWorkout.id);
             const newWorkoutId = newWorkout.id;
 
             // 2. Get the original workout's exercise instances
@@ -1389,7 +1370,6 @@ const ProgramBuilder: React.FC = () => {
             if (exercisesError) throw exercisesError;
             
             if (!exerciseInstances || exerciseInstances.length === 0) {
-                console.log('No exercise instances to duplicate');
                 // No exercises to duplicate, just return the new workout
                 // Refresh the workout list
                 if (selectedTemplate) {
@@ -1399,8 +1379,6 @@ const ProgramBuilder: React.FC = () => {
                 setSuccess(`Duplicated workout "${workout.name}" to ${getDayName(targetDayOfWeek)}`);
                 return;
             }
-
-            console.log(`Found ${exerciseInstances.length} exercise instances to duplicate`);
 
             // 3. Create new exercise instances for the duplicated workout
             const newExerciseData = exerciseInstances.map(exercise => ({
@@ -1425,22 +1403,18 @@ const ProgramBuilder: React.FC = () => {
                 throw new Error('Failed to create exercise instances');
             }
             
-            console.log(`Created ${newExercises.length} new exercise instances`);
-            
             // Create a mapping from old exercise IDs to new exercise IDs
             const exerciseIdMap = new Map<string, string>();
             
             for (let i = 0; i < exerciseInstances.length; i++) {
                 if (newExercises && newExercises[i]) {
                     exerciseIdMap.set(exerciseInstances[i].id, newExercises[i].id);
-                    console.log(`Mapped old exercise ID ${exerciseInstances[i].id} to new ID ${newExercises[i].id}`);
                 }
             }
 
             // 5. Get all exercise sets for the original exercise instances
             const originalExerciseIds = exerciseInstances.map(e => e.id);
             
-            console.log('Fetching sets for original exercise IDs:', originalExerciseIds);
             const { data: exerciseSets, error: setsError } = await supabase
                 .from('exercise_sets')
                 .select('*')
@@ -1450,8 +1424,6 @@ const ProgramBuilder: React.FC = () => {
                 console.error('Error fetching exercise sets:', setsError);
                 throw setsError;
             }
-
-            console.log(`Found ${exerciseSets?.length || 0} exercise sets to duplicate`);
 
             if (exerciseSets && exerciseSets.length > 0) {
                 // 6. Create new exercise sets for the duplicated exercise instances
@@ -1468,9 +1440,8 @@ const ProgramBuilder: React.FC = () => {
                     };
                 });
                 
-                console.log('Inserting new sets data:', newSetsData);
-
                 // 7. Insert the new exercise sets
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const { data: insertedSets, error: newSetsError } = await supabase
                     .from('exercise_sets')
                     .insert(newSetsData)
@@ -1481,9 +1452,6 @@ const ProgramBuilder: React.FC = () => {
                     throw newSetsError;
                 }
                 
-                console.log(`Successfully created ${insertedSets?.length || 0} new exercise sets`);
-            } else {
-                console.log('No exercise sets found to duplicate');
             }
 
             // 8. Refresh the workouts to show the newly duplicated one
@@ -1620,9 +1588,6 @@ const ProgramBuilder: React.FC = () => {
             if (error) throw error;
 
             if (data && data.length > 0) {
-                console.log('*** DETAILED PROGRAM DATA ***');
-                console.log('Raw workout data with nested exercises:', JSON.stringify(data, null, 2));
-                
                 // Get all exercise instance IDs for fetching sets
                 const exerciseInstanceIds: string[] = [];
                 
@@ -1635,9 +1600,7 @@ const ProgramBuilder: React.FC = () => {
                         });
                     }
                 });
-                
-                console.log('Fetching exercise sets for instances:', exerciseInstanceIds);
-                
+                                
                 // Fetch all exercise sets for these instances (this part remains the same)
                 if (exerciseInstanceIds.length > 0) {
                     const { data: setsData, error: setsError } = await supabase
@@ -1649,8 +1612,6 @@ const ProgramBuilder: React.FC = () => {
                     if (setsError) {
                         console.error('Error fetching exercise sets:', setsError);
                     } else if (setsData) {
-                        console.log('Fetched exercise sets:', setsData);
-                        
                         // Group sets by exercise instance ID
                         const setsByExerciseId = new Map<string, ExerciseSet[]>();
                         
@@ -1692,7 +1653,6 @@ const ProgramBuilder: React.FC = () => {
                                     // Attach sets if available
                                     if (instance.id && setsByExerciseId.has(instance.id)) {
                                         instance.sets_data = setsByExerciseId.get(instance.id);
-                                        console.log(`Attached ${instance.sets_data?.length} sets to ${instance.exercise_name}`);
                                     }
                                     
                                     // Map group fields to superset fields for the UI component
@@ -1707,25 +1667,6 @@ const ProgramBuilder: React.FC = () => {
                                     if (instance.group_id && instance.group_type === ExerciseGroupType.SUPERSET) {
                                         instanceWithSuperset.superset_group_id = instance.group_id;
                                         instanceWithSuperset.superset_order = instance.group_order;
-                                    }
-                                    
-                                    // Log muscle group info for debugging
-                                    if (instance.exercises) {
-                                        // Cast to the correct type since it appears to be an object not an array
-                                        interface ExerciseData {
-                                            id: number | string;
-                                            name: string;
-                                            primary_muscle_group?: string;
-                                            secondary_muscle_groups?: string[];
-                                            body_part?: string;
-                                            target?: string;
-                                        }
-                                        
-                                        const exerciseData = instance.exercises as unknown as ExerciseData;
-                                        console.log(`Exercise ${instance.exercise_name} - Primary muscle: ${exerciseData.primary_muscle_group || exerciseData.body_part || exerciseData.target || 'None'}`);
-                                        console.log(`Secondary muscles: ${Array.isArray(exerciseData.secondary_muscle_groups) 
-                                            ? exerciseData.secondary_muscle_groups.join(', ') 
-                                            : 'None'}`);
                                     }
                                 });
                                 
@@ -2033,11 +1974,8 @@ const ProgramBuilder: React.FC = () => {
                         ? exerciseData.secondary_muscle_groups 
                         : [];
                         
-                    console.log(`MUSCLE MAP DEBUG: Found joined exercise data for ${exercise.exercise_name} with ID ${exercise.exercise_db_id}`);
-                    console.log(`MUSCLE MAP DEBUG: Primary muscle from data: ${primaryMuscle}, Secondary muscles: ${JSON.stringify(secondaryMuscles)}`);
                 } else {
                     // Fallback to existing data - for backward compatibility with direct properties
-                    console.log(`MUSCLE MAP DEBUG: No exercise data found for ${exercise.exercise_name}`);
                     
                     // We expect most exercises should have data with the new structure, but keep fallback just in case
                     interface LegacyExerciseData {
@@ -2049,10 +1987,6 @@ const ProgramBuilder: React.FC = () => {
                     primaryMuscle = legacyData.primary_muscle_group || null;
                     secondaryMuscles = legacyData.secondary_muscle_groups || [];
                 }
-                
-                // Log the primary muscle group
-                console.log(`MUSCLE MAP DEBUG: ${exercise.exercise_name} primary muscle: ${primaryMuscle || 'NONE'}`);
-                console.log(`MUSCLE MAP DEBUG: Exercise DB ID: ${exercise.exercise_db_id || 'NONE'}`);
                 
                 // Create a cleaned version of the exercise name for tracking
                 const exerciseName = exercise.exercise_name || '';
@@ -2091,8 +2025,6 @@ const ProgramBuilder: React.FC = () => {
                 }
                 
                 // Add secondary muscle groups with half the weight
-                console.log(`MUSCLE MAP DEBUG: ${exercise.exercise_name} secondary muscles: ${secondaryMuscles.length || 0} muscles`);
-                
                 secondaryMuscles.forEach(muscleName => {
                     if (muscleName) {
                         const secondaryLower = muscleName.toLowerCase().trim();
@@ -2199,6 +2131,23 @@ const ProgramBuilder: React.FC = () => {
                 {success && (
                     <div className="p-4 mb-6 text-green-700 bg-green-100 rounded-md dark:bg-green-800/20 dark:text-green-300" role="alert">
                         {success}
+                    </div>
+                )}
+                
+                {/* AI Program Builder Assistant - Only show when not creating or editing a template */}
+                {!isCreating && !selectedTemplate && (
+                    <div className="mb-6">
+                        <ProgramBuilderAI 
+                            onProgramCreated={(programId) => {
+                                // Fetch templates to update the list with the new program
+                                fetchTemplates();
+                                
+                                // Show success message
+                                setSuccess(`AI-generated program ${programId} created successfully!`);
+                                // Clear success message after 3 seconds
+                                setTimeout(() => setSuccess(null), 3000);
+                            }} 
+                        />
                     </div>
                 )}
                 
@@ -2482,6 +2431,23 @@ const ProgramBuilder: React.FC = () => {
                                             />
                                         ) : selectedWorkout ? (
                                             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <div>
+                                                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Program Builder</h1>
+                                                        <p className="mt-1 text-gray-600 dark:text-gray-400">Create and manage workout programs for your athletes</p>
+                                                    </div>
+                                                    <div className="flex space-x-2">
+                                                        {!selectedTemplate && !isCreating && (
+                                                            <button
+                                                                onClick={handleCreateNew}
+                                                                className="flex items-center px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+                                                            >
+                                                                <FiPlus className="mr-2" /> New Program
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                
                                                 <div className="flex justify-between items-center mb-4">
                                                     <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
                                                         {selectedWorkout.name} Details

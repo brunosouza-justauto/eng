@@ -702,7 +702,6 @@ const WorkoutHistory: React.FC<{ athleteId: string, athleteUserId: string }> = (
   return (
     <div className="grid gap-4">
       {sessions.map((session: WorkoutSessionData) => (
-        console.log('session', session),
         <Card key={session.id}>
           <a 
             href={`/admin/athletes/${athleteId}/workouts/log/${session.id}`}

@@ -307,7 +307,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
           }
         });
         
-        console.log(`Found ${uniqueDates.length} completed workout dates:`, uniqueDates);
         setCompletedWorkoutDates(uniqueDates);
       }
     } catch (err) {
@@ -323,8 +322,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
       // Get today's date in ISO format (YYYY-MM-DD)
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
-      
-      console.log(`Checking if workout ${workoutId} has been completed today (${todayStr})`);
       
       // Query for completed workout sessions from today
       const { data, error } = await supabase
@@ -344,13 +341,11 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
       
       if (data && data.length > 0) {
         // Found at least one completed session for today
-        console.log('Found completed workout session for today:', data[0]);
         setCompletionStatus({
           isCompleted: true,
           completionTime: data[0].end_time
         });
       } else {
-        console.log('No completed workout found for today');
         setCompletionStatus({
           isCompleted: false,
           completionTime: null

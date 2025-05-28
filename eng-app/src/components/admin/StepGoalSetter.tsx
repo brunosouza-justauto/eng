@@ -207,7 +207,6 @@ const StepGoalSetter: React.FC = () => {
             if (findError) throw findError;
 
             if (currentActiveGoal) {
-                console.log('Deactivating old goal:', currentActiveGoal.id);
                 const { error: deactivateError } = await supabase
                     .from('step_goals')
                     .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -217,7 +216,6 @@ const StepGoalSetter: React.FC = () => {
             }
 
             // 2. Insert the new goal as active
-            console.log('Inserting new goal for profile:', selectedProfileId, 'Goal:', newGoalValue);
             const { error: insertError } = await supabase
                 .from('step_goals')
                 .insert({ 

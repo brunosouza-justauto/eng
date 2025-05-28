@@ -109,8 +109,6 @@ const FITNESS_SERVICES: Record<string, FitnessServiceConfig> = {
  * Initialize OAuth flow for a fitness service
  */
 export const initiateOAuth = (providerType: string) => {
-  console.log(`Initiating OAuth flow for provider: ${providerType}`);
-  
   const config = FITNESS_SERVICES[providerType];
   if (!config) {
     console.error(`Unsupported provider: ${providerType}`);
@@ -126,20 +124,11 @@ export const initiateOAuth = (providerType: string) => {
     timestamp: Date.now()
   };
 
-  console.log('Created OAuth state', {
-    provider: providerType,
-    redirectUri: config.redirectUri,
-    stateId: state.substring(0, 8) + '...', // Only log part of the state for security
-    timestamp: new Date(oauthState.timestamp).toISOString(),
-    expiryTime: new Date(oauthState.timestamp + (30 * 60 * 1000)).toISOString() // 30 minutes expiry
-  });
-
   // Store in localStorage instead of sessionStorage for better persistence across page refreshes
   try {
     localStorage.setItem('oauthState', JSON.stringify(oauthState));
     // Also set a flag that we haven't processed this state yet
     localStorage.setItem('oauthStateProcessed', 'false');
-    console.log('OAuth state stored in localStorage successfully');
   } catch (e) {
     console.error('Failed to store OAuth state in localStorage', e);
     throw new Error('Failed to store OAuth state: ' + (e instanceof Error ? e.message : String(e)));
@@ -155,7 +144,6 @@ export const initiateOAuth = (providerType: string) => {
   });
 
   const authUrl = `${config.authUrl}?${authParams.toString()}`;
-  console.log(`Redirecting to auth URL: ${config.authUrl} with params (client_id and scopes omitted for security)`);
 
   // Redirect the browser to the provider's authorization endpoint
   window.location.href = authUrl;
@@ -168,7 +156,6 @@ export const handleOAuthCallback = async (code: string, state: string) => {
   // Check if we've already processed this callback to prevent duplicate processing
   const processedState = localStorage.getItem('oauthStateProcessed');
   if (processedState === 'true') {
-    console.log('This OAuth callback has already been processed, using cached result');
     const cachedResult = localStorage.getItem('oauthResult');
     if (cachedResult) {
       return JSON.parse(cachedResult);
@@ -182,16 +169,9 @@ export const handleOAuthCallback = async (code: string, state: string) => {
     throw new Error('No OAuth state found');
   }
 
-  console.log('Retrieved OAuth state from localStorage');
-  
   let storedState: OAuthState;
   try {
     storedState = JSON.parse(storedStateJson);
-    console.log('OAuth state parsed successfully', { 
-      provider: storedState.provider,
-      timestamp: new Date(storedState.timestamp).toISOString(),
-      currentTime: new Date().toISOString()
-    });
   } catch (e) {
     console.error('Failed to parse OAuth state JSON', e);
     throw new Error('Invalid OAuth state format');
@@ -210,12 +190,6 @@ export const handleOAuthCallback = async (code: string, state: string) => {
   const timeElapsedMs = Date.now() - storedState.timestamp;
   const expirationWindowMs = 30 * 60 * 1000; // 30 minutes in milliseconds
   
-  console.log('Checking OAuth state expiration', {
-    timeElapsedSeconds: Math.floor(timeElapsedMs / 1000),
-    expirationWindowSeconds: Math.floor(expirationWindowMs / 1000),
-    isExpired: timeElapsedMs > expirationWindowMs
-  });
-  
   if (timeElapsedMs > expirationWindowMs) {
     console.error('OAuth state expired', {
       initiatedAt: new Date(storedState.timestamp).toISOString(),
@@ -228,7 +202,6 @@ export const handleOAuthCallback = async (code: string, state: string) => {
 
   // Mark this state as being processed, but don't clear it yet
   localStorage.setItem('oauthStateProcessed', 'true');
-  console.log('OAuth state marked as processed');
 
   // Direct frontend implementation (NOT RECOMMENDED FOR PRODUCTION)
   const config = FITNESS_SERVICES[storedState.provider];
@@ -243,13 +216,6 @@ export const handleOAuthCallback = async (code: string, state: string) => {
     redirect_uri: config.redirectUri,
     client_id: config.clientId,
     client_secret: config.clientSecret
-  });
-
-  console.log(`Preparing token exchange request for ${storedState.provider}`, {
-    tokenUrl: config.tokenUrl,
-    useBasicAuth: storedState.provider === 'fitbit', // Fitbit uses Basic Auth header
-    hasClientId: !!config.clientId,
-    hasClientSecret: !!config.clientSecret
   });
 
   // Different OAuth providers have different requirements for token exchange:
@@ -298,11 +264,6 @@ export const handleOAuthCallback = async (code: string, state: string) => {
  * Store connection information in Supabase
  */
 export const storeDeviceConnection = async (userId: string, providerData: ProviderAuthData) => {
-  console.log('Preparing to store device connection', { 
-    provider: providerData.provider,
-    userId: userId.substring(0, 8) + '...' // Log only part of the ID for security
-  });
-
   try {
     // First check if a connection already exists for this user and provider
     const { data: existingConnections, error: fetchError } = await supabase
@@ -322,10 +283,6 @@ export const storeDeviceConnection = async (userId: string, providerData: Provid
     let result;
 
     if (existingConnections && existingConnections.length > 0) {
-      console.log('Found existing connection, updating instead of creating new one', {
-        connectionId: existingConnections[0].id
-      });
-      
       // Update the existing connection with new tokens
       const { data, error } = await supabase
         .from('device_connections')
@@ -345,11 +302,9 @@ export const storeDeviceConnection = async (userId: string, providerData: Provid
         throw error;
       }
       
-      console.log('Successfully updated existing connection');
       result = data;
     } else {
       // No existing connection, create a new one
-      console.log('No existing connection found, creating new one');
       
       const { data, error } = await supabase
         .from('device_connections')
@@ -379,14 +334,12 @@ export const storeDeviceConnection = async (userId: string, providerData: Provid
           .single();
           
         if (!conflictError && conflictData) {
-          console.log('Found connection that was created by another process');
           result = conflictData;
         } else {
           // If there's still no connection, we have a genuine error
           throw error;
         }
       } else {
-        console.log('Successfully created new device connection');
         result = data;
       }
     }
@@ -425,14 +378,6 @@ export const refreshToken = async (connectionId: string, userId: string) => {
     refresh_token: connection.refresh_token,
     client_id: config.clientId,
     client_secret: config.clientSecret
-  });
-
-  console.log(`Preparing token refresh request for ${connection.device_type}`, {
-    tokenUrl: config.tokenUrl,
-    useBasicAuth: connection.device_type === 'fitbit', // Fitbit uses Basic Auth header
-    hasClientId: !!config.clientId,
-    hasClientSecret: !!config.clientSecret,
-    connectionId: connection.id
   });
 
   const response = await fetch(config.tokenUrl, {
@@ -516,8 +461,6 @@ const syncFitbitSteps = async (connection: DeviceConnection, userId: string, dat
   
   // Use the Vercel API route for production
   const apiUrl = `${window.location.origin}/api/fitbit/1/user/-/activities/steps/date/${today}/1d.json`;
-  
-  console.log(`Fetching Fitbit steps for date ${today}`);
   
   // Make API request to get step data
   const response = await fetch(apiUrl, {
@@ -738,7 +681,6 @@ export const disconnectDevice = async (connectionId: string, userId: string) => 
 
 // New function to clean up OAuth state
 export const cleanupOAuthState = () => {
-  console.log('Cleaning up OAuth state from localStorage');
   localStorage.removeItem('oauthState');
   localStorage.removeItem('oauthStateProcessed');
   localStorage.removeItem('oauthResult');

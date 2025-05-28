@@ -93,8 +93,6 @@ function App() {
         if (data) {
           // Check if coach_id is null and update it if needed
           if (data.coach_id === null) {
-            console.log('Profile found but coach_id is null. Assigning default coach ID.');
-            
             // Update profile with default coach ID
             const defaultCoachId = "c5e342a9-28a3-4fdb-9947-fe9e76c46b65";
             const { error: updateError } = await supabase
@@ -105,7 +103,6 @@ function App() {
             if (updateError) {
               console.error('Error updating profile with default coach_id:', updateError);
             } else {
-              console.log('Successfully assigned default coach_id to profile:', data.id);
               // Update the coach_id in our data object
               data.coach_id = defaultCoachId;
             }
@@ -119,23 +116,16 @@ function App() {
           if (user && user.data.user?.email) {
             const email = user.data.user.email;
             
-            console.log('No profile found with user_id, checking for profile with email:', email);
-            
             // Try to find a profile with matching email and NULL user_id
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { data: emailProfile, error: emailError } = await supabase
               .from('profiles')
               .select(`id, user_id, onboarding_complete, role, email, first_name, last_name, coach_id`)
               .eq('email', email)
               .is('user_id', null)
               .single();
-              
-            if (emailError && emailError.code !== 'PGRST116') { // PGRST116 is 'no rows returned'
-              console.error('Error looking up profile by email:', emailError);
-            }
-            
+                         
             if (emailProfile) {
-              console.log('Found profile with matching email but NULL user_id. Linking to auth account...');
-              
               // Update the profile with the user_id
               const { error: updateError } = await supabase
                 .from('profiles')
@@ -159,11 +149,8 @@ function App() {
               }
               
               if (updatedProfile) {
-                console.log('Successfully linked profile to auth account:', updatedProfile);
-                
                 // Check if coach_id is null and update it if needed
                 if (updatedProfile.coach_id === null) {
-                  console.log('Linked profile has null coach_id. Assigning default coach ID.');
                   
                   // Update profile with default coach ID
                   const defaultCoachId = "c5e342a9-28a3-4fdb-9947-fe9e76c46b65";
@@ -175,24 +162,14 @@ function App() {
                   if (updateCoachError) {
                     console.error('Error updating linked profile with default coach_id:', updateCoachError);
                   } else {
-                    console.log('Successfully assigned default coach_id to linked profile:', updatedProfile.id);
                     // Update the coach_id in our data object
                     updatedProfile.coach_id = defaultCoachId;
                   }
                 }
                 
-                // Log onboarding status for debugging
-                if (!updatedProfile.onboarding_complete) {
-                  console.log('Profile requires onboarding. User will be redirected to onboarding page.');
-                } else {
-                  console.log('Profile has completed onboarding.');
-                }
-                
                 dispatch(setProfile(updatedProfile as ProfileData));
                 return;
               }
-            } else {
-              console.log('No profile found with matching email and NULL user_id.');
             }
           }
           
@@ -202,8 +179,6 @@ function App() {
             if (userId) {
               const email = (await supabase.auth.getUser()).data.user?.email;
               if (email) {
-                console.log('Creating new profile for user with default coach_id');
-                
                 const defaultCoachId = "c5e342a9-28a3-4fdb-9947-fe9e76c46b65";
                 const newProfileData = {
                   user_id: userId,
@@ -222,7 +197,6 @@ function App() {
                 if (createError) {
                   console.error('Error creating new profile:', createError);
                 } else {
-                  console.log('Successfully created new profile with default coach_id:', newProfile);
                   dispatch(setProfile(newProfile as ProfileData));
                   return;
                 }
@@ -234,8 +208,8 @@ function App() {
           
           dispatch(setProfile(null));
         }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error: unknown) {
-        console.error("Error fetching profile:", error);
         dispatch(setError('Could not fetch user profile.'));
         dispatch(setProfile(null));
       }
@@ -257,18 +231,7 @@ function App() {
             window.location.search.includes('type=magiclink') ||
             window.location.search.includes('type=invite');
         
-        if (hasAuthInHash || hasAuthInSearch || hasConfirmation) {
-          console.log('Auth redirect detected, getting session', {
-            hasAuthInHash,
-            hasAuthInSearch,
-            hasConfirmation,
-            hash: window.location.hash,
-            search: window.location.search,
-            protocol: window.location.protocol,
-            host: window.location.host,
-            pathname: window.location.pathname
-          });
-          
+        if (hasAuthInHash || hasAuthInSearch || hasConfirmation) {          
           dispatch(setLoading(true));
           
           // Handle potential URL parameters for auth flow
@@ -291,14 +254,12 @@ function App() {
           if (hasConfirmation && (type === 'signup' || type === 'invite' || type === 'magiclink')) {
             // Check if we're already on the login page
             if (window.location.pathname === '/login') {
-              console.log('Already on login page with confirmation parameters, leaving as-is');
               dispatch(setLoading(false));
               return;
             }
             
             // Otherwise, if we're not at login, we should redirect there with the parameters
             if (window.location.pathname !== '/login') {
-              console.log('Redirecting to login page with confirmation parameters');
               window.location.href = `/login${window.location.search}`;
               return;
             }
@@ -310,7 +271,6 @@ function App() {
                       (window.location.hash.match(/access_token=([^&]+)/) || [])[1];
                       
           if (token && hasConfirmation) {
-            console.log('Detected auth token from confirmation link, attempting to establish session');
             try {
               // Explicitly try to use the token to establish a session
               // This is especially important for magic links and signup confirmations
@@ -322,7 +282,6 @@ function App() {
               }
               
               if (!data?.session) {
-                console.log('No session established from token, redirecting to login with confirmation parameters');
                 // Don't try to reload - redirect to login with the parameters
                 window.location.href = `/login${window.location.search}`;
                 return;
@@ -341,17 +300,9 @@ function App() {
           }
           
           if (data?.session) {
-            console.log('Session retrieved after redirect', {
-              userId: data.session.user.id,
-              email: data.session.user.email,
-              expiresAt: data.session.expires_at
-            });
-            
             dispatch(setSession(data.session));
             
             if (data.session.user) {
-              console.log('User authenticated after redirect, fetching profile:', data.session.user.id);
-              
               // Important: Await the profile fetch to ensure we have the complete state
               await fetchProfile(data.session.user.id);
               
@@ -372,21 +323,13 @@ function App() {
                 }
                 
                 if (profileData) {
-                  console.log('Profile data retrieved for redirect decision:', {
-                    id: profileData.id,
-                    onboardingComplete: profileData.onboarding_complete
-                  });
-                  
                   // Determine where to redirect based on onboarding status
                   if (!profileData.onboarding_complete) {
-                    console.log('Redirecting to onboarding page');
                     window.location.href = '/onboarding';
                   } else {
-                    console.log('Redirecting to dashboard');
                     window.location.href = '/dashboard';
                   }
                 } else {
-                  console.log('No profile found, user may need to be invited');
                   // If we don't find a profile, stay on the current page
                   // This lets the Protected/Admin routes handle the redirect appropriately
                   dispatch(setLoading(false));
@@ -394,16 +337,12 @@ function App() {
               } else {
                 // If we're already on a specific page (not login/root), just update the auth state
                 // and let the routing system handle any needed redirects
-                console.log('Already on a specific page, not redirecting automatically:', currentPath);
                 dispatch(setLoading(false));
               }
             } else {
-              console.log('Session exists but no user data found');
               dispatch(setLoading(false));
             }
-          } else {
-            console.log('No session found after auth redirect - may need to retry OAuth flow');
-            
+          } else {            
             // If we have auth params but no session, it could be a PKCE verification issue
             // Try to get the query parameters for error messages
             const urlParams = new URLSearchParams(window.location.search);
@@ -458,16 +397,9 @@ function App() {
 
     // Subscribe to auth state changes with debounce for better stability
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        // Log all events for debugging
-        console.log('Auth state change detected:', event, {
-            visibilityState: document.visibilityState,
-            wasTriggeredByVisibility: wasTriggeredByVisibilityChange()
-        });
-        
         // Ignore all events that happen immediately after visibility change
         // This is the key to preventing unwanted refreshes
         if (wasTriggeredByVisibilityChange()) {
-            console.log('Ignoring auth event due to recent visibility change');
             return;
         }
         
@@ -484,11 +416,9 @@ function App() {
                     if (authData && authData.access_token) {
                         authData.access_token = session.access_token;
                         localStorage.setItem(storageKey, JSON.stringify(authData));
-                        console.log('Token silently refreshed without triggering state updates');
                     } else {
                         // Fallback to normal update if we can't find the current token
                         dispatch(setSession(session));
-                        console.log('Token refresh - using normal dispatch as fallback');
                     }
                 } catch (err) {
                     // Fallback to normal update if anything goes wrong
@@ -501,7 +431,6 @@ function App() {
         
         // Handle auth events that require full state updates
         if (['SIGNED_IN', 'SIGNED_OUT', 'USER_UPDATED'].includes(event)) {
-            console.log('Auth event detected, updating state:', event);
             dispatch(setSession(session));
             
             if (session?.user) {
@@ -531,9 +460,7 @@ function App() {
       const isAlreadyOnVerifyPage = window.location.pathname === '/auth/verify' || 
                                    window.location.pathname === '/verify';
                                
-      if (isVerificationUrl && !isAlreadyOnVerifyPage) {
-        console.log('Direct Supabase verification URL detected:', window.location.href);
-        
+      if (isVerificationUrl && !isAlreadyOnVerifyPage) {       
         // Extract email parameter if present
         const urlParams = new URLSearchParams(window.location.search);
         const email = urlParams.get('email');
@@ -559,12 +486,9 @@ function App() {
       const verified = urlParams.get('verified');
       
       // Special handler for verified=true parameter (coming from our own redirects)
-      if (verified === 'true' && type) {
-        console.log(`Special handler for verified=${verified} with type=${type}`);
-        
+      if (verified === 'true' && type) {        
         // If we're already on the login page, nothing more to do
         if (window.location.pathname === '/login') {
-          console.log('Already on login page with verified parameter');
           return;
         }
         
@@ -574,26 +498,14 @@ function App() {
       }
       
       // Only handle confirmation types with tokens
-      if ((type === 'invite' || type === 'signup' || type === 'magiclink') && token) {
-        console.log(`Special handler for ${type} link with token`);
-        
+      if ((type === 'invite' || type === 'signup' || type === 'magiclink') && token) {        
         try {
           // Check if we can get an active session
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { data, error } = await supabase.auth.getSession();
           
           if (error) {
             console.error(`Error checking session for ${type} link:`, error);
-          } else if (data?.session) {
-            console.log(`Session already established for ${type} link`);
-          } else {
-            // If no session yet, but we have a confirmation token,
-            // we might need to do some special handling
-            
-            // For now, let's add some debugging that might help
-            console.log(`No session yet for ${type} link, token present`);
-
-            // We could potentially try to verify the token directly here
-            // but for now, let App.tsx's handleHashRedirect handle it
           }
         } catch (e) {
           console.error(`Error in confirmation link handler:`, e);

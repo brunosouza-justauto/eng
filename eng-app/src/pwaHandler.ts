@@ -22,9 +22,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/service-worker.js')
-      .then((registration) => {
-        console.log('ServiceWorker registration successful with scope:', registration.scope);
-        
+      .then((registration) => {       
         // Handle updates
         registration.onupdatefound = () => {
           const installingWorker = registration.installing;
@@ -33,12 +31,7 @@ if ('serviceWorker' in navigator) {
           }
           installingWorker.onstatechange = () => {
             if (installingWorker.state === 'installed') {
-              if (navigator.serviceWorker.controller) {
-                // At this point, the updated precached content has been fetched,
-                // but the previous service worker will still serve the older
-                // content until all client tabs are closed.
-                console.log('New content is available and will be used when all tabs for this page are closed.');
-                
+              if (navigator.serviceWorker.controller) {                
                 // Check if update prompt should be shown
                 const lastUpdatePrompt = localStorage.getItem('pwa_update_prompted_at');
                 const now = Date.now();
@@ -56,9 +49,6 @@ if ('serviceWorker' in navigator) {
                   localStorage.setItem('pwa_update_prompted_at', now.toString());
                   updatePromptShown = true;
                 }
-              } else {
-                // At this point, everything has been precached.
-                console.log('Content is cached for offline use.');
               }
             }
           };
@@ -76,8 +66,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   // Store the event so it can be triggered later
   deferredPrompt = e as BeforeInstallPromptEvent;
-  // Log that app is installable
-  console.log('App can be installed - showing install promotion');
   
   // Dispatch an event that React components can listen for
   window.dispatchEvent(new CustomEvent('pwaInstallable'));
@@ -88,9 +76,6 @@ window.addEventListener('appinstalled', () => {
   // Clear the deferredPrompt variable
   deferredPrompt = null;
   
-  // Log the installation
-  console.log('PWA was installed on the device');
-  
   // Track installation in localStorage
   localStorage.setItem('pwa_installed', 'true');
   localStorage.setItem('pwa_installed_at', Date.now().toString());
@@ -99,7 +84,6 @@ window.addEventListener('appinstalled', () => {
 // Function to trigger the PWA install prompt
 export async function installPWA(): Promise<{ outcome: string } | null> {
   if (!deferredPrompt) {
-    console.log('Installation prompt not available');
     return null;
   }
   
@@ -137,7 +121,6 @@ export function isRunningAsInstalledPWA(): boolean {
 window.addEventListener('serviceWorkerUpdateReady', () => {
   // Don't show if already shown in this session
   if (updatePromptShown) {
-    console.log('Update prompt already shown this session, ignoring duplicate event');
     return;
   }
   
@@ -148,7 +131,6 @@ window.addEventListener('serviceWorkerUpdateReady', () => {
     const now = Date.now();
     // Only show once per 24 hours
     if (now - lastPromptTime < 24 * 60 * 60 * 1000) {
-      console.log('Update prompt shown recently, skipping');
       return;
     }
   }
@@ -156,11 +138,6 @@ window.addEventListener('serviceWorkerUpdateReady', () => {
   // Set the flag to prevent showing the prompt again in this session
   updatePromptShown = true;
   localStorage.setItem('pwa_update_prompted_at', Date.now().toString());
-  
-  // Note: We're no longer showing the browser's confirm dialog here
-  // Instead, the UpdateNotification component listens for this event
-  // and shows a custom UI for the update prompt
-  console.log('Update available - showing notification via React component');
 });
 
 export default {

@@ -61,8 +61,6 @@ const ExerciseFeedbackSystem: React.FC<ExerciseFeedbackSystemProps> = ({
   const loadCurrentSessionFeedback = async (currentSessionId: string | null) => {
     const feedbackObj: Record<string, ExerciseFeedback> = {};
 
-    console.log('Current session ID:', currentSessionId);
-      
     try {
       if (currentSessionId) {
         const { data: currentFeedback, error: currentFeedbackError } = await supabase
@@ -148,8 +146,6 @@ const ExerciseFeedbackSystem: React.FC<ExerciseFeedbackSystemProps> = ({
     if (!userId || !workoutId || !workout) return;
     
     try {
-      console.log('Loading exercise feedback from previous completed sessions...');
-      
       // First, find previous completed sessions for this workout
       const { data: previousSessions, error: sessionsError } = await supabase
         .from('workout_sessions')
@@ -163,11 +159,8 @@ const ExerciseFeedbackSystem: React.FC<ExerciseFeedbackSystemProps> = ({
       if (sessionsError) throw sessionsError;
       
       if (!previousSessions || previousSessions.length === 0) {
-        console.log('No previous completed sessions found');
         return;
       }
-      
-      console.log(`Found previous completed sessions`);
       
       // Now process feedback for each exercise in the current workout
       const processedExercises = new Set<string>(); // Track which exercises we've already processed
@@ -196,7 +189,6 @@ const ExerciseFeedbackSystem: React.FC<ExerciseFeedbackSystemProps> = ({
         
         if (feedbackData && feedbackData.length > 0) {
           const feedback = feedbackData[0];
-          console.log(`Found previous feedback for exercise ${exercise.exercise_name}:`, feedback);
           
           // Store the feedback
           feedbackObj[exercise.id] = feedback;
@@ -204,7 +196,6 @@ const ExerciseFeedbackSystem: React.FC<ExerciseFeedbackSystemProps> = ({
           // Generate recommendation based on the feedback
           const recommendation = generateRecommendation(feedback);
           if (recommendation) {
-            console.log(`Generated recommendation for ${exercise.exercise_name}:`, recommendation);
             // Create the recommendations object
             recommendationsObj[exercise.id] = recommendation;
           }
@@ -227,8 +218,6 @@ const ExerciseFeedbackSystem: React.FC<ExerciseFeedbackSystemProps> = ({
 
   // Load feedback when component mounts or when workout/session changes
   useEffect(() => {
-    console.log('Loading exercise feedback...');
-
     if (workout && (workoutId || workoutSessionId)) {
       loadExerciseFeedback(workoutSessionId, workout);
     }

@@ -36,37 +36,11 @@ const ProtectedRoute: React.FC = () => {
     if ((type === 'signup' || type === 'magiclink' || type === 'invite') && token) {
       setIsConfirmationFlow(true);
     } else if (isVerificationUrl) {
-      console.log('Detected Supabase verification URL, treating as confirmation flow');
       setIsConfirmationFlow(true);
     } else {
       setIsConfirmationFlow(false);
     }
   }, [location.search, location.pathname]);
-
-  // Add debugging for auth state
-  useEffect(() => {
-    console.log('ProtectedRoute - Auth state:', { 
-      isAuthenticated, 
-      isLoading,
-      hasProfile: !!profile,
-      path: location.pathname,
-      hash: window.location.hash,
-      search: window.location.search,
-      href: window.location.href,
-      hasAuthParams,
-      isConfirmationFlow
-    });
-    
-    // For debugging - log local storage auth keys
-    try {
-      console.log('ProtectedRoute - Auth storage status:', {
-        'eng_supabase_auth': !!localStorage.getItem('eng_supabase_auth'),
-        'supabase.auth.token': !!localStorage.getItem('supabase.auth.token')
-      });
-    } catch (e) {
-      console.error('Error checking auth storage:', e);
-    }
-  }, [isAuthenticated, isLoading, profile, location, hasAuthParams, isConfirmationFlow]);
 
   // Special case for when we have auth params but no authenticated state yet
   // This helps handle the redirect after email verification
@@ -81,17 +55,11 @@ const ProtectedRoute: React.FC = () => {
       if (isVerificationUrl || (hasAuthParams && !isAuthenticated && !isCheckingAuth && !isProcessingRedirect)) {
         setIsCheckingAuth(true);
         setIsProcessingRedirect(true);
-        console.log('ProtectedRoute - Auth parameters or verification URL detected, checking session');
         
         try {
           // Extract parameters from the URL
           const urlParams = new URLSearchParams(location.search);
           let type = urlParams.get('type');
-          
-          // Try to extract the token from the URL
-          const tokenMatch = window.location.href.match(/token=([^&]+)/);
-          const tokenValue = tokenMatch && tokenMatch[1] ? tokenMatch[1] : null;
-          console.log('Extracted token from URL:', tokenValue ? 'Token exists' : 'No token found');
           
           // Try to determine the type
           if (isVerificationUrl) {
@@ -109,17 +77,12 @@ const ProtectedRoute: React.FC = () => {
           
           // For email confirmation links (signup, magiclink, invite) or verification URLs
           if (type === 'signup' || type === 'magiclink' || type === 'invite' || isVerificationUrl) {
-            console.log(`ProtectedRoute - Processing verification: ${type || 'unknown'}`);
-            
             // Manually check the session
             const { data } = await supabase.auth.getSession();
             
             if (data.session) {
-              console.log(`ProtectedRoute - Session found for verification`);
               // Don't redirect yet, let the App component handle the auth state update
             } else {
-              console.log(`ProtectedRoute - No session found for verification, redirecting to login`);
-              
               // For verification URLs, preserve the complete verification URL
               if (isVerificationUrl) {
                 // Redirect to login and add a special parameter to indicate verification
@@ -130,13 +93,6 @@ const ProtectedRoute: React.FC = () => {
                 window.location.href = `/login${location.search}`;
                 return;
               }
-            }
-          } else {
-            // Standard auth parameter handling
-            console.log('ProtectedRoute - Standard auth params, checking session');
-            const { data } = await supabase.auth.getSession();
-            if (data.session) {
-              console.log('ProtectedRoute - Session found during manual check');
             }
           }
         } catch (err) {
@@ -152,8 +108,6 @@ const ProtectedRoute: React.FC = () => {
 
   // For confirmation flows or verification URLs, redirect to login with the appropriate parameters
   if (isConfirmationFlow && !isAuthenticated && !isLoading) {
-    console.log('ProtectedRoute - Confirmed email but not authenticated, redirecting to login');
-    
     // Special case for Supabase verification URLs
     if (window.location.href.includes('/verify?token=')) {
       // Extract the type if available
@@ -175,7 +129,6 @@ const ProtectedRoute: React.FC = () => {
 
   // Show loading during initial auth check or when manually checking auth
   if (isLoading || isCheckingAuth || (hasAuthParams && !isConfirmationFlow)) {
-    console.log('ProtectedRoute - Loading or checking auth state...');
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-center">
@@ -190,25 +143,21 @@ const ProtectedRoute: React.FC = () => {
   // It should only be accessible if the user is authenticated
   if (location.pathname === '/onboarding') {
     if (!isAuthenticated) {
-      console.log('ProtectedRoute - Not authenticated, redirecting from onboarding to login');
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
     
     // If they're authenticated and trying to access onboarding,
     // but have already completed it, redirect to dashboard
     if (profile && profile.onboarding_complete) {
-      console.log('ProtectedRoute - Onboarding already complete, redirecting to dashboard');
       return <Navigate to="/dashboard" replace />;
     }
     
     // Otherwise, show the onboarding page
-    console.log('ProtectedRoute - Authenticated, showing onboarding');
     return <Outlet />;
   }
 
   // Standard handling for other protected routes
   if (!isAuthenticated) {
-    console.log('ProtectedRoute - Not authenticated, redirecting to login');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -216,12 +165,6 @@ const ProtectedRoute: React.FC = () => {
   // If authenticated but profile is loaded and onboarding is not complete,
   // redirect to onboarding page (unless already there).
   if (profile && !profile.onboarding_complete && location.pathname !== '/onboarding') {
-    console.log('ProtectedRoute - Profile found but onboarding not complete. Redirecting to onboarding...', {
-      profileId: profile.id,
-      userId: profile.user_id,
-      email: profile.email,
-      onboardingComplete: profile.onboarding_complete
-    });
     return <Navigate to="/onboarding" replace />;
   }
   // -----------------------
@@ -233,13 +176,11 @@ const ProtectedRoute: React.FC = () => {
                             window.location.pathname === '/verify';
 
   if (isVerificationUrl) {
-    console.log('ProtectedRoute - Verification URL detected, bypassing authentication check');
     // Let the verification routes handle this directly
     return <Outlet />;
   }
 
   // If authenticated, render the child route component
-  console.log('ProtectedRoute - Authenticated, rendering content');
   return <Outlet />;
 };
 

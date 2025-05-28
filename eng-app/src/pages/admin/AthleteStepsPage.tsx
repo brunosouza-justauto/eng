@@ -176,7 +176,6 @@ const AthleteStepsPage: React.FC = () => {
   // Fetch step entries based on timeframe
   const fetchStepEntries = async () => {
     try {
-      console.log('athlete', athlete);
       if (!athlete?.id) return;
       
       let startDate: Date;
@@ -201,13 +200,6 @@ const AthleteStepsPage: React.FC = () => {
         .lte('date', formattedEndDate)
         .order('date', { ascending: false });
 
-      console.log('formattedStartDate', formattedStartDate);
-      console.log('formattedEndDate', formattedEndDate);
-      console.log('id', id);
-      console.log('athlete?.user_id', athlete?.user_id);
-
-      console.log('step data', data);
-        
       if (error) throw error;
       
       // Fill in any missing dates with zero steps

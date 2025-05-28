@@ -28,9 +28,7 @@ export default async function handler(
     
     // Forward the request to Fitbit API
     const fitbitUrl = `https://api.fitbit.com${path}${url.search}`;
-    
-    console.log(`Proxying request to: ${fitbitUrl}`);
-    
+
     const headers: Record<string, string> = { ...req.headers as Record<string, string> };
     
     // Set the host header

@@ -80,7 +80,7 @@ const formatTimeString = (timeStr: string): string => {
     // Format it
     return format(date, 'h:mm a');
   } catch (e) {
-    console.log('Error formatting time:', e);
+    console.error('Error formatting time:', e);
     return timeStr; // Return original if parsing fails
   }
 };

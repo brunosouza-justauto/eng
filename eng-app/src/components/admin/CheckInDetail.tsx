@@ -121,10 +121,7 @@ const CheckInDetail: React.FC = () => {
     // Function to get public URL for storage items
     const getPublicUrl = (filePath: string | null | undefined): string | null => {
         if (!filePath) return null;
-        try {
-            // Log the original file path for debugging
-            console.log('Original file path:', filePath);
-            
+        try {            
             // Make sure filePath doesn't already include the bucket name or any prefixes
             // Strip any leading slashes or bucket prefixes
             let path = filePath;
@@ -135,19 +132,8 @@ const CheckInDetail: React.FC = () => {
                 path = path.slice(1);
             }
             
-            // Log the processed path
-            console.log('Processed path:', path);
-            
             // Get URL with error handling
             const { data } = supabase.storage.from('progress-media').getPublicUrl(path);
-            
-            // Log URL for debugging
-            console.log('Generated public URL:', data?.publicUrl);
-            
-            // Alternative URL construction for testing
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rxrorgjxmfgrjczmdjrf.supabase.co';
-            const alternativeUrl = `${supabaseUrl}/storage/v1/object/public/progress-media/${path}`;
-            console.log('Alternative URL:', alternativeUrl);
             
             // Return the Supabase-generated URL
             return data?.publicUrl || null;
@@ -421,7 +407,6 @@ const CheckInDetail: React.FC = () => {
                         <h2 className="text-lg font-medium text-gray-800 dark:text-white mb-3 pb-1 border-b border-gray-200 dark:border-gray-700">Media</h2>
                         <div className="flex flex-wrap gap-3">
                             {checkIn.photos?.map(p => {
-                                console.log('Processing photo path:', p);
                                 const url = getPublicUrl(p);
                                 
                                 // Generate a fallback URL directly
@@ -447,10 +432,8 @@ const CheckInDetail: React.FC = () => {
                                             onError={(e) => {
                                                 console.error('Image failed to load:', url);
                                                 if (fallbackUrl && fallbackUrl !== url) {
-                                                    console.log('Trying fallback URL:', fallbackUrl);
                                                     e.currentTarget.src = fallbackUrl;
                                                 } else {
-                                                    console.log('Using placeholder image');
                                                     e.currentTarget.src = 'https://via.placeholder.com/100?text=Image+Error';
                                                 }
                                             }}

@@ -68,7 +68,6 @@ const WorkoutView: React.FC = () => {
                 if (!workoutId) {
                     throw new Error('Workout ID not found in URL.');
                 }
-                console.log(`Fetching workout ${workoutId}...`);
                 const { data: workoutData, error: workoutError } = await supabase
                     .from('workouts')
                     .select(`
@@ -110,12 +109,10 @@ const WorkoutView: React.FC = () => {
 
                 // Only fetch exercises if we have valid IDs
                 if (exerciseIds.length > 0) {
-                    console.log(`Fetching ${exerciseIds.length} specific exercises...`);
                     const exercises = await getExercisesByIds(exerciseIds);
                     // Use id as string for the map key
                     const exerciseMap = new Map(exercises.map(ex => [ex.id, ex]));
                     setExercisesMap(exerciseMap);
-                    console.log(`Loaded ${exerciseMap.size} exercises into map.`);
                 }
 
                 setError(null); // Clear any previous errors on success

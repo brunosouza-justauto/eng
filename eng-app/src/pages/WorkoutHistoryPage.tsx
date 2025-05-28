@@ -54,7 +54,6 @@ const WorkoutHistoryPage: React.FC = () => {
       // Check if the session already has details loaded
       const existingSession = workoutSessions.find(s => s.id === sessionId);
       if (existingSession?.completed_sets) {
-        console.log('Session details already loaded');
         return;
       }
 
@@ -76,16 +75,12 @@ const WorkoutHistoryPage: React.FC = () => {
         .order('set_order', { ascending: true });
 
       if (setError) {
-        console.error('Error fetching session details:', setError);
         return;
       }
 
       if (!setData || setData.length === 0) {
-        console.log('No sets found for session', sessionId);
         return;
       }
-
-      console.log('Fetched session details:', setData);
 
       // Process the data into a more usable format
       const processedSets = setData.map(set => {
@@ -130,8 +125,6 @@ const WorkoutHistoryPage: React.FC = () => {
       setError(null);
       
       try {
-        console.log('Fetching workout history for user:', profile.user_id);
-        
         // Step 1: Get workout sessions
         const { data: sessions, error: sessionsError } = await supabase
           .from('workout_sessions')
@@ -145,20 +138,15 @@ const WorkoutHistoryPage: React.FC = () => {
         }
         
         if (!sessions || sessions.length === 0) {
-          console.log('No workout sessions found for user');
           setWorkoutSessions([]);
           setIsLoading(false);
           return;
         }
         
-        console.log(`Found ${sessions.length} workout sessions:`, sessions);
-        
         // Step 2: Get the workout IDs to fetch their details
         const workoutIds = sessions.map(session => session.workout_id).filter(id => id);
-        console.log('Workout IDs to fetch:', workoutIds);
         
         if (workoutIds.length === 0) {
-          console.warn('No valid workout IDs found in sessions');
           // Process sessions without workout details
           const processedSessionsWithoutWorkouts = sessions.map(session => ({
             ...session,
@@ -182,13 +170,10 @@ const WorkoutHistoryPage: React.FC = () => {
           // Continue processing even if workouts fetch fails
         }
         
-        console.log('Fetched workouts:', workouts || 'No workouts found');
-        
         // Create a map for fast workout lookup
         const workoutMap = new Map();
         if (workouts && workouts.length > 0) {
           workouts.forEach(workout => {
-            console.log(`Adding workout to map - ID: ${workout.id}, Name: ${workout.name || 'Unnamed'}`);
             workoutMap.set(workout.id, {
               name: workout.name || 'Unnamed Workout',
               description: workout.description
@@ -198,8 +183,6 @@ const WorkoutHistoryPage: React.FC = () => {
           console.warn('No workouts found for the given IDs');
         }
         
-        console.log('Workout map created with entries:', workoutMap.size);
-        
         // Step 4: Process sessions with workout data and completed sets count
         const processedSessions = await Promise.all(
           sessions.map(async (session) => {
@@ -208,9 +191,6 @@ const WorkoutHistoryPage: React.FC = () => {
               name: 'Unknown Workout',
               description: null
             };
-            
-            console.log(`Processing session ${session.id} with workout_id: ${session.workout_id}`);
-            console.log(`Workout details for ID ${session.workout_id}:`, workoutDetails || 'NOT FOUND');
             
             // Fetch completed sets count for this session
             const { count, error: countError } = await supabase
@@ -236,12 +216,10 @@ const WorkoutHistoryPage: React.FC = () => {
               completed_sets_count: count || 0
             };
             
-            console.log(`Processed session ${session.id} with name "${processedSession.workout_name}"`);
             return processedSession;
           })
         );
         
-        console.log('All processed sessions:', processedSessions);
         setWorkoutSessions(processedSessions);
       } catch (err) {
         console.error('Error fetching workout history:', err);
@@ -589,8 +567,6 @@ const WorkoutHistoryPage: React.FC = () => {
                                   acc[key].count++;
                                   return acc;
                                 }, {} as Record<string, { weight: string, reps: number, count: number }>);
-
-                                console.log('SUMMARY', summary);
                                 
                                 // Use join with a string delimiter to prevent [object Object] from appearing
                                 return Object.values(summary).map((group, i) => (

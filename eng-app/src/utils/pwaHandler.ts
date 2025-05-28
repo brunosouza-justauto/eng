@@ -42,16 +42,12 @@ export const initPWA = (): void => {
     // Store the event for later use
     deferredPrompt = e as BeforeInstallPromptEvent;
     
-    console.log('App can be installed - showing install promotion');
   });
 
   // Listen for app installed event
   window.addEventListener('appinstalled', () => {
     // Clear the deferredPrompt variable
     deferredPrompt = null;
-    
-    // Log the installation
-    console.log('PWA was installed on the device');
     
     // Track installation in localStorage
     localStorage.setItem('pwa_installed', 'true');
@@ -68,14 +64,12 @@ export const initPWA = (): void => {
   
   // Check if running in standalone mode (already installed)
   if (window.matchMedia('(display-mode: standalone)').matches) {
-    console.log('App is running in standalone mode (installed)');
     localStorage.setItem('pwa_installed', 'true');
   }
   
   // Check for iOS standalone mode
   if ('standalone' in window.navigator && 
       (window.navigator as NavigatorWithStandalone).standalone === true) {
-    console.log('App is running in iOS standalone mode (installed)');
     localStorage.setItem('pwa_installed', 'true');
   }
 };
@@ -86,7 +80,6 @@ export const initPWA = (): void => {
  */
 export const promptInstall = async (): Promise<{ outcome: string } | null> => {
   if (!deferredPrompt) {
-    console.log('Cannot prompt to install - app not installable');
     return null;
   }
   

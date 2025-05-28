@@ -112,7 +112,6 @@ const WorkoutSessionPage: React.FC = () => {
     const savedSpeechPreference = localStorage.getItem('workout-speech-enabled');
     if (savedSpeechPreference === 'true') {
       setIsSpeechEnabled(true);
-      console.log('Speech enabled from saved preference');
     }
   }, []);
   
@@ -164,14 +163,8 @@ const WorkoutSessionPage: React.FC = () => {
         if (fetchError) throw fetchError;
 
         if (data && data.exercise_instances) {
-          console.log('*** DETAILED WORKOUT DATA ***');
-          console.log('Raw workout data:', JSON.stringify(data, null, 2));
-          console.log('*** EXERCISE INSTANCES ***');
-          
           // Now fetch the exercise sets data for each exercise instance
           const exerciseInstanceIds = data.exercise_instances.map((ex: ExerciseInstanceData) => ex.id);
-          
-          console.log('Fetching exercise sets for instances:', exerciseInstanceIds);
           
           // Query exercise_sets for all exercise instances in this workout
           const { data: setsData, error: setsError } = await supabase
@@ -183,8 +176,6 @@ const WorkoutSessionPage: React.FC = () => {
           if (setsError) {
             console.error('Error fetching exercise sets:', setsError);
           } else {
-            console.log('Fetched exercise sets:', setsData);
-            
             // Group sets by exercise instance
             const setsByExerciseId = new Map<string, ExerciseSet[]>();
             
@@ -210,35 +201,16 @@ const WorkoutSessionPage: React.FC = () => {
               data.exercise_instances.forEach((ex: ExerciseInstanceData) => {
                 if (setsByExerciseId.has(ex.id)) {
                   ex.sets_data = setsByExerciseId.get(ex.id);
-                  console.log(`Attached ${ex.sets_data?.length} sets to ${ex.exercise_name}`);
                 }
               });
             }
           }
           
-          // Detailed logging for each exercise instance
-          data.exercise_instances.forEach((ex: ExerciseInstanceData, i: number) => {
-            console.log(`Exercise #${i+1}: ${ex.exercise_name} (ID: ${ex.id})`);
-            console.log(`  Default reps: ${ex.reps}, Default sets: ${ex.sets}`);
-            
-            if (ex.sets_data && Array.isArray(ex.sets_data) && ex.sets_data.length > 0) {
-              console.log(`  Has ${ex.sets_data.length} sets_data entries:`);
-              ex.sets_data.forEach((set: ExerciseSet, j: number) => {
-                console.log(`    Set #${j+1}: reps=${set.reps}, type=${set.type}, weight=${set.weight}`);
-              });
-            } else {
-              console.log('  No sets_data available');
-            }
-          });
-          
           setWorkout(data as WorkoutData);
           initializeCompletedSets(data as WorkoutData);
-
-          console.log('Workout data:', data);
           
           // Load previous workout data immediately when the page loads
           if (profile?.user_id) {
-            console.log('Loading previous workout data immediately on page load');
             fetchPreviousWorkoutData();
             
             // Exercise feedback will be loaded via the ExerciseFeedbackSystem component
@@ -294,25 +266,18 @@ const WorkoutSessionPage: React.FC = () => {
   const initializeCompletedSets = (workoutData: WorkoutData) => {
     const setsMap = new Map<string, CompletedSetData[]>();
     
-    console.log('=== INITIALIZING SETS ===');
-    
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     workoutData.exercise_instances.forEach((exercise, exIndex) => {
-      console.log(`Processing exercise ${exIndex+1}: ${exercise.exercise_name}`);
       let hasSetsData = false;
       
       // Check if this is a bodyweight exercise (from the flag added to the database)
       const isBodyweightExercise = exercise.is_bodyweight === true;
-      if (isBodyweightExercise) {
-        console.log(`Exercise ${exercise.exercise_name} is marked as bodyweight`);
-      }
       
       // Handle cases where sets_data might be stored as a JSON string instead of parsed object
       let setsData = exercise.sets_data;
       if (typeof setsData === 'string') {
         try {
-          console.log(`Found sets_data as string, attempting to parse: ${setsData}`);
           setsData = JSON.parse(setsData);
-          console.log('Successfully parsed sets_data from string');
         } catch (err) {
           console.error('Failed to parse sets_data string:', err);
           setsData = undefined;
@@ -321,7 +286,6 @@ const WorkoutSessionPage: React.FC = () => {
       
       // PRIORITY 1: Use sets_data if available - this should contain the individual set details
       if (setsData && Array.isArray(setsData) && setsData.length > 0) {
-        console.log(`Using sets_data with ${setsData.length} sets`);
         hasSetsData = true;
         
         const sets: CompletedSetData[] = [];
@@ -331,8 +295,6 @@ const WorkoutSessionPage: React.FC = () => {
           // Extract reps as a number (handle both string and number)
           const repsString = typeof setData.reps === 'string' ? setData.reps : String(setData.reps);
           const repsValue = parseInt(repsString, 10) || 0;
-          
-          console.log(`  Set ${setIndex+1}: reps=${repsValue}, type=${setData.type || 'regular'}`);
           
           sets.push({
             exerciseInstanceId: exercise.id,
@@ -348,22 +310,13 @@ const WorkoutSessionPage: React.FC = () => {
         
         if (sets.length > 0) {
           setsMap.set(exercise.id, sets);
-          console.log(`  Created ${sets.length} sets from sets_data`);
-          
-          // Debug - log each set's reps
-          sets.forEach((set, i) => console.log(`    Set ${i+1}: ${set.reps} reps, type=${set.setType}, weight=${set.weight}`));
         }
       }
-      
-      // Remove this duplicate line that's causing the syntax error
-      // sets.forEach((set, i) => console.log(`    Set ${i+1}: ${set.reps} reps, type=${set.setType}`));
       
       // PRIORITY 2: Fall back to legacy model only if sets_data not available
       if (!hasSetsData) {
         const numSets = exercise.sets ? parseInt(exercise.sets, 10) : 0;
         const defaultReps = exercise.reps ? parseInt(exercise.reps, 10) : 0;
-        
-        console.log(`Using legacy model: ${numSets} sets of ${defaultReps} reps`);
         
         if (numSets > 0) {
           const sets: CompletedSetData[] = [];
@@ -382,27 +335,11 @@ const WorkoutSessionPage: React.FC = () => {
           }
           
           setsMap.set(exercise.id, sets);
-          console.log(`  Created ${sets.length} sets with ${defaultReps} reps each`);
         }
       }
     });
     
-    console.log('=== FINAL SETS MAP ===');
-    
-    // Debug overview of all sets
-    setsMap.forEach((sets, exerciseId) => {
-      const exercise = workoutData.exercise_instances.find(ex => ex.id === exerciseId);
-      console.log(`Exercise: ${exercise?.exercise_name || exerciseId}`);
-      sets.forEach((set, i) => console.log(`  Set ${i+1}: ${set.reps} reps, type=${set.setType}`));
-    });
-    
     setCompletedSets(setsMap);
-    
-    // After initializing, attempt to load previous workout data
-    if (profile?.user_id) {
-      console.log('Will attempt to load previous workout data after initialization');
-      // We'll load the previous data in the startWorkout function
-    }
   };
 
   // Later in the file, add a new function to check for existing sessions
@@ -410,8 +347,6 @@ const WorkoutSessionPage: React.FC = () => {
     if (!profile?.user_id || !workoutId) return false;
 
     try {
-      console.log('Checking for existing session, current sessionStorage value:', sessionStorage.getItem('workout_session_start_time'));
-      
       // First, clean up stale sessions (incomplete sessions older than 24 hours)
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
@@ -426,8 +361,6 @@ const WorkoutSessionPage: React.FC = () => {
       if (cleanupError) {
         console.error('Error cleaning up stale sessions:', cleanupError);
         // Continue anyway, not critical
-      } else {
-        console.log('Successfully cleaned up any stale sessions');
       }
       
       // Look for incomplete sessions (no end_time) for this workout and user
@@ -447,11 +380,9 @@ const WorkoutSessionPage: React.FC = () => {
 
       // If we found an incomplete session
       if (data && data.length > 0) {
-        console.log('Found incomplete session:', data[0]);
         setExistingSessionId(data[0].id);
         // Store the start_time in sessionStorage since we don't have a state for it
         sessionStorage.setItem('workout_session_start_time', data[0].start_time);
-        console.log('Stored start_time in sessionStorage:', data[0].start_time);
         setShowSessionDialog(true);
         return true;
       }
@@ -486,12 +417,9 @@ const WorkoutSessionPage: React.FC = () => {
       
       // Pre-initialize speech synthesis to get permission (requires user gesture)
       if (window.speechSynthesis) {
-        console.log('Initializing speech synthesis...');
-        
         // Speak a silent message to initialize/permit speech synthesis
         const initUtterance = new SpeechSynthesisUtterance('');
         initUtterance.volume = 0; // Silent
-        initUtterance.onend = () => console.log('Speech synthesis initialized');
         window.speechSynthesis.speak(initUtterance);
       }
       
@@ -510,8 +438,6 @@ const WorkoutSessionPage: React.FC = () => {
         .single();
       
       if (error) throw error;
-      
-      console.log('Started workout session:', data);
       
       // Set session ID for later use
       setWorkoutSessionId(data.id);
@@ -602,8 +528,6 @@ const WorkoutSessionPage: React.FC = () => {
     if (!profile?.user_id || !workoutId) return;
 
     try {
-      console.log('Checking for existing session for auto-resume');
-      
       // First, clean up stale sessions (incomplete sessions older than 24 hours)
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
@@ -617,8 +541,6 @@ const WorkoutSessionPage: React.FC = () => {
         
       if (cleanupError) {
         console.error('Error cleaning up stale sessions:', cleanupError);
-      } else {
-        console.log('Successfully cleaned up any stale sessions');
       }
       
       // Look for incomplete sessions (no end_time) for this workout and user
@@ -638,15 +560,12 @@ const WorkoutSessionPage: React.FC = () => {
 
       // If we found an incomplete session
       if (data && data.length > 0) {
-        console.log('Found incomplete session to auto-resume:', data[0]);
-        
         // Auto-resume the session
         const sessionId = data[0].id;
         const startTimeStr = data[0].start_time;
         
         // Store the start time in sessionStorage
         sessionStorage.setItem('workout_session_start_time', startTimeStr);
-        console.log('Stored start_time in sessionStorage:', startTimeStr);
         
         // Set session ID for later use
         setWorkoutSessionId(sessionId);
@@ -661,8 +580,6 @@ const WorkoutSessionPage: React.FC = () => {
         const originalStartTime = new Date(startTimeStr);
         const now = new Date();
         const elapsedSeconds = Math.floor((now.getTime() - originalStartTime.getTime()) / 1000);
-        
-        console.log('Auto-resuming workout with elapsed time from original start:', elapsedSeconds, 'seconds');
         
         // Set the elapsed time to the time since the original start
         pausedTimeRef.current = elapsedSeconds;
@@ -695,8 +612,6 @@ const WorkoutSessionPage: React.FC = () => {
     if (!profile?.user_id || !workoutId) return;
     
     try {
-      console.log('Fetching previous workout data...');
-      
       // Get the most recent COMPLETED workout session for this workout (with end_time not null)
       const { data: sessionData, error: sessionError } = await supabase
         .from('workout_sessions')
@@ -713,12 +628,10 @@ const WorkoutSessionPage: React.FC = () => {
       }
       
       if (!sessionData || sessionData.length === 0) {
-        console.log('No previous completed workout sessions found');
         return;
       }
       
       const prevSessionId = sessionData[0].id;
-      console.log('Found previous completed session:', prevSessionId);
       
       // Now fetch the completed sets for that session
       const { data: setsData, error: setsError } = await supabase
@@ -732,11 +645,8 @@ const WorkoutSessionPage: React.FC = () => {
       }
       
       if (!setsData || setsData.length === 0) {
-        console.log('No completed sets found for previous session');
         return;
       }
-      
-      console.log('Found completed sets:', setsData);
       
       // Update the completedSets state with previous data
       setCompletedSets(prevSets => {
@@ -763,8 +673,6 @@ const WorkoutSessionPage: React.FC = () => {
         
         return newSets;
       });
-      
-      console.log('Updated sets with previous workout data');
       
     } catch (err) {
       console.error('Error fetching previous workout data:', err);
@@ -906,10 +814,6 @@ const WorkoutSessionPage: React.FC = () => {
     if (completionMessage.includes('Congratulations! You\'ve completed all sets')) {
       // Close dialog first
       setShowCompletionDialog(false);
-      
-      // Save the workout automatically
-      console.log('Automatically completing workout after user confirmed');
-      //await completeWorkout();
       return;
     }
 
@@ -931,11 +835,9 @@ const WorkoutSessionPage: React.FC = () => {
       // Delete the workout session from the database if we have a session ID
       if (workoutSessionId) {
         try {
-          console.log('Attempting to delete workout session during cancellation:', workoutSessionId);
           const success = await deleteWorkoutSession(workoutSessionId);
           
           if (success) {
-            console.log('Workout session deleted successfully during cancellation');
             // Reset workout state
             setIsWorkoutStarted(false);
             setWorkoutSessionId(null);
@@ -1021,7 +923,6 @@ const WorkoutSessionPage: React.FC = () => {
     
     // If less than 1000ms has passed since last save, skip this one
     if (now - lastSave < 1000) {
-      console.log(`Skipping duplicate save for ${debounceKey}, too soon after last save`);
       return;
     }
     
@@ -1041,8 +942,6 @@ const WorkoutSessionPage: React.FC = () => {
         set_type: setData.setType
       };
       
-      console.log('Saving completed set:', record);
-      
       // First check if any records exist for this session/exercise/set combination
       const { count, error: countError } = await supabase
         .from('completed_exercise_sets')
@@ -1056,13 +955,9 @@ const WorkoutSessionPage: React.FC = () => {
         return;
       }
       
-      console.log(`Found ${count} existing records for this set`);
-      
       if (count && count > 0) {
         // If multiple records exist (which shouldn't happen), delete all and insert a new one
         if (count > 1) {
-          console.warn(`Found ${count} duplicate records for the same set! Cleaning up...`);
-          
           // Delete all duplicates
           const { error: deleteError } = await supabase
             .from('completed_exercise_sets')
@@ -1083,8 +978,6 @@ const WorkoutSessionPage: React.FC = () => {
           
           if (insertError) {
             console.error('Error inserting new record after cleanup:', insertError);
-          } else {
-            console.log('Successfully cleaned up duplicates and inserted new record');
           }
           
           return;
@@ -1117,8 +1010,6 @@ const WorkoutSessionPage: React.FC = () => {
         
         if (updateError) {
           console.error('Error updating completed set:', updateError);
-        } else {
-          console.log('Updated completed set successfully');
         }
       } else {
         // Insert new record
@@ -1128,8 +1019,6 @@ const WorkoutSessionPage: React.FC = () => {
         
         if (insertError) {
           console.error('Error inserting completed set:', insertError);
-        } else {
-          console.log('Inserted completed set successfully');
         }
       }
     } catch (err) {
@@ -1441,8 +1330,6 @@ const WorkoutSessionPage: React.FC = () => {
         return;
       }
       
-      console.log('👄 Attempting to announce:', announcementText);
-      
       // Show visual announcement
       if (announcementText) {
         showAnnouncementToast(announcementText);
@@ -1458,16 +1345,9 @@ const WorkoutSessionPage: React.FC = () => {
         utterance.rate = 1.0;
         utterance.pitch = 1.0;
         utterance.volume = 1.0;
-        
-        // Add event handlers for debugging
-        utterance.onstart = () => console.log('Speech started');
-        utterance.onend = () => console.log('Speech ended');
-        utterance.onerror = (e) => console.error('Speech error:', e);
-        
+                
         // Speak the announcement
         window.speechSynthesis.speak(utterance);
-        
-        console.log('Speech synthesis triggered');
         
         // Some browsers require user interaction before allowing speech synthesis
         // Show a visual warning if this might be the case
@@ -1477,7 +1357,7 @@ const WorkoutSessionPage: React.FC = () => {
           }
         }, 500);
       } else if (!isSpeechEnabled) {
-        console.log('Speech synthesis disabled by user preference');
+        console.warn('Speech synthesis disabled by user preference');
       } else {
         console.warn('Speech synthesis not available in this browser');
       }
@@ -1487,9 +1367,7 @@ const WorkoutSessionPage: React.FC = () => {
   };
 
   // Show the rest timer using the RestTimerManager
-  const showRestTimer = (exerciseId: string, setIndex: number, duration: number) => {
-    console.log('Showing rest timer for', duration, 'seconds');
-    
+  const showRestTimer = (exerciseId: string, setIndex: number, duration: number) => {   
     // Use the restTimerRef to start a timer
     if (restTimerRef.current) {
       restTimerRef.current.startRestTimer(exerciseId, setIndex, duration);
@@ -1550,9 +1428,6 @@ const WorkoutSessionPage: React.FC = () => {
       // Create a short test utterance
       const testUtterance = new SpeechSynthesisUtterance('Voice feedback enabled');
       testUtterance.volume = 1.0;
-      testUtterance.onend = () => {
-        console.log('Speech test completed successfully');
-      };
       testUtterance.onerror = (err) => {
         console.error('Speech error:', err);
         // Don't disable speech here, as we've already shown the user it's enabled
@@ -1841,12 +1716,8 @@ const WorkoutSessionPage: React.FC = () => {
     
     try {
       if (action === 'resume' && existingSessionId) {
-        // Resume the existing session
-        console.log('Resuming session:', existingSessionId);
-        
         // Get the original start time from sessionStorage - do this BEFORE any async operations
         const originalStartTimeStr = sessionStorage.getItem('workout_session_start_time');
-        console.log('Retrieved start_time from sessionStorage:', originalStartTimeStr);
         
         // Set session ID for later use
         setWorkoutSessionId(existingSessionId);
@@ -1857,22 +1728,16 @@ const WorkoutSessionPage: React.FC = () => {
         // Hide the session dialog - important!
         setShowSessionDialog(false);
         
-        // Check if originalStartTimeStr is still available after async operations
-        console.log('Checking start_time is still available after async operations:', sessionStorage.getItem('workout_session_start_time'));
-        
         if (originalStartTimeStr) {
           // Calculate elapsed time between original start time and now
           const originalStartTime = new Date(originalStartTimeStr);
           const now = new Date();
           const elapsedSeconds = Math.floor((now.getTime() - originalStartTime.getTime()) / 1000);
           
-          console.log('Resume workout with elapsed time from original start:', elapsedSeconds, 'seconds');
-          
           // Set the elapsed time to the time since the original start
           pausedTimeRef.current = elapsedSeconds;
           setElapsedTime(elapsedSeconds);
         } else {
-          console.warn('No original start time found, starting timer from zero');
           pausedTimeRef.current = 0;
         }
         
@@ -1891,15 +1756,11 @@ const WorkoutSessionPage: React.FC = () => {
         }, 1000);
         
       } else if (action === 'new') {
-        console.log('Starting new session and removing old one if exists');
-        
         // Hide the session dialog before any other operations
         setShowSessionDialog(false);
         
         // Delete the existing session if it exists
         if (existingSessionId) {
-          console.log('Deleting existing session before starting new one:', existingSessionId);
-          
           try {
             // Direct approach to delete completed sets first
             const { error: setsDeleteError } = await supabase
@@ -1909,8 +1770,6 @@ const WorkoutSessionPage: React.FC = () => {
               
             if (setsDeleteError) {
               console.error('Error deleting existing sets:', setsDeleteError);
-            } else {
-              console.log('Successfully deleted completed sets');
             }
             
             // Then delete the session
@@ -1921,8 +1780,6 @@ const WorkoutSessionPage: React.FC = () => {
               
             if (sessionDeleteError) {
               console.error('Error deleting existing session:', sessionDeleteError);
-            } else {
-              console.log('Successfully deleted existing session');
             }
           } catch (error) {
             console.error('Error in deletion process:', error);
@@ -1950,8 +1807,6 @@ const WorkoutSessionPage: React.FC = () => {
           .single();
         
         if (error) throw error;
-        
-        console.log('Started new workout session:', data);
         
         // Set session ID for later use
         setWorkoutSessionId(data.id);
@@ -2052,11 +1907,8 @@ const WorkoutSessionPage: React.FC = () => {
       }
       
       if (!data || data.length === 0) {
-        console.log('No completed sets found for session');
         return;
       }
-      
-      console.log('Loaded completed sets from session:', data);
       
       // Group the completed sets by exercise instance
       const setsMap = new Map<string, CompletedSetData[]>();
@@ -2119,11 +1971,8 @@ const WorkoutSessionPage: React.FC = () => {
 
   // Add function to delete a workout session and its completed sets
   const deleteWorkoutSession = async (sessionId: string) => {
-    console.log('Deleting workout session:', sessionId);
-    
     try {
       // Simple, direct approach with better error handling
-      console.log('Attempting direct deletion...');
       
       // First delete all completed exercise sets for this session
       const { error: setsError } = await supabase
@@ -2133,10 +1982,6 @@ const WorkoutSessionPage: React.FC = () => {
       
       if (setsError) {
         console.error('Error deleting completed sets:', setsError);
-        // Continue with session deletion even if sets deletion fails
-        console.log('Continuing with session deletion despite sets deletion failure');
-      } else {
-        console.log('Successfully deleted completed sets');
       }
       
       // Add a small delay to ensure database consistency
@@ -2152,7 +1997,6 @@ const WorkoutSessionPage: React.FC = () => {
         console.error('Error deleting workout session:', sessionError);
         
         // Try one more time after a longer delay
-        console.log('Attempting session deletion one more time after delay...');
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         const { error: retryError } = await supabase
@@ -2163,11 +2007,7 @@ const WorkoutSessionPage: React.FC = () => {
         if (retryError) {
           console.error('Session deletion retry also failed:', retryError);
           return false;
-        } else {
-          console.log('Session deletion succeeded on retry');
         }
-      } else {
-        console.log('Successfully deleted workout session on first attempt');
       }
       
       // Final verification - but don't block completion on this
@@ -2183,8 +2023,6 @@ const WorkoutSessionPage: React.FC = () => {
         } else if (count && count > 0) {
           console.warn('Session still exists after deletion attempts, but proceeding anyway');
           return false;
-        } else {
-          console.log('Deletion verified: session no longer exists in database');
         }
       } catch (verifyError) {
         console.error('Error during verification:', verifyError);

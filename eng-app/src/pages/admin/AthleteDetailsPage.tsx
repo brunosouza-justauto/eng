@@ -386,8 +386,6 @@ const AthleteDetailsPage: React.FC = () => {
                     .gte('date', sevenDaysAgo)
                     .lte('date', today)
                     .order('date', { ascending: false });
-
-                console.log('Water entries:', entriesData);
                 
                 if (entriesError) throw entriesError;
 

@@ -75,8 +75,6 @@ const CheckInTimeline: React.FC = () => {
         }
 
         try {
-            console.log(`Fetching check-ins for user_id: ${profile.user_id}, page: ${pageNumber}`);
-            
             const offset = pageNumber * ITEMS_PER_PAGE;
             const { data, error: fetchError } = await supabase
                 .from('check_ins')
@@ -158,7 +156,6 @@ const CheckInTimeline: React.FC = () => {
         observer.current = new IntersectionObserver(entries => {
             // If the last item is visible and we have more items to load
             if (entries[0].isIntersecting && hasMore) {
-                console.log('Last item is visible, loading more...');
                 fetchCheckIns(checkIns.length / ITEMS_PER_PAGE, true);
             }
         });
@@ -234,9 +231,6 @@ const CheckInTimeline: React.FC = () => {
     const getPublicUrl = (filePath: string | null | undefined): string | null => {
         if (!filePath) return null;
         try {
-            // Log the original file path for debugging
-            console.log('Original file path:', filePath);
-            
             // Make sure filePath doesn't already include the bucket name or any prefixes
             let path = filePath;
             if (path.startsWith('progress-media/')) {
@@ -245,9 +239,6 @@ const CheckInTimeline: React.FC = () => {
             if (path.startsWith('/')) {
                 path = path.slice(1);
             }
-            
-            // Log the processed path
-            console.log('Processed path:', path);
             
             const { data } = supabase.storage.from('progress-media').getPublicUrl(path);
             return data?.publicUrl || null;
@@ -262,9 +253,6 @@ const CheckInTimeline: React.FC = () => {
         // Check explicitly for null or undefined, but allow 0 values
         return value !== null && value !== undefined ? `${value}${unit}` : 'N/A';
     };
-    
-    console.log('HERE');
-    console.log(checkIns);
     
     return (
         <div className="space-y-6">

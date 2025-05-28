@@ -204,8 +204,8 @@ const UserManager: React.FC = () => {
     // Add this function to help debug profile issues
     const debugProfileInfo = async () => {
         try {
-            console.log("Current coach profile:", profile);
             // Check if there are any profiles at all
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { data: allProfiles, error: allProfilesError } = await supabase
                 .from('profiles')
                 .select('id, user_id, email, role, coach_id')
@@ -213,9 +213,9 @@ const UserManager: React.FC = () => {
                 
             if (allProfilesError) throw allProfilesError;
             
-            console.log("Sample of all profiles in the database:", allProfiles);                        
             // Check if the coach profile is correctly set
             if (profile && profile.id) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const { data: myProfile, error: myProfileError } = await supabase
                     .from('profiles')
                     .select('*')
@@ -223,8 +223,6 @@ const UserManager: React.FC = () => {
                     .single();
                     
                 if (myProfileError) throw myProfileError;  
-                
-                console.log("My coach profile details:", myProfile);  
             }
         } catch (err) {
             console.error("Debug error:", err);

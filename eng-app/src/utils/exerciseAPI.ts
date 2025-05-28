@@ -50,16 +50,7 @@ export const fetchExercises = async (
   equipment?: string | null,
   page?: number,
   limit?: number
-): Promise<PaginatedResponse<Exercise>> => {
-  console.log('fetchExercises called with params:', { 
-    search, 
-    category, 
-    gender,
-    equipment,
-    page,
-    limit
-  });
-  
+): Promise<PaginatedResponse<Exercise>> => {  
   try {
     // Call our database adapter with normalized parameters
     const result = await dbAdapter.searchExercises(
@@ -70,7 +61,6 @@ export const fetchExercises = async (
       gender,
       equipment
     );
-    console.log('Exercise API: search returned', result.results.length, 'results');
     return result;
   } catch (error) {
     console.error('Error in fetchExercises:', error);
@@ -92,13 +82,6 @@ export const searchExercises = async (
   genderFilter?: string | null,
   equipmentFilter?: string | null
 ): Promise<PaginatedResponse<Exercise>> => {
-  console.log('searchExercises called with:', { 
-    query, 
-    page, 
-    per_page,
-    genderFilter,
-    equipmentFilter
-  });
   try {
     const results = await dbAdapter.searchExercises(
       query, 
@@ -108,7 +91,6 @@ export const searchExercises = async (
       genderFilter,
       equipmentFilter
     );
-    console.log('Exercise API: direct search returned', results.results.length, 'results');
     return results;
   } catch (error) {
     console.error('Error in searchExercises:', error);

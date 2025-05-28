@@ -474,7 +474,6 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             
             // Only update if we found any superset groups
             if (Object.keys(newSupersetGroups).length > 0) {
-                console.log('Initializing superset groups:', newSupersetGroups);
                 setSupersetGroups(newSupersetGroups);
             } else {
                 setSupersetGroups({});
@@ -491,22 +490,6 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
         setError(null);
         
         try {
-            console.log('Searching exercises with parameters:', {
-                query: searchQuery,
-                category: selectedCategory,
-                page: page,
-                perPage: RESULTS_PER_PAGE,
-                gender: selectedGender,
-                equipment: selectedEquipment
-            });
-            
-            // Add additional debugging info
-            console.log('Current state before search:', {
-                isLoading,
-                showFemaleExercises,
-                searchResults: searchResults?.length || 0
-            });
-            
             const response = await fetchExercises(
                 searchQuery, 
                 selectedCategory,
@@ -516,14 +499,6 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                 RESULTS_PER_PAGE,
             );
             
-            // More detailed logging of the response
-            console.log('Search results received:', {
-                count: response.count,
-                hasNext: response.next !== null,
-                results: response.results?.length || 0,
-                status: response.results?.length ? 'Has Results' : 'Empty Results'
-            });
-            
             if (!response.results || response.results.length === 0) {
                 console.warn('No exercise results found');
                 
@@ -531,8 +506,6 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
                 if (page === 1 && !searchQuery && selectedCategory === null) {
                     console.warn('This is the initial load - database might be empty or not accessible');
                 }
-            } else {
-                console.log('First result sample:', response.results[0]);
             }
             
             // Make sure results is always an array even if the API returns null
@@ -728,9 +701,6 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
             });
             return; // Stop submission
         }
-        
-        // Add console log to debug values being sent
-        console.log('Saving workout with day_of_week:', validationResult.data.day_of_week);
         
         // Explicitly map validated data to ensure null instead of undefined for optional fields
         const saveData: Omit<WorkoutAdminData, 'exercise_instances' | 'id' | 'program_template_id'> = {
@@ -1558,7 +1528,6 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ workout, onSave: onSaveWorkou
 
     // Memoize the transformed search results to prevent unnecessary recalculations
     const memoizedLocalExercises = useMemo(() => {
-        console.log('Calculating memoized exercise data - should only run when search results change');
         return searchResults.map(exercise => createLocalExerciseFromAPI(exercise));
     }, [searchResults]);
 

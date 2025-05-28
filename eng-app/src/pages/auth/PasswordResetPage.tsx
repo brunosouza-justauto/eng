@@ -25,13 +25,6 @@ const PasswordResetPage: React.FC = () => {
         const code = urlParams.get('code');
         const type = urlParams.get('type');
         
-        console.log('Password reset verification:', { 
-          hasToken: !!token, 
-          hasCode: !!code, 
-          type,
-          search: location.search
-        });
-        
         // Check for either token or code parameter (Supabase PKCE flow uses 'code' parameter)
         if ((!token && !code) || (type !== 'recovery' && !type)) {
           setError('Invalid password reset link. Please request a new one.');
@@ -57,9 +50,7 @@ const PasswordResetPage: React.FC = () => {
           // If we have a code but no session, we might need to exchange the code for a session
           if (code && !data.session) {
             try {
-              // The session might be established automatically, but we can also try to get it explicitly
-              console.log('No session found with recovery code, attempting to verify the session');
-              
+              // The session might be established automatically, but we can also try to get it explicitly              
               // Wait a moment for the session to be established
               setTimeout(async () => {
                 const { data: refreshedData, error: refreshError } = await supabase.auth.getSession();
@@ -69,11 +60,9 @@ const PasswordResetPage: React.FC = () => {
                 }
                 
                 if (refreshedData.session) {
-                  console.log('Session established after delay');
                   setShowResetForm(true);
                   setIsVerifying(false);
                 } else {
-                  console.error('No session established after delay');
                   setError('The password reset link has expired. Please request a new one.');
                   setIsVerifying(false);
                 }

@@ -275,7 +275,7 @@ const formatTimeString = (timeStr: string): string => {
     // Format it
     return format(date, 'h:mm a');
   } catch (e) {
-    console.log('Error formatting time:', e);
+    console.error('Error formatting time:', e);
     return timeStr; // Return original if parsing fails
   }
 };
@@ -430,8 +430,6 @@ const AthleteNutritionPage: React.FC = () => {
         .gte('date', formattedStartDate)
         .lte('date', formattedEndDate)
         .order('created_at', { ascending: false });
-
-        console.log(data);
         
       if (error) throw error;
       

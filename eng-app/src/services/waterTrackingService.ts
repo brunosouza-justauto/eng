@@ -53,8 +53,6 @@ export const waterTrackingService = {
       .gte('date', startDateStr)
       .lte('date', endDateStr)
       .order('date', { ascending: false });
-
-    console.log('water tracking data', data)
     
     if (error) {
       throw error;

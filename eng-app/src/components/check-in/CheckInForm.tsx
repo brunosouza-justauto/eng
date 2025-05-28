@@ -256,7 +256,6 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
             }
         };
         
-        console.log(`Requesting camera with facing mode: ${facingMode}`);
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         streamRef.current = stream;
         
@@ -353,8 +352,6 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
                 const file = new File([blob], `${isCameraActive}-photo.jpg`, { type: 'image/jpeg' });
                 const previewUrl = URL.createObjectURL(blob);
                 
-                console.log(`Photo captured successfully: ${file.size} bytes, ${canvas.width}x${canvas.height}`);
-                
                 // Update state with the captured photo
                 setPhotos(prev => ({
                     ...prev,
@@ -418,8 +415,6 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
         const fileName = `${uuidv4()}.${fileExt}`;
         const filePath = `${profile!.user_id}/${folder}/${fileName}`;
 
-        console.log(`Uploading ${folder} to: ${filePath}`);
-
         const { error: uploadError } = await supabase.storage
             .from('progress-media') // Ensure this bucket exists and has policies set up
             .upload(filePath, file, {
@@ -432,7 +427,6 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
             throw new Error(`Failed to upload ${folder}: ${uploadError.message}`);
         }
 
-        console.log(`${folder} uploaded successfully: ${filePath}`);
         return filePath; // Return the storage path
     };
 
@@ -458,7 +452,6 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
                 .map(photo => photo.file) as File[];
                 
             if (photoFiles.length > 0) {
-                console.log(`Starting upload of ${photoFiles.length} photos...`);
                 const uploadPromises = photoFiles.map(async (file, index) => {
                     const path = await uploadFile(file, 'photos');
                     // Rough progress update
@@ -466,15 +459,12 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
                     return path;
                 });
                 uploadedPhotoPaths = await Promise.all(uploadPromises);
-                console.log('All photos uploaded.');
             }
 
             // 2. Upload Video (if present)
             if (videoFile) {
-                console.log('Starting video upload...');
                 uploadedVideoPath = await uploadFile(videoFile, 'videos');
                 setUploadProgress(100); // Mark as complete after video (if exists)
-                console.log('Video uploaded.');
             }
             
             setUploadProgress(null); // Clear progress indicator
@@ -490,8 +480,6 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
                 steps_adherence: formData.steps_adherence,
                 notes: formData.notes,
             };
-
-            console.log('Prepared check-in data:', checkInData);
 
             const bodyMetricsData: BodyMetricsInsert = {
                 weight_kg: Number(formData.weight_kg) || null,
@@ -518,7 +506,6 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
             };
 
             // 4. Insert data into DB (handle potential partial failures if not using transaction)
-            console.log('Inserting check_in record with user_id:', profile.user_id);
             const { data: checkInResult, error: checkInError } = await supabase
                 .from('check_ins')
                 .insert(checkInData)
@@ -529,7 +516,6 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
                 console.error("Error inserting check-in record:", checkInError);
                 throw checkInError || new Error('Failed to create check-in record or retrieve ID.');
             }
-            console.log(`Check-in record created with ID: ${checkInResult.id}`);
             const checkInId = checkInResult.id;
 
             // Add check_in_id to related metrics
@@ -538,18 +524,14 @@ const CheckInForm: React.FC<CheckInFormProps> = ({
 
             // Insert Body Metrics (only if there's data)
             if (Object.values(bodyMetricsData).some(v => v !== undefined && v !== null && v !== checkInId)) {
-                console.log('Inserting body_metrics record...');
                 const { error: bodyMetricsError } = await supabase.from('body_metrics').insert(bodyMetricsData);
                 if (bodyMetricsError) throw bodyMetricsError; // Fail fast for now
-                console.log('Body metrics inserted.');
             }
 
              // Insert Wellness Metrics (only if there's data)
             if (Object.values(wellnessMetricsData).some(v => v !== undefined && v !== null && v !== checkInId)) {
-                console.log('Inserting wellness_metrics record...');
                 const { error: wellnessMetricsError } = await supabase.from('wellness_metrics').insert(wellnessMetricsData);
                  if (wellnessMetricsError) throw wellnessMetricsError; // Fail fast for now
-                 console.log('Wellness metrics inserted.');
             }
 
             // 5. Handle Success

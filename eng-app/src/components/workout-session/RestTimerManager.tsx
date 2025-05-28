@@ -41,8 +41,6 @@ const RestTimerManager = forwardRef<RestTimerManagerHandle, RestTimerManagerProp
   useImperativeHandle(ref, () => ({
     // Start a new rest timer
     startRestTimer: (exerciseId: string, setIndex: number, duration: number) => {
-      console.log(`RestTimerManager: Starting timer for ${duration} seconds`);
-      
       // Set the active timer data
       setActiveTimer({
         exerciseId,

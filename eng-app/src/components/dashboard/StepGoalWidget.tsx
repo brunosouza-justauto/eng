@@ -127,7 +127,6 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
       try {
         // Get step data for the last 7 days
         const sevenDaysAgo = format(subDays(new Date(), 6), 'yyyy-MM-dd');
-        console.log('Fetching history from', sevenDaysAgo, 'to', today);
         
         const { data, error } = await supabase
           .from('step_entries')
@@ -138,8 +137,6 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
           .order('date', { ascending: false });
           
         if (error) throw error;
-        
-        console.log('History data fetched:', data);
         
         if (data && data.length > 0) {
           setHistoryData(data);
@@ -166,12 +163,11 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
             setStreak(currentStreak);
           }
         } else {
-          console.log('No history data found');
           setHistoryData([]);
           setStreak(0);
         }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (err) {
-        console.error('Error fetching step history:', err);
         showMessage('Failed to load step history', 'error');
       } finally {
         setIsLoadingHistory(false);
@@ -877,7 +873,6 @@ const StepGoalWidget: React.FC<StepGoalWidgetProps> = ({ dailyGoal }) => {
                   <button 
                     onClick={() => {
                       setShowHistory(!showHistory);
-                      console.log('Toggling history view, current data:', historyData);
                     }}
                     className="text-sm text-indigo-600 dark:text-indigo-400 flex items-center"
                   >

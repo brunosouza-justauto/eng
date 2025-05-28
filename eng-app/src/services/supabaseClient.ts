@@ -17,7 +17,6 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       lastVisibilityChangeTime = Date.now();
-      console.log('Visibility change tracked in supabaseClient');
     }
   });
 }

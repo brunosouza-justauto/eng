@@ -144,20 +144,20 @@ export const generateMealPlan = async (
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'anthropic/claude-opus-4', // Using Claude for structured output
+        model: 'openai/gpt-4o-mini', // Using Claude for structured output
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.7,
-        max_tokens: 4000
+        max_tokens: 5000
       },
       {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
           'HTTP-Referer': window.location.origin, // Required by OpenRouter
-          'X-Title': 'ENG Meal Planner' // App name for OpenRouter stats
+          'X-Title': 'ENG' // App name for OpenRouter stats
         }
       }
     );

@@ -8,8 +8,7 @@ import {
     RecipeFormData, 
     recipeSchema, 
     RecipeIngredient, 
-    FoodItem,
-    RecipeWithIngredients
+    FoodItem
 } from '../../types/mealPlanning';
 import { 
     searchFoodItems, 
@@ -260,8 +259,6 @@ const RecipeBuilder: React.FC<RecipeBuilderProps> = ({
                 serving_unit: formData.serving_unit
             };
             
-            let result: RecipeWithIngredients;
-            
             if (recipeId) {
                 // Update existing recipe
                 // Filter ingredients to separate existing from new ones
@@ -291,7 +288,7 @@ const RecipeBuilder: React.FC<RecipeBuilderProps> = ({
                 ] as Omit<RecipeIngredient, "created_at" | "recipe_id">[];
                 
                 // Update existing recipe
-                result = await updateRecipe(recipeId, recipeData, updateIngredientsData);
+                await updateRecipe(recipeId, recipeData, updateIngredientsData);
             } else {
                 // For creating new recipes: don't include ID field at all
                 const createIngredientsData = selectedIngredients.map(ingredient => ({
@@ -302,10 +299,9 @@ const RecipeBuilder: React.FC<RecipeBuilderProps> = ({
                 }));
                 
                 // Create new recipe
-                result = await createRecipe(recipeData, createIngredientsData);
+                await createRecipe(recipeData, createIngredientsData);
             }
             
-            console.log('Recipe saved:', result);
             onSave();
         } catch (err) {
             console.error('Error saving recipe:', err);
