@@ -66,6 +66,10 @@ export interface MealFoodItem {
     created_at: string;
     // Joined data (not in database)
     food_item?: FoodItem;
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
     calculated_calories?: number;
     calculated_protein?: number;
     calculated_carbs?: number;

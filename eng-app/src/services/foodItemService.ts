@@ -218,6 +218,8 @@ export const fetchFromOpenFoodFacts = async (barcode: string): Promise<FoodItem 
         }
         
         const data = await response.json();
+
+        console.log('Open Food Facts data', data);
         
         // Check if the product exists and has nutrition data
         if (!data.product || !data.product.nutriments) {
@@ -231,16 +233,18 @@ export const fetchFromOpenFoodFacts = async (barcode: string): Promise<FoodItem 
         const foodItem: Omit<FoodItem, 'id' | 'created_at' | 'updated_at'> = {
             food_name: product.product_name || 'Unknown product',
             food_group: product.categories_tags ? product.categories_tags[0] : undefined,
-            calories_per_100g: nutriments.energy_value || 0,
-            protein_per_100g: nutriments.proteins || 0,
-            carbs_per_100g: nutriments.carbohydrates || 0,
-            fat_per_100g: nutriments.fat || 0,
-            fiber_per_100g: nutriments.fiber || 0,
+            calories_per_100g: nutriments['energy-kcal_100g'] || 0,
+            protein_per_100g: nutriments['proteins_100g'] || 0,
+            carbs_per_100g: nutriments['carbohydrates_100g'] || 0,
+            fat_per_100g: nutriments['fat_100g'] || 0,
+            fiber_per_100g: nutriments['fiber_100g'] || 0,
             barcode: barcode,
             source: 'open_food_facts',
             source_id: product._id,
             brand: product.brands,
             nutrient_basis: '100g',
+            serving_size_g: 100,
+            serving_size_unit: 'g',
             is_verified: true
         };
         

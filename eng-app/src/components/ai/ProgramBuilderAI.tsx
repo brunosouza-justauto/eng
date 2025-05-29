@@ -58,9 +58,32 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      // Create request for the API
+      // Check if this is direct JSON input from an external LLM
+      // @ts-ignore - _jsonInput is a custom property we added
+      if (data._jsonInput) {
+        // Use the JSON directly without making an API call
+        console.log('Using pasted JSON directly');
+        
+        // Add AI response to chat
+        const aiResponse: Message = {
+          id: uuidv4(),
+          content: `I've processed the workout program you've pasted. Let me display the results.`,
+          isAI: true,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, aiResponse]);
+        
+        // Store the generated program from the pasted JSON
+        // @ts-ignore - _jsonInput is a custom property we added
+        setGeneratedProgram(data._jsonInput);
+        setIsLoading(false);
+        return;
+      }
+      
+      // If no JSON input, create request for the API
       const request: ProgramGenerationRequest = {
         athleteData: {
+          athleteId: data.athleteId,
           gender: data.gender,
           age: data.age,
           weight: data.weight,
@@ -78,7 +101,7 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
         }
       };
 
-      // Generate program
+      // Generate program via API
       const result = await generateProgram(request);
 
       if (result.success && result.data) {

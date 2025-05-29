@@ -732,6 +732,8 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         return orderA - orderB;
       });
     });
+
+    console.log('Grouped meals:', groupedMeals);
     
     return groupedMeals;
   };
@@ -1778,10 +1780,10 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                                   <div key={item.id} className="p-2 bg-gray-700 dark:bg-gray-700 rounded flex justify-between items-center">
                                     <div>
                                       <div className="font-medium text-gray-200">
-                                        {item.food_item.food_name}
+                                        {item.food_item?.food_name}
                                       </div>
                                       <div className="text-sm text-gray-400">
-                                        {item.quantity} {item.unit} ({Math.round(item.calories)} cal)
+                                        {item.quantity} {item.unit} ({(item.calories || 0).toFixed(1)} cal) {(item.protein || 0).toFixed(1)}g {(item.carbs || 0).toFixed(1)}g {(item.fat || 0).toFixed(1)}g
                                       </div>
                                     </div>
                                     <div className="flex items-center">

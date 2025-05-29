@@ -4,7 +4,7 @@ import ChatHistory, { Message } from './ChatHistory';
 import ChatInput from './ChatInput';
 import AthleteDataForm, { AthleteProfile } from './AthleteDataForm';
 import MealPlanResult from './MealPlanResult';
-import { generateMealPlan, AIMealPlan, MealPlanGenerationRequest } from '../../services/openRouterService';
+import { generateMealPlan, AIMealPlan, MealPlanGenerationRequest } from '../../services/mealPlanService';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../../services/supabaseClient';
 import { useSelector } from 'react-redux';
@@ -47,19 +47,41 @@ const MealPlannerAI: React.FC<MealPlannerAIProps> = ({ onMealPlanCreated }) => {
     // Add user message to chat
     const userMessage: Message = {
       id: uuidv4(),
-      content: `Please create a meal plan for a the athlete selected with the data provided.,`,
+      content: `Please create a meal plan for a the athlete selected with the data provided.`,
       isAI: false,
       timestamp: new Date()
     };
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      // Create request for the API
+      // Check if this is direct JSON input from an external LLM
+      // @ts-ignore - _jsonInput is a custom property we added
+      if (data._jsonInput) {
+        // Use the JSON directly without making an API call
+        console.log('Using pasted JSON directly');
+        
+        // Add AI response to chat
+        const aiResponse: Message = {
+          id: uuidv4(),
+          content: `I've processed the meal plan you've pasted. Let me display the results.`,
+          isAI: true,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, aiResponse]);
+        
+        // Store the generated meal plan from the pasted JSON
+        // @ts-ignore - _jsonInput is a custom property we added
+        setGeneratedMealPlan(data._jsonInput);
+        setIsLoading(false);
+        return;
+      }
+      
+      // If no JSON input, create request for the API
       const request: MealPlanGenerationRequest = {
         athleteData: data
       };
 
-      // Generate meal plan
+      // Generate meal plan via API
       const result = await generateMealPlan(request);
 
       if (result.success && result.data) {

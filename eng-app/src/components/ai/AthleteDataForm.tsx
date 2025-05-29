@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { supabase } from '../../services/supabaseClient';
-import { FiUser, FiInfo } from 'react-icons/fi';
+import { FiUser, FiInfo, FiClipboard, FiCode } from 'react-icons/fi';
+import { getMealPlanPrompts } from '../../services/openRouterService';
 import { nutritionCalculator } from '../../pages/admin/BMRCalculatorPage';
 
 export interface AthleteProfile {
@@ -72,8 +73,13 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAthlete, setSelectedAthlete] = useState<AthleteProfile | null>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
+  const [jsonInputOpen, setJsonInputOpen] = useState(false);
+  const [jsonInput, setJsonInput] = useState('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AthleteProfile>({
+  const { register, handleSubmit, setValue, getValues, watch, formState: { errors } } = useForm<AthleteProfile>({
     defaultValues: {
       user_id: '',
     }
@@ -229,6 +235,58 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
       }
     }
   }, [selectedAthleteId, athletes, setValue]);
+
+  const generatePrompt = async () => {
+    if (!selectedAthlete) return;
+    
+    try {
+      // Get form values
+      const formData = getValues();
+      setError(null);
+      setIsGeneratingPrompt(true);
+      
+      const { systemPrompt, userPrompt } = getMealPlanPrompts({ athleteData: formData });
+      const fullPrompt = JSON.stringify({ systemPrompt, userPrompt }, null, 2);
+      
+      navigator.clipboard.writeText(fullPrompt)
+        .then(() => {
+          setPromptCopied(true);
+          setTimeout(() => setPromptCopied(false), 3000);
+        })
+        .catch(err => {
+          console.error('Failed to copy prompt:', err);
+          setError('Failed to copy prompt to clipboard');
+        });
+      
+      // Open JSON input area
+      setJsonInputOpen(true);
+      setIsGeneratingPrompt(false);
+    } catch (err) {
+      console.error('Error generating prompt:', err);
+      setError('Failed to generate prompt');
+      setIsGeneratingPrompt(false);
+    }
+  };
+
+  const handleJsonInput = () => {
+    if (!jsonInput.trim()) {
+      setJsonError('Please paste a valid JSON response');
+      return;
+    }
+    
+    try {
+      const parsedJson = JSON.parse(jsonInput);
+      // Process the JSON response as if it came from the API
+      onSubmit({
+        ...selectedAthlete!,
+        _jsonInput: parsedJson // This will be handled by the parent component
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (err) {
+      setJsonError('Invalid JSON format. Please check and try again.');
+    }
+  };
 
   const handleFormSubmit = (data: AthleteProfile) => {
     onSubmit(data);
@@ -893,7 +951,29 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
           </>
         )}
         
-        <div className="flex justify-end">
+        <div className="flex justify-end space-x-3">
+          <button
+            type="button"
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md flex items-center"
+            onClick={generatePrompt}
+            disabled={!selectedAthlete || isSubmitting || isGeneratingPrompt}
+          >
+            {isGeneratingPrompt ? (
+              <>
+                <svg className="w-4 h-4 mr-2 -ml-1 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Preparing Prompt...
+              </>
+            ) : (
+              <>
+                <FiClipboard className="mr-2" />
+                {promptCopied ? 'Copied!' : 'Generate Prompt'}
+              </>
+            )}
+          </button>
+          
           <button
             type="submit"
             className={`px-4 py-2 ${
@@ -919,6 +999,50 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
             )}
           </button>
         </div>
+
+        {/* JSON Input Area */}
+        {jsonInputOpen && (
+          <div className="mt-6 p-4 border rounded-md bg-gray-50 dark:bg-gray-800">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-md font-medium">Paste AI Response</h3>
+              <button 
+                type="button" 
+                onClick={() => setJsonInputOpen(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
+              >
+                <span className="sr-only">Close</span>
+                ✕
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+              Paste the JSON response from the external AI service below:
+            </p>
+            
+            <textarea
+              className="w-full h-48 p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-700 dark:text-white"
+              placeholder="Paste the JSON response here..."
+              value={jsonInput}
+              onChange={(e) => setJsonInput(e.target.value)}
+            />
+            
+            {jsonError && (
+              <p className="mt-2 text-sm text-red-600 dark:text-red-400">{jsonError}</p>
+            )}
+            
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={handleJsonInput}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md flex items-center"
+                disabled={!jsonInput.trim()}
+              >
+                <FiCode className="mr-2" />
+                Process JSON
+              </button>
+            </div>
+          </div>
+        )}
       </form>
     </div>
   );
