@@ -230,9 +230,8 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
             let exerciseId = bestMatch?.id || null;
 
             if (!exerciseId) {
-              throw new Error('Failed to find exercise match');
               // Create the exercise if no match was found
-              /*const { data: exerciseData, error: exerciseError } = await supabase
+              const { data: exerciseData, error: exerciseError } = await supabase
                 .from('exercises')
                 .insert({
                   name: exercise.name,
@@ -269,7 +268,7 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
                 target: exercise.primary_muscle_group,
                 body_part: exercise.large_muscle_group,
                 description: exercise.notes
-              });*/
+              });
             }
                         
             // Create the exercise instance
