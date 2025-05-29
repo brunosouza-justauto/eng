@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { fetchAllExercises } from './exerciseMatchingService';
 
 /**
  * Interface for program generation request
@@ -84,8 +85,32 @@ export const generateProgram = async (
   request: ProgramGenerationRequest
 ): Promise<{ success: boolean; data?: AIProgram; error?: string }> => {
   try {
+    // First, fetch all exercises to include in the system prompt
+    console.log('Fetching all exercises to include in AI prompt...');
+    const allExercises = await fetchAllExercises();
+    console.log(`Fetched ${allExercises.length} exercises for AI prompt`);
+    
+    // Create a simplified list of exercises for the AI
+    // Include only the key information needed to select appropriate exercises
+    const exercisesList = allExercises.map(ex => ({
+      name: ex.name
+    }));
+    
+    // Format exercises as a simple list to save tokens
+    let exerciseListText = 'IMPORTANT: Use exercises from the following list whenever possible. These are the exercises available in our database:\n';
+    // Take up to 100 exercises to keep token count manageable
+    const limitedExerciseList = exercisesList.slice(0, 100);
+    
+    for (const exercise of limitedExerciseList) {
+      exerciseListText += `"${exercise.name}"\n`;
+    }
+    
     // Create the system prompt
     const systemPrompt = `You are an expert strength coach specialized in creating personalized workout programs. Create a detailed program with the following requirements:
+    
+    ${exerciseListText}
+    
+    Only create new exercises if you cannot find a suitable match in the list above. When creating exercises, make sure to use appropriate muscle group names and equipment types.
     1. Output MUST be valid JSON following this structure: {
       "program_name": string,
       "description": string,
@@ -125,6 +150,7 @@ export const generateProgram = async (
       "deload_strategy": string,
       "notes": string
     }
+    2. Only generate week 1 and add the notes for the other weeks in the description such as deload week or progression information
     2. All exercises must be practical, safe, and appropriate for the athlete's experience level
     3. Structure the program with appropriate volume and intensity progression
     4. Include detailed notes on form, execution, and programming considerations
@@ -137,10 +163,13 @@ export const generateProgram = async (
     11. Ensure to train each muscle group at least once a week
     12. Ensure to have enough exercises for each workout that would last the session duration to complete the workout
     13. Aim for 6 to 7 exercises per workout but also keep in mind the session duration to descide the number of sets for each exercise
-    14. Aim for 18-20 sets per large muscle group (Arms, Legs, Back, Chest, Glutes, Shoulders, Core) per week.
+    14. Aim for 4-10 sets per large muscle group (Arms, Legs, Back, Chest, Glutes, Shoulders, Core) per week for beginner athletes
+    14. Aim for 12-20 sets per large muscle group (Arms, Legs, Back, Chest, Glutes, Shoulders, Core) per week for intermediate athletes
+    15. Aim for 20-30 sets per large muscle group (Arms, Legs, Back, Chest, Glutes, Shoulders, Core) per week for advanced athletes
     15. For complex movements like squat or deadlift you should allow a bigger rest time compared to isolation exercises
     16. Keep in mind the athlete's injury considerations and avoid exercises that could aggravate the injury
     17. If superset is selected as set type you must return 2 exercises for each superset
+    18. Ensure you have the exact same amount of workout days per week as the athlete requested, i.e. if "Available training days per week" is 5 you need to return 5 workout days
 
     The possible list for the exercise equipment is the following:
     "Wheel roller"
@@ -260,13 +289,12 @@ Training preferences: ${request.athleteData.preferences}`;
       const response = await axios.post(
         'https://openrouter.ai/api/v1/chat/completions',
         {
-          model: 'openai/gpt-4o-mini', // Using Deepseek for structured output with reasoning
+          model: 'google/gemini-2.5-pro-preview', // Using Deepseek for structured output with reasoning
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          temperature: 0.7,
-          max_tokens: 4000
+          temperature: 0.7
         },
         {
           headers: {
@@ -274,7 +302,8 @@ Training preferences: ${request.athleteData.preferences}`;
             'Authorization': `Bearer ${apiKey}`,
             'HTTP-Referer': window.location.origin, // Required by OpenRouter
             'X-Title': 'ENG' // App name for OpenRouter stats
-          }
+          },
+          timeout: 300000 // 5 minutes in milliseconds
         }
       );
 

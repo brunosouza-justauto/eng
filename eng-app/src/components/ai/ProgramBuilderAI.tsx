@@ -10,6 +10,7 @@ import { supabase } from '../../services/supabaseClient';
 import { useSelector } from 'react-redux';
 import { selectProfile } from '../../store/slices/authSlice';
 import { SetType } from '../../types/adminTypes';
+import { fetchAllExercises, findBestExerciseMatch } from '../../services/exerciseMatchingService';
 
 interface ProgramBuilderAIProps {
   onProgramCreated: (programId: string) => void;
@@ -18,47 +19,7 @@ interface ProgramBuilderAIProps {
 /**
  * Main component for the AI-powered program generation
  */
-/**
- * Calculate similarity between two strings using Levenshtein distance
- * Returns a value between 0 (completely different) and 1 (identical)
- */
-const calculateStringSimilarity = (str1: string, str2: string): number => {
-  // If either string is empty, similarity is 0
-  if (!str1.length || !str2.length) return 0;
-  
-  // If strings are identical, similarity is 1
-  if (str1 === str2) return 1;
-  
-  // Create matrix for Levenshtein distance calculation
-  const len1 = str1.length;
-  const len2 = str2.length;
-  const matrix: number[][] = [];
-  
-  // Initialize matrix
-  for (let i = 0; i <= len1; i++) {
-    matrix[i] = [i];
-  }
-  
-  for (let j = 0; j <= len2; j++) {
-    matrix[0][j] = j;
-  }
-  
-  // Calculate Levenshtein distance
-  for (let i = 1; i <= len1; i++) {
-    for (let j = 1; j <= len2; j++) {
-      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,      // deletion
-        matrix[i][j - 1] + 1,      // insertion
-        matrix[i - 1][j - 1] + cost // substitution
-      );
-    }
-  }
-  
-  // Convert distance to similarity score (0 to 1)
-  const maxLen = Math.max(len1, len2);
-  return 1 - matrix[len1][len2] / maxLen;
-};
+// String similarity calculation moved to exerciseMatchingService.ts
 
 const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated }) => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -191,6 +152,10 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
     setIsSavingProgram(true);
     
     try {
+      // STEP 1: Fetch all exercises from the database first to improve matching
+      const allExercises = await fetchAllExercises();
+      console.log(`Fetched ${allExercises.length} exercises for matching`);
+      
       // First, insert the program template
       const { data: templateData, error: templateError } = await supabase
         .from('program_templates')
@@ -244,80 +209,30 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
           
           // Create exercise instances for this workout
           for (const [index, exercise] of workout.exercises.entries()) {
-            console.log('exercise name', exercise.name);
-            console.log('exercise equipment', exercise.equipment);
-            console.log('exercise primary muscle group', exercise.primary_muscle_group);
-            console.log('exercise secondary muscle group', exercise.secondary_muscle_group);
-            console.log('exercise large muscle group', exercise.large_muscle_group);
-            console.log('exercise notes', exercise.notes);
-
-            let equipment = exercise.equipment;
-            if (equipment === 'Leverage Machine') {
-              equipment = 'Lever';
-            } else if (equipment === 'Olympic Barbell') {
-              equipment = 'Barbell';
-            } else if (equipment === 'Olympic Bar') {
-              equipment = 'Barbell';
-            } else if (equipment === 'Dumbbell') {
-              equipment = 'Dumbbell';
-            }
-
-            // Look up potential exercise matches in the database
-            // First, try to find a close match based on name
-            const { data: potentialMatches } = await supabase
-              .from('exercises')
-              .select('id, name, primary_muscle_group, equipment, target')
-              .or(`name.eq.${exercise.name}, name.eq.${equipment} ${exercise.name}, name.ilike.%${equipment} ${exercise.name}%,original_name.ilike.%${exercise.name}%`)
-              .or(`name.eq.${exercise.name.toLowerCase()}, name.eq.${equipment} ${exercise.name.toLowerCase()}, name.ilike.%${equipment} ${exercise.name.toLowerCase()}%,original_name.ilike.%${exercise.name.toLowerCase()}%`)
-              .eq('primary_muscle_group', exercise.primary_muscle_group)
-              .limit(20);
-
-            console.log(potentialMatches);
+            console.log('----------------');
+            console.warn('PROCESSING EXERCISE:', exercise.name);
+            console.info('Equipment:', exercise.equipment);
+            console.info('Primary muscle group:', exercise.primary_muscle_group);
             
-            let exerciseMatches = potentialMatches || [];
+            // STEP 2: Use the two-step approach to match exercises
+            // Find the best match from our pre-loaded exercise list
+            const bestMatch = findBestExerciseMatch(
+              exercise.name,
+              exercise.primary_muscle_group,
+              exercise.equipment,
+              allExercises
+            );
             
-            // Score each potential match to find the best one
-            let bestMatch = null;
-            let bestScore = 0;
+            console.error('Best match found:', bestMatch?.name || 'No match');
+            console.log('----------------');
             
-            for (const match of exerciseMatches) {
-              let score = 0;
-              
-              // Name similarity (most important)
-              const nameSimilarity = calculateStringSimilarity(exercise.name.toLowerCase(), match.name.toLowerCase());
-              score += nameSimilarity * 10; // Weight name similarity heavily
-              
-              // Equipment match
-              if (match.equipment && exercise.equipment && 
-                  match.equipment.toLowerCase().includes(exercise.equipment.toLowerCase())) {
-                score += 3;
-              }
-              
-              // Target muscle match
-              if (match.primary_muscle_group && exercise.primary_muscle_group && 
-                  match.primary_muscle_group.toLowerCase().includes(exercise.primary_muscle_group.toLowerCase())) {
-                score += 5;
-              } else if (match.target && exercise.primary_muscle_group && 
-                       match.target.toLowerCase().includes(exercise.primary_muscle_group.toLowerCase())) {
-                score += 4;
-              }
-              
-              if (score > bestScore) {
-                bestScore = score;
-                bestMatch = match;
-              }
-            }
-            
-            // Only use the match if it has a reasonable score
-            let exerciseId = (bestScore >= 5) ? bestMatch?.id : null;
-
-            console.log(bestMatch);
-            console.log(bestScore);
-            console.log(exerciseId);
+            // Use the matched exercise ID or create a new one if no match
+            let exerciseId = bestMatch?.id || null;
 
             if (!exerciseId) {
-              // Lets create the exercise
-              const { data: exerciseData, error: exerciseError } = await supabase
+              throw new Error('Failed to find exercise match');
+              // Create the exercise if no match was found
+              /*const { data: exerciseData, error: exerciseError } = await supabase
                 .from('exercises')
                 .insert({
                   name: exercise.name,
@@ -341,9 +256,20 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
                 throw new Error('Failed to create exercise');
               }
 
-              console.log('exercise created', exerciseData);
+              console.log('Created new exercise:', exerciseData.id);
               
               exerciseId = exerciseData.id;
+              
+              // Add the newly created exercise to our local cache for future matches
+              allExercises.push({
+                id: exerciseData.id,
+                name: exercise.name,
+                primary_muscle_group: exercise.primary_muscle_group,
+                equipment: exercise.equipment,
+                target: exercise.primary_muscle_group,
+                body_part: exercise.large_muscle_group,
+                description: exercise.notes
+              });*/
             }
                         
             // Create the exercise instance
