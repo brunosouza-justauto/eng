@@ -42,6 +42,8 @@ export interface UserProfileFull extends UserProfileListItem {
     goal_timeframe_weeks?: number | null;
     goal_target_weight_kg?: number | null;
     goal_physique_details?: string | null;
+    experience_level?: string | null;
+    training_time_of_day?: string | null;
     training_days_per_week?: number | null;
     training_current_program?: string | null;
     training_equipment?: string | null;
@@ -51,6 +53,8 @@ export interface UserProfileFull extends UserProfileListItem {
     nutrition_tracking_method?: string | null;
     nutrition_preferences?: string | null;
     nutrition_allergies?: string | null;
+    nutrition_wakeup_time_of_day?: string | null;
+    nutrition_bed_time_of_day?: string | null;
     lifestyle_sleep_hours?: number | null;
     lifestyle_stress_level?: number | null;
     lifestyle_water_intake_liters?: number | null;

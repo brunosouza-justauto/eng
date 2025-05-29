@@ -27,9 +27,9 @@ const steps = [
 // --- Define fields associated with each step --- 
 const stepFields: Record<number, (keyof OnboardingData)[]> = {
     1: ['first_name', 'last_name', 'age', 'weight_kg', 'height_cm', 'body_fat_percentage', 'gender'],
-    2: ['goal_target_fat_loss_kg', 'goal_timeframe_weeks', 'goal_target_weight_kg', 'goal_physique_details'],
-    3: ['training_days_per_week', 'training_current_program', 'training_equipment', 'training_session_length_minutes', 'training_intensity'],
-    4: ['nutrition_meal_patterns', 'nutrition_tracking_method', 'nutrition_preferences', 'nutrition_allergies'],
+    2: ['goal_type', 'goal_target_fat_loss_kg', 'goal_timeframe_weeks', 'goal_target_weight_kg', 'goal_physique_details'],
+    3: ['experience_level', 'training_days_per_week', 'training_current_program', 'training_equipment', 'training_time_of_day', 'training_session_length_minutes', 'training_intensity'],
+    4: ['nutrition_meal_patterns', 'nutrition_tracking_method', 'nutrition_wakeup_time_of_day', 'nutrition_bed_time_of_day', 'nutrition_preferences', 'nutrition_allergies'],
     5: ['lifestyle_sleep_hours', 'lifestyle_stress_level', 'lifestyle_water_intake_liters', 'lifestyle_schedule_notes', 'supplements_meds', 'motivation_readiness']
 };
 // -----------------------------------------------
@@ -54,7 +54,7 @@ const OnboardingWizard: React.FC = () => {
         defaultValues: currentProfile as any || {}
     });
 
-    const { handleSubmit, trigger, reset } = methods;
+    const { handleSubmit, trigger, reset, getValues, setError } = methods;
 
     // Fetch existing profile data when component mounts
     useEffect(() => {
@@ -92,7 +92,74 @@ const OnboardingWizard: React.FC = () => {
         const fieldsToValidate = stepFields[currentStep] || [];
         
         // Special handling for step 5 - skip validation of stress level field
-        if (currentStep === 5) {
+        if (currentStep === 2) {
+            // Validate based on goal type
+            const fieldsToCheck = [...fieldsToValidate];
+            
+            // Run the validation
+            const isValid = await trigger(fieldsToCheck as (keyof OnboardingData)[]);
+
+            const formValues = getValues();
+
+            console.log('formValues', formValues);
+            console.log('goal_type', formValues.goal_type);
+            
+            if (!formValues.goal_type) {
+                // Trigger validation just on goal_type
+                setError('goal_type', {
+                    type: 'required',
+                    message: 'Please select a goal type'
+                });
+                return;
+            }
+            
+            if (formValues.goal_type === 'fat_loss') {
+                // Check if the target fat loss field is filled
+                if (!formValues.goal_target_fat_loss_kg) {
+                    setError('goal_target_fat_loss_kg', {
+                        type: 'required',
+                        message: 'Target fat loss is required for this goal type'
+                    });
+                    return;
+                }
+            } else if (formValues.goal_type === 'muscle_gain') {
+                // Check if the target muscle gain field is filled
+                if (!formValues.goal_target_muscle_gain_kg) {
+                    setError('goal_target_muscle_gain_kg', {
+                        type: 'required',
+                        message: 'Target muscle gain is required for this goal type'
+                    });
+                    return;
+                }
+            } else if (formValues.goal_type === 'both') {
+                // Check if both fields are filled
+                let hasError = false;
+                
+                if (!formValues.goal_target_fat_loss_kg) {
+                    setError('goal_target_fat_loss_kg', {
+                        type: 'required',
+                        message: 'Target fat loss is required for this goal type'
+                    });
+                    hasError = true;
+                }
+                
+                if (!formValues.goal_target_muscle_gain_kg) {
+                    setError('goal_target_muscle_gain_kg', {
+                        type: 'required',
+                        message: 'Target muscle gain is required for this goal type'
+                    });
+                    hasError = true;
+                }
+                
+                if (hasError) {
+                    return;
+                }
+            }
+
+            if (!isValid) {
+                return;
+            }
+        } else if (currentStep === 5) {
             // Skip the stress level field regardless of value
             // This will allow the user to proceed with an empty stress level field
             const filteredFields = fieldsToValidate.filter(field => field !== 'lifestyle_stress_level');
@@ -100,9 +167,8 @@ const OnboardingWizard: React.FC = () => {
             
             // Step 5 is the last step, so don't try to go to the next step
             // Just update the form data
-            if (isValid) {
-                // We no longer need to update formData
-                // Just proceed with the next steps
+            if (!isValid) {
+                return;
             }
             return;
         }
@@ -203,7 +269,7 @@ const OnboardingWizard: React.FC = () => {
             <div className="max-w-2xl p-6 mx-auto">
                 <div className="p-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
                     <h2 className="mb-4 text-xl font-semibold text-gray-800 dark:text-white">
-                        Step {currentStep}: {steps[currentStep - 1]?.name}
+                        Step {currentStep} / {steps.length} - {steps[currentStep - 1]?.name}
                     </h2>
                     
                     {isLoadingProfile ? (

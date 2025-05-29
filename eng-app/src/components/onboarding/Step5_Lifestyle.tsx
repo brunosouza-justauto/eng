@@ -22,13 +22,6 @@ const Step5_Lifestyle: React.FC = () => {
                 min="1"
                 max="10"
             />
-            <FormInput 
-                name="lifestyle_water_intake_liters"
-                label="Average Daily Water Intake (liters, optional)"
-                type="number" 
-                placeholder="e.g., 3.5"
-                step="0.1"
-            />
              <FormInput 
                 name="lifestyle_schedule_notes"
                 label="Weekday vs Weekend Schedule Differences (optional)"
@@ -41,11 +34,20 @@ const Step5_Lifestyle: React.FC = () => {
                 type="textarea" 
                 placeholder="List any supplements or medications you take regularly."
             />
+            <FormInput 
+                name="lifestyle_water_intake_liters"
+                label="Average Daily Water Intake (liters)"
+                type="number" 
+                placeholder="e.g., 3.5"
+                step="0.1"
+                required
+            />
              <FormInput 
                 name="motivation_readiness"
-                label="Motivation & Readiness for Change (optional)"
+                label="Motivation & Readiness for Change"
                 type="textarea" 
                 placeholder="What motivates you? How ready are you to make changes? Any potential challenges?"
+                required
             />
         </div>
     );

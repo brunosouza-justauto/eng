@@ -484,15 +484,19 @@ const AthleteDetailsPage: React.FC = () => {
                 goal_type: formData.goal_type,
                 
                 // Training
+                experience_level: formData.experience_level,
                 training_days_per_week: formData.training_days_per_week,
                 training_current_program: formData.training_current_program,
                 training_equipment: formData.training_equipment,
+                training_time_of_day: formData.training_time_of_day,
                 training_session_length_minutes: formData.training_session_length_minutes,
                 training_intensity: formData.training_intensity,
                 
                 // Nutrition
                 nutrition_meal_patterns: formData.nutrition_meal_patterns,
                 nutrition_tracking_method: formData.nutrition_tracking_method,
+                nutrition_wakeup_time_of_day: formData.nutrition_wakeup_time_of_day,
+                nutrition_bed_time_of_day: formData.nutrition_bed_time_of_day,
                 nutrition_preferences: formData.nutrition_preferences,
                 nutrition_allergies: formData.nutrition_allergies,
                 
@@ -1294,8 +1298,20 @@ const AthleteDetailsPage: React.FC = () => {
                         <h3 className="pb-2 mb-4 text-lg font-medium text-gray-800 border-b dark:text-white">Training</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Experience Level</p>
+                                <p className="font-medium text-gray-800 dark:text-white">
+                                    {athleteDetails.experience_level ? 
+                                        athleteDetails.experience_level.charAt(0).toUpperCase() + athleteDetails.experience_level.slice(1) : 
+                                        'Not provided'}
+                                </p>
+                            </div>
+                            <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Days Per Week</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.training_days_per_week || 'Not provided'}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Training Time</p>
+                                <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.training_time_of_day || 'Not provided'}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Current Program</p>
@@ -1372,6 +1388,14 @@ const AthleteDetailsPage: React.FC = () => {
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Tracking Method</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.nutrition_tracking_method || 'Not provided'}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Wake-up Time</p>
+                                <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.nutrition_wakeup_time_of_day || 'Not provided'}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Bedtime</p>
+                                <p className="font-medium text-gray-800 dark:text-white">{athleteDetails.nutrition_bed_time_of_day || 'Not provided'}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Preferences</p>

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useFormContext, useWatch } from 'react-hook-form';
+import { useFormContext, useWatch, Controller } from 'react-hook-form';
 import FormInput from '../ui/FormInput';
 import { OnboardingData } from './onboardingSchema';
 
 // Step 2 Component
 const Step2_Goals: React.FC = () => {
-    const { register, setValue, control } = useFormContext<OnboardingData>();
+    const { register, setValue, control, formState: { errors } } = useFormContext<OnboardingData>();
     const [calculatedWeight, setCalculatedWeight] = useState<number | null>(null);
     
     // Watch for changes in relevant fields
@@ -44,25 +44,46 @@ const Step2_Goals: React.FC = () => {
             // Still set the form value for submission
             setValue('goal_target_weight_kg', targetWeight, { shouldValidate: true });
         }
-    }, [weightKg, goalType, targetFatLossKg, targetMuscleGainKg, setValue]);
+
+        console.log('goal_target_weight_kg', weightKg);
+
+    }, [weightKg, goalType, targetFatLossKg, targetMuscleGainKg, setValue, control]);
 
     return (
         <div className="space-y-4">
             <div className="mb-4">
                 <label htmlFor="goal_type" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Primary Goal
+                    Primary Goal <span className="text-red-400">*</span>
                 </label>
-                <select
-                    id="goal_type"
-                    {...register("goal_type")}
-                    className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                >
-                    <option value="">Select Your Primary Goal</option>
-                    <option value="fat_loss">Fat Loss</option>
-                    <option value="muscle_gain">Muscle Gain</option>
-                    <option value="both">Both (Recomposition)</option>
-                    <option value="maintenance">Maintenance</option>
-                </select>
+                <Controller
+                    name="goal_type"
+                    control={control}
+                    render={({ field }) => (
+                        <select
+                            id="goal_type"
+                            {...field}
+                            className={`block w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
+                                errors.goal_type 
+                                    ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/20' 
+                                    : 'border-gray-300 dark:border-gray-600'
+                            }`}
+                            required
+                            autoFocus
+                        >
+                            <option value="">Select Your Primary Goal</option>
+                            <option value="fat_loss">Fat Loss</option>
+                            <option value="muscle_gain">Muscle Gain</option>
+                            <option value="both">Both (Recomposition)</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                    )}
+                />
+                
+                {errors.goal_type && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        Primary goal must be selected.
+                    </p>
+                )}
             </div>
             
             {(goalType === 'fat_loss' || goalType === 'both') && (
@@ -72,6 +93,7 @@ const Step2_Goals: React.FC = () => {
                     type="number" 
                     placeholder="e.g., 5" 
                     step="0.1"
+                    required
                 />
             )}
             
@@ -82,6 +104,7 @@ const Step2_Goals: React.FC = () => {
                     type="number" 
                     placeholder="e.g., 3" 
                     step="0.1"
+                    required
                 />
             )}
             
@@ -90,11 +113,12 @@ const Step2_Goals: React.FC = () => {
                 label="Desired Timeframe (weeks, optional)"
                 type="number" 
                 placeholder="e.g., 12"
+                required
             />
             
             <div className="mb-4">
                 <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Target Body Weight (kg, calculated)
+                    Target Body Weight (kg, calculated) <span className="text-red-400">*</span>
                 </label>
                 <div className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm bg-gray-50 dark:bg-gray-800 dark:border-gray-600 text-gray-900 dark:text-gray-300">
                     {calculatedWeight !== null ? calculatedWeight : 'Calculated based on selections'}
@@ -128,6 +152,7 @@ const Step2_Goals: React.FC = () => {
                 label="Specific Physique Goals (optional)"
                 type="textarea" 
                 placeholder="Describe your physique goals (e.g., improve shoulder width, leaner midsection...)"
+                required
             />
         </div>
     );

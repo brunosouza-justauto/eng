@@ -38,6 +38,7 @@ const userEditSchema = z.object({
         (val) => (val === '' ? null : Number(val)),
         z.number().min(0, 'Body fat percentage must be positive').max(100, 'Body fat percentage cannot exceed 100%').nullable().optional()
     ),
+    gender: z.string().min(1, 'Gender is required'),
     // Goals
     goal_type: z.enum(['fat_loss', 'muscle_gain', 'both', 'maintenance']).nullable().optional(),
     goal_target_fat_loss_kg: z.preprocess(
@@ -58,12 +59,26 @@ const userEditSchema = z.object({
     ),
     goal_physique_details: z.string().nullable().optional(),
     // Training
+    experience_level: z.enum(['beginner', 'intermediate', 'advanced']).nullable().optional(),
     training_days_per_week: z.preprocess(
         (val) => (val === '' ? null : Number(val)),
-        z.number().min(0, 'Training days must be positive').max(7, 'Training days cannot exceed 7').nullable().optional()
+        z.number().min(3, 'Training days must be at least 3').max(7, 'Training days cannot exceed 7').nullable().optional()
     ),
     training_current_program: z.string().nullable().optional(),
-    training_equipment: z.string().nullable().optional(),
+    training_equipment: z.enum([
+        'Home gym', 
+        'Bodyweight only', 
+        'Full Commercial gym', 
+        'Limited Commercial gym', 
+        'Dumbbells and kettlebells only', 
+        'Dumbbells and barbell only', 
+        'Dumbbells, barbell and kettlebells only'
+    ]).nullable().optional(),
+    training_time_of_day: z.enum([
+        '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
+        '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', 
+        '20:00', '21:00', '22:00', '23:00'
+    ]).nullable().optional(),
     training_session_length_minutes: z.preprocess(
         (val) => (val === '' ? null : Number(val)),
         z.number().min(0, 'Session length must be positive').nullable().optional()
@@ -71,7 +86,17 @@ const userEditSchema = z.object({
     training_intensity: z.string().nullable().optional(),
     // Nutrition
     nutrition_meal_patterns: z.string().nullable().optional(),
-    nutrition_tracking_method: z.string().nullable().optional(),
+    nutrition_tracking_method: z.enum(['MyFitnessPal', 'Other app', 'Pen & paper', 'Don\'t track']).nullable().optional(),
+    nutrition_wakeup_time_of_day: z.enum([
+        '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
+        '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', 
+        '20:00', '21:00', '22:00', '23:00'
+    ]).nullable().optional(),
+    nutrition_bed_time_of_day: z.enum([
+        '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
+        '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', 
+        '20:00', '21:00', '22:00', '23:00'
+    ]).nullable().optional(),
     nutrition_preferences: z.string().nullable().optional(),
     nutrition_allergies: z.string().nullable().optional(),
     // Lifestyle
@@ -85,12 +110,11 @@ const userEditSchema = z.object({
     ),
     lifestyle_water_intake_liters: z.preprocess(
         (val) => (val === '' ? null : Number(val)),
-        z.number().min(0, 'Water intake must be positive').nullable().optional()
+        z.number().min(0.1, 'Water intake must be at least 0.1').max(99, 'Water intake cannot exceed 99').nullable().optional()
     ),
     lifestyle_schedule_notes: z.string().nullable().optional(),
     supplements_meds: z.string().nullable().optional(),
     motivation_readiness: z.string().nullable().optional(),
-    gender: z.string().min(1, 'Gender is required'),
 });
 
 // Create a type for the form data from the schema
@@ -104,6 +128,7 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
             first_name: user.first_name || '',
             last_name: user.last_name || '',
             role: (user.role as 'athlete' | 'coach') || 'athlete',
+            gender: user.gender || '',
             // Physical details
             age: user.age || null,
             weight_kg: user.weight_kg || null,
@@ -117,14 +142,18 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
             goal_target_weight_kg: user.goal_target_weight_kg || null,
             goal_physique_details: user.goal_physique_details || null,
             // Training
+            experience_level: (user.experience_level as 'beginner' | 'intermediate' | 'advanced' | null) || null,
             training_days_per_week: user.training_days_per_week || null,
             training_current_program: user.training_current_program || null,
-            training_equipment: user.training_equipment || null,
+            training_equipment: (user.training_equipment as 'Home gym' | 'Bodyweight only' | 'Full Commercial gym' | 'Limited Commercial gym' | 'Dumbbells and kettlebells only' | 'Dumbbells and barbell only' | 'Dumbbells, barbell and kettlebells only' | null) || null,
+            training_time_of_day: (user.training_time_of_day as '00:00' | '01:00' | '02:00' | '03:00' | '04:00' | '05:00' | '06:00' | '07:00' | '08:00' | '09:00' | '10:00' | '11:00' | '12:00' | '13:00' | '14:00' | '15:00' | '16:00' | '17:00' | '18:00' | '19:00' | '20:00' | '21:00' | '22:00' | '23:00' | null) || null,
             training_session_length_minutes: user.training_session_length_minutes || null,
             training_intensity: user.training_intensity || null,
             // Nutrition
             nutrition_meal_patterns: user.nutrition_meal_patterns || null,
-            nutrition_tracking_method: user.nutrition_tracking_method || null,
+            nutrition_tracking_method: (user.nutrition_tracking_method as 'MyFitnessPal' | 'Other app' | 'Pen & paper' | 'Don\'t track' | null) || null,
+            nutrition_wakeup_time_of_day: (user.nutrition_wakeup_time_of_day as '00:00' | '01:00' | '02:00' | '03:00' | '04:00' | '05:00' | '06:00' | '07:00' | '08:00' | '09:00' | '10:00' | '11:00' | '12:00' | '13:00' | '14:00' | '15:00' | '16:00' | '17:00' | '18:00' | '19:00' | '20:00' | '21:00' | '22:00' | '23:00' | null) || null,
+            nutrition_bed_time_of_day: (user.nutrition_bed_time_of_day as '00:00' | '01:00' | '02:00' | '03:00' | '04:00' | '05:00' | '06:00' | '07:00' | '08:00' | '09:00' | '10:00' | '11:00' | '12:00' | '13:00' | '14:00' | '15:00' | '16:00' | '17:00' | '18:00' | '19:00' | '20:00' | '21:00' | '22:00' | '23:00' | null) || null,
             nutrition_preferences: user.nutrition_preferences || null,
             nutrition_allergies: user.nutrition_allergies || null,
             // Lifestyle
@@ -134,7 +163,6 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
             lifestyle_schedule_notes: user.lifestyle_schedule_notes || null,
             supplements_meds: user.supplements_meds || null,
             motivation_readiness: user.motivation_readiness || null,
-            gender: user.gender || '',
         }
     });
 
@@ -148,7 +176,7 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
             data.username = `${firstname}.${lastname}`;
         }
         
-        onSave(data);
+        onSave(data as Partial<UserProfileFull>);
     };
 
     return (
@@ -340,16 +368,49 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                 <h3 className="text-md font-medium text-gray-800 dark:text-white mt-4 mb-2">Training</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="training_days_per_week" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Training Days Per Week</label>
+                        <label htmlFor="experience_level" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Experience Level</label>
+                        <select 
+                            id="experience_level"
+                            {...register('experience_level')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="">Select Experience</option>
+                            <option value="beginner">Beginner</option>
+                            <option value="intermediate">Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                        {errors.experience_level && <p className="mt-1 text-sm text-red-600">{errors.experience_level.message}</p>}
+                    </div>
+                    <div>
+                        <label htmlFor="training_days_per_week" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Training Days Per Week</label>
                         <input 
                             id="training_days_per_week"
                             type="number"
-                            min="0" 
+                            min="3" 
                             max="7"
                             {...register('training_days_per_week')}
                             className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         />
                         {errors.training_days_per_week && <p className="mt-1 text-sm text-red-600">{errors.training_days_per_week.message}</p>}
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="training_time_of_day" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Training Time of Day</label>
+                        <select 
+                            id="training_time_of_day"
+                            {...register('training_time_of_day')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="">Select Time</option>
+                            {['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
+                              '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', 
+                              '20:00', '21:00', '22:00', '23:00'].map(time => (
+                                <option key={time} value={time}>{time}</option>
+                            ))}
+                        </select>
+                        {errors.training_time_of_day && <p className="mt-1 text-sm text-red-600">{errors.training_time_of_day.message}</p>}
                     </div>
                     <div>
                         <label htmlFor="training_session_length_minutes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Session Length (minutes)</label>
@@ -366,6 +427,24 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
+                        <label htmlFor="training_equipment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Available Equipment</label>
+                        <select 
+                            id="training_equipment"
+                            {...register('training_equipment')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="">Select Equipment</option>
+                            <option value="Home gym">Home gym</option>
+                            <option value="Bodyweight only">Bodyweight only</option>
+                            <option value="Full Commercial gym">Full Commercial gym</option>
+                            <option value="Limited Commercial gym">Limited Commercial gym</option>
+                            <option value="Dumbbells and kettlebells only">Dumbbells and kettlebells only</option>
+                            <option value="Dumbbells and barbell only">Dumbbells and barbell only</option>
+                            <option value="Dumbbells, barbell and kettlebells only">Dumbbells, barbell and kettlebells only</option>
+                        </select>
+                        {errors.training_equipment && <p className="mt-1 text-sm text-red-600">{errors.training_equipment.message}</p>}
+                    </div>
+                    <div>
                         <label htmlFor="training_current_program" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Program</label>
                         <input 
                             id="training_current_program"
@@ -373,22 +452,13 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                             className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         />
                     </div>
-                    <div>
-                        <label htmlFor="training_intensity" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Training Intensity</label>
-                        <input 
-                            id="training_intensity"
-                            {...register('training_intensity')}
-                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        />
-                    </div>
                 </div>
                 
                 <div>
-                    <label htmlFor="training_equipment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Available Equipment</label>
-                    <textarea 
-                        id="training_equipment"
-                        {...register('training_equipment')}
-                        rows={2}
+                    <label htmlFor="training_intensity" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Training Intensity</label>
+                    <input 
+                        id="training_intensity"
+                        {...register('training_intensity')}
                         className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
                 </div>
@@ -406,12 +476,53 @@ const UserEditForm: React.FC<UserEditFormProps> = ({ user, onSave, isSaving }) =
                     </div>
                     <div>
                         <label htmlFor="nutrition_tracking_method" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tracking Method</label>
-                        <textarea 
+                        <select 
                             id="nutrition_tracking_method"
                             {...register('nutrition_tracking_method')}
-                            rows={2}
                             className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        />
+                        >
+                            <option value="">Select Method</option>
+                            <option value="MyFitnessPal">MyFitnessPal</option>
+                            <option value="Other app">Other app</option>
+                            <option value="Pen & paper">Pen & paper</option>
+                            <option value="Don't track">Don't track</option>
+                        </select>
+                        {errors.nutrition_tracking_method && <p className="mt-1 text-sm text-red-600">{errors.nutrition_tracking_method.message}</p>}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="nutrition_wakeup_time_of_day" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Wakeup Time</label>
+                        <select 
+                            id="nutrition_wakeup_time_of_day"
+                            {...register('nutrition_wakeup_time_of_day')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="">Select Time</option>
+                            {['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
+                              '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', 
+                              '20:00', '21:00', '22:00', '23:00'].map(time => (
+                                <option key={time} value={time}>{time}</option>
+                            ))}
+                        </select>
+                        {errors.nutrition_wakeup_time_of_day && <p className="mt-1 text-sm text-red-600">{errors.nutrition_wakeup_time_of_day.message}</p>}
+                    </div>
+                    <div>
+                        <label htmlFor="nutrition_bed_time_of_day" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bedtime</label>
+                        <select 
+                            id="nutrition_bed_time_of_day"
+                            {...register('nutrition_bed_time_of_day')}
+                            className="block w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="">Select Time</option>
+                            {['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
+                              '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', 
+                              '20:00', '21:00', '22:00', '23:00'].map(time => (
+                                <option key={time} value={time}>{time}</option>
+                            ))}
+                        </select>
+                        {errors.nutrition_bed_time_of_day && <p className="mt-1 text-sm text-red-600">{errors.nutrition_bed_time_of_day.message}</p>}
                     </div>
                 </div>
                 

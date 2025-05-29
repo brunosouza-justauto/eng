@@ -20,11 +20,15 @@ export interface AthleteProfile {
   goal_timeframe_weeks: number;
   goal_target_weight_kg: number;
   goal_physique_details: string;
+  experience_level: string;
+  training_time_of_day: string;
   training_days_per_week: number;
   training_current_program: string;
   training_equipment: string;
   training_session_length_minutes: number;
   training_intensity: string;
+  nutrition_wakeup_time_of_day: string;
+  nutrition_bed_time_of_day: string;
   nutrition_meal_patterns: string;
   nutrition_tracking_method: string;
   nutrition_preferences: string;
@@ -138,14 +142,23 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
         setValue('goal_type', athlete.goal_type || 'maintenance');
         
         setValue('goal_target_fat_loss_kg', athlete.goal_target_fat_loss_kg || null);
-        setValue('goal_target_muscle_gain_kg', athlete.goal_target_muscle_gain_kg || null);
+        setValue('goal_target_muscle_gain_kg', athlete.goal_target_muscle_gain_kg || null);        
+        
+        // Training fields
+        setValue('experience_level', athlete.experience_level || 'intermediate');
         setValue('training_days_per_week', athlete.training_days_per_week || 3);
         setValue('training_current_program', athlete.training_current_program || 'full body');
         setValue('training_session_length_minutes', athlete.training_session_length_minutes ? athlete.training_session_length_minutes : 60);
+        setValue('training_equipment', athlete.training_equipment || '');
+        setValue('training_time_of_day', athlete.training_time_of_day || '');
+        
+        // Nutrition fields
+        setValue('nutrition_tracking_method', athlete.nutrition_tracking_method || '');
+        setValue('nutrition_wakeup_time_of_day', athlete.nutrition_wakeup_time_of_day || '');
+        setValue('nutrition_bed_time_of_day', athlete.nutrition_bed_time_of_day || '');
         setValue('nutrition_preferences', athlete.nutrition_preferences || 'High protein, balanced diet.');
         setValue('nutrition_allergies', athlete.nutrition_allergies || '');
         setValue('nutrition_meal_patterns', athlete.nutrition_meal_patterns || '3 meals per day');
-        setValue('nutrition_preferences', athlete.nutrition_preferences || 'High protein, balanced diet.');
 
         let activityLevel = '1.2';
 
@@ -411,6 +424,52 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
               </div>
             </div>
             
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Experience Level
+                </label>
+                <select
+                  {...register('experience_level')}
+                  className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  disabled={isSubmitting}
+                >
+                  <option value="">-- Select experience level --</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+                {errors.experience_level && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    Experience level is required
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Training Time of Day
+                </label>
+                <select
+                  {...register('training_time_of_day')}
+                  className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  disabled={isSubmitting}
+                >
+                  <option value="">-- Select time --</option>
+                  {['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
+                    '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', 
+                    '20:00', '21:00', '22:00', '23:00'].map(time => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
+                {errors.training_time_of_day && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    Training time is required
+                  </p>
+                )}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -467,6 +526,31 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   </p>
                 )}
               </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Available Equipment
+              </label>
+              <select
+                {...register('training_equipment')}
+                className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                disabled={isSubmitting}
+              >
+                <option value="">-- Select equipment --</option>
+                <option value="Home gym">Home gym</option>
+                <option value="Bodyweight only">Bodyweight only</option>
+                <option value="Full Commercial gym">Full Commercial gym</option>
+                <option value="Limited Commercial gym">Limited Commercial gym</option>
+                <option value="Dumbbells and kettlebells only">Dumbbells and kettlebells only</option>
+                <option value="Dumbbells and barbell only">Dumbbells and barbell only</option>
+                <option value="Dumbbells, barbell and kettlebells only">Dumbbells, barbell and kettlebells only</option>
+              </select>
+              {errors.training_equipment && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  Equipment is required
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
@@ -549,6 +633,95 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
               </div>
             </div>
             
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Nutrition Tracking Method
+                </label>
+                <select
+                  {...register('nutrition_tracking_method')}
+                  className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  disabled={isSubmitting}
+                >
+                  <option value="">-- Select tracking method --</option>
+                  <option value="MyFitnessPal">MyFitnessPal</option>
+                  <option value="Other app">Other app</option>
+                  <option value="Pen & paper">Pen & paper</option>
+                  <option value="Don't track">Don't track</option>
+                </select>
+                {errors.nutrition_tracking_method && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    Tracking method is required
+                  </p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Nutrition Meal Patterns
+                </label>
+                <input
+                  type="text"
+                  {...register('nutrition_meal_patterns', { required: true })}
+                  className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  disabled={isSubmitting}
+                />
+                {errors.nutrition_meal_patterns && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    Meal patterns are required
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Wake-up Time
+                </label>
+                <select
+                  {...register('nutrition_wakeup_time_of_day')}
+                  className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  disabled={isSubmitting}
+                >
+                  <option value="">-- Select time --</option>
+                  {['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
+                    '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', 
+                    '20:00', '21:00', '22:00', '23:00'].map(time => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
+                {errors.nutrition_wakeup_time_of_day && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    Wake-up time is required
+                  </p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Bedtime
+                </label>
+                <select
+                  {...register('nutrition_bed_time_of_day')}
+                  className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  disabled={isSubmitting}
+                >
+                  <option value="">-- Select time --</option>
+                  {['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
+                    '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', 
+                    '20:00', '21:00', '22:00', '23:00'].map(time => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
+                {errors.nutrition_bed_time_of_day && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    Bedtime is required
+                  </p>
+                )}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -570,23 +743,6 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nutrition Meal Patterns
-                </label>
-                <input
-                  type="text"
-                  {...register('nutrition_meal_patterns', { required: true })}
-                  className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  disabled={isSubmitting}
-                />
-                {errors.nutrition_meal_patterns && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                    Meal patterns are required
-                  </p>
-                )}
-              </div>
-              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Meals Per Day

@@ -14,6 +14,7 @@ interface AthleteProfile {
   height_cm: number;
   body_fat_percentage: number;
   goal_type: string;
+  experience_level: string;
   training_days_per_week: number;
   training_session_length_minutes: number;
   goal_timeframe_weeks: number;
@@ -44,9 +45,9 @@ export interface AthleteFormData {
 
 // Options for select dropdowns
 const experienceLevelOptions = [
-  { value: 'Beginner', label: 'Beginner' },
-  { value: 'Intermediate', label: 'Intermediate' },
-  { value: 'Advanced', label: 'Advanced' }
+  { value: 'beginner', label: 'Beginner' },
+  { value: 'intermediate', label: 'Intermediate' },
+  { value: 'advanced', label: 'Advanced' }
 ];
 
 const muscleGroupOptions = [
@@ -125,7 +126,7 @@ const ProgramBuilderForm: React.FC<ProgramBuilderFormProps> = ({ onSubmit, isSub
       weight: 80,
       height: 180,
       bodyFat: 20,
-      experience: 'Intermediate',
+      experience: 'intermediate',
       goal: 'Build muscle and strength while maintaining good definition',
       trainingDays: 4,
       sessionDuration: 60,
@@ -197,6 +198,10 @@ const ProgramBuilderForm: React.FC<ProgramBuilderFormProps> = ({ onSubmit, isSub
             goalText = 'Build muscle and strength while maintaining good definition';
         }
         setValue('goal', goalText);
+
+        console.log(athlete.experience_level);
+
+        setValue('experience', athlete.experience_level || 'intermediate');
         
         setValue('trainingDays', athlete.training_days_per_week || 4);
         setValue('sessionDuration', athlete.training_session_length_minutes || 60);

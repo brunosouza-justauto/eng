@@ -127,11 +127,16 @@ export const generateMealPlan = async (
     `;
 
     // Create the user prompt with the athlete data
-    const userPrompt = `Create a diet plan for a "${request.athleteData.gender}" Age "${request.athleteData.age}", Current weight "${request.athleteData.weight_kg}", height "${request.athleteData.height_cm}" and current body fat at around "${request.athleteData.body_fat_percentage}%". The individual wants to "${request.athleteData.goal_type} (both means body recomposition, lose fat and gain muscle)", ${
-      request.athleteData.goal_target_fat_loss_kg ? `lose "${request.athleteData.goal_target_fat_loss_kg}kg" of fat` : ''
-    } ${
-      request.athleteData.goal_target_muscle_gain_kg ? `and gain "${request.athleteData.goal_target_muscle_gain_kg}kg" of muscle` : ''
-    }. And achieve the following physique "${request.athleteData.goal_physique_details}". The individual will train "${request.athleteData.training_days_per_week}x a week with a ${request.athleteData.training_current_program} training program that would last about ${request.athleteData.training_session_length_minutes} minutes to complete." It was assigned ${request.athleteData.step_goal} daily steps to be complete. Lets propose a "${request.athleteData.meals_per_day}" meals a day. The proposed macros is "${request.athleteData.calories_target}" calories per day type, where "${request.athleteData.protein_target}"g of Protein, "${request.athleteData.carbs_target}"g of carbs and "${request.athleteData.fat_target}"g of fat. The individual would like to see in their nutrition "${request.athleteData.nutrition_preferences}". ${ request.athleteData.nutrition_allergies ? `The individual has the following allergies: ${request.athleteData.nutrition_allergies}` : ''}`;
+    const userPrompt = `Create a diet plan for a "${request.athleteData.gender}" Age "${request.athleteData.age}", Current weight "${request.athleteData.weight_kg}", height "${request.athleteData.height_cm}" and current body fat at around "${request.athleteData.body_fat_percentage}%".
+    The individual wants to "${request.athleteData.goal_type} (both means body recomposition, lose fat and gain muscle)", ${request.athleteData.goal_target_fat_loss_kg ? `lose "${request.athleteData.goal_target_fat_loss_kg}kg" of fat` : ''} ${request.athleteData.goal_target_muscle_gain_kg ? `and gain "${request.athleteData.goal_target_muscle_gain_kg}kg" of muscle` : ''}.
+    And individual when asked wanted to achieve the following physique "${request.athleteData.goal_physique_details}".
+    The individual will train "${request.athleteData.training_days_per_week}" times a week with a "${request.athleteData.training_current_program}" training program that would last about "${request.athleteData.training_session_length_minutes}" minutes to complete.
+    The individual training experience is "${request.athleteData.experience_level}".
+    It was assigned "${request.athleteData.step_goal}" daily steps to be complete.
+    Lets propose a "${request.athleteData.meals_per_day}" meals a day.
+    The proposed macros is "${request.athleteData.calories_target}" calories per day type, where "${request.athleteData.protein_target}"g of Protein, "${request.athleteData.carbs_target}"g of carbs and "${request.athleteData.fat_target}"g of fat.
+    The individual would like to see in their nutrition "${request.athleteData.nutrition_preferences}". ${ request.athleteData.nutrition_allergies ? `The individual has the following allergies: "${request.athleteData.nutrition_allergies}"` : ''}
+    The individual goes to bed at ${request.athleteData.nutrition_bed_time_of_day}, wakes up at ${request.athleteData.nutrition_wakeup_time_of_day} and works out (train) at ${request.athleteData.training_time_of_day}`;
 
     // Get the API key from environment variables
     const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
