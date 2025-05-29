@@ -163,6 +163,9 @@ const WorkoutSessionPage: React.FC = () => {
         if (fetchError) throw fetchError;
 
         if (data && data.exercise_instances) {
+          // We need to order the exercise_instances by order_in_workout
+          data.exercise_instances.sort((a, b) => a.order_in_workout - b.order_in_workout);
+
           // Now fetch the exercise sets data for each exercise instance
           const exerciseInstanceIds = data.exercise_instances.map((ex: ExerciseInstanceData) => ex.id);
           
