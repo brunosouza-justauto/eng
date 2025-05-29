@@ -227,8 +227,8 @@ const ProgramResult: React.FC<ProgramResultProps> = ({
                                     <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
                                       {exercise.name}
                                     </div>
-                                    <div className={`text-xs ${getMuscleGroupColor(exercise.target_muscle)}`}>
-                                      {exercise.target_muscle}
+                                    <div className={`text-xs ${getMuscleGroupColor(exercise.large_muscle_group)}`}>
+                                      {exercise.large_muscle_group}
                                     </div>
                                     <div className="text-xs text-gray-500 dark:text-gray-400">
                                       {exercise.equipment}

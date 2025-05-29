@@ -16,6 +16,7 @@ interface AthleteProfile {
   goal_type: string;
   training_days_per_week: number;
   training_session_length_minutes: number;
+  goal_timeframe_weeks: number;
 }
 
 interface ProgramBuilderFormProps {
@@ -34,6 +35,7 @@ export interface AthleteFormData {
   goal: string;
   trainingDays: number;
   sessionDuration: number;
+  weeks: number;
   preferences: string;
   targetMuscleGroups: string[];
   availableEquipment: string[];
@@ -127,6 +129,7 @@ const ProgramBuilderForm: React.FC<ProgramBuilderFormProps> = ({ onSubmit, isSub
       goal: 'Build muscle and strength while maintaining good definition',
       trainingDays: 4,
       sessionDuration: 60,
+      weeks: 12,
       preferences: 'Compound movements, some isolation work, progressive overload',
       targetMuscleGroups: ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Neck'],
       availableEquipment: ['All Commercial Equipments'],
@@ -145,7 +148,7 @@ const ProgramBuilderForm: React.FC<ProgramBuilderFormProps> = ({ onSubmit, isSub
         
         const { data, error: fetchError } = await supabase
           .from('profiles')
-          .select('id, user_id, first_name, last_name, gender, age, weight_kg, height_cm, body_fat_percentage, goal_type, training_days_per_week, training_session_length_minutes')
+          .select('*')
           .eq('role', 'athlete');
         
         if (fetchError) throw fetchError;
@@ -197,6 +200,7 @@ const ProgramBuilderForm: React.FC<ProgramBuilderFormProps> = ({ onSubmit, isSub
         
         setValue('trainingDays', athlete.training_days_per_week || 4);
         setValue('sessionDuration', athlete.training_session_length_minutes || 60);
+        setValue('weeks', athlete.goal_timeframe_weeks || 12);
       }
     }
   }, [selectedAthleteId, athletes, setValue]);
@@ -326,7 +330,7 @@ const ProgramBuilderForm: React.FC<ProgramBuilderFormProps> = ({ onSubmit, isSub
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Experience Level
@@ -365,6 +369,25 @@ const ProgramBuilderForm: React.FC<ProgramBuilderFormProps> = ({ onSubmit, isSub
                 {errors.trainingDays && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                     Must be between 1 and 7 days
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Goal Timeframe (weeks)
+                </label>
+                <input
+                  type="number"
+                  min="4"
+                  max="999"
+                  {...register('weeks', { min: 4, max: 999 })}
+                  className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  disabled={isSubmitting}
+                />
+                {errors.weeks && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    Must be between 4 and 999 weeks
                   </p>
                 )}
               </div>

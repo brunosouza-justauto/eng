@@ -90,7 +90,7 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
     // Add user message to chat
     const userMessage: Message = {
       id: uuidv4(),
-      content: `Please create a workout program for a ${data.gender}, ${data.age} years old, weighing ${data.weight}kg, ${data.height}cm tall with ${data.bodyFat}% body fat. Experience level: ${data.experience}. Goal: ${data.goal}. Training ${data.trainingDays}x per week for ${data.sessionDuration} minutes per session. Target muscle groups: ${data.targetMuscleGroups.join(', ')}. Equipment: ${data.availableEquipment.join(', ')}. Preferences: ${data.preferences}`,
+      content: `Please create a workout program for a ${data.gender}, ${data.age} years old, weighing ${data.weight}kg, ${data.height}cm tall with ${data.bodyFat}% body fat. Experience level: ${data.experience}. Goal: ${data.goal}. Training ${data.trainingDays}x per week for ${data.sessionDuration} minutes per session for ${data.weeks} weeks. Target muscle groups: ${data.targetMuscleGroups.join(', ')}. Equipment: ${data.availableEquipment.join(', ')}. Preferences: ${data.preferences}`,
       isAI: false,
       timestamp: new Date()
     };
@@ -109,6 +109,7 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
           goal: data.goal,
           trainingDays: data.trainingDays,
           sessionDuration: data.sessionDuration,
+          weeks: data.weeks,
           preferences: data.preferences,
           targetMuscleGroups: data.targetMuscleGroups,
           availableEquipment: data.availableEquipment,
@@ -199,7 +200,7 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
           weeks: generatedProgram.total_weeks,
           description: generatedProgram.description,
           fitness_level: generatedProgram.fitness_level,
-          coach_id: profile.id,
+          coach_id: 'c5e342a9-28a3-4fdb-9947-fe9e76c46b65',
           is_public: false,
           version: 1,
           is_latest_version: true
@@ -217,6 +218,7 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
       
       // Create workouts for each week and day
       for (const week of generatedProgram.weeks) {
+        let order_in_program = 0;
         for (const workout of week.workouts) {
           // Create the workout
           const { data: workoutData, error: workoutError } = await supabase
@@ -226,7 +228,8 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
               name: workout.name,
               day_of_week: workout.day_number,
               week_number: week.week_number,
-              description: workout.notes
+              description: workout.notes,
+              order_in_program: order_in_program
             })
             .select('id')
             .single();
@@ -241,25 +244,37 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
           
           // Create exercise instances for this workout
           for (const [index, exercise] of workout.exercises.entries()) {
+            console.log('exercise name', exercise.name);
+            console.log('exercise equipment', exercise.equipment);
+            console.log('exercise primary muscle group', exercise.primary_muscle_group);
+            console.log('exercise secondary muscle group', exercise.secondary_muscle_group);
+            console.log('exercise large muscle group', exercise.large_muscle_group);
+            console.log('exercise notes', exercise.notes);
+
+            let equipment = exercise.equipment;
+            if (equipment === 'Leverage Machine') {
+              equipment = 'Lever';
+            } else if (equipment === 'Olympic Barbell') {
+              equipment = 'Barbell';
+            } else if (equipment === 'Olympic Bar') {
+              equipment = 'Barbell';
+            } else if (equipment === 'Dumbbell') {
+              equipment = 'Dumbbell';
+            }
+
             // Look up potential exercise matches in the database
             // First, try to find a close match based on name
             const { data: potentialMatches } = await supabase
               .from('exercises')
               .select('id, name, primary_muscle_group, equipment, target')
-              .or(`name.eq.${exercise.name}, name.eq.${exercise.equipment} ${exercise.name}, name.ilike.%${exercise.equipment} ${exercise.name}%,original_name.ilike.%${exercise.name}%`)
+              .or(`name.eq.${exercise.name}, name.eq.${equipment} ${exercise.name}, name.ilike.%${equipment} ${exercise.name}%,original_name.ilike.%${exercise.name}%`)
+              .or(`name.eq.${exercise.name.toLowerCase()}, name.eq.${equipment} ${exercise.name.toLowerCase()}, name.ilike.%${equipment} ${exercise.name.toLowerCase()}%,original_name.ilike.%${exercise.name.toLowerCase()}%`)
+              .eq('primary_muscle_group', exercise.primary_muscle_group)
               .limit(20);
+
+            console.log(potentialMatches);
             
-            // If no matches based on name, try by target muscle
             let exerciseMatches = potentialMatches || [];
-            if (exerciseMatches.length === 0 && exercise.target_muscle) {
-              const { data: muscleMatches } = await supabase
-                .from('exercises')
-                .select('id, name, primary_muscle_group, equipment, target')
-                .or(`primary_muscle_group.ilike.%${exercise.target_muscle}%,target.ilike.%${exercise.target_muscle}%`)
-                .limit(20);
-              
-              exerciseMatches = muscleMatches || [];
-            }
             
             // Score each potential match to find the best one
             let bestMatch = null;
@@ -279,11 +294,11 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
               }
               
               // Target muscle match
-              if (match.primary_muscle_group && exercise.target_muscle && 
-                  match.primary_muscle_group.toLowerCase().includes(exercise.target_muscle.toLowerCase())) {
+              if (match.primary_muscle_group && exercise.primary_muscle_group && 
+                  match.primary_muscle_group.toLowerCase().includes(exercise.primary_muscle_group.toLowerCase())) {
                 score += 5;
-              } else if (match.target && exercise.target_muscle && 
-                       match.target.toLowerCase().includes(exercise.target_muscle.toLowerCase())) {
+              } else if (match.target && exercise.primary_muscle_group && 
+                       match.target.toLowerCase().includes(exercise.primary_muscle_group.toLowerCase())) {
                 score += 4;
               }
               
@@ -294,15 +309,50 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
             }
             
             // Only use the match if it has a reasonable score
-            const exerciseId = (bestScore >= 5) ? bestMatch?.id : null;
-            
+            let exerciseId = (bestScore >= 5) ? bestMatch?.id : null;
+
+            console.log(bestMatch);
+            console.log(bestScore);
+            console.log(exerciseId);
+
+            if (!exerciseId) {
+              // Lets create the exercise
+              const { data: exerciseData, error: exerciseError } = await supabase
+                .from('exercises')
+                .insert({
+                  name: exercise.name,
+                  primary_muscle_group: exercise.primary_muscle_group,
+                  target: exercise.primary_muscle_group,
+                  equipment: exercise.equipment,
+                  description: exercise.notes,
+                  coach_id: 'c5e342a9-28a3-4fdb-9947-fe9e76c46b65',
+                  type: 'General',
+                  body_part: exercise.large_muscle_group,
+                  is_public: false,
+                  version: 1,
+                  is_latest_version: true
+                })
+                .select('id')
+                .single();
+              
+              if (exerciseError) throw exerciseError;
+              
+              if (!exerciseData?.id) {
+                throw new Error('Failed to create exercise');
+              }
+
+              console.log('exercise created', exerciseData);
+              
+              exerciseId = exerciseData.id;
+            }
+                        
             // Create the exercise instance
-            const { data: exerciseData, error: exerciseError } = await supabase
+            const { data: exerciseInstanceData, error: exerciseError } = await supabase
               .from('exercise_instances')
               .insert({
                 workout_id: workoutId,
                 exercise_name: exercise.name,
-                exercise_db_id: exerciseId, // Use the found exercise ID if available
+                exercise_db_id: exerciseId,
                 order_in_workout: index + 1,
                 notes: exercise.notes,
                 tempo: exercise.tempo,
@@ -315,11 +365,11 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
             
             if (exerciseError) throw exerciseError;
             
-            if (!exerciseData?.id) {
+            if (!exerciseInstanceData?.id) {
               throw new Error('Failed to create exercise instance');
             }
             
-            const exerciseInstanceId = exerciseData.id;
+            const exerciseInstanceId = exerciseInstanceData.id;
             
             // Parse reps range (e.g., "8-12" or "5")
             let minReps = 0;
@@ -364,6 +414,8 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
             
             if (setsError) throw setsError;
           }
+
+          order_in_program++;
         }
       }
       

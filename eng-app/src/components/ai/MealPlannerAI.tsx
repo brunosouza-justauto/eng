@@ -151,7 +151,7 @@ const MealPlannerAI: React.FC<MealPlannerAIProps> = ({ onMealPlanCreated }) => {
           protein_grams: generatedMealPlan.total_protein,
           carbohydrate_grams: generatedMealPlan.total_carbs,
           fat_grams: generatedMealPlan.total_fat,
-          coach_id: profile.id,
+          coach_id: 'c5e342a9-28a3-4fdb-9947-fe9e76c46b65',
           is_public: false
         })
         .select('id')
