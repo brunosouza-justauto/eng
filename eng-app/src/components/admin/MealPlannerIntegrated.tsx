@@ -738,7 +738,22 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     return groupedMeals;
   };
   
-  // Calculate average nutrition by day type
+  // State to track day type frequencies (days per week)
+  const [dayTypeFrequencies, setDayTypeFrequencies] = useState<Record<string, number>>(() => {
+    // Try to load from local storage
+    const savedFrequencies = localStorage.getItem(`meal-plan-frequencies-${planId}`);
+    return savedFrequencies ? JSON.parse(savedFrequencies) : {};
+  });
+  
+  // Update local storage when frequencies change
+  useEffect(() => {
+    // Only save if we have a plan ID
+    if (planId) {
+      localStorage.setItem(`meal-plan-frequencies-${planId}`, JSON.stringify(dayTypeFrequencies));
+    }
+  }, [dayTypeFrequencies, planId]);
+
+  // Calculate average nutrition by day type with weighted average based on frequency
   const calculateAverageNutrition = (): {calories: number; protein: number; carbs: number; fat: number} => {
     // Group meals by day type
     const mealsByDayType = getMealsByDayType();
@@ -757,33 +772,40 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     const dayTypeNutrition = dayTypes.map(dayType => {
       const mealsForType = mealsByDayType[dayType];
       
-      return mealsForType.reduce((totals, meal) => {
-        return {
-          calories: totals.calories + (meal.total_calories || 0),
-          protein: totals.protein + (meal.total_protein || 0),
-          carbs: totals.carbs + (meal.total_carbs || 0),
-          fat: totals.fat + (meal.total_fat || 0)
-        };
-      }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+      return {
+        dayType,
+        nutrition: mealsForType.reduce((totals, meal) => {
+          return {
+            calories: totals.calories + (meal.total_calories || 0),
+            protein: totals.protein + (meal.total_protein || 0),
+            carbs: totals.carbs + (meal.total_carbs || 0),
+            fat: totals.fat + (meal.total_fat || 0)
+          };
+        }, { calories: 0, protein: 0, carbs: 0, fat: 0 }),
+        // Get the frequency (days per week) for this day type, default to 1 if not set
+        frequency: dayTypeFrequencies[dayType] || 1
+      };
     });
     
-    // Calculate the average across all day types
-    const totalNutrition = dayTypeNutrition.reduce((sum, dayNutrition) => {
+    // Calculate the total number of days accounted for
+    const totalDaysPerWeek = dayTypeNutrition.reduce((sum, { frequency }) => sum + frequency, 0);
+    
+    // If no days are specified or total is 0, use equal weighting
+    const effectiveTotalDays = totalDaysPerWeek === 0 ? dayTypes.length : totalDaysPerWeek;
+    
+    // Calculate the weighted sum based on frequency
+    const weightedNutrition = dayTypeNutrition.reduce((sum, { nutrition, frequency }) => {
+      const weight = totalDaysPerWeek === 0 ? (1 / dayTypes.length) : (frequency / effectiveTotalDays);
+      
       return {
-        calories: sum.calories + dayNutrition.calories,
-        protein: sum.protein + dayNutrition.protein,
-        carbs: sum.carbs + dayNutrition.carbs,
-        fat: sum.fat + dayNutrition.fat
+        calories: sum.calories + (nutrition.calories * weight),
+        protein: sum.protein + (nutrition.protein * weight),
+        carbs: sum.carbs + (nutrition.carbs * weight),
+        fat: sum.fat + (nutrition.fat * weight)
       };
     }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
     
-    // Return the average
-    return {
-      calories: totalNutrition.calories / dayTypes.length,
-      protein: totalNutrition.protein / dayTypes.length,
-      carbs: totalNutrition.carbs / dayTypes.length,
-      fat: totalNutrition.fat / dayTypes.length
-    };
+    return weightedNutrition;
   };
   
   // Restore handleSavePlan function
@@ -1248,8 +1270,49 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-100 dark:text-white">Average Daily Nutrition</h2>
             <div className="text-xs text-gray-400 bg-gray-800/50 rounded py-1 px-2">
-              Calculated as average across all day types
+              Weighted average based on days per week for each meal type
             </div>
+          </div>
+          
+          {/* Day Type Frequency Configuration */}
+          <div className="mb-6 bg-gray-800/50 p-3 rounded-md">
+            <h3 className="text-sm font-medium text-gray-200 mb-2">Days Per Week Configuration</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {Object.keys(getMealsByDayType()).map(dayType => (
+                <div key={dayType} className="flex items-center justify-between bg-gray-700/70 p-2 rounded">
+                  <span className="text-sm text-gray-200">{dayType}</span>
+                  <div className="flex items-center">
+                    <input
+                      type="number"
+                      min="0"
+                      max="7"
+                      value={dayTypeFrequencies[dayType] || 1}
+                      onChange={e => {
+                        const value = Math.min(7, Math.max(0, parseInt(e.target.value) || 0));
+                        setDayTypeFrequencies(prev => ({ ...prev, [dayType]: value }));
+                      }}
+                      className="w-14 py-1 px-2 bg-gray-600 border border-gray-500 rounded text-white text-center"
+                    />
+                    <span className="ml-2 text-xs text-gray-300">days/week</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Total days indicator */}
+            {(() => {
+              const totalDays = Object.values(dayTypeFrequencies).reduce((sum, days) => sum + (days || 0), 0);
+              const isValid = totalDays === 7;
+              return (
+                <div className="mt-2 flex justify-between items-center">
+                  <div className="text-xs text-gray-400 italic">
+                    Set how many days per week each meal type occurs.
+                  </div>
+                  <div className={`text-sm font-medium rounded px-2 py-1 ${isValid ? 'bg-green-700/50 text-green-300' : 'bg-yellow-700/50 text-yellow-300'}`}>
+                    Total: {totalDays}/7 days {isValid ? '✓' : ''}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
           
           {/* Calculate nutrition values dynamically */}
@@ -1496,7 +1559,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                         {foodItem.source === 'coach' && (
                           <div className="text-xs text-amber-400 bg-amber-900/20 px-2 py-0.5 rounded mr-2">Coach</div>
                         )}
-                        {!['usda', 'custom', 'system', 'coach'].includes(foodItem.source) && (
+                        {!['usda', 'custom', 'system', 'coach'].includes(foodItem.source || '') && (
                           <div className="text-xs text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded mr-2">{foodItem.source}</div>
                         )}
                       </div>
@@ -2279,7 +2342,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
               
               <div className="mb-4">
                 <div className="font-medium text-gray-200 mb-2">
-                  {editingFoodItem.food_item.food_name}
+                  {editingFoodItem.food_item?.food_name}
                 </div>
                 
                 <div className="mb-3">
@@ -2318,10 +2381,10 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                 
                 <div className="text-sm text-gray-300 mt-2">
                   <span className="font-medium">Nutrition per 100g:</span> 
-                  <span className="ml-2 text-red-400">P: {parseFloat(editingFoodItem.food_item.protein_per_100g.toFixed(1))}g</span> | 
-                  <span className="ml-2 text-yellow-400">C: {parseFloat(editingFoodItem.food_item.carbs_per_100g.toFixed(1))}g</span> | 
-                  <span className="ml-2 text-blue-400">F: {parseFloat(editingFoodItem.food_item.fat_per_100g.toFixed(1))}g</span> | 
-                  <span className="ml-2">{Math.round(editingFoodItem.food_item.calories_per_100g)} kcal</span>
+                  <span className="ml-2 text-red-400">P: {parseFloat(editingFoodItem.food_item?.protein_per_100g.toFixed(1) || '0')}g</span> | 
+                  <span className="ml-2 text-yellow-400">C: {parseFloat(editingFoodItem.food_item?.carbs_per_100g.toFixed(1) || '0')}g</span> | 
+                  <span className="ml-2 text-blue-400">F: {parseFloat(editingFoodItem.food_item?.fat_per_100g.toFixed(1) || '0')}g</span> | 
+                  <span className="ml-2">{Math.round(editingFoodItem.food_item?.calories_per_100g || 0)} kcal</span>
                 </div>
               </div>
               

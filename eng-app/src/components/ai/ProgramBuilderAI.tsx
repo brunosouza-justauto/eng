@@ -59,7 +59,7 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
 
     try {
       // Check if this is direct JSON input from an external LLM
-      // @ts-ignore - _jsonInput is a custom property we added
+      // @ts-expect-error - _jsonInput is a custom property we added
       if (data._jsonInput) {
         // Use the JSON directly without making an API call
         console.log('Using pasted JSON directly');
@@ -74,7 +74,7 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
         setMessages(prev => [...prev, aiResponse]);
         
         // Store the generated program from the pasted JSON
-        // @ts-ignore - _jsonInput is a custom property we added
+        // @ts-expect-error - _jsonInput is a custom property we added
         setGeneratedProgram(data._jsonInput);
         setIsLoading(false);
         return;
@@ -104,7 +104,18 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
       // Generate program via API
       const result = await generateProgram(request);
 
-      if (result.success && result.data) {
+      if (result.success && result.data) {      
+         
+        const aiReasoning = result.reasoning;
+        // Add AI reasoning to chat
+        const aiReasoningMessage: Message = {
+          id: uuidv4(),
+          content: aiReasoning || 'No reasoning provided',
+          isAI: true,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, aiReasoningMessage]);
+
         // Add AI response to chat
         const aiResponse: Message = {
           id: uuidv4(),

@@ -84,7 +84,7 @@ export interface AIProgram {
  */
 export const generateProgram = async (
   request: ProgramGenerationRequest
-): Promise<{ success: boolean; data?: AIProgram; error?: string }> => {
+): Promise<{ success: boolean; reasoning?: string; data?: AIProgram; error?: string }> => {
   try {
     console.log('Generating workout program prompt...');
     
@@ -123,7 +123,7 @@ export const generateProgram = async (
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'google/gemini-2.5-pro-preview',
+        model: 'deepseek/deepseek-r1-0528-qwen3-8b:free',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -137,12 +137,14 @@ export const generateProgram = async (
           'HTTP-Referer': window.location.origin, // Required by OpenRouter
           'X-Title': 'ENG' // App name for OpenRouter stats
         },
-        timeout: 300000 // 5 minutes in milliseconds
+        timeout: 600000 // 10 minutes in milliseconds
       }
     );
 
     // Parse the AI response
     const aiMessage = response.data.choices[0].message.content;
+
+    const aiReasoning = response.data.choices[0].message.reasoning;
     
     console.log('AI Response:', aiMessage);
     
@@ -158,6 +160,7 @@ export const generateProgram = async (
       
     return {
       success: true,
+      reasoning: aiReasoning,
       data: programData
     };
 

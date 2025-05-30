@@ -88,40 +88,98 @@ export const getMealPlanPrompts = (request: MealPlanGenerationRequest): { system
                   "calories": number,
                   "protein": number,
                   "carbs": number,
-                  "fat": number
+                  "fat": number,
+                  "source": string // e.g., "ausnut", "usda", "openfoodfacts"
+                  "brand": string // e.g., "Kellogg's", "General Mills", "Unbranded"
+                  "notes": string
                 }
               ],
-              "total_calories": number,
-              "total_protein": number,
-              "total_carbs": number,
-              "total_fat": number
+              "total_calories": number, // e.g., "200"
+              "total_protein": number, // e.g., "20"
+              "total_carbs": number, // e.g., "20"
+              "total_fat": number // e.g., "20"
             }
           ],
-          "total_calories": number,
-          "total_protein": number,
-          "total_carbs": number,
-          "total_fat": number
+          "total_calories": number, // e.g., "200"
+          "total_protein": number, // e.g., "20"
+          "total_carbs": number, // e.g., "20"
+          "total_fat": number // e.g., "20"
         }
       ],
-      "total_calories": number,
-      "total_protein": number,
-      "total_carbs": number,
-      "total_fat": number,
+      "total_calories": number, // e.g., "200"
+      "total_protein": number, // e.g., "20"
+      "total_carbs": number, // e.g., "20"
+      "total_fat": number, // e.g., "20"
       "notes": string
     }
-    2. Meal Time should be in 24h format
-    3. All numeric values should be accurate and reasonable
-    4. Units for all food items should be in grams
-    5. Ensure daily macros match the proposed macros protein, carbs and fat provided as close as possible
-    6. Ensure daily average calories between day types is close to the proposed calories provided
-    7. Include at least two day types (e.g., General Training and Rest Day)
-    8. Meals should be practical and follow the preferences given
-    9. Make sure all foods are common and generally available
-    10. Ensure breakfast contain only the following ingredients: "Egg, chicken, whole, raw", "100% LIQUID EGG WHITES, PASTEURIZED EGG PRODUCT", "Oats, rolled, uncooked", "YoPRO High-Protein Plain yoghurt", "Quinoa, uncooked", "Bread, from wholemeal flour, extra grainy & seeds", "Mayver's protien + peanut butter", ("Banana, cavendish, peeled, raw", "Blueberry, purchased frozen", "Strawberry, purchased frozen", "Raspberry, purchased frozen", "Papaya, raw"), "Cheese, cottage"
-    11. Ensure lunch, pre-lunch, pre-dinner and dinner contain only the following ingredients: "Chicken, breast, lean flesh, grilled, no added fat", "Beef, rump steak, lean, grilled, no added fat", "Tuna, canned in brine, drained", "Bassa (basa), fillet, baked, no added fat", "Turkey, ground", "Rice, white, boiled or rice cooker, no added salt", ("TOFU", "Tempeh, cooked" for plant-based), "Quinoa, uncooked", "Sweet potato, cooked, as ingredient", "Broccoli, fresh, boiled, drained", "Spinach, baby, fresh, raw", "Kale, raw" or "Kale, cooked, no added fat", "Capsicum, green, fresh, raw", "Asparagus, green, boiled, drained", "Baked beans, canned in tomato sauce, reduced salt", "Lentil, dried, boiled, drained"
-    12. Ensure pre-workout and post-workout contain only the following ingredients: ("Banana, cavendish, peeled, raw", "Blueberry, purchased frozen", "Strawberry, purchased frozen", "Raspberry, purchased frozen", "Papaya, raw"), "Apple, red skin, unpeeled, raw", "Egg, chicken, whole, raw", "Oats, rolled, uncooked", "YoPRO High-Protein Plain yoghurt", "Protein powder, whey based, protein >70%, unfortified", "Bread, from wholemeal flour, extra grainy & seeds", "Mayver's protien + peanut butter", "Rice, white, boiled or rice cooker, no added salt", "Chicken, breast, lean flesh, grilled, no added fat", "Turkey, ground", "Tuna, canned in brine, drained", "YoPRO High-Protein Plain yoghurt", "PROTEIN BAR", "Cheese, cottage"
-    13. Ensure the ingredients picked goes well together forming a meal and the meal can be prepared in a simple way
-    `;
+    2. Stay within ±5 g protein / ±10 g carbs / ±3 g fat and ±50 kcal of the targets
+    3. The macros decimal precision should be an integer
+    4. Meal Time should be in 24h format
+    5. All numeric values should be accurate and reasonable
+    6. Units for all food items should always be in grams even for liquids, powders or small quantities
+    7. Ensure daily macros match the proposed macros protein, carbs and fat provided stays within ±5 g protein / ±10 g carbs / ±3 g fat and ±50 kcal of the targets
+    8. Ensure daily average calories between day types stays within ±5 g protein / ±10 g carbs / ±3 g fat and ±50 kcal of the targets
+    9. Include at least two day types (e.g., General Training and Rest Day)
+    10. Meals should be practical and follow the preferences given
+    11. Make sure all foods are common and generally available
+    12. The list of possible meal name is Breakfast, Lunch, Pre-Lunch, Pre-Dinner, Dinner, Pre-Workout, Post-Workout, Afternoon Snack, Snack
+    13. Ensure breakfast contain only the following ingredients: "Egg, chicken, whole, raw", "100% LIQUID EGG WHITES, PASTEURIZED EGG PRODUCT", "Oats, rolled, uncooked", "YoPRO High-Protein Plain yoghurt", "Quinoa, uncooked", "Bread, from wholemeal flour, extra grainy & seeds", "Mayver's protien + peanut butter", ("Banana, cavendish, peeled, raw", "Blueberry, purchased frozen", "Strawberry, purchased frozen", "Raspberry, purchased frozen", "Papaya, raw"), "Cheese, cottage"
+    14. Ensure lunch, pre-lunch, pre-dinner and dinner contain only the following ingredients: "Chicken, breast, lean flesh, grilled, no added fat", "Beef, rump steak, lean, grilled, no added fat", "Tuna, canned in brine, drained", "Bassa (basa), fillet, baked, no added fat", "Turkey, ground", "Rice, white, boiled or rice cooker, no added salt", ("TOFU", "Tempeh, cooked" for plant-based), "Quinoa, uncooked", "Sweet potato, cooked, as ingredient", "Broccoli, fresh, boiled, drained", "Spinach, baby, fresh, raw", "Kale, raw" or "Kale, cooked, no added fat", "Capsicum, green, fresh, raw", "Asparagus, green, boiled, drained", "Baked beans, canned in tomato sauce, reduced salt", "Lentil, dried, boiled, drained"
+    15. Ensure pre-workout, post-workout and afternoon snack and snack contain only the following ingredients: ("Banana, cavendish, peeled, raw", "Blueberry, purchased frozen", "Strawberry, purchased frozen", "Raspberry, purchased frozen", "Papaya, raw"), "Apple, red skin, unpeeled, raw", "Egg, chicken, whole, raw", "Oats, rolled, uncooked", "YoPRO High-Protein Plain yoghurt", "Protein powder, whey based, protein >70%, unfortified", "Bread, from wholemeal flour, extra grainy & seeds", "Mayver's protien + peanut butter", "Rice, white, boiled or rice cooker, no added salt", "Chicken, breast, lean flesh, grilled, no added fat", "Turkey, ground", "Tuna, canned in brine, drained", "YoPRO High-Protein Plain yoghurt", "PROTEIN BAR", "Cheese, cottage"
+    16. Ensure the ingredients picked goes well together forming a meal and the meal can be prepared in a simple way
+    17. The ingredient lists are exhaustive (nothing else allowed)
+    18. The primary database used is ausnut but could also be usda or openfoodfacts if the ingredient is not found in ausnut
+    19. If possible add in the food notes a possible substitution for the ingredients like basa for cod or tilapia for tuna with the correct amount of calories, protein, carbs and fat for the same macronutrient profile
+    20. Fields brand and notes are optional; omit if not applicable
+    21. Keep in mind food costs and try to keep it as low as possible
+    
+    IMPORTANT: All mean plan description must contain the following:
+    
+    """
+    📝 ADDITIONAL INFORMATION & GUIDELINES
+
+    This is a "x" calories plan focused on "x".
+
+    ⚠️ IMPORTANT REMINDERS:
+    • Please read your plan carefully and reach out with any questions
+    • If anything is unavailable, let us know and we'll provide alternatives.
+    • Eat your pre-workout meal 🍽️ at least 45 minutes before training
+    • Have your post-workout meal 🏋️‍♀️ within 1 hour of finishing your session
+    • No skipping meals 🚫
+    • No fruit juices 🧃, soft drinks 🥤, sauces or dressings unless approved
+
+    🥦 VEGETABLE OPTIONS:
+    You can swap the vegetables in your plan with any of the following:
+    Broccoli, green beans, sugarsnap peas, spinach, asparagus, broccolini, edamame, eggplant, mushrooms, green capsicum
+    (The greener, the better 💚)
+
+    🍗 PROTEIN SWAPS:
+    You can replace 100g of chicken breast with:
+    • 100g extra lean beef mince 🥩
+    • 120g basa fish 🐟
+    • 95g tuna in springwater (drained) 🐟
+    • Or any other lean and clean protein source (just ask for approval if unsure ✅)
+
+    🍚 CARBOHYDRATE SWAPS:
+    You can swap your carb source based on similar portions. Examples include:
+    - 100g cooked white rice 🍚
+    - 75g cooked pasta 🍝
+    - 100g cooked quinoa 🍛
+    - 30g rolled oats 🥣
+    - 30g quinoa flakes
+    - 80g cooked sweet potato 🍠
+    (Always weigh carbs cooked unless your plan says otherwise!)
+
+    🌿 FLAVOURING:
+    - Cook with herbs & spices
+    - No cooking oil unless specified
+    - Add 2-3 cracks of Himalayan salt 🧂 to each meal
+
+    💧 LIQUIDS:
+    - Tea 🍵 and coffee ☕ are fine but no milk unless approved
+
+    Let's go 💪
+    """`;
 
   // Create the user prompt with the athlete data
   const userPrompt = `Create a diet plan for a "${request.athleteData.gender}" Age "${request.athleteData.age}", Current weight "${request.athleteData.weight_kg}", height "${request.athleteData.height_cm}" and current body fat at around "${request.athleteData.body_fat_percentage}%".
@@ -130,7 +188,7 @@ export const getMealPlanPrompts = (request: MealPlanGenerationRequest): { system
     The individual will train "${request.athleteData.training_days_per_week}" times a week with a "${request.athleteData.training_current_program}" training program that would last about "${request.athleteData.training_session_length_minutes}" minutes to complete.
     The individual training experience is "${request.athleteData.experience_level}".
     It was assigned "${request.athleteData.step_goal}" daily steps to be complete.
-    Lets propose a "${request.athleteData.meals_per_day}" meals a day.
+    Lets propose a "${request.athleteData.meals_per_day}" meals a day, pick the right name according to the meal type and individual schedule such as wake up time, bed time and training time.
     The proposed macros is "${request.athleteData.calories_target}" calories per day type, where "${request.athleteData.protein_target}"g of Protein, "${request.athleteData.carbs_target}"g of carbs and "${request.athleteData.fat_target}"g of fat.
     ${request.athleteData.nutrition_preferences ? `The individual would like to see in their nutrition "${request.athleteData.nutrition_preferences}"` : ''}.
     ${request.athleteData.nutrition_allergies ? `The individual has the following allergies: "${request.athleteData.nutrition_allergies}"` : ''}
@@ -148,16 +206,19 @@ export const getProgramPrompts = async (request: { athleteData: AthleteFormData 
   
   // Create a simplified list of exercises for the AI
   // Include only the key information needed to select appropriate exercises
-  const exercisesList = allExercises.map(ex => ({
-    name: ex.name
-  }));
-  
+  const exercisesSet = new Set();
+  const exercisesList = allExercises.reduce((acc, ex) => {
+    if (!exercisesSet.has(ex.name)) {
+      exercisesSet.add(ex.name);
+      acc.push({ name: ex.name });
+    }
+    return acc;
+  }, [] as { name: string }[]);
+
   // Format exercises as a simple list to save tokens
   let exerciseListText = 'IMPORTANT: Use exercises from the following list whenever possible. These are the exercises available in our database:\n';
-  // Take up to 100 exercises to keep token count manageable
-  const limitedExerciseList = exercisesList.slice(0, 100);
   
-  for (const exercise of limitedExerciseList) {
+  for (const exercise of exercisesList) {
     exerciseListText += `"${exercise.name}"\n`;
   }
   
@@ -185,7 +246,7 @@ export const getProgramPrompts = async (request: { athleteData: AthleteFormData 
                 {
                   "name": string,
                   "sets": number,
-                  "set_type": string, // e.g., "Super Set", "Drop Set", "Regular"
+                  "set_type": string, // e.g., "regular", "drop_set", "superset"
                   "reps": string, // e.g., "8-12", "5"
                   "rest_seconds": number, // e.g., 120
                   "tempo": string, // e.g., "2-0-1-0"
@@ -206,7 +267,7 @@ export const getProgramPrompts = async (request: { athleteData: AthleteFormData 
       "deload_strategy": string,
       "notes": string
     }
-    2. Only generate week 1 and add the notes for the other weeks in the description such as deload week or progression information
+    2. Return an array with one week object (week 1). Put the overview for the other weeks in the top-level description.
     3. All exercises must be practical, safe, and appropriate for the athlete's experience level
     4. Structure the program with appropriate volume and intensity progression
     5. Include detailed notes on form, execution, and programming considerations
@@ -219,13 +280,120 @@ export const getProgramPrompts = async (request: { athleteData: AthleteFormData 
     12. Ensure to train each muscle group at least once a week
     13. Ensure to have enough exercises for each workout that would last the session duration to complete the workout
     14. Aim for 6 to 7 exercises per workout but also keep in mind the session duration to descide the number of sets for each exercise
-    15. Aim for 4-10 sets per large muscle group (Arms, Legs, Back, Chest, Glutes, Shoulders, Core) per week for beginner athletes
-    16. Aim for 12-20 sets per large muscle group (Arms, Legs, Back, Chest, Glutes, Shoulders, Core) per week for intermediate athletes
-    17. Aim for 20-30 sets per large muscle group (Arms, Legs, Back, Chest, Glutes, Shoulders, Core) per week for advanced athletes
-    18. For complex movements like squat or deadlift you should allow a bigger rest time compared to isolation exercises
-    19. Keep in mind the athlete's injury considerations and avoid exercises that could aggravate the injury
-    20. If superset is selected as set type you must return 2 exercises for each superset
-    21. Ensure you have the exact same amount of workout days per week as the athlete requested, i.e. if "Available training days per week" is 5 you need to return 5 workout days`;
+    15. The workout duration should be finished in ${request.athleteData.sessionDuration} minutes at ~60s rest on isolations and 120-180s on compounds.
+    16. Aim for 4-10 sets per large muscle group (Arms, Legs, Back, Chest, Glutes, Shoulders, Core) per week for beginner athletes;
+    17. Aim for 12-20 sets per large muscle group (Arms, Legs, Back, Chest, Glutes, Shoulders, Core) per week for intermediate athletes;
+    18. Aim for 20-30 sets per large muscle group (Arms, Legs, Back, Chest, Glutes, Shoulders, Core) per week for advanced athletes;
+    19. For complex movements like squat or deadlift you should allow a bigger rest time compared to isolation exercises
+    20. Keep in mind the athlete's injury considerations and avoid exercises that could aggravate the injury
+    21. If superset is prescribed as the set type you must return 2 exercises entries, one for each superset exercise
+    22. Ensure you have the exact same amount of workout days per week as the athlete requested, i.e. if "Available training days per week" is 5 you need to return 5 workout days (active sessions, rest does not count as workout day), that means you should return 5 workout plans and 2 rest days.
+    23. Tempo should be difined as "2-0-1-0" for example
+    24. The progression_strategy should follow a linear double-progression: add 1 rep per set until top of range reached, then +2.5 kg. Deload every 4 weeks (volume x0.6, intensity x0.85).
+    25. rest_seconds must be an integer value such as 30, 60, 120, 180, etc.
+    26. Only prescribe Resistance Band exercises if the athlete specifies in the list of "Available equipment"
+    27. If the athlete specified "All Commercial Equipments" as the available equipment, prioritize the use of commercial equipments such as Dumbbell, Barbell, EZ Barbell, Smith machine, Cable, Leverage machine, etc.
+    28. If the athlete specified "Bodyweight Only" as the available equipment, prioritize the use of "Body weight" exercises.
+    29. If the athlete specified "Resistance Band Only" as the available equipment, prioritize the use of "Resistance Band" exercises.
+    30. Make sure you DO NOT add comments such as // or /* in the JSON output.
+    
+    The possible list for the exercise equipment is the following:
+    "Wheel roller",
+    "Dumbbell",
+    "Vibrate Plate",
+    "Medicine Ball",
+    "Smith machine",
+    "Resistance Band",
+    "Sled machine",
+    "Weighted",
+    "Rollball",
+    "Battling Rope",
+    "Suspension",
+    "Body weight",
+    "Roll",
+    "Rope",
+    "Bosu ball",
+    "Assisted",
+    "Stick",
+    "Leverage machine",
+    "Power Sled",
+    "Trap bar",
+    "Kettlebell",
+    "Band",
+    "Olympic barbell",
+    "EZ Barbell",
+    "Barbell",
+    "Stability ball",
+    "Cable",
+    "Other"
+
+    The list of possible set_type values is the following:
+    "regular",
+    "warm_up",
+    "drop_set",
+    "failure",
+    "backdown",
+    "tempo",
+    "superset",
+    "contrast",
+    "complex",
+    "cluster",
+    "pyramid",
+    "partial",
+    "burns",
+    "pause",
+    "pulse",
+    "negative",
+    "forced_rep",
+    "pre_exhaust",
+    "post_exhaust"
+
+    The list of possible large_muscle_group values is the following:
+    "Arms",
+    "Legs",
+    "Back",
+    "Chest",
+    "Glutes",
+    "Shoulders",
+    "Core"
+
+    The list of possible primary_muscle_group values is the following:
+    "Biceps Brachii",
+    "Brachialis",
+    "Calves",
+    "Deltoid Anterior",
+    "Deltoid Lateral",
+    "Deltoid Posterior",
+    "Forearms",
+    "Glutes",
+    "Hamstrings",
+    "Hip Adductors",
+    "Hip Flexors",
+    "Latissimus Dorsi",
+    "Lower Back",
+    "Neck",
+    "Obliques",
+    "Pectoralis Major",
+    "Quadriceps",
+    "Rectus Abdominis",
+    "Rhomboids",
+    "Rotator Cuff",
+    "Serratus Anterior",
+    "Teres Major",
+    "Transverse Abdominis",
+    "Trapezius",
+    "Triceps Brachii"
+
+    The possible list for the large muscle group is the following:
+    "Arms",
+    "Legs",
+    "Back",
+    "Chest",
+    "Glutes",
+    "Shoulders",
+    "Core"
+    
+    `;
 
   // Create the user prompt with the athlete data
   const userPrompt = `Create a workout program for a "${request.athleteData.gender}" Age "${request.athleteData.age}", Current weight "${request.athleteData.weight}kg", height "${request.athleteData.height}cm" and current body fat at around "${request.athleteData.bodyFat}%". 

@@ -48,7 +48,7 @@ export interface FoodItem {
     updated_at: string;
     nutrient_basis: string;
     barcode?: string;
-    source?: 'ausnut' | 'usda' | 'open_food_facts' | 'custom';
+    source?: 'ausnut' | 'usda' | 'open_food_facts' | 'custom' | 'coach' | 'system';
     created_by?: string;
     is_verified?: boolean;
     brand?: string;

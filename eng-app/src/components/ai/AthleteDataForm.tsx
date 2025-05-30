@@ -242,6 +242,46 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
     try {
       // Get form values
       const formData = getValues();
+      
+      // Validate essential fields are filled - same validation as handleFormSubmit
+      const requiredFields = [
+        { key: 'user_id', label: 'Athlete' },
+        { key: 'gender', label: 'Gender' },
+        { key: 'age', label: 'Age' },
+        { key: 'weight_kg', label: 'Weight' },
+        { key: 'height_cm', label: 'Height' },
+        { key: 'body_fat_percentage', label: 'Body Fat' },
+        { key: 'goal_type', label: 'Goal Type' },
+        { key: 'goal_physique_details', label: 'Physique Goals' },
+        { key: 'experience_level', label: 'Experience Level' },
+        { key: 'training_time_of_day', label: 'Training Time of Day' },
+        { key: 'training_days_per_week', label: 'Training Days' },
+        { key: 'training_current_program', label: 'Training Current Program'},
+        { key: 'training_session_length_minutes', label: 'Training Duration (minutes)' },
+        { key: 'activity_level', label: 'Activity Level' },
+        { key: 'nutrition_wakeup_time_of_day', label: 'Wake-up Time' },
+        { key: 'step_goal', label: 'Daily Step Goal' },
+        { key: 'nutrition_bed_time_of_day', label: 'Bedtime' },
+        { key: 'calories_target', label: 'Calorie Target' },
+        { key: 'protein_target', label: 'Protein Target' },
+        { key: 'carbs_target', label: 'Carbs Target' },
+        { key: 'fat_target', label: 'Fat Target' }
+      ];
+      
+      const missingFields = requiredFields
+        .filter(field => !formData[field.key as keyof AthleteProfile])
+        .map(field => field.label);
+
+      console.log('missingFields', missingFields);
+      console.log('requiredFields', requiredFields);
+      
+      if (missingFields.length > 0) {
+        setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
+        setIsGeneratingPrompt(false);
+        return;
+      }
+      
+      // Clear any previous errors and start generating
       setError(null);
       setIsGeneratingPrompt(true);
       
@@ -289,6 +329,44 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
   };
 
   const handleFormSubmit = (data: AthleteProfile) => {
+    // Validate essential fields are filled
+    const requiredFields = [
+      { key: 'user_id', label: 'Athlete' },
+      { key: 'gender', label: 'Gender' },
+      { key: 'age', label: 'Age' },
+      { key: 'weight_kg', label: 'Weight' },
+      { key: 'height_cm', label: 'Height' },
+      { key: 'body_fat_percentage', label: 'Body Fat' },
+      { key: 'goal_type', label: 'Goal Type' },
+      { key: 'goal_physique_details', label: 'Physique Goals' },
+      { key: 'experience_level', label: 'Experience Level' },
+      { key: 'training_time_of_day', label: 'Training Time of Day' },
+      { key: 'training_days_per_week', label: 'Training Days' },
+      { key: 'training_current_program', label: 'Training Current Program'},
+      { key: 'training_session_length_minutes', label: 'Training Duration (minutes)' },
+      { key: 'activity_level', label: 'Activity Level' },
+      { key: 'nutrition_wakeup_time_of_day', label: 'Wake-up Time' },
+      { key: 'step_goal', label: 'Daily Step Goal' },
+      { key: 'nutrition_bed_time_of_day', label: 'Bedtime' },
+      { key: 'calories_target', label: 'Calorie Target' },
+      { key: 'protein_target', label: 'Protein Target' },
+      { key: 'carbs_target', label: 'Carbs Target' },
+      { key: 'fat_target', label: 'Fat Target' }
+    ];
+    
+    const missingFields = requiredFields
+      .filter(field => !data[field.key as keyof AthleteProfile])
+      .map(field => field.label);
+    
+    if (missingFields.length > 0) {
+      setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+    
+    // Clear any previous errors
+    setError(null);
+    
+    // Submit the data
     onSubmit(data);
   };
 
@@ -313,6 +391,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
             {...register('user_id')}
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             disabled={loading || isSubmitting}
+            required
           >
             <option value="">-- Select an athlete --</option>
             {athletes.map((athlete) => (
@@ -334,6 +413,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('gender')}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 >
                   <option value="male">Male</option>
                   <option value="female">Female</option>
@@ -349,6 +429,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('age', { min: 1, max: 100 })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
                 {errors.age && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -369,7 +450,8 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('weight_kg', { min: 0, max: 999 })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
-                />
+                  required
+                  />
                 {errors.weight_kg && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                     Weight must be between 1 and 999 kg
@@ -386,6 +468,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('height_cm', { min: 1, max: 999 })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
                 {errors.height_cm && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -404,6 +487,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('body_fat_percentage', { min: 1, max: 100 })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
                 {errors.body_fat_percentage && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -422,6 +506,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('goal_type', { required: true })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 >
                   <option value="">-- Select goal type --</option>
                   <option value="fat_loss">Fat Loss</option>
@@ -445,6 +530,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('goal_physique_details', { required: true })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
                 {errors.goal_physique_details && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -465,6 +551,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('goal_target_fat_loss_kg')}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
               </div>
               
@@ -478,6 +565,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('goal_target_muscle_gain_kg')}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
               </div>
             </div>
@@ -491,6 +579,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('experience_level')}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 >
                   <option value="">-- Select experience level --</option>
                   <option value="beginner">Beginner</option>
@@ -512,6 +601,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('training_time_of_day')}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 >
                   <option value="">-- Select time --</option>
                   {['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
@@ -540,7 +630,8 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('training_days_per_week', { min: 1, max: 7 })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
-                />
+                  required
+                  />
                 {errors.training_days_per_week && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                     Must be between 1 and 7 days
@@ -557,6 +648,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('training_current_program', { required: true })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
                 {errors.training_current_program && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -577,6 +669,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('training_session_length_minutes', { min: 1, max: 999 })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
                 {errors.training_session_length_minutes && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -620,6 +713,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('activity_level', { required: true })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 >
                   <option value="">-- Select activity level --</option>
                   <option value="1.2">Sedentary: little or no exercise</option>
@@ -646,6 +740,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('protein_multiplier', { required: true })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
                 {errors.protein_multiplier && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -664,6 +759,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('fat_multiplier', { required: true })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
                 {errors.fat_multiplier && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -682,6 +778,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('carb_multiplier', { required: true })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
                 {errors.carb_multiplier && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -741,6 +838,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('nutrition_wakeup_time_of_day')}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 >
                   <option value="">-- Select time --</option>
                   {['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
@@ -764,6 +862,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('nutrition_bed_time_of_day')}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 >
                   <option value="">-- Select time --</option>
                   {['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
@@ -793,6 +892,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('step_goal', { min: 1000, max: 90000 })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
                 {errors.step_goal && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -812,6 +912,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                   {...register('meals_per_day', { min: 3, max: 6 })}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 />
                 {errors.meals_per_day && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -866,6 +967,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                     {...register('calories_target', { min: 1200, max: 5000 })}
                     className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     disabled={isSubmitting}
+                    required
                   />
                   {errors.calories_target && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -886,6 +988,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                     {...register('protein_target', { min: 1, max: 999 })}
                     className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     disabled={isSubmitting}
+                    required
                   />
                   {errors.protein_target && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -906,6 +1009,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                     {...register('carbs_target', { min: 1, max: 999 })}
                     className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     disabled={isSubmitting}
+                    required
                   />
                   {errors.carbs_target && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -926,6 +1030,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                     {...register('fat_target', { min: 1, max: 999 })}
                     className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     disabled={isSubmitting}
+                    required
                   />
                   {errors.fat_target && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -946,6 +1051,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
                 className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 placeholder="E.g., High protein, more meat, eggs, veggies, pasta."
                 disabled={isSubmitting}
+                required
               />
             </div>
           </>
