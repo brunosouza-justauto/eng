@@ -60,6 +60,22 @@ const cleanExerciseName = (name: string): string => {
              .trim();                          // Remove leading/trailing whitespace
 };
 
+// Helper to get the name of the day from the day_of_week number
+export const getDayName = (dayOfWeek: number | null): string => {
+  if (dayOfWeek === null) return "";
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  // Convert from 1-based to 0-based index
+  return days[(dayOfWeek - 1) % 7];
+};
+
+// Helper to get the current day of the week (1 for Monday, 7 for Sunday)
+export const getCurrentDayOfWeek = (): number => {
+  const today = new Date();
+  // getDay returns 0 for Sunday, 1 for Monday, etc.
+  // We want 1 for Monday through 7 for Sunday
+  return today.getDay() === 0 ? 7 : today.getDay();
+};
+
 const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId, program }) => {
   const profile = useSelector(selectProfile);
   const [workoutData, setWorkoutData] = useState<WorkoutDataWithId | null>(null);
@@ -85,22 +101,6 @@ const NextWorkoutWidget: React.FC<NextWorkoutWidgetProps> = ({ programTemplateId
   // Number of exercises to show in the preview
   const PREVIEW_COUNT = 3;
   
-  // Helper to get the name of the day from the day_of_week number
-  const getDayName = (dayOfWeek: number | null): string => {
-    if (dayOfWeek === null) return "";
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    // Convert from 1-based to 0-based index
-    return days[(dayOfWeek - 1) % 7];
-  };
-
-  // Helper to get the current day of the week (1 for Monday, 7 for Sunday)
-  const getCurrentDayOfWeek = (): number => {
-    const today = new Date();
-    // getDay returns 0 for Sunday, 1 for Monday, etc.
-    // We want 1 for Monday through 7 for Sunday
-    return today.getDay() === 0 ? 7 : today.getDay();
-  };
-
   // Helper to group exercises by superset (consecutive exercises with set_type=SUPERSET)
   const groupExercisesBySuperset = (exercises: ExerciseInstanceData[]) => {
     const sortedExercises = [...exercises].sort((a, b) => 

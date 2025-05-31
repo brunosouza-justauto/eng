@@ -6,6 +6,7 @@ import { supabase } from '../services/supabaseClient';
 import DashboardNutritionWidget from '../components/dashboard/DashboardNutritionWidget';
 import CheckInReminderWidget from '../components/dashboard/CheckInReminderWidget';
 import LatestCheckInWidget from '../components/dashboard/LatestCheckInWidget';
+import { getCurrentDayOfWeek } from '../components/dashboard/NextWorkoutWidget';
 import NextWorkoutWidget from '../components/dashboard/NextWorkoutWidget';
 import StepGoalWidget from '../components/dashboard/StepGoalWidget';
 import MissedMealsAlert from '../components/dashboard/MissedMealsAlert';
@@ -143,22 +144,43 @@ const DashboardPageV2: React.FC = () => {
       if (!user?.id || !assignedPlan?.program_template_id) return;
       
       try {
-        // Get today's date in ISO format (YYYY-MM-DD)
-        const today = format(new Date(), 'yyyy-MM-dd')
-        
-        // Check for completed workouts today
-        const { data, error } = await supabase
-          .from('workout_sessions')
-          .select('id')
-          .eq('user_id', user.id)
-          .gte('start_time', `${today}T00:00:00`)
-          .lte('start_time', `${today}T23:59:59`)
+        // Get today's date in ISO format (yyyy-MM-dd)
+        const today = format(new Date(), 'yyyy-MM-dd');
+
+        // Get the corresponding day of the week (1 for Monday, 7 for Sunday)
+        const dayOfWeek = getCurrentDayOfWeek();
+
+        // Check if there is a workout for today
+        const { data: workoutData, error: workoutError } = await supabase
+          .from('workouts')
+          .select('id, name')
+          .eq('program_template_id', assignedPlan.program_template_id)
+          .eq('day_of_week', dayOfWeek)
           .limit(1);
         
-        if (error) throw error;
-        
-        // If we found completed workouts today, mark as completed
-        setWorkoutCompleted(data && data.length > 0);
+        if (workoutError) throw workoutError;
+
+        console.log(workoutData);
+
+        if (workoutData && workoutData.length > 0 && workoutData[0].name !== null && workoutData[0].name !== '' && !workoutData[0].name.toLowerCase().includes('rest')) {
+          // Check for completed workouts today
+          const { data, error } = await supabase
+            .from('workout_sessions')
+            .select('id')
+            .eq('workout_id', workoutData[0].id)
+            .eq('user_id', user.id)
+            .not('end_time', 'is', null)
+            .gte('start_time', `${today}T00:00:00`)
+            .lte('start_time', `${today}T23:59:59`)
+            .limit(1);
+          
+          if (error) throw error;
+
+          // If we found completed workouts today, mark as completed
+          setWorkoutCompleted(data && data.length > 0);
+        } else {
+          setWorkoutCompleted(true);
+        }
       } catch (err) {
         console.error('Error checking workout completion:', err);
         // Default to false if there's an error

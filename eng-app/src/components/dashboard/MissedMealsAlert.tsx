@@ -139,7 +139,7 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
                 setMissedMeals(uniqueMissedMeals);
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (error) {
-                setError("Error fetching meal data");
+                setError("Error fetching meal data - " + error);
             } finally {
                 setIsLoading(false);
             }
@@ -159,7 +159,7 @@ const MissedMealsAlert: React.FC<MissedMealsAlertProps> = memo(({
             <div className="mb-4 p-3 text-red-700 bg-red-100 rounded-lg dark:bg-red-900/20 dark:text-red-300 border-l-4 border-red-500 flex items-start">
                 <FiAlertCircle className="mt-0.5 mr-3 flex-shrink-0 w-5 h-5" />
                 <div>
-                    <h4 className="font-medium">Could not check for missed meals</h4>
+                    <h4 className="font-medium">Please refresh the app</h4>
                     <p className="text-sm mt-1">{error}</p>
                 </div>
             </div>
