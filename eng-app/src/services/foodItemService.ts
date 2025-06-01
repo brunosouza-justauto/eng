@@ -219,8 +219,6 @@ export const fetchFromOpenFoodFacts = async (barcode: string): Promise<FoodItem 
         
         const data = await response.json();
 
-        console.log('Open Food Facts data', data);
-        
         // Check if the product exists and has nutrition data
         if (!data.product || !data.product.nutriments) {
             return null;

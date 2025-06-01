@@ -205,8 +205,6 @@ const ProgramBuilderForm: React.FC<ProgramBuilderFormProps> = ({ onSubmit, isSub
         }
         setValue('goal', goalText);
 
-        console.log(athlete.experience_level);
-
         setValue('experience', athlete.experience_level || 'intermediate');
         
         setValue('trainingDays', athlete.training_days_per_week || 4);

@@ -160,6 +160,11 @@ const MealPlanResult: React.FC<MealPlanResultProps> = ({
                           )}
                         </div>
                       </div>
+                      <div className="flex items-center">
+                        <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">
+                          {meal.notes}
+                        </span>
+                      </div>
                       
                       {isMealExpanded(dayType.type, meal.name) && (
                         <div className="mt-3 border-t border-gray-200 dark:border-gray-600 pt-3">

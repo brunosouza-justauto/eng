@@ -97,12 +97,8 @@ export const fetchAllExercises = async (): Promise<DbExercise[]> => {
     let page = 0;
     const pageSize = 1000; // Max allowed per page
     let hasMoreData = true;
-    
-    console.log('Fetching all exercises using pagination...');
-    
-    while (hasMoreData) {
-      console.log(`Fetching exercise page ${page + 1}...`);
-      
+        
+    while (hasMoreData) {     
       const { data, error } = await supabase
         .from('exercises')
         .select('id, name, primary_muscle_group, equipment, target, body_part, description')
@@ -127,7 +123,6 @@ export const fetchAllExercises = async (): Promise<DbExercise[]> => {
       }
     }
     
-    console.log(`Total exercises fetched: ${allExercises.length}`);
     return allExercises;
   } catch (error) {
     console.error('Error in fetchAllExercises:', error);

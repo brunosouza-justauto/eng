@@ -61,9 +61,6 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
       // Check if this is direct JSON input from an external LLM
       // @ts-expect-error - _jsonInput is a custom property we added
       if (data._jsonInput) {
-        // Use the JSON directly without making an API call
-        console.log('Using pasted JSON directly');
-        
         // Add AI response to chat
         const aiResponse: Message = {
           id: uuidv4(),
@@ -188,7 +185,6 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
     try {
       // STEP 1: Fetch all exercises from the database first to improve matching
       const allExercises = await fetchAllExercises();
-      console.log(`Fetched ${allExercises.length} exercises for matching`);
       
       // First, insert the program template
       const { data: templateData, error: templateError } = await supabase
@@ -243,11 +239,6 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
           
           // Create exercise instances for this workout
           for (const [index, exercise] of workout.exercises.entries()) {
-            console.log('----------------');
-            console.warn('PROCESSING EXERCISE:', exercise.name);
-            console.info('Equipment:', exercise.equipment);
-            console.info('Primary muscle group:', exercise.primary_muscle_group);
-            
             // STEP 2: Use the two-step approach to match exercises
             // Find the best match from our pre-loaded exercise list
             const bestMatch = findBestExerciseMatch(
@@ -256,10 +247,7 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
               exercise.equipment,
               allExercises
             );
-            
-            console.error('Best match found:', bestMatch?.name || 'No match');
-            console.log('----------------');
-            
+                        
             // Use the matched exercise ID or create a new one if no match
             let exerciseId = bestMatch?.id || null;
 
@@ -289,8 +277,6 @@ const ProgramBuilderAI: React.FC<ProgramBuilderAIProps> = ({ onProgramCreated })
                 throw new Error('Failed to create exercise');
               }
 
-              console.log('Created new exercise:', exerciseData.id);
-              
               exerciseId = exerciseData.id;
               
               // Add the newly created exercise to our local cache for future matches

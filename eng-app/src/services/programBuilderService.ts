@@ -86,8 +86,6 @@ export const generateProgram = async (
   request: ProgramGenerationRequest
 ): Promise<{ success: boolean; reasoning?: string; data?: AIProgram; error?: string }> => {
   try {
-    console.log('Generating workout program prompt...');
-    
     // Use the shared getProgramPrompts function to generate the prompts
     const { systemPrompt, userPrompt } = await getProgramPrompts({ 
       athleteData: {
@@ -109,8 +107,6 @@ export const generateProgram = async (
       }
     });
     
-    console.log('Prompt generated successfully');
-    
     // Get the API key from environment variables
     const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
     
@@ -119,7 +115,6 @@ export const generateProgram = async (
     }
 
     // Make the API request to OpenRouter
-    console.log('Making API request to OpenRouter...');
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
@@ -146,8 +141,6 @@ export const generateProgram = async (
 
     const aiReasoning = response.data.choices[0].message.reasoning;
     
-    console.log('AI Response:', aiMessage);
-    
     // Extract JSON from the response (handle potential text before/after JSON)
     const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -155,8 +148,6 @@ export const generateProgram = async (
     }
     
     const programData = JSON.parse(jsonMatch[0]) as AIProgram;
-
-    console.log('Program Data:', programData);
       
     return {
       success: true,

@@ -33,6 +33,7 @@ export interface AIMeal {
   total_protein: number;
   total_carbs: number;
   total_fat: number;
+  notes: string;
 }
 
 /**
@@ -97,7 +98,8 @@ export const getMealPlanPrompts = (request: MealPlanGenerationRequest): { system
               "total_calories": number, // e.g., "200"
               "total_protein": number, // e.g., "20"
               "total_carbs": number, // e.g., "20"
-              "total_fat": number // e.g., "20"
+              "total_fat": number // e.g., "20",
+              "notes": string // e.g., "Cook in a pan"
             }
           ],
           "total_calories": number, // e.g., "200"
@@ -123,15 +125,77 @@ export const getMealPlanPrompts = (request: MealPlanGenerationRequest): { system
     10. Meals should be practical and follow the preferences given
     11. Make sure all foods are common and generally available
     12. The list of possible meal name is Breakfast, Lunch, Pre-Lunch, Pre-Dinner, Dinner, Pre-Workout, Post-Workout, Afternoon Snack, Snack
-    13. Ensure breakfast contain only the following ingredients: "Egg, chicken, whole, raw", "100% LIQUID EGG WHITES, PASTEURIZED EGG PRODUCT", "Oats, rolled, uncooked", "YoPRO High-Protein Plain yoghurt", "Quinoa, uncooked", "Bread, from wholemeal flour, extra grainy & seeds", "Mayver's protien + peanut butter", ("Banana, cavendish, peeled, raw", "Blueberry, purchased frozen", "Strawberry, purchased frozen", "Raspberry, purchased frozen", "Papaya, raw"), "Cheese, cottage"
-    14. Ensure lunch, pre-lunch, pre-dinner and dinner contain only the following ingredients: "Chicken, breast, lean flesh, grilled, no added fat", "Beef, rump steak, lean, grilled, no added fat", "Tuna, canned in brine, drained", "Bassa (basa), fillet, baked, no added fat", "Turkey, ground", "Rice, white, boiled or rice cooker, no added salt", ("TOFU", "Tempeh, cooked" for plant-based), "Quinoa, uncooked", "Sweet potato, cooked, as ingredient", "Broccoli, fresh, boiled, drained", "Spinach, baby, fresh, raw", "Kale, raw" or "Kale, cooked, no added fat", "Capsicum, green, fresh, raw", "Asparagus, green, boiled, drained", "Baked beans, canned in tomato sauce, reduced salt", "Lentil, dried, boiled, drained"
-    15. Ensure pre-workout, post-workout and afternoon snack and snack contain only the following ingredients: ("Banana, cavendish, peeled, raw", "Blueberry, purchased frozen", "Strawberry, purchased frozen", "Raspberry, purchased frozen", "Papaya, raw"), "Apple, red skin, unpeeled, raw", "Egg, chicken, whole, raw", "Oats, rolled, uncooked", "YoPRO High-Protein Plain yoghurt", "Protein powder, whey based, protein >70%, unfortified", "Bread, from wholemeal flour, extra grainy & seeds", "Mayver's protien + peanut butter", "Rice, white, boiled or rice cooker, no added salt", "Chicken, breast, lean flesh, grilled, no added fat", "Turkey, ground", "Tuna, canned in brine, drained", "YoPRO High-Protein Plain yoghurt", "PROTEIN BAR", "Cheese, cottage"
-    16. Ensure the ingredients picked goes well together forming a meal and the meal can be prepared in a simple way
-    17. The ingredient lists are exhaustive (nothing else allowed)
-    18. The primary database used is ausnut but could also be usda or openfoodfacts if the ingredient is not found in ausnut
-    19. If possible add in the food notes a possible substitution for the ingredients like basa for cod or tilapia for tuna with the correct amount of calories, protein, carbs and fat for the same macronutrient profile
-    20. Fields brand and notes are optional; omit if not applicable
-    21. Keep in mind food costs and try to keep it as low as possible
+    13. Ensure pre-workout, post-workout and afternoon snack and snack contain only the following ingredients: 
+    14. Ensure the ingredients picked goes well together forming a meal and the meal can be prepared in a simple way
+    15. The ingredient lists are exhaustive (nothing else allowed) and you need to use the exact same name as described in the lists
+    16. The meal notes attribute should contain any additional information about the meal like how to prepare it
+    17. The primary database used is ausnut but could also be usda or openfoodfacts if the ingredient is not found in ausnut
+    18. When possible add in the foods ingredient notes attribute a possible substitution for the ingredients like basa for cod or tilapia for tuna with the correct amount of calories, protein, carbs and fat for the same macronutrient profile
+    19. Fields brand is optional; omit if not applicable
+    20. Keep in mind food costs and try to keep it as low as possible
+    21. Pre-workout nutrition should prioritize easily digestible carbohydrates and moderate protein, with minimal fat, especially when consumed close to exercise. This strategy helps maximize energy availability, support muscle performance, and minimize digestive discomfort
+
+    Here is the list of ingredients that can be used:
+
+    Breakfast:
+    "Egg, chicken, whole, raw",
+    "100% LIQUID EGG WHITES, PASTEURIZED EGG PRODUCT",
+    "Oats, rolled, uncooked",
+    "YoPRO High-Protein Plain yoghurt",
+    "Quinoa, uncooked",
+    "Bread, from wholemeal flour, extra grainy & seeds",
+    "Mayver's protien + peanut butter",
+    "Banana, cavendish, peeled, raw",
+    "Blueberry, purchased frozen",
+    "Strawberry, purchased frozen",
+    "Raspberry, purchased frozen",
+    "Papaya, raw",
+    "Cheese, cottage"
+    "Nut, almond, with skin, raw, unsalted"
+
+    Lunch, Pre-Lunch, Pre-Dinner and Dinner:
+    "Chicken, breast, lean flesh, grilled, no added fat",
+    "Beef, rump steak, lean, grilled, no added fat",
+    "Tuna, canned in brine, drained",
+    "Basa (basa), fillet, baked, no added fat",
+    "Turkey, ground",
+    "Rice, white, boiled or rice cooker, no added salt",
+    "Rice, brown, boiled, no added salt" for individuals with gluten intolerance or celiac disease or diabetes,
+    "TOFU" for plant-based individuals,
+    "Tempeh, cooked" for plant-based individuals,
+    "Quinoa, uncooked",
+    "Sweet potato, cooked, as ingredient",
+    "Broccoli, fresh, boiled, drained",
+    "Spinach, baby, fresh, raw",
+    "Kale, raw or Kale, cooked, no added fat",
+    "Capsicum, green, fresh, raw",
+    "Asparagus, green, boiled, drained",
+    "Baked beans, canned in tomato sauce, reduced salt",
+    "Lentil, dried, boiled, drained"
+    "Nut, almond, with skin, raw, unsalted"
+    
+    Pre-Workout, Post-Workout, afternoon Snack and Snack:
+    "Banana, cavendish, peeled, raw",
+    "Blueberry, purchased frozen",
+    "Strawberry, purchased frozen",
+    "Raspberry, purchased frozen",
+    "Papaya, raw",
+    "Apple, red skin, unpeeled, raw",
+    "Egg, chicken, whole, raw",
+    "Oats, rolled, uncooked",
+    "YoPRO High-Protein Plain yoghurt",
+    "Protein powder, whey based, protein >70%, unfortified",
+    "Bread, from wholemeal flour, extra grainy & seeds",
+    "Mayver's protien + peanut butter",
+    "Rice, white, boiled or rice cooker, no added salt",
+    "Chicken, breast, lean flesh, grilled, no added fat",
+    "Turkey, ground",
+    "Tuna, canned in brine, drained",
+    "YoPRO High-Protein Plain yoghurt",
+    "PROTEIN BAR",
+    "Cheese, cottage"
+    "Nut, almond, with skin, raw, unsalted"
+    
     
     IMPORTANT: All mean plan description must contain the following:
     
@@ -141,12 +205,12 @@ export const getMealPlanPrompts = (request: MealPlanGenerationRequest): { system
     This is a "x" calories plan focused on "x".
 
     ⚠️ IMPORTANT REMINDERS:
-    • Please read your plan carefully and reach out with any questions
-    • If anything is unavailable, let us know and we'll provide alternatives.
-    • Eat your pre-workout meal 🍽️ at least 45 minutes before training
-    • Have your post-workout meal 🏋️‍♀️ within 1 hour of finishing your session
-    • No skipping meals 🚫
-    • No fruit juices 🧃, soft drinks 🥤, sauces or dressings unless approved
+    - Please read your plan carefully and reach out with any questions
+    - If anything is unavailable, let us know and we'll provide alternatives.
+    - Eat your pre-workout meal 🍽️ at least 45 minutes before training
+    - Have your post-workout meal 🏋️‍♀️ within 1 hour of finishing your session
+    - No skipping meals 🚫
+    - No fruit juices 🧃, soft drinks 🥤, sauces or dressings unless approved
 
     🥦 VEGETABLE OPTIONS:
     You can swap the vegetables in your plan with any of the following:
@@ -154,20 +218,21 @@ export const getMealPlanPrompts = (request: MealPlanGenerationRequest): { system
     (The greener, the better 💚)
 
     🍗 PROTEIN SWAPS:
-    You can replace 100g of chicken breast with:
-    • 100g extra lean beef mince 🥩
-    • 120g basa fish 🐟
-    • 95g tuna in springwater (drained) 🐟
-    • Or any other lean and clean protein source (just ask for approval if unsure ✅)
+    You can swap your protein source based on similar portions. Examples include:
+    - 100g chicken breast 🍗
+    - 80g extra lean beef mince 🥩
+    - 110g basa fish 🐟
+    - 100g tuna in springwater (drained) 🐟
+    - Or any other lean and clean protein source (just ask for approval if unsure ✅)
 
     🍚 CARBOHYDRATE SWAPS:
     You can swap your carb source based on similar portions. Examples include:
     - 100g cooked white rice 🍚
-    - 75g cooked pasta 🍝
-    - 100g cooked quinoa 🍛
-    - 30g rolled oats 🥣
-    - 30g quinoa flakes
-    - 80g cooked sweet potato 🍠
+    - 100g cooked pasta 🍝
+    - 150g cooked quinoa 🍛
+    - 50g rolled oats 🥣
+    - 50g quinoa flakes 🥣
+    - 165g cooked sweet potato 🍠
     (Always weigh carbs cooked unless your plan says otherwise!)
 
     🌿 FLAVOURING:

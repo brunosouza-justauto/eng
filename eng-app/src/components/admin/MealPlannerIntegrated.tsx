@@ -132,6 +132,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
   const [editingFoodItem, setEditingFoodItem] = useState<MealFoodItem | null>(null);
   const [editFoodItemQuantity, setEditFoodItemQuantity] = useState('');
   const [editFoodItemUnit, setEditFoodItemUnit] = useState('');
+  const [editFoodItemNotes, setEditFoodItemNotes] = useState('');
   
   // Add this array of common meal time presets
   const mealTimePresets = [
@@ -281,6 +282,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       const formattedMeals = allMeals.map(meal => ({
         id: meal.id,
         name: meal.name,
+        notes: meal.notes || '',
         day_type: meal.day_type || 'rest',
         order_in_plan: meal.order_in_plan || 0,
         time_of_day: meal.time_suggestion || '',
@@ -299,7 +301,8 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
           protein: item.calculated_protein || 0,
           carbs: item.calculated_carbs || 0,
           fat: item.calculated_fat || 0,
-          created_at: item.created_at || new Date().toISOString()
+          created_at: item.created_at || new Date().toISOString(),
+          notes: item.notes || ''
         }))
       })) as MealData[];
       
@@ -356,6 +359,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
           total_protein: meal.total_protein || 0,
           total_carbs: meal.total_carbs || 0,
           total_fat: meal.total_fat || 0,
+          notes: meal.notes || '',
           food_items: (meal.food_items || []).map(item => ({
             id: item.id,
             meal_id: meal.id,
@@ -367,7 +371,8 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
             protein: item.calculated_protein || 0,
             carbs: item.calculated_carbs || 0,
             fat: item.calculated_fat || 0,
-            created_at: item.created_at || new Date().toISOString()
+            created_at: item.created_at || new Date().toISOString(),
+            notes: item.notes || ''
           }))
         })) as MealData[];
 
@@ -732,8 +737,6 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         return orderA - orderB;
       });
     });
-
-    console.log('Grouped meals:', groupedMeals);
     
     return groupedMeals;
   };
@@ -1062,6 +1065,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     setEditingFoodItem(foodItem);
     setEditFoodItemQuantity(foodItem.quantity.toString());
     setEditFoodItemUnit(foodItem.unit || 'g');
+    setEditFoodItemNotes(foodItem.notes || '');
     setShowEditFoodItemModal(true);
   };
   
@@ -1082,7 +1086,8 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       // Update the food item in the database
       await updateMealFoodItem(editingFoodItem.id, {
         quantity: parsedQuantity,
-        unit: editFoodItemUnit
+        unit: editFoodItemUnit,
+        notes: editFoodItemNotes
       });
       
       // Refresh meals to see the updates
@@ -1845,6 +1850,9 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                                       <div className="font-medium text-gray-200">
                                         {item.food_item?.food_name}
                                       </div>
+                                      <div className="text-xs text-gray-400">
+                                        {item.notes}
+                                      </div>
                                       <div className="text-sm text-gray-400">
                                         {item.quantity} {item.unit} ({(item.calories || 0).toFixed(1)} cal) {(item.protein || 0).toFixed(1)}g {(item.carbs || 0).toFixed(1)}g {(item.fat || 0).toFixed(1)}g
                                       </div>
@@ -1879,6 +1887,12 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                                 No food items added to this meal yet.
                               </div>
                             )}
+
+                            {/* Meal notes */}
+                            <div className="mt-4">
+                              <div className="text-sm text-gray-300">Notes:</div>
+                              <div className="text-sm text-gray-200">{meal.notes}</div>
+                            </div>
                             
                             {/* Add food to this meal button */}
                             {selectedMealId === meal.id && !selectedFoodItem && (
@@ -2377,6 +2391,18 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                     <option value="cup">cups</option>
                     <option value="serving">serving</option>
                   </select>
+                </div>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    value={editFoodItemNotes}
+                    onChange={(e) => setEditFoodItemNotes(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md bg-gray-800 border-gray-600 text-white"
+                    placeholder="Enter notes"
+                  />
                 </div>
                 
                 <div className="text-sm text-gray-300 mt-2">

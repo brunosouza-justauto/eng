@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import BackButton from '../common/BackButton';
-import { FiInfo, FiCheckCircle, FiPlusCircle, FiXCircle, FiShoppingCart } from 'react-icons/fi';
+import { FiInfo, FiCheckCircle, FiPlusCircle, FiXCircle, FiShoppingCart, FiActivity } from 'react-icons/fi';
+import { MdDirectionsRun, MdOutlineEnergySavingsLeaf } from 'react-icons/md';
 import { logPlannedMeal, deleteLoggedMeal } from '../../services/mealLoggingService';
 import { getCurrentDate } from '../../utils/dateUtils';
 import { selectProfile } from '../../store/slices/authSlice';
@@ -30,6 +31,7 @@ interface MealData {
     order_in_plan: number | null;
     notes: string | null;
     day_type: string;
+    time_suggestion: string | null;
     meal_food_items: MealFoodItemData[];
 }
 
@@ -145,6 +147,7 @@ const MealPlanView: React.FC = () => {
                             order_in_plan,
                             notes,
                             day_type,
+                            time_suggestion,
                             meal_food_items (
                                 quantity,
                                 unit,
@@ -323,21 +326,75 @@ const MealPlanView: React.FC = () => {
                     </div>
                     
                     {dayTypes.length > 0 && (
-                        <div className="mb-6 overflow-x-auto">
-                            <div className="flex space-x-2 p-1">
-                                {dayTypes.map(dayType => (
-                                    <button
-                                        key={dayType}
-                                        onClick={() => setSelectedDayType(dayType)}
-                                        className={`capitalize px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors
-                                            ${selectedDayType === dayType 
-                                                ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200" 
-                                                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                                            }`}
-                                    >
-                                        {dayType}
-                                    </button>
-                                ))}
+                        <div className="mb-8">
+                            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Select Day Type:</h2>
+                            <div className="grid grid-cols-1 gap-4">
+                                {dayTypes.map(dayType => {
+                                    // Determine icon and colors based on day type
+                                    let DayIcon = FiActivity;
+                                    let primaryColor, secondaryColor, textColor, iconBgColor;
+                                    
+                                    if (dayType.toLowerCase() === 'training') {
+                                        DayIcon = MdDirectionsRun;
+                                        primaryColor = selectedDayType === dayType ? 'bg-gradient-to-r from-emerald-500 to-green-600' : 'bg-gray-50 dark:bg-gray-800';
+                                        secondaryColor = 'border-green-300 dark:border-green-700';
+                                        textColor = selectedDayType === dayType ? 'text-white' : 'text-gray-800 dark:text-white';
+                                        iconBgColor = selectedDayType === dayType ? 'bg-white/20' : 'bg-green-100 dark:bg-green-900/30';
+                                    } else if (dayType.toLowerCase() === 'rest') {
+                                        DayIcon = MdOutlineEnergySavingsLeaf;
+                                        primaryColor = selectedDayType === dayType ? 'bg-gradient-to-r from-violet-500 to-indigo-600' : 'bg-gray-50 dark:bg-gray-800';
+                                        secondaryColor = 'border-indigo-300 dark:border-indigo-700';
+                                        textColor = selectedDayType === dayType ? 'text-white' : 'text-gray-800 dark:text-white';
+                                        iconBgColor = selectedDayType === dayType ? 'bg-white/20' : 'bg-indigo-100 dark:bg-indigo-900/30';
+                                    } else {
+                                        primaryColor = selectedDayType === dayType ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-gray-50 dark:bg-gray-800';
+                                        secondaryColor = 'border-blue-300 dark:border-blue-700';
+                                        textColor = selectedDayType === dayType ? 'text-white' : 'text-gray-800 dark:text-white';
+                                        iconBgColor = selectedDayType === dayType ? 'bg-white/20' : 'bg-blue-100 dark:bg-blue-900/30';
+                                    }
+                                    
+                                    return (
+                                        <button
+                                            key={dayType}
+                                            onClick={() => setSelectedDayType(dayType)}
+                                            className={`group relative flex items-center p-5 rounded-xl transition-all duration-300 border-2 overflow-hidden
+                                                ${primaryColor} ${secondaryColor} ${textColor}
+                                                ${selectedDayType === dayType 
+                                                    ? 'shadow-lg transform scale-[1.02]' 
+                                                    : 'shadow-sm hover:shadow-md hover:scale-[1.01]'}`}
+                                            aria-pressed={selectedDayType === dayType}
+                                            aria-label={`View ${dayType} meal plan`}
+                                        >
+                                            {/* Selection indicator */}
+                                            {selectedDayType === dayType && (
+                                                <div className="absolute left-0 top-0 h-full w-1.5 bg-white"></div>
+                                            )}
+                                            
+                                            <div className={`p-3 mr-4 rounded-full flex items-center justify-center transition-all duration-300 ${iconBgColor}`}>
+                                                <DayIcon size={28} className={selectedDayType === dayType ? 'text-white' : dayType.toLowerCase() === 'training' ? 'text-green-600 dark:text-green-400' : dayType.toLowerCase() === 'rest' ? 'text-indigo-600 dark:text-indigo-400' : 'text-blue-600 dark:text-blue-400'} />
+                                            </div>
+                                            
+                                            <div className="flex-1">
+                                                <h3 className="text-xl font-bold capitalize mb-1">{dayType}</h3>
+                                                <p className={`text-sm ${selectedDayType === dayType ? 'text-white/90' : 'text-gray-600 dark:text-gray-400'}`}>
+                                                    {dayType.toLowerCase() === 'training' 
+                                                        ? 'Workout day nutrition plan' 
+                                                        : dayType.toLowerCase() === 'rest'
+                                                            ? 'Recovery day nutrition plan'
+                                                            : `${dayType} nutrition plan`
+                                                    }
+                                                </p>
+                                            </div>
+                                            
+                                            {/* Selection checkmark/indicator */}
+                                            {selectedDayType === dayType && (
+                                                <div className="ml-3 bg-white/20 p-1.5 rounded-full">
+                                                    <FiCheckCircle size={20} />
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -368,6 +425,16 @@ const MealPlanView: React.FC = () => {
                                                             </span>
                                                         )}
                                                     </h2>
+                                                    {meal.time_suggestion && (
+                                                        <div className="flex items-center mt-1.5 bg-indigo-900/30 px-2 py-1 rounded-md w-fit">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-300 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                            <p className="text-sm font-medium text-indigo-300">
+                                                                {meal.time_suggestion}
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 
                                                 <div className="flex items-center">

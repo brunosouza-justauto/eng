@@ -57,9 +57,6 @@ const MealPlannerAI: React.FC<MealPlannerAIProps> = ({ onMealPlanCreated }) => {
       // Check if this is direct JSON input from an external LLM
       // @ts-expect-error - _jsonInput is a custom property we added
       if (data._jsonInput) {
-        // Use the JSON directly without making an API call
-        console.log('Using pasted JSON directly');
-        
         // Add AI response to chat
         const aiResponse: Message = {
           id: uuidv4(),
@@ -170,6 +167,8 @@ const MealPlannerAI: React.FC<MealPlannerAIProps> = ({ onMealPlanCreated }) => {
   // Function to save the generated meal plan to the database
   const handleSaveMealPlan = async () => {
     if (!generatedMealPlan || !profile?.id) return;
+
+    console.log(generatedMealPlan);
     
     setIsSavingPlan(true);
     
@@ -209,7 +208,8 @@ const MealPlannerAI: React.FC<MealPlannerAIProps> = ({ onMealPlanCreated }) => {
               name: meal.name,
               day_type: dayType.type.toLowerCase().replace(/day$/, '').trim(),
               time_suggestion: meal.time.match(/(AM|PM)/i) ? format12hTime(meal.time) : meal.time,
-              order_in_plan: dayType.meals.indexOf(meal) + 1
+              order_in_plan: dayType.meals.indexOf(meal) + 1,
+              notes: meal.notes
             })
             .select('id')
             .single();
@@ -270,7 +270,8 @@ const MealPlannerAI: React.FC<MealPlannerAIProps> = ({ onMealPlanCreated }) => {
                 meal_id: mealId,
                 food_item_id: foodItemId,
                 quantity: food.quantity,
-                unit: food.unit
+                unit: food.unit,
+                notes: food.notes
               });
             
             if (mealFoodError) throw mealFoodError;

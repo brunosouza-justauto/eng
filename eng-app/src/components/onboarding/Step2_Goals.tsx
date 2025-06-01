@@ -45,8 +45,6 @@ const Step2_Goals: React.FC = () => {
             setValue('goal_target_weight_kg', targetWeight, { shouldValidate: true });
         }
 
-        console.log('goal_target_weight_kg', weightKg);
-
     }, [weightKg, goalType, targetFatLossKg, targetMuscleGainKg, setValue, control]);
 
     return (

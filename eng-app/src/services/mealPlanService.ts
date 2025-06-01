@@ -34,6 +34,7 @@ export interface AIMeal {
     protein: number;
     carbs: number;
     fat: number;
+    notes: string;
   }[];
   notes: string;
 }
@@ -80,15 +81,11 @@ export const generateMealPlan = async (
   request: MealPlanGenerationRequest
 ): Promise<{ success: boolean; reasoning?: string; data?: AIMealPlan; error?: string }> => {
   try {
-    console.log('Generating meal plan prompt...');
-    
     // Use the shared getMealPlanPrompts function to generate the prompts
     // The getMealPlanPrompts expects the data in the right format already from AthleteProfile
     const { systemPrompt, userPrompt } = getMealPlanPrompts({ 
       athleteData: request.athleteData
     });
-    
-    console.log('Prompt generated successfully');
     
     // Get the API key from environment variables
     const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
@@ -98,7 +95,6 @@ export const generateMealPlan = async (
     }
 
     // Make the API request to OpenRouter
-    console.log('Making API request to OpenRouter...');
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
@@ -125,8 +121,6 @@ export const generateMealPlan = async (
 
     const aiReasoning = response.data.choices[0].message.reasoning;
     
-    console.log('AI Response:', aiMessage);
-    
     // Extract JSON from the response (handle potential text before/after JSON)
     const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -134,8 +128,6 @@ export const generateMealPlan = async (
     }
     
     const mealPlanData = JSON.parse(jsonMatch[0]) as AIMealPlan;
-
-    console.log('Meal Plan Data:', mealPlanData);
       
     return {
       success: true,

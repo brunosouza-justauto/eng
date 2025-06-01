@@ -160,8 +160,6 @@ const DashboardPageV2: React.FC = () => {
         
         if (workoutError) throw workoutError;
 
-        console.log(workoutData);
-
         if (workoutData && workoutData.length > 0 && workoutData[0].name !== null && workoutData[0].name !== '' && !workoutData[0].name.toLowerCase().includes('rest')) {
           // Check for completed workouts today
           const { data, error } = await supabase

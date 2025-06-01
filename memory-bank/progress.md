@@ -109,6 +109,24 @@
    - Enhanced information hierarchy with consistent styling between related components
    - Improved usability with intelligent default behaviors
 
+6. ✅ **Meal Plan Generation Enhancements**
+   - Created a dedicated mealPlanService.ts service for handling meal plan generation
+   - Implemented comprehensive field validation in AthleteDataForm to ensure complete data
+   - Added support for direct JSON input from external LLM providers
+   - Enhanced OpenRouter prompts with more specific guidelines for meal creation
+   - Updated prompt structure to provide consistent meal formatting and ingredient selection
+   - Improved system prompt with detailed nutrition guidelines and food constraints
+   - Switched to deepseek-r1-0528-qwen3-8b model for more consistent results
+   - Extended API timeout to 10 minutes for complex generations
+
+7. ✅ **Nutrition Calculation Improvements**
+   - Implemented weighted average calculations for nutrition based on day type frequency
+   - Added UI controls for specifying how many days per week each meal type occurs
+   - Enhanced meal plan prompts with specific macronutrient precision requirements
+   - Added local storage persistence for day type frequencies
+   - Improved error handling for nutrition calculations with fallback values
+   - Added AI reasoning display for better understanding of generated meal plans
+
 ### PWA & Deployment
 
 1. ✅ **Progressive Web App Support**

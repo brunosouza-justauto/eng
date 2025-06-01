@@ -271,10 +271,7 @@ const AthleteDataForm: React.FC<AthleteDataFormProps> = ({ onSubmit, isSubmittin
       const missingFields = requiredFields
         .filter(field => !formData[field.key as keyof AthleteProfile])
         .map(field => field.label);
-
-      console.log('missingFields', missingFields);
-      console.log('requiredFields', requiredFields);
-      
+     
       if (missingFields.length > 0) {
         setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
         setIsGeneratingPrompt(false);

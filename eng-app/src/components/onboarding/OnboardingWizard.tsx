@@ -100,9 +100,6 @@ const OnboardingWizard: React.FC = () => {
             const isValid = await trigger(fieldsToCheck as (keyof OnboardingData)[]);
 
             const formValues = getValues();
-
-            console.log('formValues', formValues);
-            console.log('goal_type', formValues.goal_type);
             
             if (!formValues.goal_type) {
                 // Trigger validation just on goal_type
