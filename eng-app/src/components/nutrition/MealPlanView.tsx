@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import BackButton from '../common/BackButton';
-import { FiInfo, FiCheckCircle, FiPlusCircle, FiXCircle, FiShoppingCart, FiActivity } from 'react-icons/fi';
+import { FiInfo, FiCheckCircle, FiPlusCircle, FiXCircle, FiShoppingCart, FiActivity, FiPrinter } from 'react-icons/fi';
 import { MdDirectionsRun, MdOutlineEnergySavingsLeaf } from 'react-icons/md';
 import { logPlannedMeal, deleteLoggedMeal } from '../../services/mealLoggingService';
 import { getCurrentDate } from '../../utils/dateUtils';
@@ -78,6 +78,369 @@ const calculateMealNutrition = (meal: MealData) => {
             fat: Math.round((totals.fat + itemNutrition.fat) * 10) / 10
         };
     }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+};
+
+// Add print styles to head
+const printStyles = `
+@media print {
+    /* Reset all styles first */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Hide non-printable elements */
+    body.printing-nutrition-plan nav,
+    body.printing-nutrition-plan header,
+    body.printing-nutrition-plan button,
+    body.printing-nutrition-plan .no-print,
+    body.printing-nutrition-plan .back-button,
+    body.printing-nutrition-plan footer {
+        display: none !important;
+    }
+    
+    /* Show only the printable plan */
+    body.printing-nutrition-plan .container > *:not(.printable-plan) {
+        display: none !important;
+    }
+    
+    body.printing-nutrition-plan .printable-plan {
+        display: block !important;
+        visibility: visible !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        z-index: 9999 !important;
+    }
+    
+    body.printing-nutrition-plan {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+    }
+    
+    /* General page setup */
+    @page {
+        size: A4;
+        margin: 0.5in;
+    }
+    
+    /* Cover page styles */
+    .print-cover-page {
+        height: 100vh;
+        position: relative;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        page-break-after: always;
+    }
+    
+    .print-logo {
+        font-size: 18px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 80px;
+        color: #333;
+    }
+    
+    .print-plan-title {
+        font-size: 36px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #222;
+    }
+    
+    .print-plan-subtitle {
+        font-size: 22px;
+        color: #555;
+        margin-bottom: 50px;
+        font-style: italic;
+    }
+    
+    .print-plan-macros {
+        display: flex;
+        justify-content: space-around;
+        width: 80%;
+        margin: 50px auto;
+        gap: 30px;
+    }
+    
+    .print-macro-item {
+        text-align: center;
+    }
+    
+    .print-macro-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .print-macro-label {
+        font-size: 14px;
+        color: #666;
+        text-transform: uppercase;
+    }
+    
+    .print-plan-description {
+        max-width: 600px;
+        margin: 30px auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+    }
+    
+    .print-plan-description h2 {
+        font-size: 18px;
+        margin-bottom: 10px;
+        color: #444;
+    }
+    
+    .print-plan-description p {
+        font-size: 14px;
+        line-height: 1.6;
+        color: #555;
+    }
+    
+    .print-date {
+        position: absolute;
+        bottom: 40px;
+        right: 0;
+        left: 0;
+        text-align: center;
+        font-size: 12px;
+        color: #888;
+    }
+    
+    /* Table of Contents */
+    .print-toc {
+        padding: 20px 0;
+        page-break-after: always;
+    }
+    
+    .print-toc h2 {
+        font-size: 24px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+    }
+    
+    .print-toc-list {
+        list-style-type: none;
+        padding: 0;
+    }
+    
+    .print-toc-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 5px 0;
+        border-bottom: 1px dotted #ddd;
+    }
+    
+    .print-toc-item {
+        font-size: 16px;
+        font-weight: 500;
+        color: #444;
+    }
+    
+    .print-toc-page {
+        font-weight: bold;
+    }
+    
+    /* Day section styles */
+    .print-day-section {
+        margin-bottom: 40px;
+    }
+    
+    .print-day-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #444;
+        padding-bottom: 10px;
+    }
+    
+    .print-day-title {
+        font-size: 22px;
+        font-weight: bold;
+        color: #333;
+        display: flex;
+        align-items: center;
+    }
+    
+    .print-day-icon {
+        display: inline-block;
+        margin-right: 10px;
+        font-size: 18px;
+    }
+    
+    .print-training-icon {
+        color: #4CAF50;
+    }
+    
+    .print-rest-icon {
+        color: #5C6BC0;
+    }
+    
+    .print-day-macros {
+        display: flex;
+        gap: 15px;
+    }
+    
+    .print-day-macro-item {
+        font-size: 14px;
+    }
+    
+    .print-day-macro-label {
+        font-weight: 500;
+        margin-right: 5px;
+    }
+    
+    .print-day-macro-value {
+        font-weight: bold;
+    }
+    
+    /* Meal card styles */
+    .print-meal-card {
+        margin-bottom: 30px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        overflow: hidden;
+        page-break-inside: avoid;
+    }
+    
+    .print-meal-header {
+        background-color: #f5f5f5;
+        padding: 15px;
+        border-bottom: 1px solid #ddd;
+        position: relative;
+    }
+    
+    .print-meal-name {
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .print-meal-time {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 5px;
+        font-style: italic;
+    }
+    
+    .print-meal-macros {
+        display: flex;
+        gap: 15px;
+        font-size: 14px;
+        color: #555;
+    }
+    
+    .print-meal-notes {
+        padding: 10px 15px;
+        background-color: #f9f9f9;
+        border-bottom: 1px solid #ddd;
+        font-size: 14px;
+        color: #666;
+        font-style: italic;
+    }
+    
+    .print-meal-notes-label {
+        font-weight: bold;
+        color: #555;
+    }
+    
+    /* Table styles */
+    .print-meal-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    
+    .print-meal-table th,
+    .print-meal-table td {
+        padding: 10px 15px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+    
+    .print-meal-table th {
+        background-color: #f0f0f0;
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .print-col-item {
+        width: 35%;
+    }
+    
+    .print-col-amount {
+        width: 15%;
+    }
+    
+    .print-col-macros {
+        width: 35%;
+    }
+    
+    .print-col-calories {
+        width: 15%;
+        text-align: right;
+    }
+    
+    /* Page break utility */
+    .print-page-break {
+        page-break-after: always;
+        height: 0;
+    }
+    
+    /* Footer */
+    .print-footer {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 1px solid #ddd;
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+    }
+    
+    .print-footer-logo {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .print-footer-text {
+        font-style: italic;
+    }
+}`;
+
+// Component to inject print styles
+const PrintStylesInjector: React.FC = () => {
+    useEffect(() => {
+        // Create style element
+        const style = document.createElement('style');
+        style.type = 'text/css';
+        style.appendChild(document.createTextNode(printStyles));
+        
+        // Append to head
+        document.head.appendChild(style);
+        
+        // Cleanup
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
+    
+    return null;
 };
 
 const MealPlanView: React.FC = () => {
@@ -283,9 +646,557 @@ const MealPlanView: React.FC = () => {
             navigate(`/shopping-cart?planId=${planId}`);
         }
     };
+    
+    // Handle print button click
+    const handlePrintPlan = () => {
+        // Create a new print window
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Please allow pop-ups to print the nutrition plan');
+            return;
+        }
+        
+        // Write HTML content to the print window
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${plan?.name || 'Nutrition Plan'} - ENG Fitness</title>
+                <style>
+                    /* Reset styles */
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: Arial, sans-serif; background: white; color: black; }
+                    
+                    /* Cover page styles */
+                    .print-cover-page {
+                        height: 100vh;
+                        position: relative;
+                        text-align: center;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        page-break-after: always;
+                    }
+                    
+                    .print-logo {
+                        font-size: 18px;
+                        font-weight: bold;
+                        text-transform: uppercase;
+                        letter-spacing: 2px;
+                        margin-bottom: 80px;
+                        color: #333;
+                    }
+                    
+                    .print-plan-title {
+                        font-size: 36px;
+                        font-weight: bold;
+                        margin-bottom: 10px;
+                        color: #222;
+                    }
+                    
+                    .print-plan-subtitle {
+                        font-size: 22px;
+                        color: #555;
+                        margin-bottom: 50px;
+                        font-style: italic;
+                    }
+                    
+                    .print-plan-macros {
+                        display: flex;
+                        justify-content: space-around;
+                        width: 80%;
+                        margin: 50px auto;
+                        gap: 30px;
+                    }
+                    
+                    .print-macro-item {
+                        text-align: center;
+                    }
+                    
+                    .print-macro-value {
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #333;
+                    }
+                    
+                    .print-macro-label {
+                        font-size: 14px;
+                        color: #666;
+                        text-transform: uppercase;
+                    }
+                    
+                    .print-plan-description {
+                        max-width: 600px;
+                        margin: 30px auto;
+                        padding: 20px;
+                        border: 1px solid #ddd;
+                        border-radius: 5px;
+                        background-color: #f9f9f9;
+                    }
+                    
+                    .print-plan-description h2 {
+                        font-size: 18px;
+                        margin-bottom: 10px;
+                        color: #444;
+                    }
+                    
+                    .print-plan-description p {
+                        font-size: 14px;
+                        line-height: 1.6;
+                        color: #555;
+                    }
+                    
+                    .print-date {
+                        position: absolute;
+                        bottom: 40px;
+                        right: 0;
+                        left: 0;
+                        text-align: center;
+                        font-size: 12px;
+                        color: #888;
+                    }
+                    
+                    /* Table of Contents */
+                    .print-toc {
+                        padding: 20px 0;
+                        page-break-after: always;
+                    }
+                    
+                    .print-toc h2 {
+                        font-size: 24px;
+                        margin-bottom: 20px;
+                        border-bottom: 1px solid #ddd;
+                        padding-bottom: 10px;
+                    }
+                    
+                    .print-toc-list {
+                        list-style-type: none;
+                        padding: 0;
+                    }
+                    
+                    .print-toc-list li {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 10px;
+                        padding: 5px 0;
+                        border-bottom: 1px dotted #ddd;
+                    }
+                    
+                    .print-toc-item {
+                        font-size: 16px;
+                        font-weight: 500;
+                        color: #444;
+                    }
+                    
+                    .print-toc-page {
+                        font-weight: bold;
+                    }
+                    
+                    /* Day section styles */
+                    .print-day-section {
+                        margin-bottom: 40px;
+                    }
+                    
+                    .print-day-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 20px;
+                        border-bottom: 2px solid #444;
+                        padding-bottom: 10px;
+                    }
+                    
+                    .print-day-title {
+                        font-size: 22px;
+                        font-weight: bold;
+                        color: #333;
+                        display: flex;
+                        align-items: center;
+                    }
+                    
+                    .print-day-icon {
+                        display: inline-block;
+                        margin-right: 10px;
+                        font-size: 18px;
+                    }
+                    
+                    .print-training-icon {
+                        color: #4CAF50;
+                    }
+                    
+                    .print-rest-icon {
+                        color: #5C6BC0;
+                    }
+                    
+                    .print-day-macros {
+                        display: flex;
+                        gap: 15px;
+                    }
+                    
+                    .print-day-macro-item {
+                        font-size: 14px;
+                    }
+                    
+                    .print-day-macro-label {
+                        font-weight: 500;
+                        margin-right: 5px;
+                    }
+                    
+                    .print-day-macro-value {
+                        font-weight: bold;
+                    }
+                    
+                    /* Meal card styles */
+                    .print-meal-card {
+                        margin-bottom: 30px;
+                        border: 1px solid #ddd;
+                        border-radius: 5px;
+                        overflow: hidden;
+                        page-break-inside: avoid;
+                    }
+                    
+                    .print-meal-header {
+                        background-color: #f5f5f5;
+                        padding: 15px;
+                        border-bottom: 1px solid #ddd;
+                        position: relative;
+                    }
+                    
+                    .print-meal-name {
+                        font-size: 18px;
+                        font-weight: bold;
+                        color: #333;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .print-meal-time {
+                        font-size: 14px;
+                        color: #666;
+                        margin-bottom: 5px;
+                        font-style: italic;
+                    }
+                    
+                    .print-meal-macros {
+                        display: flex;
+                        gap: 15px;
+                        font-size: 14px;
+                        color: #555;
+                    }
+                    
+                    .print-meal-notes {
+                        padding: 10px 15px;
+                        background-color: #f9f9f9;
+                        border-bottom: 1px solid #ddd;
+                        font-size: 14px;
+                        color: #666;
+                        font-style: italic;
+                    }
+                    
+                    .print-meal-notes-label {
+                        font-weight: bold;
+                        color: #555;
+                    }
+                    
+                    /* Table styles */
+                    .print-meal-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 14px;
+                    }
+                    
+                    .print-meal-table th,
+                    .print-meal-table td {
+                        padding: 10px 15px;
+                        text-align: left;
+                        border-bottom: 1px solid #ddd;
+                    }
+                    
+                    .print-meal-table th {
+                        background-color: #f0f0f0;
+                        font-weight: 500;
+                        color: #333;
+                    }
+                    
+                    .print-col-item {
+                        width: 35%;
+                    }
+                    
+                    .print-col-amount {
+                        width: 15%;
+                    }
+                    
+                    .print-col-macros {
+                        width: 35%;
+                    }
+                    
+                    .print-col-calories {
+                        width: 15%;
+                        text-align: right;
+                    }
+                    
+                    /* Page break utility */
+                    .print-page-break {
+                        page-break-after: always;
+                        height: 0;
+                    }
+                    
+                    /* Footer */
+                    .print-footer {
+                        margin-top: 40px;
+                        padding-top: 20px;
+                        border-top: 1px solid #ddd;
+                        text-align: center;
+                        font-size: 12px;
+                        color: #777;
+                    }
+                    
+                    .print-footer-logo {
+                        font-weight: bold;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .print-footer-text {
+                        font-style: italic;
+                    }
+                    
+                    @media print {
+                        @page {
+                            size: A4;
+                            margin: 0.5in;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+        `);
+        
+        // Group meals by day type
+        const dayTypes = Array.from(new Set(plan?.meals?.map(meal => meal.day_type) || []));
+        const mealsByDayType: Record<string, MealData[]> = {};
+        
+        // Initialize groups
+        dayTypes.forEach(dayType => {
+            if (dayType) {
+                mealsByDayType[dayType] = [];
+            }
+        });
+        
+        // Group meals by day type
+        plan?.meals?.forEach(meal => {
+            if (meal.day_type && mealsByDayType[meal.day_type]) {
+                mealsByDayType[meal.day_type].push(meal);
+            }
+        });
+        
+        // Sort meals within each day type
+        Object.keys(mealsByDayType).forEach(dayType => {
+            mealsByDayType[dayType].sort((a, b) => (a.order_in_plan ?? 0) - (b.order_in_plan ?? 0));
+        });
+        
+        // Write cover page
+        printWindow.document.write(`
+            <div class="print-cover-page">
+                <div class="print-logo">ENG Fitness</div>
+                <h1 class="print-plan-title">${plan?.name || 'Nutrition Plan'}</h1>
+                <div class="print-plan-subtitle">Nutrition Plan</div>
+                
+                <div class="print-plan-macros">
+                    <div class="print-macro-item">
+                        <div class="print-macro-value">${plan?.total_calories || 0}</div>
+                        <div class="print-macro-label">Calories</div>
+                    </div>
+                    <div class="print-macro-item">
+                        <div class="print-macro-value">${plan?.protein_grams || 0}g</div>
+                        <div class="print-macro-label">Protein</div>
+                    </div>
+                    <div class="print-macro-item">
+                        <div class="print-macro-value">${plan?.carbohydrate_grams || 0}g</div>
+                        <div class="print-macro-label">Carbs</div>
+                    </div>
+                    <div class="print-macro-item">
+                        <div class="print-macro-value">${plan?.fat_grams || 0}g</div>
+                        <div class="print-macro-label">Fat</div>
+                    </div>
+                </div>
+                
+                ${plan?.description ? `
+                <div class="print-plan-description">
+                    <h2>Plan Description</h2>
+                    <p>${plan.description.replace(/\n/g, '<br>')}</p>
+                </div>
+                ` : ''}
+                
+            </div>
+            
+            <div class="print-page-break"></div>
+        `);
+        
+        // Write table of contents
+        printWindow.document.write(`
+            <div class="print-toc">
+                <h2>Contents</h2>
+                <ol class="print-toc-list">
+                    ${Object.keys(mealsByDayType).map((dayType, index) => `
+                        <li>
+                            <span class="print-toc-item">${dayType.charAt(0).toUpperCase() + dayType.slice(1)} Day Plan</span>
+                            <span class="print-toc-page">${index + 2}</span>
+                        </li>
+                    `).join('')}
+                </ol>
+            </div>
+            
+            <div class="print-page-break"></div>
+        `);
+        
+        // Write day-specific meal plans
+        Object.entries(mealsByDayType).forEach(([dayType, meals], dayIndex) => {
+            // Calculate day totals
+            const dayTotals = meals.reduce((acc, meal) => {
+                const mealNutrition = calculateMealNutrition(meal);
+                return {
+                    calories: acc.calories + mealNutrition.calories,
+                    protein: acc.protein + mealNutrition.protein,
+                    carbs: acc.carbs + mealNutrition.carbs,
+                    fat: acc.fat + mealNutrition.fat
+                };
+            }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+            
+            printWindow.document.write(`
+                <div class="print-day-section">
+                    <div class="print-day-header">
+                        <h2 class="print-day-title">
+                            ${dayType === 'training' ? 
+                                `<span class="print-day-icon print-training-icon">▶</span>` : 
+                                dayType === 'rest' ? 
+                                `<span class="print-day-icon print-rest-icon">●</span>` : 
+                                `<span class="print-day-icon">■</span>`
+                            }
+                            ${dayType.charAt(0).toUpperCase() + dayType.slice(1)} Day Plan
+                        </h2>
+                        
+                        <div class="print-day-macros">
+                            <div class="print-day-macro-item">
+                                <span class="print-day-macro-label">Calories:</span>
+                                <span class="print-day-macro-value">${dayTotals.calories}</span>
+                            </div>
+                            <div class="print-day-macro-item">
+                                <span class="print-day-macro-label">P:</span>
+                                <span class="print-day-macro-value">${dayTotals.protein.toFixed(1)}g</span>
+                            </div>
+                            <div class="print-day-macro-item">
+                                <span class="print-day-macro-label">C:</span>
+                                <span class="print-day-macro-value">${dayTotals.carbs.toFixed(1)}g</span>
+                            </div>
+                            <div class="print-day-macro-item">
+                                <span class="print-day-macro-label">F:</span>
+                                <span class="print-day-macro-value">${dayTotals.fat.toFixed(1)}g</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="print-meals-list">
+            `);
+            
+            // Write meals for this day type
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            meals.forEach((meal, mealIndex) => {
+                const mealNutrition = calculateMealNutrition(meal);
+                
+                printWindow.document.write(`
+                    <div class="print-meal-card">
+                        <div class="print-meal-header">
+                            <h3 class="print-meal-name">${meal.name}</h3>
+                            ${meal.time_suggestion ? `
+                                <div class="print-meal-time">Time: ${meal.time_suggestion}</div>
+                            ` : ''}
+                            <div class="print-meal-macros">
+                                <span>${mealNutrition.calories} kcal</span>
+                                <span>P: ${mealNutrition.protein}g</span>
+                                <span>C: ${mealNutrition.carbs}g</span>
+                                <span>F: ${mealNutrition.fat}g</span>
+                            </div>
+                        </div>
+                        
+                        ${meal.notes ? `
+                            <div class="print-meal-notes">
+                                <span class="print-meal-notes-label">Notes:</span> ${meal.notes}
+                            </div>
+                        ` : ''}
+                        
+                        <table class="print-meal-table">
+                            <thead>
+                                <tr>
+                                    <th class="print-col-item">Food Item</th>
+                                    <th class="print-col-amount">Amount</th>
+                                    <th class="print-col-macros">Macros</th>
+                                    <th class="print-col-calories">Calories</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `);
+                
+                // Write food items for this meal
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                meal.meal_food_items.forEach((item, idx) => {
+                    const itemNutrition = calculateItemNutrition(item);
+                    
+                    printWindow.document.write(`
+                        <tr>
+                            <td class="print-col-item">${item.food_items?.food_name ?? 'Unknown Item'}</td>
+                            <td class="print-col-amount">${item.quantity}${item.unit}</td>
+                            <td class="print-col-macros">
+                                P: ${itemNutrition.protein}g · C: ${itemNutrition.carbs}g · F: ${itemNutrition.fat}g
+                            </td>
+                            <td class="print-col-calories">${itemNutrition.calories}</td>
+                        </tr>
+                    `);
+                });
+                
+                printWindow.document.write(`
+                            </tbody>
+                        </table>
+                    </div>
+                `);
+            });
+            
+            printWindow.document.write(`
+                    </div>
+                    
+                    ${dayIndex < Object.keys(mealsByDayType).length - 1 ? `
+                        <div class="print-page-break"></div>
+                    ` : ''}
+                </div>
+            `);
+        });
+        
+        // Write footer and close document
+        printWindow.document.write(`
+                <div class="print-footer">
+                    <div class="print-footer-logo">ENG Fitness</div>
+                    <div class="print-footer-text">This nutrition plan is designed to help you achieve your fitness goals. Follow it consistently for best results.</div>
+                </div>
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        
+        // Give time for resources to load then print
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+            
+            // Optional: close the window after printing
+            // Commented out to allow the user to save as PDF if needed
+            // setTimeout(() => printWindow.close(), 500);
+        }, 1000);
+    };
 
     return (
-        <div className="container mx-auto py-6">
+        <div className="container mx-auto py-6 app-container">
+            <PrintStylesInjector />
             <BackButton to="/dashboard" />
 
             {isLoading && <div className="p-4 flex justify-center"><p>Loading meal plan details...</p></div>}
@@ -314,12 +1225,20 @@ const MealPlanView: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                        <button
-                            onClick={handleGenerateShoppingList}
-                            className="w-full flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded mb-4"
-                        >
-                            <FiShoppingCart className="mr-2" /> Generate Shopping List
-                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                            <button
+                                onClick={handleGenerateShoppingList}
+                                className="flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded"
+                            >
+                                <FiShoppingCart className="mr-2" /> Generate Shopping List
+                            </button>
+                            <button
+                                onClick={handlePrintPlan}
+                                className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded"
+                            >
+                                <FiPrinter className="mr-2" /> Print/Export PDF
+                            </button>
+                        </div>
                         {plan.description && 
                             <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-4 whitespace-pre-line">{plan.description}</p>
                         }
@@ -399,6 +1318,8 @@ const MealPlanView: React.FC = () => {
                         </div>
                     )}
 
+
+                    
                     <div id="todays-meals" className="space-y-6">
                         {filteredMeals.length === 0 && 
                             <p className="text-center p-4 text-gray-500 dark:text-gray-400">
@@ -413,8 +1334,8 @@ const MealPlanView: React.FC = () => {
                                 const isLogged = loggedMeals[meal.id] || false;
                                 
                                 return (
-                                    <div key={meal.id} className="bg-gray-900 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden text-white">
-                                        <div className="p-4 border-b border-gray-800 dark:border-gray-700">
+                                    <div key={meal.id} className="bg-gray-900 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden text-white meal-card">
+                                        <div className="p-4 border-b border-gray-800 dark:border-gray-700 meal-header">
                                             <div className="flex justify-between items-start">
                                                 <div>
                                                     <h2 className="text-xl font-semibold text-white flex items-center">
@@ -536,6 +1457,8 @@ const MealPlanView: React.FC = () => {
                     </div>
                 </div>
             )}
+            
+            {/* We're now using a direct popup window for printing instead of this component */}
         </div>
     );
 };
