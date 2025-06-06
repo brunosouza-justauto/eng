@@ -361,6 +361,7 @@ export const getProgramPrompts = async (request: { athleteData: AthleteFormData 
     28. If the athlete specified "Bodyweight Only" as the available equipment, prioritize the use of "Body weight" exercises.
     29. If the athlete specified "Resistance Band Only" as the available equipment, prioritize the use of "Resistance Band" exercises.
     30. Make sure you DO NOT add comments such as // or /* in the JSON output.
+    31. In the exercises notes attribute you can add any additional information about the exercise like how to perform it, how to warm up for it, how to cool down for it and also most importantly possible replacements or variations for the exercise.
     
     The possible list for the exercise equipment is the following:
     "Wheel roller",
