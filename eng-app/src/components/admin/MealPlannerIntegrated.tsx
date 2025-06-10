@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { selectProfile } from '../../store/slices/authSlice';
 import { FiSearch, FiPlus, FiTrash2, FiX, FiInfo, FiBook, FiArrowLeft, FiSave, FiCalendar, FiActivity, FiEdit3, FiChevronUp, FiChevronDown, FiEdit2 } from 'react-icons/fi';
@@ -17,7 +17,6 @@ import {
   updateMealFoodItem
 } from '../../services/mealPlanningService';
 import { FoodItem, MealFoodItem } from '../../types/mealPlanning';
-import './MealPlannerIntegrated.css';
 import { supabase } from '../../services/supabaseClient';
 
 interface MealData {
@@ -145,6 +144,10 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     { label: 'Dinner', time: '19:30' },
     { label: 'Evening Snack', time: '21:00' }
   ];
+  
+  // State for ingredient slider functionality
+  const [editingQuantity, setEditingQuantity] = useState<{ [key: string]: number }>({});
+  const [pendingUpdates, setPendingUpdates] = useState<{ [key: string]: boolean }>({});
   
   // Define day type options
   const dayTypeOptions: DayTypeOption[] = [
@@ -707,17 +710,112 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     }
   };
   
-  // Function to get appropriate styling for meal cards
-  const getMealCardStyle = (mealId: string) => {
-    return `meal-card p-4 bg-gray-800 dark:bg-gray-800 rounded-lg border-2 
-      ${selectedMealId === mealId 
-        ? 'selected border-indigo-500 dark:border-indigo-400' 
-        : 'border-gray-700 dark:border-gray-700'} 
-      transition-all hover:shadow-md`;
+  // Handle quantity slider change with debouncing for performance
+  const handleQuantitySliderChange = useCallback((mealFoodId: string, newQuantity: number) => {
+    setEditingQuantity(prev => ({
+      ...prev,
+      [mealFoodId]: newQuantity
+    }));
+    setPendingUpdates(prev => ({
+      ...prev,
+      [mealFoodId]: true
+    }));
+  }, []);
+  
+  // Save updated quantity
+  const handleSaveQuantityUpdate = async (mealFoodId: string, foodItem: MealFoodItem) => {
+    try {
+      const newQuantity = editingQuantity[mealFoodId];
+      if (newQuantity === undefined || newQuantity === foodItem.quantity) {
+        setPendingUpdates(prev => {
+          const updated = { ...prev };
+          delete updated[mealFoodId];
+          return updated;
+        });
+        return;
+      }
+      
+      setIsLoading(true);
+      
+      await updateMealFoodItem(mealFoodId, {
+        quantity: newQuantity
+      });
+      
+      // Clear editing state
+      setEditingQuantity(prev => {
+        const updated = { ...prev };
+        delete updated[mealFoodId];
+        return updated;
+      });
+      setPendingUpdates(prev => {
+        const updated = { ...prev };
+        delete updated[mealFoodId];
+        return updated;
+      });
+      
+      // Refresh meals to show updated values
+      await fetchMeals();
+      
+      toast.success('Quantity updated successfully');
+    } catch (err) {
+      console.error('Error updating quantity:', err);
+      toast.error('Failed to update quantity');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
-  // Helper function to group meals by day type
-  const getMealsByDayType = () => {
+  // Cancel quantity edit
+  const handleCancelQuantityEdit = (mealFoodId: string) => {
+    setEditingQuantity(prev => {
+      const updated = { ...prev };
+      delete updated[mealFoodId];
+      return updated;
+    });
+    setPendingUpdates(prev => {
+      const updated = { ...prev };
+      delete updated[mealFoodId];
+      return updated;
+    });
+  };
+  
+  // Calculate real-time macros for display while editing
+  const calculateRealTimeMacros = useCallback((foodItem: MealFoodItem, newQuantity?: number) => {
+    const quantity = newQuantity !== undefined ? newQuantity : foodItem.quantity;
+    const multiplier = quantity / 100; // Assuming per 100g basis
+    
+    if (!foodItem.food_item) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    
+    return {
+      calories: (foodItem.food_item.calories_per_100g * multiplier),
+      protein: (foodItem.food_item.protein_per_100g * multiplier),
+      carbs: (foodItem.food_item.carbs_per_100g * multiplier),
+      fat: (foodItem.food_item.fat_per_100g * multiplier)
+    };
+  }, []);
+  
+  // Calculate live macros for a meal including any pending edits
+  const calculateLiveMealMacros = useCallback((meal: MealData) => {
+    if (!meal.food_items) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    
+    return meal.food_items.reduce((totals, foodItem) => {
+      const quantity = editingQuantity[foodItem.id] !== undefined 
+        ? editingQuantity[foodItem.id] 
+        : foodItem.quantity;
+      
+      const itemMacros = calculateRealTimeMacros(foodItem, quantity);
+      
+      return {
+        calories: totals.calories + itemMacros.calories,
+        protein: totals.protein + itemMacros.protein,
+        carbs: totals.carbs + itemMacros.carbs,
+        fat: totals.fat + itemMacros.fat
+      };
+    }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+  }, [editingQuantity, calculateRealTimeMacros]);
+  
+  // Helper function to group meals by day type (memoized)
+  const getMealsByDayType = useCallback(() => {
     // Group meals by day type
     const groupedMeals: Record<string, MealData[]> = {};
     
@@ -739,6 +837,28 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     });
     
     return groupedMeals;
+  }, [meals]);
+
+  // Calculate live macros for a day type including any pending edits
+  const calculateLiveDayTypeMacros = useCallback((dayTypeMeals: MealData[]) => {
+    return dayTypeMeals.reduce((totals, meal) => {
+      const mealMacros = calculateLiveMealMacros(meal);
+      return {
+        calories: totals.calories + mealMacros.calories,
+        protein: totals.protein + mealMacros.protein,
+        carbs: totals.carbs + mealMacros.carbs,
+        fat: totals.fat + mealMacros.fat
+      };
+    }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+  }, [calculateLiveMealMacros]);
+  
+  
+  // Function to get appropriate styling for meal cards
+  const getMealCardStyle = (mealId: string) => {
+    return `p-4 bg-white dark:bg-gray-800 rounded-lg border-2 transition-all hover:shadow-md hover:-translate-y-0.5 
+      ${selectedMealId === mealId 
+        ? 'border-indigo-500 dark:border-indigo-400 animate-pulse-border' 
+        : 'border-gray-300 dark:border-gray-700'}`;
   };
   
   // State to track day type frequencies (days per week)
@@ -756,60 +876,40 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
     }
   }, [dayTypeFrequencies, planId]);
 
-  // Calculate average nutrition by day type with weighted average based on frequency
-  const calculateAverageNutrition = (): {calories: number; protein: number; carbs: number; fat: number} => {
-    // Group meals by day type
+  // Calculate live average daily nutrition including pending edits
+  const calculateLiveAverageNutrition = useMemo(() => {
     const mealsByDayType = getMealsByDayType();
-    const dayTypes = Object.keys(mealsByDayType);
+    const frequencies = dayTypeFrequencies;
     
-    if (dayTypes.length === 0) {
-      return {
-        calories: planCalories || 0,
-        protein: planProtein || 0,
-        carbs: planCarbs || 0,
-        fat: planFat || 0
-      };
-    }
+    let totalCals = 0;
+    let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFat = 0;
+    let totalDays = 0;
     
-    // Calculate total nutrition for each day type
-    const dayTypeNutrition = dayTypes.map(dayType => {
-      const mealsForType = mealsByDayType[dayType];
-      
-      return {
-        dayType,
-        nutrition: mealsForType.reduce((totals, meal) => {
-          return {
-            calories: totals.calories + (meal.total_calories || 0),
-            protein: totals.protein + (meal.total_protein || 0),
-            carbs: totals.carbs + (meal.total_carbs || 0),
-            fat: totals.fat + (meal.total_fat || 0)
-          };
-        }, { calories: 0, protein: 0, carbs: 0, fat: 0 }),
-        // Get the frequency (days per week) for this day type, default to 1 if not set
-        frequency: dayTypeFrequencies[dayType] || 1
-      };
+    Object.entries(mealsByDayType).forEach(([dayType, dayMeals]) => {
+      const frequency = frequencies[dayType] || 0;
+      if (frequency > 0) {
+        const dayMacros = calculateLiveDayTypeMacros(dayMeals);
+        totalCals += dayMacros.calories * frequency;
+        totalProtein += dayMacros.protein * frequency;
+        totalCarbs += dayMacros.carbs * frequency;
+        totalFat += dayMacros.fat * frequency;
+        totalDays += frequency;
+      }
     });
     
-    // Calculate the total number of days accounted for
-    const totalDaysPerWeek = dayTypeNutrition.reduce((sum, { frequency }) => sum + frequency, 0);
+    if (totalDays === 0) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
     
-    // If no days are specified or total is 0, use equal weighting
-    const effectiveTotalDays = totalDaysPerWeek === 0 ? dayTypes.length : totalDaysPerWeek;
-    
-    // Calculate the weighted sum based on frequency
-    const weightedNutrition = dayTypeNutrition.reduce((sum, { nutrition, frequency }) => {
-      const weight = totalDaysPerWeek === 0 ? (1 / dayTypes.length) : (frequency / effectiveTotalDays);
-      
-      return {
-        calories: sum.calories + (nutrition.calories * weight),
-        protein: sum.protein + (nutrition.protein * weight),
-        carbs: sum.carbs + (nutrition.carbs * weight),
-        fat: sum.fat + (nutrition.fat * weight)
-      };
-    }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
-    
-    return weightedNutrition;
-  };
+    return {
+      calories: totalCals / 7, // Average per day across the week
+      protein: totalProtein / 7,
+      carbs: totalCarbs / 7,
+      fat: totalFat / 7
+    };
+  }, [getMealsByDayType, dayTypeFrequencies, calculateLiveDayTypeMacros]);
+
+  // Calculate average nutrition by day type with weighted average based on frequency
   
   // Restore handleSavePlan function
   const handleSavePlan = async () => {
@@ -1157,7 +1257,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
             type="text"
             value={planName}
             onChange={(e) => setPlanName(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
             placeholder="Enter plan name"
           />
         </div>
@@ -1169,7 +1269,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
           <textarea
             value={planDescription}
             onChange={(e) => setPlanDescription(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
             placeholder="Enter plan description"
             rows={2}
           />
@@ -1184,7 +1284,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
               type="number"
               value={planCalories || ''}
               onChange={(e) => setPlanCalories(parseInt(e.target.value) || undefined)}
-              className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
               placeholder="Total calories"
             />
           </div>
@@ -1196,7 +1296,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
               type="number"
               value={planProtein || ''}
               onChange={(e) => setPlanProtein(parseInt(e.target.value) || undefined)}
-              className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
               placeholder="Protein grams"
             />
           </div>
@@ -1208,7 +1308,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
               type="number"
               value={planCarbs || ''}
               onChange={(e) => setPlanCarbs(parseInt(e.target.value) || undefined)}
-              className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
               placeholder="Carbohydrate grams"
             />
           </div>
@@ -1220,7 +1320,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
               type="number"
               value={planFat || ''}
               onChange={(e) => setPlanFat(parseInt(e.target.value) || undefined)}
-              className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
               placeholder="Fat grams"
             />
           </div>
@@ -1271,21 +1371,21 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       {/* Average Daily Nutrition Section - Updated */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Meals & Food Items</h1>
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 dark:from-gray-800 dark:to-gray-900 rounded-lg shadow-lg p-6 mb-6">
+        <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-100 dark:text-white">Average Daily Nutrition</h2>
-            <div className="text-xs text-gray-400 bg-gray-800/50 rounded py-1 px-2">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Average Daily Nutrition</h2>
+            <div className="text-xs bg-gray-100 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 rounded py-1 px-2">
               Weighted average based on days per week for each meal type
             </div>
           </div>
           
           {/* Day Type Frequency Configuration */}
-          <div className="mb-6 bg-gray-800/50 p-3 rounded-md">
-            <h3 className="text-sm font-medium text-gray-200 mb-2">Days Per Week Configuration</h3>
+          <div className="mb-6 bg-gray-100 dark:bg-gray-800/50 p-3 rounded-md">
+            <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Days Per Week Configuration</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {Object.keys(getMealsByDayType()).map(dayType => (
-                <div key={dayType} className="flex items-center justify-between bg-gray-700/70 p-2 rounded">
-                  <span className="text-sm text-gray-200">{dayType}</span>
+                <div key={dayType} className="flex items-center justify-between bg-gray-200 dark:bg-gray-700/70 p-2 rounded">
+                  <span className="text-sm text-gray-800 dark:text-gray-200">{dayType}</span>
                   <div className="flex items-center">
                     <input
                       type="number"
@@ -1298,7 +1398,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                       }}
                       className="w-14 py-1 px-2 bg-gray-600 border border-gray-500 rounded text-white text-center"
                     />
-                    <span className="ml-2 text-xs text-gray-300">days/week</span>
+                    <span className="ml-2 text-xs text-gray-900 dark:text-gray-100">days/week</span>
                   </div>
                 </div>
               ))}
@@ -1322,7 +1422,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
           
           {/* Calculate nutrition values dynamically */}
           {(() => {
-            const avgNutrition = calculateAverageNutrition();
+            const avgNutrition = calculateLiveAverageNutrition;
             const totalCals = avgNutrition.calories;
             
             // Calculate percentages of calories
@@ -1336,41 +1436,41 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
             
             return (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
-                  <div className="text-sm text-gray-400 mb-1">Calories</div>
-                  <div className="text-2xl font-bold text-gray-200">{Math.round(avgNutrition.calories)}</div>
+                <div className="bg-gray-100 dark:bg-gray-800/30 rounded-lg p-4 border border-gray-300 dark:border-gray-700">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Calories</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">{Math.round(avgNutrition.calories)}</div>
                   <div className="text-xs text-gray-500">kcal</div>
                 </div>
                 
-                <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
+                <div className="bg-gray-100 dark:bg-gray-800/30 rounded-lg p-4 border border-gray-300 dark:border-gray-700">
                   <div className="flex justify-between">
-                    <div className="text-sm text-gray-400 mb-1">Protein</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Protein</div>
                     <div className="text-sm text-red-400">{proteinPerc}%</div>
                   </div>
-                  <div className="text-2xl font-bold text-gray-200">{avgNutrition.protein.toFixed(1)}g</div>
-                  <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">{avgNutrition.protein.toFixed(1)}g</div>
+                  <div className="w-full bg-gray-300 dark:bg-gray-700 rounded-full h-1.5 mt-2">
                     <div className="bg-red-500 h-1.5 rounded-full" style={{ width: `${proteinPerc}%` }}></div>
                   </div>
                 </div>
                 
-                <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
+                <div className="bg-gray-100 dark:bg-gray-800/30 rounded-lg p-4 border border-gray-300 dark:border-gray-700">
                   <div className="flex justify-between">
-                    <div className="text-sm text-gray-400 mb-1">Carbs</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Carbs</div>
                     <div className="text-sm text-yellow-400">{carbsPerc}%</div>
                   </div>
-                  <div className="text-2xl font-bold text-gray-200">{avgNutrition.carbs.toFixed(1)}g</div>
-                  <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">{avgNutrition.carbs.toFixed(1)}g</div>
+                  <div className="w-full bg-gray-300 dark:bg-gray-700 rounded-full h-1.5 mt-2">
                     <div className="bg-yellow-500 h-1.5 rounded-full" style={{ width: `${carbsPerc}%` }}></div>
                   </div>
                 </div>
                 
-                <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
+                <div className="bg-gray-100 dark:bg-gray-800/30 rounded-lg p-4 border border-gray-300 dark:border-gray-700">
                   <div className="flex justify-between">
-                    <div className="text-sm text-gray-400 mb-1">Fat</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Fat</div>
                     <div className="text-sm text-blue-400">{fatPerc}%</div>
                   </div>
-                  <div className="text-2xl font-bold text-gray-200">{avgNutrition.fat.toFixed(1)}g</div>
-                  <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">{avgNutrition.fat.toFixed(1)}g</div>
+                  <div className="w-full bg-gray-300 dark:bg-gray-700 rounded-full h-1.5 mt-2">
                     <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${fatPerc}%` }}></div>
                   </div>
                 </div>
@@ -1395,9 +1495,9 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       <div className="grid grid-cols-12 gap-6">
         {/* Left panel - Food selection */}
         <div className="col-span-4">
-          <div className="bg-gray-900 dark:bg-gray-800 rounded-lg p-4 h-full">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 h-full border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-100 dark:text-white">Food Selection</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Food Selection</h3>
               <div className="flex space-x-2">
                 <button
                   type="button"
@@ -1434,7 +1534,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="w-full pl-10 pr-4 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   placeholder="Search for food items..."
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -1466,7 +1566,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                     setCategory(e.target.value || undefined);
                     setPage(1);
                   }}
-                  className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="w-full px-4 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                 >
                   <option value="">All Categories</option>
                   <option value="Vegetables">Vegetables</option>
@@ -1622,7 +1722,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                     type="text"
                     value={customFoodName}
                     onChange={(e) => setCustomFoodName(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     placeholder={selectedFoodItem.food_name}
                   />
                   <p className="text-xs text-gray-400 mt-1">
@@ -1639,7 +1739,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                       type="number"
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                       min="0"
                       step="1"
                     />
@@ -1651,7 +1751,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                     <select
                       value={unit}
                       onChange={(e) => setUnit(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     >
                       <option value="g">grams (g)</option>
                       <option value="oz">ounces (oz)</option>
@@ -1697,15 +1797,15 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
         
         {/* Right panel - Meals display */}
         <div className="col-span-8">
-          <div className="bg-gray-900 dark:bg-gray-800 rounded-lg p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-100 dark:text-white">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 All Meal Plans
               </h3>
               
               <button
                 onClick={toggleAllDayTypes}
-                className="flex items-center space-x-1 text-sm text-gray-300 hover:text-indigo-400 transition-colors bg-gray-800/50 hover:bg-gray-800 px-3 py-1.5 rounded-md border border-gray-700"
+                className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-300 hover:text-indigo-400 transition-colors bg-gray-100 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-800 px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-700"
               >
                 {allExpanded ? (
                   <>
@@ -1734,16 +1834,16 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
-                          <div className="mr-2 flex items-center justify-center w-8 h-8 rounded-full bg-gray-800/50">
+                          <div className="mr-2 flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-800/50">
                             {getDayTypeIcon(dayType)}
                           </div>
                           <div>
-                            <h4 className="text-lg font-semibold text-gray-200">
+                            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-200">
                               {formatDayType(dayType)}
                             </h4>
-                            <div className="text-xs text-gray-400">
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
                               {dayMeals.length} {dayMeals.length === 1 ? 'meal' : 'meals'} • 
-                              {' '}{Math.round(dayMeals.reduce((sum, meal) => sum + (meal.total_calories || 0), 0))} calories
+                              {' '}{Math.round(calculateLiveDayTypeMacros(dayMeals).calories)} calories
                             </div>
                           </div>
                         </div>
@@ -1766,10 +1866,10 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                           >
                             <div className="flex justify-between items-start mb-2">
                               <div className="flex-1" onClick={() => selectMeal(meal.id)}>
-                                <h4 className="text-md font-semibold text-gray-200 flex items-center">
+                                <h4 className="text-md font-semibold text-gray-900 dark:text-gray-200 flex items-center">
                                   <span className="mr-2">{meal.name}</span>
                                 </h4>
-                                <div className="text-sm text-gray-400">{meal.time_of_day || meal.time_suggestion}</div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400">{meal.time_of_day || meal.time_suggestion}</div>
                               </div>
                               <div className="flex items-start space-x-1">
                                 {/* Move Up/Down Controls */}
@@ -1808,10 +1908,17 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                                 </div>
                                 
                                 <div className="text-right" onClick={() => selectMeal(meal.id)}>
-                                  <div className="text-md font-semibold text-gray-200">{Math.round(meal.total_calories || 0)} cal</div>
-                                  <div className="text-sm text-gray-400">
-                                    P: {(meal.total_protein || 0).toFixed(1)}g • C: {(meal.total_carbs || 0).toFixed(1)}g • F: {(meal.total_fat || 0).toFixed(1)}g
-                                  </div>
+                                  {(() => {
+                                    const liveMacros = calculateLiveMealMacros(meal);
+                                    return (
+                                      <>
+                                        <div className="text-md font-semibold text-gray-900 dark:text-gray-200">{Math.round(liveMacros.calories)} cal</div>
+                                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                                          P: {liveMacros.protein.toFixed(1)}g • C: {liveMacros.carbs.toFixed(1)}g • F: {liveMacros.fat.toFixed(1)}g
+                                        </div>
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                                 
                                 {/* Edit & Delete Buttons */}
@@ -1843,44 +1950,120 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                             
                             {/* Food items in this meal */}
                             {meal.food_items && meal.food_items.length > 0 ? (
-                              <div className="mt-4 space-y-2" onClick={() => selectMeal(meal.id)}>
-                                {meal.food_items.map((item) => (
-                                  <div key={item.id} className="p-2 bg-gray-700 dark:bg-gray-700 rounded flex justify-between items-center">
-                                    <div>
-                                      <div className="font-medium text-gray-200">
-                                        {item.food_item?.food_name}
-                                      </div>
-                                      <div className="text-xs text-gray-400">
-                                        {item.notes}
-                                      </div>
-                                      <div className="text-sm text-gray-400">
-                                        {item.quantity} {item.unit} ({(item.calories || 0).toFixed(1)} cal) {(item.protein || 0).toFixed(1)}g {(item.carbs || 0).toFixed(1)}g {(item.fat || 0).toFixed(1)}g
+                              <div className="mt-4 space-y-3">
+                                {meal.food_items.map((item) => {
+                                  const isEditing = editingQuantity[item.id] !== undefined;
+                                  const hasPendingUpdate = pendingUpdates[item.id];
+                                  const currentQuantity = isEditing ? editingQuantity[item.id] : item.quantity;
+                                  const realTimeMacros = calculateRealTimeMacros(item, isEditing ? editingQuantity[item.id] : undefined);
+                                  
+                                  return (
+                                    <div key={item.id} className={`p-3 bg-gray-50 dark:bg-gray-700 rounded border-l-4 ${hasPendingUpdate ? 'border-yellow-500' : 'border-transparent'}`}>
+                                      <div className="flex justify-between items-start">
+                                        <div className="flex-1">
+                                          <div className="font-medium text-gray-900 dark:text-gray-200 mb-1">
+                                            {item.food_item?.food_name}
+                                          </div>
+                                          {item.notes && (
+                                            <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                                              {item.notes}
+                                            </div>
+                                          )}
+                                          
+                                          {/* Quantity Slider */}
+                                          <div className="mb-3">
+                                            <div className="flex items-center justify-between mb-2">
+                                              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Quantity: {currentQuantity}g
+                                              </label>
+                                              {hasPendingUpdate && (
+                                                <span className="text-xs text-yellow-400 font-medium">
+                                                  Unsaved changes
+                                                </span>
+                                              )}
+                                            </div>
+                                            
+                                            <div className="flex items-center space-x-3">
+                                              <input
+                                                type="range"
+                                                min="1"
+                                                max="500"
+                                                step="1"
+                                                value={currentQuantity}
+                                                onChange={(e) => handleQuantitySliderChange(item.id, parseInt(e.target.value))}
+                                                className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+                                                onClick={(e) => e.stopPropagation()}
+                                                style={{ background: 'linear-gradient(to right, #6366f1 0%, #6366f1 ' + ((currentQuantity / 500) * 100) + '%, #d1d5db ' + ((currentQuantity / 500) * 100) + '%, #d1d5db 100%)' }}
+                                              />
+                                              
+                                              {hasPendingUpdate && (
+                                                <div className="flex space-x-2">
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleSaveQuantityUpdate(item.id, item);
+                                                    }}
+                                                    className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded flex items-center"
+                                                    title="Save changes"
+                                                  >
+                                                    <FiSave size={12} className="mr-1" />
+                                                    Save
+                                                  </button>
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleCancelQuantityEdit(item.id);
+                                                    }}
+                                                    className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded flex items-center"
+                                                    title="Cancel changes"
+                                                  >
+                                                    <FiX size={12} className="mr-1" />
+                                                    Cancel
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                          
+                                          {/* Real-time Macro Display */}
+                                          <div className="text-sm text-gray-600 dark:text-gray-400">
+                                            <span className={isEditing ? 'text-yellow-400 font-medium' : ''}>
+                                              {currentQuantity} {item.unit} ({realTimeMacros.calories.toFixed(1)} cal)
+                                            </span>
+                                            <div className="mt-1">
+                                              <span className={`text-red-400 ${isEditing ? 'font-medium' : ''}`}>P: {realTimeMacros.protein.toFixed(1)}g</span> | 
+                                              <span className={`text-yellow-400 ${isEditing ? 'font-medium' : ''}`}> C: {realTimeMacros.carbs.toFixed(1)}g</span> | 
+                                              <span className={`text-blue-400 ${isEditing ? 'font-medium' : ''}`}> F: {realTimeMacros.fat.toFixed(1)}g</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center ml-3">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleEditFoodItem(meal.id, item);
+                                            }}
+                                            className="p-1 text-gray-400 hover:text-indigo-400 mr-1"
+                                            title="Edit"
+                                          >
+                                            <FiEdit2 size={16} />
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleRemoveFoodFromMeal(meal.id, item.id);
+                                            }}
+                                            className="p-1 text-gray-400 hover:text-red-400"
+                                            title="Remove"
+                                          >
+                                            <FiTrash2 size={16} />
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
-                                    <div className="flex items-center">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEditFoodItem(meal.id, item);
-                                        }}
-                                        className="p-1 text-gray-400 hover:text-indigo-400 mr-1"
-                                        title="Edit"
-                                      >
-                                        <FiEdit2 size={16} />
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleRemoveFoodFromMeal(meal.id, item.id);
-                                        }}
-                                        className="p-1 text-gray-400 hover:text-red-400"
-                                        title="Remove"
-                                      >
-                                        <FiTrash2 size={16} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             ) : (
                               <div className="mt-4 p-3 bg-gray-700/50 dark:bg-gray-700/50 rounded text-center text-gray-400" onClick={() => selectMeal(meal.id)}>
@@ -1955,7 +2138,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       {/* Create Meal Modal (Day Type Modal) */}
       {showDayTypeModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center bg-black bg-opacity-70">
-          <div className="relative bg-gray-900 dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-700">
+          <div className="relative bg-white dark:bg-gray-900 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-300 dark:border-gray-700">
             <div className="p-5">
               <h3 className="text-xl font-semibold text-gray-100 dark:text-white mb-4">Create New Meal</h3>
               
@@ -1983,7 +2166,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                     <select
                       value={timeHour}
                       onChange={(e) => setTimeHour(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md bg-gray-800 border-gray-600 text-white"
+                      className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     >
                       {Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')).map(hour => (
                         <option key={hour} value={hour}>{hour}</option>
@@ -1996,7 +2179,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                     <select
                       value={timeMinute}
                       onChange={(e) => setTimeMinute(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md bg-gray-800 border-gray-600 text-white"
+                      className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     >
                       {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(minute => (
                         <option key={minute} value={minute}>{minute}</option>
@@ -2128,7 +2311,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       {/* Edit Meal Modal */}
       {showEditMealModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center bg-black bg-opacity-70">
-          <div className="relative bg-gray-900 dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-700">
+          <div className="relative bg-white dark:bg-gray-900 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-300 dark:border-gray-700">
             <div className="p-5">
               <h3 className="text-xl font-semibold text-gray-100 dark:text-white mb-4">Edit Meal</h3>
               
@@ -2156,7 +2339,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                     <select
                       value={timeHour}
                       onChange={(e) => setTimeHour(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md bg-gray-800 border-gray-600 text-white"
+                      className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     >
                       {Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')).map(hour => (
                         <option key={hour} value={hour}>{hour}</option>
@@ -2169,7 +2352,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
                     <select
                       value={timeMinute}
                       onChange={(e) => setTimeMinute(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md bg-gray-800 border-gray-600 text-white"
+                      className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     >
                       {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(minute => (
                         <option key={minute} value={minute}>{minute}</option>
@@ -2303,7 +2486,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       {/* Delete Confirmation Modal */}
       {showDeleteConfirmation && (
         <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center bg-black bg-opacity-70">
-          <div className="relative bg-gray-900 dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-700">
+          <div className="relative bg-white dark:bg-gray-900 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-300 dark:border-gray-700">
             <div className="p-5">
               <h3 className="text-xl font-semibold text-gray-100 dark:text-white mb-4">Delete Meal</h3>
               
@@ -2348,7 +2531,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       {/* Add the Edit Food Item Modal */}
       {showEditFoodItemModal && editingFoodItem && (
         <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center bg-black bg-opacity-70">
-          <div className="relative bg-gray-900 dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-700">
+          <div className="relative bg-white dark:bg-gray-900 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-300 dark:border-gray-700">
             <div className="p-5">
               <h3 className="text-xl font-semibold text-gray-100 dark:text-white mb-4">
                 Edit Food Item
@@ -2459,7 +2642,7 @@ const MealPlannerIntegrated: React.FC<MealPlannerIntegratedProps> = ({
       {/* Add Order Modal */}
       {showOrderModal && reorderingMeal && (
         <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center bg-black bg-opacity-70">
-          <div className="relative bg-gray-900 dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-700">
+          <div className="relative bg-white dark:bg-gray-900 rounded-lg max-w-md w-full mx-4 shadow-xl border border-gray-300 dark:border-gray-700">
             <div className="p-5">
               <h3 className="text-xl font-semibold text-gray-100 dark:text-white mb-4">Set Meal Order</h3>
               

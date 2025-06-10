@@ -319,7 +319,7 @@ export const getProgramPrompts = async (request: { athleteData: AthleteFormData 
                   "secondary_muscle_group": string, // e.g., "Triceps Brachii"
                   "large_muscle_group": string, // e.g., "Arms"
                   "equipment": string, // e.g., "Dumbbell"
-                  "notes": string
+                  "notes": string // e.g., "Warm-up: Start with 5-10 minutes of light cardio, perform dynamic stretches like arms circles and torso twists. Do a 2-3 warm-up sets. Variations: Use dumbbells instead of barbell for more control and stability. Replacements: Dumbbell Bench Press, Smith Machine Bench Press. Performance: Lie on a flat bench with feet flat on the ground. Keep elbows close to the body and control the movement. Focus on the chest and shoulder muscles."
                 }
               ],
               "notes": string
@@ -335,7 +335,7 @@ export const getProgramPrompts = async (request: { athleteData: AthleteFormData 
     2. Return an array with one week object (week 1). Put the overview for the other weeks in the top-level description.
     3. All exercises must be practical, safe, and appropriate for the athlete's experience level
     4. Structure the program with appropriate volume and intensity progression
-    5. Include detailed notes on form, execution, and programming considerations
+    5. In the program notes attribute, include detailed notes on programming considerations
     6. Match the program to the athlete's available equipment
     7. Target muscle groups means that the athlete is wanting to develop more this muscle group and has weakness in this muscle group
     8. While ensuring balanced development, focus on the target muscle groups and the athlete's weakness but also train all the other muscle groups
@@ -361,8 +361,9 @@ export const getProgramPrompts = async (request: { athleteData: AthleteFormData 
     28. If the athlete specified "Bodyweight Only" as the available equipment, prioritize the use of "Body weight" exercises.
     29. If the athlete specified "Resistance Band Only" as the available equipment, prioritize the use of "Resistance Band" exercises.
     30. Make sure you DO NOT add comments such as // or /* in the JSON output.
-    31. In the exercises notes attribute you can add any additional information about the exercise like how to perform it, how to warm up for it, how to cool down for it and also most importantly possible replacements or variations for the exercise.
-    
+    31. In each exercise notes attribute you MUST add how to warm up for it, and also most importantly possible replacements or variations for the exercise, you can also add any additional information about the exercise like how to perform it.
+    32. For the warm-up routines you need to take into consideration the exercises already performed or to be performed and tailor the warm-up accordingly if required. 
+
     The possible list for the exercise equipment is the following:
     "Wheel roller",
     "Dumbbell",
@@ -459,20 +460,55 @@ export const getProgramPrompts = async (request: { athleteData: AthleteFormData 
     "Shoulders",
     "Core"
     
-    `;
+    IMPORTANT: All workout program description must contain the following:
+    
+    """
+    📝 ADDITIONAL INFORMATION & GUIDELINES
+
+    🔥 [WORKOUT NAME]
+    This programming is designed for ${request.athleteData.experience} athletes.
+
+    🚀 Workout Guidelines
+    - Warm-Up: 10 minutes (Stretching, Mobility, Treadmill incline, Stairmaster, or cardio of your choice)
+    - Cool-Down: 5 minutes
+    - Start each muscle group with 2 warm-up sets (light weight)
+    - Control your movements
+    - Lift slowly and with control (non-explosive)
+    - Lower the weight slowly - no bouncing at the bottom
+    - Train to failure means the reps should feel very very challenging
+    - Increase weight when reps become too easy.
+    - Use 75%-85% of your 1RM as a load guideline.
+    - Unilateral exercises: rest before switching sides.
+
+    📈 Tracking Progress
+    Track your progress through strength gains, photos, and measurements - not just scale weight.
+
+    💧 Hydration
+    Drink 3-4L of water daily.
+
+    😴 Recovery Tips
+    Prioritize 7-9 hours of quality sleep per night.
+    Add stretching/foam rolling post-session for better recovery.
+
+    💬 Support & Customization
+    Exercises can be modified at any time - just let us know the reason and we'll provide an alternative.
+    Unsure about form? Send us a video for review. We'll help you improve and adjust as needed.
+    For any questions, contact us before starting the program.
+
+    Let's go! 💪
+    """`;
 
   // Create the user prompt with the athlete data
-  const userPrompt = `Create a workout program for a "${request.athleteData.gender}" Age "${request.athleteData.age}", Current weight "${request.athleteData.weight}kg", height "${request.athleteData.height}cm" and current body fat at around "${request.athleteData.bodyFat}%". 
-    
-Experience level: "${request.athleteData.experience}"
-Training goal: "${request.athleteData.goal}"
-Available training days per week: ${request.athleteData.trainingDays}
-Session duration: ${request.athleteData.sessionDuration} minutes
-Goal timeframe weeks: ${request.athleteData.weeks}
-Target muscle groups: ${request.athleteData.targetMuscleGroups.join(', ')}
-Available equipment: ${request.athleteData.availableEquipment.join(', ')}
-Injury considerations: ${request.athleteData.injuryConsiderations}
-Training preferences: ${request.athleteData.preferences}`;
+  const userPrompt = `Create a workout program for a "${request.athleteData.gender}" Age "${request.athleteData.age}", Current weight "${request.athleteData.weight}kg", height "${request.athleteData.height}cm" and current body fat at around "${request.athleteData.bodyFat}%".
+  Experience level: "${request.athleteData.experience}"
+  Training goal: "${request.athleteData.goal}"
+  Available training days per week: "${request.athleteData.trainingDays}"
+  Session duration: "${request.athleteData.sessionDuration} minutes"
+  Goal timeframe weeks: "${request.athleteData.weeks}"
+  Target muscle groups: "${request.athleteData.targetMuscleGroups.join(', ')}"
+  Available equipment: "${request.athleteData.availableEquipment.join(', ')}"
+  Injury considerations: "${request.athleteData.injuryConsiderations}"
+  Training preferences: "${request.athleteData.preferences}"`;
 
   return { systemPrompt, userPrompt };
 };
