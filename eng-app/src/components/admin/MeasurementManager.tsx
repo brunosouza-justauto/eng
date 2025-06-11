@@ -42,6 +42,7 @@ interface BodyMeasurement {
   calf_mm?: number | null;
   chest_mm?: number | null;
   abdominal_mm?: number | null;
+  thigh_mm?: number | null;
   body_fat_percentage?: number | null;
   body_fat_override?: number | null;
   lean_body_mass_kg?: number | null;
@@ -371,6 +372,7 @@ const MeasurementManager: React.FC = () => {
                                 subscapular_mm: selectedMeasurement.subscapular_mm || undefined,
                                 suprailiac_mm: selectedMeasurement.suprailiac_mm || undefined,
                                 midaxillary_mm: selectedMeasurement.midaxillary_mm || undefined,
+                                thigh_mm: selectedMeasurement.thigh_mm || undefined,
                                 bicep_mm: selectedMeasurement.bicep_mm || undefined,
                                 lower_back_mm: selectedMeasurement.lower_back_mm || undefined,
                                 calf_mm: selectedMeasurement.calf_mm || undefined,
@@ -478,19 +480,34 @@ const MeasurementManager: React.FC = () => {
                       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead className="bg-gray-50 dark:bg-gray-800">
                           <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                               Date
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                              Weight
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                              Weight (kg)
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                               Body Fat %
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                              Waist
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                              Waist (cm)
                             </th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                              Neck (cm)
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                              Chest (mm)
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                              Abdominal (mm)
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                              Thigh (mm)
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                              Tricep (mm)
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                               Actions
                             </th>
                           </tr>
@@ -498,19 +515,34 @@ const MeasurementManager: React.FC = () => {
                         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
                           {filteredMeasurements.map((measurement) => (
                             <tr key={measurement.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-4 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900 dark:text-white">{formatDate(measurement.measurement_date)}</div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900 dark:text-white">{measurement.weight_kg ? `${measurement.weight_kg} kg` : '-'}</div>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">{measurement.weight_kg ? `${measurement.weight_kg}` : '-'}</div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-4 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900 dark:text-white">{measurement.body_fat_percentage ? `${measurement.body_fat_percentage}%` : '-'}</div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900 dark:text-white">{measurement.waist_cm ? `${measurement.waist_cm} cm` : '-'}</div>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">{measurement.waist_cm ? `${measurement.waist_cm}` : '-'}</div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">{measurement.neck_cm ? `${measurement.neck_cm}` : '-'}</div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">{measurement.chest_mm ? `${measurement.chest_mm}` : '-'}</div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">{measurement.abdominal_mm ? `${measurement.abdominal_mm}` : '-'}</div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">{measurement.thigh_mm ? `${measurement.thigh_mm}` : '-'}</div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">{measurement.tricep_mm ? `${measurement.tricep_mm}` : '-'}</div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <button
                                   onClick={() => handleEdit(measurement)}
                                   className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"

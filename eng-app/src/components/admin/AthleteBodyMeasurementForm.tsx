@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { BFCalculationMethod, BodyMeasurement, calculateBodyComposition, calculateBMR, calculateJacksonPollock3, calculateJacksonPollock4, calculateJacksonPollock7, calculateDurninWomersley, calculateNavyTape, calculateParrillo, saveMeasurement } from '../../services/measurementService';
 import { selectProfile } from '../../store/slices/authSlice';
 import Button from '../ui/Button';
+import { FiHelpCircle, FiX } from 'react-icons/fi';
 
 interface AthleteBodyMeasurementFormProps {
   athleteId: string;
@@ -54,6 +55,11 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
   const [fatMass, setFatMass] = useState<string>('');
   const [bmr, setBmr] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
+  
+  // Help modal state
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [helpImage, setHelpImage] = useState<string>('');
+  const [helpTitle, setHelpTitle] = useState<string>('');
 
   // Load existing measurement data if available
   useEffect(() => {
@@ -323,6 +329,32 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
       setLoading(false);
     }
   };
+  
+  // Show help modal with measurement image
+  const showHelp = (measurement: string) => {
+    const imageMap: Record<string, { image: string; title: string }> = {
+      chest: { image: '/images/chest_mm.jpg', title: 'Chest Measurement' },
+      abdominal: { image: '/images/abdominal_mm.jpg', title: 'Abdominal Measurement' },
+      thigh: { image: '/images/thigh_mm.jpg', title: 'Thigh Measurement' },
+      bicep: { image: '/images/bicep_mm.jpg', title: 'Bicep Measurement' },
+      tricep: { image: '/images/tricep_mm.jpg', title: 'Tricep Measurement' },
+      subscapular: { image: '/images/subscapular_mm.jpg', title: 'Subscapular Measurement' },
+      suprailiac: { image: '/images/suprailiac_mm.jpg', title: 'Suprailiac Measurement' },
+      lower_back: { image: '/images/lower_back_mm.jpg', title: 'Lower Back Measurement' },
+      calf: { image: '/images/calf_mm.jpg', title: 'Calf Measurement' },
+      midaxillary: { image: '/images/midaxillary_mm.jpg', title: 'Midaxillary Measurement' },
+      neck: { image: '/images/neck_cm.jpg', title: 'Neck Measurement' },
+      waist: { image: '/images/waist_cm.jpg', title: 'Waist Measurement' },
+      overall: { image: '/images/man_body_fat_diagram.gif', title: 'Body Fat Measurement Reference Guide' }
+    };
+    
+    const measurementInfo = imageMap[measurement];
+    if (measurementInfo) {
+      setHelpImage(measurementInfo.image);
+      setHelpTitle(measurementInfo.title);
+      setShowHelpModal(true);
+    }
+  };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
@@ -399,6 +431,32 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
           </select>
         </div>
         
+        {/* Body Fat Measurement Reference */}
+        <div className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex flex-col lg:flex-row items-start gap-4">
+            <div className="flex-shrink-0">
+              <img
+                src="/images/man_body_fat_diagram.gif"
+                alt="Body Fat Measurement Reference Diagram"
+                className="w-32 h-32 lg:w-40 lg:h-40 object-contain rounded-lg shadow-sm bg-white"
+                onClick={() => showHelp('overall')}
+                style={{ cursor: 'pointer' }}
+              />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-2">
+                Measurement Reference Guide
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Click on the diagram for a detailed view of all measurement locations. Each measurement field below also has a help button for specific guidance.
+              </p>
+              <div className="text-xs text-blue-600 dark:text-blue-400">
+                💡 Tip: Consistent measurement technique and location are crucial for accurate body composition tracking.
+              </div>
+            </div>
+          </div>
+        </div>
+        
         {/* Body Circumference Measurements */}
         <div className="p-5 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
           <h3 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-4 pb-2 border-b border-gray-200 dark:border-gray-600">
@@ -406,7 +464,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Waist</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Waist</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('waist')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -416,7 +483,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Neck</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Neck</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('neck')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -449,7 +525,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Chest</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Chest</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('chest')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -459,7 +544,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Abdominal</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Abdominal</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('abdominal')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -469,7 +563,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Thigh</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Thigh</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('thigh')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -479,7 +582,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bicep</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bicep</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('bicep')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -489,7 +601,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tricep</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tricep</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('tricep')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -499,7 +620,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Subscapular</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Subscapular</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('subscapular')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -509,7 +639,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Suprailiac</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Suprailiac</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('suprailiac')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -519,7 +658,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Lower Back</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Lower Back</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('lower_back')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -529,7 +677,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Calf</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Calf</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('calf')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -539,7 +696,16 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Midaxillary</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Midaxillary</label>
+                <button
+                  type="button"
+                  onClick={() => showHelp('midaxillary')}
+                  className="text-gray-400 hover:text-indigo-500 transition-colors"
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -657,6 +823,51 @@ const AthleteBodyMeasurementForm: React.FC<AthleteBodyMeasurementFormProps> = ({
             {loading ? 'Saving...' : existingMeasurement ? 'Update Measurement' : 'Save Measurement'}
           </Button>
         </div>
+        
+        {/* Help Modal */}
+        {showHelpModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{helpTitle}</h3>
+                <button
+                  onClick={() => setShowHelpModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-4">
+                <div className="flex justify-center">
+                  <img
+                    src={helpImage}
+                    alt={helpTitle}
+                    className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-md"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const fallbackText = target.parentElement?.querySelector('.fallback-text');
+                      if (fallbackText) {
+                        (fallbackText as HTMLElement).style.display = 'block';
+                      }
+                    }}
+                  />
+                  <div className="fallback-text hidden text-center p-8 text-gray-500 dark:text-gray-400">
+                    Image not available for {helpTitle.toLowerCase()}
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                <Button
+                  onClick={() => setShowHelpModal(false)}
+                  variant="secondary"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </form>
     </div>
   );

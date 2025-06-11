@@ -126,7 +126,7 @@ const AthleteMeasurementsHistory: React.FC<AthleteMeasurementsHistoryProps> = ({
       
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Measurement History</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Measurements</h2>
         </div>
         
         <div className="p-5">
@@ -154,25 +154,43 @@ const AthleteMeasurementsHistory: React.FC<AthleteMeasurementsHistoryProps> = ({
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Date
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Weight (kg)
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Body Fat %
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Waist (cm)
+                    </th>
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Neck (cm)
+                    </th>
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Chest (mm)
+                    </th>
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Abdominal (mm)
+                    </th>
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Thigh (mm)
+                    </th>
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Tricep (mm)
+                    </th>
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Lean Mass (kg)
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Fat Mass (kg)
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Method
                     </th>
-                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -180,10 +198,10 @@ const AthleteMeasurementsHistory: React.FC<AthleteMeasurementsHistoryProps> = ({
                 <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
                   {measurements.map((measurement) => (
                     <tr key={measurement.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-300">
                         {format(new Date(measurement.measurement_date), 'MMM d, yyyy')}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                         {measurement.weight_kg?.toFixed(1)}
                         {measurement.weight_change_kg && (
                           <span className={`ml-2 px-1.5 py-0.5 text-xs font-medium rounded ${
@@ -198,34 +216,31 @@ const AthleteMeasurementsHistory: React.FC<AthleteMeasurementsHistoryProps> = ({
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                         {measurement.body_fat_percentage?.toFixed(1)}%
                         {measurement.body_fat_override && (
                           <span className="ml-1 text-xs text-orange-500 dark:text-orange-400" title="Manually overridden">*</span>
                         )}
-                        {measurement.id !== measurements[measurements.length - 1]?.id && measurements.indexOf(measurement) < measurements.length - 1 && (
-                          (() => {
-                            const nextMeasurement = measurements[measurements.indexOf(measurement) + 1];
-                            if (nextMeasurement && nextMeasurement.body_fat_percentage && measurement.body_fat_percentage) {
-                              const change = measurement.body_fat_percentage - nextMeasurement.body_fat_percentage;
-                              return (
-                                <span className={`ml-2 px-1.5 py-0.5 text-xs font-medium rounded ${
-                                  change > 0 
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
-                                    : change < 0 
-                                      ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
-                                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                                }`}>
-                                  {change > 0 ? '-' : change < 0 ? '+' : ''}
-                                  {Math.abs(change).toFixed(1)}
-                                </span>
-                              );
-                            }
-                            return null;
-                          })()
-                        )}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                        {measurement.waist_cm?.toFixed(1) || '-'}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                        {measurement.neck_cm?.toFixed(1) || '-'}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                        {measurement.chest_mm?.toFixed(1) || '-'}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                        {measurement.abdominal_mm?.toFixed(1) || '-'}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                        {measurement.thigh_mm?.toFixed(1) || '-'}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                        {measurement.tricep_mm?.toFixed(1) || '-'}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                         {measurement.lean_body_mass_kg?.toFixed(1)}
                         {measurement.id !== measurements[measurements.length - 1]?.id && measurements.indexOf(measurement) < measurements.length - 1 && (
                           (() => {
@@ -249,7 +264,7 @@ const AthleteMeasurementsHistory: React.FC<AthleteMeasurementsHistoryProps> = ({
                           })()
                         )}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                         {measurement.fat_mass_kg?.toFixed(1)}
                         {measurement.id !== measurements[measurements.length - 1]?.id && measurements.indexOf(measurement) < measurements.length - 1 && (
                           (() => {
@@ -273,10 +288,10 @@ const AthleteMeasurementsHistory: React.FC<AthleteMeasurementsHistoryProps> = ({
                           })()
                         )}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                         {getCalculationMethodName(measurement.calculation_method)}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                      <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                         <Button
                           variant="text"
                           color="indigo"

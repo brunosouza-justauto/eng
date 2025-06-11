@@ -63,9 +63,9 @@ const MetricComparisonRow: React.FC<{
 }> = ({ label, value1, value2, unit, isBodyFat = false }) => {
   if (value1 === null && value2 === null) return null;
   
-  // Calculate difference
+  // Calculate difference (newer - older)
   const diff = (value1 !== null && value2 !== null) 
-    ? value1 - value2 
+    ? value2 - value1 
     : null;
   
   // Determine if change is good (for body fat, decrease is good; for other measurements, increase is good)

@@ -3,7 +3,25 @@ import { useSelector } from 'react-redux';
 import { selectProfile } from '../../store/slices/authSlice';
 import { supabase } from '../../services/supabaseClient';
 import { format } from 'date-fns'; // For formatting dates
-import { FiEdit2, FiX, FiImage } from 'react-icons/fi';
+import { FiEdit2, FiX, FiImage, FiSave } from 'react-icons/fi';
+
+// Define rating scales for consistent use (from CheckInForm)
+const RATING_SCALE = [
+    { value: "1", label: "1 - Very Low" },
+    { value: "2", label: "2 - Low" },
+    { value: "3", label: "3 - Moderate" },
+    { value: "4", label: "4 - High" },
+    { value: "5", label: "5 - Very High" }
+];
+
+// Define adherence options for consistent use (from CheckInForm)
+const ADHERENCE_OPTIONS = [
+    { value: "Perfect", label: "Perfect - 100% On Plan" },
+    { value: "Good", label: "Good - Mostly On Plan" },
+    { value: "Average", label: "Average - Some Deviations" },
+    { value: "Poor", label: "Poor - Significant Deviations" },
+    { value: "Off Track", label: "Off Track - Did Not Follow Plan" }
+];
 
 // Interface for Supabase response structure
 interface CheckInSupabaseResponse {
@@ -49,6 +67,10 @@ const CheckInTimeline: React.FC = () => {
     const [editingCheckIn, setEditingCheckIn] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState<boolean>(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState<boolean>(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [editForm, setEditForm] = useState<{[key: string]: any}>({});
     const profile = useSelector(selectProfile);
     
     // Reference for the intersection observer
@@ -253,6 +275,147 @@ const CheckInTimeline: React.FC = () => {
         // Check explicitly for null or undefined, but allow 0 values
         return value !== null && value !== undefined ? `${value}${unit}` : 'N/A';
     };
+
+    // Function to start editing a check-in
+    const startEditing = (checkIn: CheckInSupabaseResponse) => {
+        setEditingCheckIn(checkIn.id);
+        setSaveError(null);
+        
+        // Get the first (and should be only) body_metrics and wellness_metrics records
+        const bodyMetrics = Array.isArray(checkIn.body_metrics) ? checkIn.body_metrics[0] : checkIn.body_metrics;
+        const wellnessMetrics = Array.isArray(checkIn.wellness_metrics) ? checkIn.wellness_metrics[0] : checkIn.wellness_metrics;
+        
+        // Initialize form with current values
+        setEditForm({
+            [checkIn.id]: {
+                // Basic info
+                notes: checkIn.notes || '',
+                diet_adherence: checkIn.diet_adherence || '',
+                training_adherence: checkIn.training_adherence || '',
+                steps_adherence: checkIn.steps_adherence || '',
+                
+                // Body metrics - handle both null and undefined cases
+                weight_kg: bodyMetrics?.weight_kg?.toString() || '',
+                body_fat_percentage: bodyMetrics?.body_fat_percentage?.toString() || '',
+                waist_cm: bodyMetrics?.waist_cm?.toString() || '',
+                hip_cm: bodyMetrics?.hip_cm?.toString() || '',
+                left_arm_cm: bodyMetrics?.left_arm_cm?.toString() || '',
+                right_arm_cm: bodyMetrics?.right_arm_cm?.toString() || '',
+                chest_cm: bodyMetrics?.chest_cm?.toString() || '',
+                left_thigh_cm: bodyMetrics?.left_thigh_cm?.toString() || '',
+                right_thigh_cm: bodyMetrics?.right_thigh_cm?.toString() || '',
+                
+                // Wellness metrics - handle both null and undefined cases
+                sleep_hours: wellnessMetrics?.sleep_hours?.toString() || '',
+                sleep_quality: wellnessMetrics?.sleep_quality?.toString() || '',
+                stress_level: wellnessMetrics?.stress_level?.toString() || '',
+                fatigue_level: wellnessMetrics?.fatigue_level?.toString() || '',
+                motivation_level: wellnessMetrics?.motivation_level?.toString() || '',
+                digestion: wellnessMetrics?.digestion || ''
+            }
+        });
+    };
+
+    // Function to update form values
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateFormValue = (checkInId: string, field: string, value: any) => {
+        setEditForm(prev => ({
+            ...prev,
+            [checkInId]: {
+                ...prev[checkInId],
+                [field]: value
+            }
+        }));
+    };
+
+    // Function to save check-in changes
+    const saveCheckInChanges = async (checkInId: string) => {
+        setIsSaving(true);
+        setSaveError(null);
+        
+        try {
+            const formData = editForm[checkInId];
+            if (!formData) throw new Error('No form data found');
+            
+            const checkIn = checkIns.find(ci => ci.id === checkInId);
+            if (!checkIn) throw new Error('Check-in not found');
+
+            // Update main check-in record
+            const { error: checkInError } = await supabase
+                .from('check_ins')
+                .update({
+                    notes: formData.notes || null,
+                    diet_adherence: formData.diet_adherence || null,
+                    training_adherence: formData.training_adherence || null,
+                    steps_adherence: formData.steps_adherence || null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', checkInId);
+            
+            if (checkInError) throw checkInError;
+
+            // Update body metrics if they exist
+            const bodyMetrics = Array.isArray(checkIn.body_metrics) ? checkIn.body_metrics[0] : checkIn.body_metrics;
+            if (bodyMetrics?.id) {
+                const { error: bodyError } = await supabase
+                    .from('body_metrics')
+                    .update({
+                        weight_kg: formData.weight_kg ? parseFloat(formData.weight_kg) : null,
+                        body_fat_percentage: formData.body_fat_percentage ? parseFloat(formData.body_fat_percentage) : null,
+                        waist_cm: formData.waist_cm ? parseFloat(formData.waist_cm) : null,
+                        hip_cm: formData.hip_cm ? parseFloat(formData.hip_cm) : null,
+                        left_arm_cm: formData.left_arm_cm ? parseFloat(formData.left_arm_cm) : null,
+                        right_arm_cm: formData.right_arm_cm ? parseFloat(formData.right_arm_cm) : null,
+                        chest_cm: formData.chest_cm ? parseFloat(formData.chest_cm) : null,
+                        left_thigh_cm: formData.left_thigh_cm ? parseFloat(formData.left_thigh_cm) : null,
+                        right_thigh_cm: formData.right_thigh_cm ? parseFloat(formData.right_thigh_cm) : null,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', bodyMetrics.id);
+                
+                if (bodyError) throw bodyError;
+            }
+
+            // Update wellness metrics if they exist
+            const wellnessMetrics = Array.isArray(checkIn.wellness_metrics) ? checkIn.wellness_metrics[0] : checkIn.wellness_metrics;
+            if (wellnessMetrics?.id) {
+                const { error: wellnessError } = await supabase
+                    .from('wellness_metrics')
+                    .update({
+                        sleep_hours: formData.sleep_hours ? parseFloat(formData.sleep_hours) : null,
+                        sleep_quality: formData.sleep_quality ? parseInt(formData.sleep_quality) : null,
+                        stress_level: formData.stress_level ? parseInt(formData.stress_level) : null,
+                        fatigue_level: formData.fatigue_level ? parseInt(formData.fatigue_level) : null,
+                        motivation_level: formData.motivation_level ? parseInt(formData.motivation_level) : null,
+                        digestion: formData.digestion || null,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', wellnessMetrics.id);
+                
+                if (wellnessError) throw wellnessError;
+            }
+
+            // Refresh the data to show updated values
+            await fetchCheckIns(0, false);
+            
+            // Exit edit mode
+            setEditingCheckIn(null);
+            setEditForm(prev => ({ ...prev, [checkInId]: undefined }));
+            
+        } catch (err) {
+            console.error('Error saving check-in changes:', err);
+            setSaveError('Failed to save changes. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Function to cancel editing
+    const cancelEditing = () => {
+        setEditingCheckIn(null);
+        setEditForm({});
+        setSaveError(null);
+    };
     
     return (
         <div className="space-y-6">
@@ -284,66 +447,357 @@ const CheckInTimeline: React.FC = () => {
                         className="bg-white dark:bg-gray-800 rounded-lg shadow"
                         ref={isLastItem ? lastCheckInCallback : undefined}
                     >
-                        <div className="flex justify-between items-center mb-3">
+                        <div className="flex justify-between items-center mb-3 p-4">
                             <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
                                 {format(new Date(checkIn.check_in_date), 'MMMM d, yyyy')}
                             </h3>
-                            {/* Could add action buttons here (view details, delete, etc.) */}
+                            <div className="flex items-center gap-2">
+                                {editingCheckIn !== checkIn.id ? (
+                                    <button 
+                                        onClick={() => startEditing(checkIn)}
+                                        className="text-indigo-600 hover:text-indigo-500 p-2 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition"
+                                        aria-label="Edit check-in"
+                                    >
+                                        <FiEdit2 size={18} />
+                                    </button>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={() => saveCheckInChanges(checkIn.id)}
+                                            disabled={isSaving}
+                                            className="text-green-600 hover:text-green-500 p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 transition disabled:opacity-50"
+                                            aria-label="Save changes"
+                                        >
+                                            <FiSave size={18} />
+                                        </button>
+                                        <button 
+                                            onClick={cancelEditing}
+                                            disabled={isSaving}
+                                            className="text-gray-600 hover:text-gray-500 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition disabled:opacity-50"
+                                            aria-label="Cancel editing"
+                                        >
+                                            <FiX size={18} />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
+
+                        {saveError && (
+                            <div className="mx-4 mb-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-md text-sm">
+                                {saveError}
+                            </div>
+                        )}
+
+                        {isSaving && (
+                            <div className="mx-4 mb-4 p-3 bg-blue-100 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 rounded-md text-sm">
+                                Saving changes...
+                            </div>
+                        )}
 
                         {/* Display metrics in a grid for better organization */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             {/* Body Metrics Card */}
                             <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
                                 <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2 border-b dark:border-gray-600 pb-1">Body Metrics</h4>
-                                <div className="grid grid-cols-2 gap-2 text-sm">
-                                    <div className="space-y-1">
-                                        <p><span className="font-medium">Weight:</span> {displayMetric(checkIn.body_metrics?.weight_kg, ' kg')}</p>
-                                        <p><span className="font-medium">Body Fat:</span> {displayMetric(checkIn.body_metrics?.body_fat_percentage, '%')}</p>
-                                        <p><span className="font-medium">Waist:</span> {displayMetric(checkIn.body_metrics?.waist_cm, ' cm')}</p>
-                                        <p><span className="font-medium">Hips:</span> {displayMetric(checkIn.body_metrics?.hip_cm, ' cm')}</p>
+                                {editingCheckIn === checkIn.id ? (
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        <div className="space-y-2">
+                                            <div>
+                                                <label className="font-medium">Weight (kg):</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={editForm[checkIn.id]?.weight_kg || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'weight_kg', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="font-medium">Body Fat (%):</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={editForm[checkIn.id]?.body_fat_percentage || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'body_fat_percentage', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="font-medium">Waist (cm):</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={editForm[checkIn.id]?.waist_cm || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'waist_cm', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="font-medium">Hips (cm):</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={editForm[checkIn.id]?.hip_cm || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'hip_cm', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div>
+                                                <label className="font-medium">Left Arm (cm):</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={editForm[checkIn.id]?.left_arm_cm || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'left_arm_cm', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="font-medium">Right Arm (cm):</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={editForm[checkIn.id]?.right_arm_cm || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'right_arm_cm', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="font-medium">Chest (cm):</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={editForm[checkIn.id]?.chest_cm || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'chest_cm', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-1">
+                                                <div>
+                                                    <label className="font-medium text-xs">Left Thigh:</label>
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        value={editForm[checkIn.id]?.left_thigh_cm || ''}
+                                                        onChange={(e) => updateFormValue(checkIn.id, 'left_thigh_cm', e.target.value)}
+                                                        className="w-full mt-1 px-1 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="font-medium text-xs">Right Thigh:</label>
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        value={editForm[checkIn.id]?.right_thigh_cm || ''}
+                                                        onChange={(e) => updateFormValue(checkIn.id, 'right_thigh_cm', e.target.value)}
+                                                        className="w-full mt-1 px-1 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <p><span className="font-medium">Arms:</span> {displayMetric(checkIn.body_metrics?.left_arm_cm, ' cm')} / {displayMetric(checkIn.body_metrics?.right_arm_cm, ' cm')}</p>
-                                        <p><span className="font-medium">Chest:</span> {displayMetric(checkIn.body_metrics?.chest_cm, ' cm')}</p>
-                                        <p><span className="font-medium">Thighs:</span> {displayMetric(checkIn.body_metrics?.left_thigh_cm, ' cm')} / {displayMetric(checkIn.body_metrics?.right_thigh_cm, ' cm')}</p>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        <div className="space-y-1">
+                                            <p><span className="font-medium">Weight:</span> {displayMetric((Array.isArray(checkIn.body_metrics) ? checkIn.body_metrics[0]?.weight_kg : checkIn.body_metrics?.weight_kg), ' kg')}</p>
+                                            <p><span className="font-medium">Body Fat:</span> {displayMetric((Array.isArray(checkIn.body_metrics) ? checkIn.body_metrics[0]?.body_fat_percentage : checkIn.body_metrics?.body_fat_percentage), '%')}</p>
+                                            <p><span className="font-medium">Waist:</span> {displayMetric((Array.isArray(checkIn.body_metrics) ? checkIn.body_metrics[0]?.waist_cm : checkIn.body_metrics?.waist_cm), ' cm')}</p>
+                                            <p><span className="font-medium">Hips:</span> {displayMetric((Array.isArray(checkIn.body_metrics) ? checkIn.body_metrics[0]?.hip_cm : checkIn.body_metrics?.hip_cm), ' cm')}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p><span className="font-medium">Arms:</span> {displayMetric((Array.isArray(checkIn.body_metrics) ? checkIn.body_metrics[0]?.left_arm_cm : checkIn.body_metrics?.left_arm_cm), ' cm')} / {displayMetric((Array.isArray(checkIn.body_metrics) ? checkIn.body_metrics[0]?.right_arm_cm : checkIn.body_metrics?.right_arm_cm), ' cm')}</p>
+                                            <p><span className="font-medium">Chest:</span> {displayMetric((Array.isArray(checkIn.body_metrics) ? checkIn.body_metrics[0]?.chest_cm : checkIn.body_metrics?.chest_cm), ' cm')}</p>
+                                            <p><span className="font-medium">Thighs:</span> {displayMetric((Array.isArray(checkIn.body_metrics) ? checkIn.body_metrics[0]?.left_thigh_cm : checkIn.body_metrics?.left_thigh_cm), ' cm')} / {displayMetric((Array.isArray(checkIn.body_metrics) ? checkIn.body_metrics[0]?.right_thigh_cm : checkIn.body_metrics?.right_thigh_cm), ' cm')}</p>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                             
                             {/* Wellness Metrics Card */}
                             <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
                                 <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2 border-b dark:border-gray-600 pb-1">Wellness</h4>
-                                <div className="grid grid-cols-2 gap-2 text-sm">
-                                    <div className="space-y-1">
-                                        <p><span className="font-medium">Sleep:</span> {displayMetric(checkIn.wellness_metrics?.sleep_hours, ' hrs')}</p>
-                                        <p><span className="font-medium">Sleep Quality:</span> {displayMetric(checkIn.wellness_metrics?.sleep_quality, '/5')}</p>
-                                        <p><span className="font-medium">Stress:</span> {displayMetric(checkIn.wellness_metrics?.stress_level, '/5')}</p>
+                                {editingCheckIn === checkIn.id ? (
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        <div className="space-y-2">
+                                            <div>
+                                                <label className="font-medium">Sleep (hrs):</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.5"
+                                                    value={editForm[checkIn.id]?.sleep_hours || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'sleep_hours', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="font-medium">Sleep Quality (1-5):</label>
+                                                <select
+                                                    value={editForm[checkIn.id]?.sleep_quality || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'sleep_quality', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                >
+                                                    <option value="">Select...</option>
+                                                    {RATING_SCALE.map(option => (
+                                                        <option key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="font-medium">Stress (1-5):</label>
+                                                <select
+                                                    value={editForm[checkIn.id]?.stress_level || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'stress_level', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                >
+                                                    <option value="">Select...</option>
+                                                    {RATING_SCALE.map(option => (
+                                                        <option key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div>
+                                                <label className="font-medium">Fatigue (1-5):</label>
+                                                <select
+                                                    value={editForm[checkIn.id]?.fatigue_level || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'fatigue_level', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                >
+                                                    <option value="">Select...</option>
+                                                    {RATING_SCALE.map(option => (
+                                                        <option key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="font-medium">Motivation (1-5):</label>
+                                                <select
+                                                    value={editForm[checkIn.id]?.motivation_level || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'motivation_level', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                >
+                                                    <option value="">Select...</option>
+                                                    {RATING_SCALE.map(option => (
+                                                        <option key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="font-medium">Digestion:</label>
+                                                <textarea
+                                                    value={editForm[checkIn.id]?.digestion || ''}
+                                                    onChange={(e) => updateFormValue(checkIn.id, 'digestion', e.target.value)}
+                                                    className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                    rows={2}
+                                                    placeholder="e.g., Good, Bloated, etc."
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <p><span className="font-medium">Fatigue:</span> {displayMetric(checkIn.wellness_metrics?.fatigue_level, '/5')}</p>
-                                        <p><span className="font-medium">Motivation:</span> {displayMetric(checkIn.wellness_metrics?.motivation_level, '/5')}</p>
-                                        <p><span className="font-medium">Digestion:</span> {checkIn.wellness_metrics?.digestion || 'N/A'}</p>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        <div className="space-y-1">
+                                            <p><span className="font-medium">Sleep:</span> {displayMetric((Array.isArray(checkIn.wellness_metrics) ? checkIn.wellness_metrics[0]?.sleep_hours : checkIn.wellness_metrics?.sleep_hours), ' hrs')}</p>
+                                            <p><span className="font-medium">Sleep Quality:</span> {displayMetric((Array.isArray(checkIn.wellness_metrics) ? checkIn.wellness_metrics[0]?.sleep_quality : checkIn.wellness_metrics?.sleep_quality), '/5')}</p>
+                                            <p><span className="font-medium">Stress:</span> {displayMetric((Array.isArray(checkIn.wellness_metrics) ? checkIn.wellness_metrics[0]?.stress_level : checkIn.wellness_metrics?.stress_level), '/5')}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p><span className="font-medium">Fatigue:</span> {displayMetric((Array.isArray(checkIn.wellness_metrics) ? checkIn.wellness_metrics[0]?.fatigue_level : checkIn.wellness_metrics?.fatigue_level), '/5')}</p>
+                                            <p><span className="font-medium">Motivation:</span> {displayMetric((Array.isArray(checkIn.wellness_metrics) ? checkIn.wellness_metrics[0]?.motivation_level : checkIn.wellness_metrics?.motivation_level), '/5')}</p>
+                                            <p><span className="font-medium">Digestion:</span> {(Array.isArray(checkIn.wellness_metrics) ? checkIn.wellness_metrics[0]?.digestion : checkIn.wellness_metrics?.digestion) || 'N/A'}</p>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                         
                         {/* Adherence Card */}
                         <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md mb-4">
                             <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2 border-b dark:border-gray-600 pb-1">Adherence</h4>
-                            <div className="grid grid-cols-3 gap-2 text-sm">
-                                <p><span className="font-medium">Diet:</span> {checkIn.diet_adherence || 'N/A'}</p>
-                                <p><span className="font-medium">Training:</span> {checkIn.training_adherence || 'N/A'}</p>
-                                <p><span className="font-medium">Steps:</span> {checkIn.steps_adherence || 'N/A'}</p>
-                            </div>
+                            {editingCheckIn === checkIn.id ? (
+                                <div className="grid grid-cols-3 gap-2 text-sm">
+                                    <div>
+                                        <label className="font-medium">Diet:</label>
+                                        <select
+                                            value={editForm[checkIn.id]?.diet_adherence || ''}
+                                            onChange={(e) => updateFormValue(checkIn.id, 'diet_adherence', e.target.value)}
+                                            className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                        >
+                                            <option value="">Select...</option>
+                                            {ADHERENCE_OPTIONS.map(option => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="font-medium">Training:</label>
+                                        <select
+                                            value={editForm[checkIn.id]?.training_adherence || ''}
+                                            onChange={(e) => updateFormValue(checkIn.id, 'training_adherence', e.target.value)}
+                                            className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                        >
+                                            <option value="">Select...</option>
+                                            {ADHERENCE_OPTIONS.map(option => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="font-medium">Steps:</label>
+                                        <select
+                                            value={editForm[checkIn.id]?.steps_adherence || ''}
+                                            onChange={(e) => updateFormValue(checkIn.id, 'steps_adherence', e.target.value)}
+                                            className="w-full mt-1 px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                        >
+                                            <option value="">Select...</option>
+                                            {ADHERENCE_OPTIONS.map(option => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-3 gap-2 text-sm">
+                                    <p><span className="font-medium">Diet:</span> {checkIn.diet_adherence || 'N/A'}</p>
+                                    <p><span className="font-medium">Training:</span> {checkIn.training_adherence || 'N/A'}</p>
+                                    <p><span className="font-medium">Steps:</span> {checkIn.steps_adherence || 'N/A'}</p>
+                                </div>
+                            )}
                         </div>
                         
                         {/* Notes Section */}
-                        {checkIn.notes && (
+                        {(checkIn.notes || editingCheckIn === checkIn.id) && (
                             <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md mb-4">
                                 <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2 border-b dark:border-gray-600 pb-1">Notes</h4>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">{checkIn.notes}</p>
+                                {editingCheckIn === checkIn.id ? (
+                                    <textarea
+                                        value={editForm[checkIn.id]?.notes || ''}
+                                        onChange={(e) => updateFormValue(checkIn.id, 'notes', e.target.value)}
+                                        className="w-full mt-1 px-2 py-2 text-sm border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                        rows={3}
+                                        placeholder="Add notes about this check-in..."
+                                    />
+                                ) : (
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">{checkIn.notes}</p>
+                                )}
                             </div>
                         )}
                         

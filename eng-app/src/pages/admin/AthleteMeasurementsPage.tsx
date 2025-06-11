@@ -214,7 +214,7 @@ const AthleteMeasurementsPage: React.FC = () => {
       {/* Measurement History */}
       <Card>
         <div className="p-4">
-          <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Measurement History</h3>
+          <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">History</h3>
           <AthleteMeasurementsHistory
             athleteId={athlete.user_id}
             athleteData={{
