@@ -22,6 +22,7 @@ interface FoodItemData {
 interface MealFoodItemData {
     quantity: number;
     unit: string;
+    notes?: string | null;
     food_items: FoodItemData | null;
 }
 
@@ -514,6 +515,7 @@ const MealPlanView: React.FC = () => {
                             meal_food_items (
                                 quantity,
                                 unit,
+                                notes,
                                 food_items (
                                     food_name,
                                     calories_per_100g,
@@ -1144,7 +1146,10 @@ const MealPlanView: React.FC = () => {
                     
                     printWindow.document.write(`
                         <tr>
-                            <td class="print-col-item">${item.food_items?.food_name ?? 'Unknown Item'}</td>
+                            <td class="print-col-item">
+                                ${item.food_items?.food_name ?? 'Unknown Item'}
+                                ${item.notes ? `<br><small style="color: #666; font-style: italic;">Note: ${item.notes}</small>` : ''}
+                            </td>
                             <td class="print-col-amount">${item.quantity}${item.unit}</td>
                             <td class="print-col-macros">
                                 P: ${itemNutrition.protein}g · C: ${itemNutrition.carbs}g · F: ${itemNutrition.fat}g
@@ -1410,6 +1415,11 @@ const MealPlanView: React.FC = () => {
                                                                         <div className="text-xs text-gray-400 mt-1">
                                                                             P: {itemNutrition.protein} · C: {itemNutrition.carbs} · F: {itemNutrition.fat}
                                                                         </div>
+                                                                        {item.notes && (
+                                                                            <div className="text-xs text-indigo-300 mt-1 pl-2 border-l-2 border-indigo-600 italic">
+                                                                                {item.notes}
+                                                                            </div>
+                                                                        )}
                                                                     </td>
                                                                     <td className="py-3 text-right whitespace-nowrap align-top">
                                                                         {item.quantity}{item.unit}

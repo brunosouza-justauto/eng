@@ -45,7 +45,7 @@ const UpdateNotification: React.FC = () => {
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-white">
-                New app version available
+                Check for updates
               </p>
             </div>
           </div>

@@ -887,6 +887,11 @@ const MealLoggingWidget: React.FC<MealLoggingWidgetProps> = ({
                                                                             F: {Math.round(item.calculated_fat || 0)}g
                                                                         </div>
                                                                     )}
+                                                                    {item.notes && (
+                                                                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 pl-2 border-l-2 border-gray-200 dark:border-gray-600 italic">
+                                                                            {item.notes}
+                                                                        </div>
+                                                                    )}
                                                                 </li>
                                                             ))}
                                                         </ul>
