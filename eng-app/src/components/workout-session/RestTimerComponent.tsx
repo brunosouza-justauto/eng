@@ -63,7 +63,30 @@ const RestTimerComponent: React.FC<RestTimerProps> = ({
     if (navigator.vibrate && window.matchMedia('(max-width: 768px)').matches) {
       navigator.vibrate(200);
     }
-  }, [duration]);
+    
+    // Start the timer
+    timerIntervalRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        const newTime = prev - 1;
+        
+        if (newTime <= 0) {
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+          }
+          playAlertSound();
+          setTimeout(() => onComplete(exerciseId, setIndex), 100);
+          return 0;
+        }
+        
+        if (newTime <= 5 && newTime > 0) {
+          playCountdownBeep();
+        }
+        
+        return newTime;
+      });
+    }, 1000);
+  }, [duration, exerciseId, setIndex]);
   
   // Handle pause state changes
   useEffect(() => {

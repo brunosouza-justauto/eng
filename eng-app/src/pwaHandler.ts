@@ -116,29 +116,19 @@ export function isRunningAsInstalledPWA(): boolean {
          document.referrer.includes('android-app://');
 }
 
-// We've replaced the window.confirm with a custom React component
-// The serviceWorkerUpdateReady event is now handled by UpdateNotification.tsx
-window.addEventListener('serviceWorkerUpdateReady', () => {
-  // Don't show if already shown in this session
-  if (updatePromptShown) {
-    return;
-  }
-  
-  // Check for cooldown from localStorage
+// Initialize the updatePromptShown flag from localStorage to persist across sessions
+const initializeUpdatePromptFlag = () => {
   const lastUpdatePrompt = localStorage.getItem('pwa_update_prompted_at');
   if (lastUpdatePrompt) {
     const lastPromptTime = parseInt(lastUpdatePrompt, 10);
     const now = Date.now();
-    // Only show once per 24 hours
-    if (now - lastPromptTime < 24 * 60 * 60 * 1000) {
-      return;
-    }
+    // If less than 24 hours have passed, consider the prompt as already shown
+    updatePromptShown = (now - lastPromptTime) < (24 * 60 * 60 * 1000);
   }
-  
-  // Set the flag to prevent showing the prompt again in this session
-  updatePromptShown = true;
-  localStorage.setItem('pwa_update_prompted_at', Date.now().toString());
-});
+};
+
+// Initialize the flag when the module loads
+initializeUpdatePromptFlag();
 
 export default {
   installPWA,
