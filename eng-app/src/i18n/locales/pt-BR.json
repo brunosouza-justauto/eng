@@ -1,0 +1,57 @@
+{
+  "common": {
+    "loading": "Carregando...",
+    "error": "Erro",
+    "success": "Sucesso",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "add": "Adicionar",
+    "back": "Voltar",
+    "next": "Próximo",
+    "previous": "Anterior",
+    "close": "Fechar",
+    "confirm": "Confirmar",
+    "yes": "Sim",
+    "no": "Não"
+  },
+  "navigation": {
+    "dashboard": "Painel",
+    "profile": "Perfil",
+    "logout": "Sair",
+    "home": "Início",
+    "settings": "Configurações",
+    "help": "Ajuda",
+    "support": "Suporte"
+  },
+  "admin": {
+    "coachDashboard": "Painel do Coach",
+    "manageAthletes": "Gerenciar Atletas",
+    "manageCoaches": "Gerenciar Coaches",
+    "programBuilder": "Criador de Programas",
+    "mealPlanning": "Planejamento de Refeições",
+    "bodyMeasurements": "Medidas Corporais",
+    "bmrCalculator": "Calculadora TMB & TDEE",
+    "stepGoals": "Metas de Passos",
+    "waterGoals": "Metas de Água",
+    "checkins": "Check-ins",
+    "supplementsManagement": "Gerenciamento de Suplementos",
+    "athleteDashboard": "Painel do Atleta",
+    "getSupport": "Obter Suporte",
+    "helpSupport": "AJUDA E SUPORTE"
+  },
+  "theme": {
+    "switchToLight": "Mudar para modo claro",
+    "switchToDark": "Mudar para modo escuro"
+  },
+  "language": {
+    "switchLanguage": "Trocar idioma",
+    "english": "English",
+    "portuguese": "Português (BR)"
+  },
+  "app": {
+    "title": "ENG App",
+    "adminTitle": "ENG Admin"
+  }
+}

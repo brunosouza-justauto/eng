@@ -6,6 +6,7 @@ import { PersistGate } from 'redux-persist/integration/react'
 import { store, persistor } from './store/store'
 import './index.css'
 import './pwaHandler.ts'
+import './i18n'
 import App from './App.tsx'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

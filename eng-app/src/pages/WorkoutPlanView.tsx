@@ -256,7 +256,7 @@ const WorkoutPlanView: React.FC = () => {
                   </div>
                 )}
                 
-                {/* Exercise items - Simplified to only show exercise names */}
+                {/* Exercise items with sets and reps */}
                 <div className={`space-y-1 ${group.isSuperset ? 'pl-2' : ''}`}>
                   {group.group.map((exercise, exIndex) => (
                     <div 
@@ -267,6 +267,17 @@ const WorkoutPlanView: React.FC = () => {
                         <div className="font-medium text-gray-800 dark:text-gray-100">
                           {cleanExerciseName(exercise.exercise_name)}
                         </div>
+                        {(exercise.sets || exercise.reps) && (
+                          <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            {exercise.sets && exercise.reps ? (
+                              `${exercise.sets} sets × ${exercise.reps} reps`
+                            ) : exercise.sets ? (
+                              `${exercise.sets} sets`
+                            ) : exercise.reps ? (
+                              `${exercise.reps} reps`
+                            ) : null}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

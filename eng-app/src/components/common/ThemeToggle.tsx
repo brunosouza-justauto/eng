@@ -1,5 +1,6 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { selectTheme, toggleTheme } from '../../store/slices/uiSlice';
 
 interface ThemeToggleProps {
@@ -9,6 +10,7 @@ interface ThemeToggleProps {
 const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
   const theme = useSelector(selectTheme);
   const dispatch = useDispatch();
+  const { t } = useTranslation();
   
   return (
     <button
@@ -18,8 +20,8 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
           ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' 
           : 'text-gray-400 hover:text-white hover:bg-gray-700'
         } ${className}`}
-      aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-      title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+      aria-label={theme === 'light' ? t('theme.switchToDark') : t('theme.switchToLight')}
+      title={theme === 'light' ? t('theme.switchToDark') : t('theme.switchToLight')}
     >
       {theme === 'light' ? (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">

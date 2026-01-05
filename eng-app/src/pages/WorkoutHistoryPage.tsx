@@ -26,6 +26,7 @@ interface CompletedSet {
   is_completed: boolean;
   each_side?: boolean;
   tempo?: string | null;
+  order_in_workout?: number | null;
 }
 
 const WorkoutHistoryPage: React.FC = () => {
@@ -36,6 +37,7 @@ const WorkoutHistoryPage: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [exportingSession, setExportingSession] = useState<string | null>(null);
   const profile = useSelector(selectProfile);
 
   // Toggle session expansion
@@ -68,7 +70,8 @@ const WorkoutHistoryPage: React.FC = () => {
           exercise_instances:exercise_instances(
             exercise_name,
             each_side,
-            tempo
+            tempo,
+            order_in_workout
           )
         `)
         .eq('workout_session_id', sessionId)
@@ -85,12 +88,13 @@ const WorkoutHistoryPage: React.FC = () => {
       // Process the data into a more usable format
       const processedSets = setData.map(set => {
         // Handle exercise_instances property properly with type assertion
-        const exerciseInstances = set.exercise_instances as { 
+        const exerciseInstances = set.exercise_instances as {
           exercise_name?: string;
           each_side?: boolean;
           tempo?: string | null;
+          order_in_workout?: number | null;
         } | null;
-        
+
         // Ensure we have proper values for all properties
         return {
           exercise_name: exerciseInstances?.exercise_name || 'Unknown Exercise',
@@ -99,7 +103,8 @@ const WorkoutHistoryPage: React.FC = () => {
           reps: Number(set.reps) || 0,
           is_completed: Boolean(set.is_completed),
           each_side: Boolean(exerciseInstances?.each_side),
-          tempo: exerciseInstances?.tempo ? String(exerciseInstances.tempo) : null
+          tempo: exerciseInstances?.tempo ? String(exerciseInstances.tempo) : null,
+          order_in_workout: exerciseInstances?.order_in_workout || null
         };
       });
 
@@ -320,6 +325,136 @@ const WorkoutHistoryPage: React.FC = () => {
     setShowDeleteConfirm(false);
   };
 
+  // Export workout session to clipboard
+  const exportSessionToClipboard = async (sessionId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setExportingSession(sessionId);
+
+    try {
+      const session = workoutSessions.find(s => s.id === sessionId);
+      if (!session) return;
+
+      // Ensure session details are loaded
+      if (!session.completed_sets) {
+        await fetchSessionDetails(sessionId);
+      }
+
+      // Get the updated session with details
+      const updatedSession = workoutSessions.find(s => s.id === sessionId);
+      if (!updatedSession?.completed_sets) {
+        setError('Could not load session details for export');
+        return;
+      }
+
+      // Generate export text
+      const exportText = generateExportText(updatedSession);
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(exportText);
+
+      // Show success feedback
+      setError('Workout session copied to clipboard!');
+      setTimeout(() => setError(null), 3000);
+
+    } catch (err) {
+      console.error('Error exporting session:', err);
+      setError('Failed to export workout session');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setExportingSession(null);
+    }
+  };
+
+  // Generate formatted text for export
+  const generateExportText = (session: WorkoutSession): string => {
+    const lines: string[] = [];
+
+    // Header
+    lines.push('='.repeat(50));
+    lines.push(`WORKOUT SESSION: ${session.workout_name}`);
+    lines.push('='.repeat(50));
+    lines.push('');
+
+    // Session details
+    lines.push(`Date: ${format(new Date(session.start_time), 'MMMM d, yyyy')}`);
+    lines.push(`Start Time: ${format(new Date(session.start_time), 'h:mm a')}`);
+    if (session.end_time) {
+      lines.push(`End Time: ${format(new Date(session.end_time), 'h:mm a')}`);
+    }
+    lines.push(`Duration: ${formatDuration(session.duration_seconds)}`);
+    lines.push(`Status: ${session.end_time ? 'Completed' : 'In Progress'}`);
+    lines.push(`Total Sets: ${session.completed_sets_count}`);
+    lines.push('');
+
+    if (session.workout_description) {
+      lines.push(`Description: ${session.workout_description}`);
+      lines.push('');
+    }
+
+    if (session.notes) {
+      lines.push(`Notes: ${session.notes}`);
+      lines.push('');
+    }
+
+    // Exercise details
+    if (session.completed_sets && session.completed_sets.length > 0) {
+      lines.push('EXERCISES:');
+      lines.push('-'.repeat(30));
+      lines.push('');
+
+      // Group and sort exercises
+      const groupedSets = session.completed_sets.reduce((acc, set) => {
+        if (!acc[set.exercise_name]) {
+          acc[set.exercise_name] = new Map();
+        }
+        const existingSet = acc[set.exercise_name].get(set.set_order);
+        if (!existingSet || (set.is_completed && !existingSet.is_completed)) {
+          acc[set.exercise_name].set(set.set_order, set);
+        }
+        return acc;
+      }, {} as Record<string, Map<number, CompletedSet>>);
+
+      const processedGroupedSets: Record<string, CompletedSet[]> = {};
+      Object.entries(groupedSets).forEach(([exerciseName, setsMap]) => {
+        processedGroupedSets[exerciseName] = Array.from(setsMap.values());
+      });
+
+      const sortedExercises = Object.entries(processedGroupedSets)
+        .sort(([, setsA], [, setsB]) => {
+          const orderA = setsA[0]?.order_in_workout ?? 999;
+          const orderB = setsB[0]?.order_in_workout ?? 999;
+          return orderA - orderB;
+        });
+
+      sortedExercises.forEach(([exerciseName, sets], exerciseIndex) => {
+        lines.push(`${exerciseIndex + 1}. ${exerciseName}`);
+
+        // Add exercise metadata
+        if (sets[0]?.each_side) {
+          lines.push('   (Each Side)');
+        }
+        if (sets[0]?.tempo) {
+          lines.push(`   Tempo: ${sets[0].tempo}`);
+        }
+
+        // Add sets
+        const sortedSets = sets.sort((a, b) => a.set_order - b.set_order);
+        sortedSets.forEach((set) => {
+          const status = set.is_completed ? '✓' : '✗';
+          const weight = formatWeight(set.weight);
+          lines.push(`   Set ${set.set_order}: ${weight} × ${set.reps} reps ${status}`);
+        });
+
+        lines.push('');
+      });
+    }
+
+    lines.push('='.repeat(50));
+    lines.push(`Exported from ENG App on ${format(new Date(), 'MMMM d, yyyy \'at\' h:mm a')}`);
+
+    return lines.join('\n');
+  };
+
   const renderWorkoutSessions = () => {
     if (workoutSessions.length === 0) {
       return (
@@ -349,6 +484,23 @@ const WorkoutHistoryPage: React.FC = () => {
                 <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">
                   {format(new Date(session.start_time), 'MMM d, yyyy')}
                 </span>
+                <button
+                  onClick={(e) => exportSessionToClipboard(session.id, e)}
+                  disabled={exportingSession === session.id}
+                  className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 p-1 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors mr-2 disabled:opacity-50"
+                  title="Export workout session to clipboard"
+                >
+                  {exportingSession === session.id ? (
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                </button>
                 <button
                   onClick={(e) => handleDeleteClick(session.id, e)}
                   className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors mr-2"
@@ -464,7 +616,14 @@ const WorkoutHistoryPage: React.FC = () => {
 
                     return (
                       <div className="space-y-4">
-                        {Object.entries(processedGroupedSets).map(([exerciseName, sets], exerciseIndex) => (
+                        {Object.entries(processedGroupedSets)
+                          .sort(([, setsA], [, setsB]) => {
+                            // Sort by order_in_workout if available, otherwise keep original order
+                            const orderA = setsA[0]?.order_in_workout ?? 999;
+                            const orderB = setsB[0]?.order_in_workout ?? 999;
+                            return orderA - orderB;
+                          })
+                          .map(([exerciseName, sets], exerciseIndex) => (
                           <div key={`${session.id}-exercise-${exerciseIndex}`} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
                             <h5 className="font-medium text-sm mb-2 text-gray-900 dark:text-white flex items-center">
                               <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-xs font-medium text-indigo-800 dark:text-indigo-300 mr-2">
@@ -550,31 +709,6 @@ const WorkoutHistoryPage: React.FC = () => {
                                   })}
                                 </tbody>
                               </table>
-                            </div>
-                            
-                            {/* Add a summary for the exercise */}
-                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                              {(() => {
-                                const completedSets = sets.filter(s => s.is_completed);
-                                if (completedSets.length === 0) return "No sets completed";
-                                
-                                // Group by weight and reps for a concise summary
-                                const summary = completedSets.reduce((acc, set) => {
-                                  const key = `${set.weight}-${set.reps}`;
-                                  if (!acc[key]) {
-                                    acc[key] = { weight: set.weight, reps: set.reps, count: 0 };
-                                  }
-                                  acc[key].count++;
-                                  return acc;
-                                }, {} as Record<string, { weight: string, reps: number, count: number }>);
-                                
-                                // Use join with a string delimiter to prevent [object Object] from appearing
-                                return Object.values(summary).map((group, i) => (
-                                  <span key={i} className="mr-2">
-                                    {group.count > 1 ? `${group.count}×` : ""}{group.reps} reps @ {formatWeight(group.weight)}
-                                  </span>
-                                ));
-                              })()}
                             </div>
                           </div>
                         ))}

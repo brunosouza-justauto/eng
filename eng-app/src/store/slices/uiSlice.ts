@@ -18,12 +18,32 @@ const getInitialTheme = (): 'light' | 'dark' => {
   return 'light';
 };
 
+// Function to get initial language from local storage or browser preference
+const getInitialLanguage = (): 'en' | 'pt-BR' => {
+  // Check if language is saved in localStorage
+  const savedLanguage = localStorage.getItem('i18nextLng');
+  if (savedLanguage === 'en' || savedLanguage === 'pt-BR') {
+    return savedLanguage;
+  }
+
+  // Check browser language
+  const browserLanguage = navigator.language;
+  if (browserLanguage.startsWith('pt')) {
+    return 'pt-BR';
+  }
+
+  // Default to English
+  return 'en';
+};
+
 interface UIState {
   theme: 'light' | 'dark';
+  language: 'en' | 'pt-BR';
 }
 
 const initialState: UIState = {
   theme: typeof window !== 'undefined' ? getInitialTheme() : 'light',
+  language: typeof window !== 'undefined' ? getInitialLanguage() : 'en',
 };
 
 export const uiSlice = createSlice({
@@ -44,14 +64,22 @@ export const uiSlice = createSlice({
         localStorage.setItem('theme', state.theme);
       }
     },
+    setLanguage: (state, action: PayloadAction<'en' | 'pt-BR'>) => {
+      state.language = action.payload;
+      // Save preference to localStorage (i18next manages this key)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('i18nextLng', state.language);
+      }
+    },
   },
 });
 
 // Export actions
-export const { toggleTheme, setTheme } = uiSlice.actions;
+export const { toggleTheme, setTheme, setLanguage } = uiSlice.actions;
 
 // Export selectors
 export const selectTheme = (state: RootState) => state.ui.theme;
+export const selectLanguage = (state: RootState) => state.ui.language;
 
 // Export reducer
 export default uiSlice.reducer; 
