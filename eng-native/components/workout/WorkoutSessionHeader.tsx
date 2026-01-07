@@ -116,25 +116,25 @@ export const WorkoutSessionHeader = ({
                 borderRadius: 20,
                 backgroundColor: customRestTime !== null
                   ? isDark
-                    ? 'rgba(99, 102, 241, 0.2)'
-                    : 'rgba(99, 102, 241, 0.1)'
+                    ? 'rgba(245, 158, 11, 0.2)'
+                    : 'rgba(245, 158, 11, 0.1)'
                   : isDark
-                    ? '#374151'
-                    : '#F3F4F6',
+                    ? 'rgba(245, 158, 11, 0.15)'
+                    : 'rgba(245, 158, 11, 0.1)',
                 borderWidth: customRestTime !== null ? 1 : 0,
-                borderColor: '#6366F1',
+                borderColor: '#F59E0B',
               }}
             >
               <Timer
                 size={14}
-                color={customRestTime !== null ? '#6366F1' : isDark ? '#9CA3AF' : '#6B7280'}
+                color="#F59E0B"
               />
               <Text
                 style={{
                   marginLeft: 6,
                   fontSize: 12,
                   fontWeight: '600',
-                  color: customRestTime !== null ? '#6366F1' : isDark ? '#9CA3AF' : '#6B7280',
+                  color: '#F59E0B',
                 }}
               >
                 {customRestTime !== null ? formatRestTime(customRestTime) : 'Rest'}

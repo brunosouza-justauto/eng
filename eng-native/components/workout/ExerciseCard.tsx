@@ -1,8 +1,8 @@
 import { View, Text, TextInput, Pressable } from 'react-native';
-import { CheckCircle, Play } from 'lucide-react-native';
+import { CheckCircle, Play, Star, AlertTriangle, Zap, Dumbbell } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ExerciseInstanceData, SetType, cleanExerciseName } from '../../types/workout';
-import { SetInputState, getSetTypeLabel } from '../../types/workoutSession';
+import { SetInputState, getSetTypeLabel, FeedbackRecommendation } from '../../types/workoutSession';
 
 interface ExerciseCardProps {
   exercise: ExerciseInstanceData;
@@ -14,6 +14,10 @@ interface ExerciseCardProps {
   onInputChange: (setIndex: number, field: 'weight' | 'reps', value: string) => void;
   onViewDemo?: (exerciseDbId: string | number, exerciseName: string) => void;
   onRepsPress?: (exerciseId: string, setIndex: number, currentReps: number) => void;
+  onFeedbackPress?: (exerciseId: string, exerciseName: string) => void;
+  hasFeedback?: boolean;
+  recommendations?: FeedbackRecommendation[];
+  previousNotes?: string | null;
   isInGroup?: boolean;
   isLastInGroup?: boolean;
 }
@@ -31,6 +35,10 @@ export const ExerciseCard = ({
   onInputChange,
   onViewDemo,
   onRepsPress,
+  onFeedbackPress,
+  hasFeedback = false,
+  recommendations = [],
+  previousNotes,
   isInGroup = false,
   isLastInGroup = false,
 }: ExerciseCardProps) => {
@@ -159,6 +167,115 @@ export const ExerciseCard = ({
           )}
         </View>
       </View>
+
+      {/* Recommendations and notes from previous session */}
+      {(recommendations.length > 0 || previousNotes) && (
+        <View
+          style={{
+            paddingHorizontal: 12,
+            paddingTop: 8,
+            paddingBottom: 4,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '600',
+              color: isDark ? '#9CA3AF' : '#6B7280',
+              marginBottom: 6,
+            }}
+          >
+            PREVIOUS SESSION FEEDBACK
+          </Text>
+          {recommendations.map((rec, idx) => {
+            const getRecommendationStyle = () => {
+              switch (rec.type) {
+                case 'pain':
+                  return {
+                    bg: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)',
+                    color: '#EF4444',
+                    icon: <AlertTriangle size={14} color="#EF4444" />,
+                  };
+                case 'pump':
+                  return {
+                    bg: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)',
+                    color: '#3B82F6',
+                    icon: <Zap size={14} color="#3B82F6" />,
+                  };
+                case 'workload':
+                  return {
+                    bg: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)',
+                    color: '#F59E0B',
+                    icon: <Dumbbell size={14} color="#F59E0B" />,
+                  };
+                default:
+                  return {
+                    bg: isDark ? '#374151' : '#F3F4F6',
+                    color: isDark ? '#D1D5DB' : '#374151',
+                    icon: null,
+                  };
+              }
+            };
+            const style = getRecommendationStyle();
+            return (
+              <View
+                key={idx}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: style.bg,
+                  borderRadius: 8,
+                  padding: 10,
+                  marginBottom: 4,
+                }}
+              >
+                {style.icon}
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 12,
+                    color: style.color,
+                    flex: 1,
+                  }}
+                >
+                  {rec.message}
+                </Text>
+              </View>
+            );
+          })}
+          {/* Previous notes */}
+          {previousNotes && (
+            <View
+              style={{
+                backgroundColor: isDark ? 'rgba(156, 163, 175, 0.15)' : 'rgba(107, 114, 128, 0.1)',
+                borderRadius: 8,
+                padding: 10,
+                marginTop: recommendations.length > 0 ? 4 : 0,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '600',
+                  color: isDark ? '#9CA3AF' : '#6B7280',
+                  marginBottom: 4,
+                }}
+              >
+                Notes:
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: isDark ? '#D1D5DB' : '#374151',
+                  fontStyle: 'italic',
+                }}
+              >
+                "{previousNotes}"
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Sets Table */}
       <View style={{ padding: 12 }}>
@@ -393,6 +510,45 @@ export const ExerciseCard = ({
           );
         })}
       </View>
+
+      {/* Feedback Button - at the bottom */}
+      {isWorkoutStarted && onFeedbackPress && (
+        <Pressable
+          onPress={() => onFeedbackPress(exercise.id, exercise.exercise_name)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginHorizontal: 12,
+            marginBottom: 12,
+            paddingVertical: 10,
+            borderRadius: 8,
+            backgroundColor: hasFeedback
+              ? isDark ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.1)'
+              : isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)',
+            borderWidth: 1,
+            borderColor: hasFeedback
+              ? isDark ? 'rgba(34, 197, 94, 0.3)' : 'rgba(34, 197, 94, 0.2)'
+              : isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.15)',
+          }}
+        >
+          <Star
+            size={14}
+            color={hasFeedback ? '#22C55E' : '#3B82F6'}
+            fill={hasFeedback ? '#22C55E' : 'transparent'}
+          />
+          <Text
+            style={{
+              marginLeft: 6,
+              fontSize: 13,
+              fontWeight: '500',
+              color: hasFeedback ? '#22C55E' : '#3B82F6',
+            }}
+          >
+            {hasFeedback ? 'Feedback Added' : 'Add Feedback'}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 };

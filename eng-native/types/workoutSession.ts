@@ -75,3 +75,35 @@ export const getSetTypeLabel = (type: SetType | string | null | undefined): stri
       return 'Regular';
   }
 };
+
+// =============================================================================
+// EXERCISE FEEDBACK TYPES
+// =============================================================================
+
+// Interface for exercise feedback data
+export interface ExerciseFeedback {
+  id?: string;
+  workout_session_id: string;
+  exercise_instance_id: string;
+  pain_level: number | null;
+  pump_level: number | null;
+  workload_level: number | null;
+  notes: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Interface for feedback recommendation
+export interface FeedbackRecommendation {
+  type: 'pain' | 'pump' | 'workload';
+  message: string;
+  action: 'increase_weight' | 'decrease_weight' | 'change_exercise' | 'adjust_reps' | 'no_change';
+}
+
+// Interface for feedback form input
+export interface FeedbackFormInput {
+  painLevel: number | null;
+  pumpLevel: number | null;
+  workloadLevel: number | null;
+  notes: string;
+}

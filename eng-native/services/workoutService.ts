@@ -443,18 +443,47 @@ export const saveCompletedSet = async (
   reps: number
 ): Promise<{ success: boolean; error?: string }> => {
   try {
-    const { error } = await supabase.from('completed_exercise_sets').upsert({
-      workout_session_id: sessionId,
-      exercise_instance_id: exerciseInstanceId,
-      set_order: setOrder,
-      weight: weight,
-      reps: reps,
-      is_completed: true,
-    });
+    // Check if this set already exists
+    const { data: existing } = await supabase
+      .from('completed_exercise_sets')
+      .select('id')
+      .eq('workout_session_id', sessionId)
+      .eq('exercise_instance_id', exerciseInstanceId)
+      .eq('set_order', setOrder)
+      .limit(1);
 
-    if (error) {
-      console.error('Error saving completed set:', error);
-      return { success: false, error: error.message };
+    if (existing && existing.length > 0) {
+      // Update existing
+      const { error } = await supabase
+        .from('completed_exercise_sets')
+        .update({
+          weight: weight,
+          reps: reps,
+          is_completed: true,
+        })
+        .eq('id', existing[0].id);
+
+      if (error) {
+        console.error('Error updating completed set:', error);
+        return { success: false, error: error.message };
+      }
+    } else {
+      // Insert new
+      const { error } = await supabase
+        .from('completed_exercise_sets')
+        .insert({
+          workout_session_id: sessionId,
+          exercise_instance_id: exerciseInstanceId,
+          set_order: setOrder,
+          weight: weight,
+          reps: reps,
+          is_completed: true,
+        });
+
+      if (error) {
+        console.error('Error saving completed set:', error);
+        return { success: false, error: error.message };
+      }
     }
 
     return { success: true };
@@ -605,4 +634,314 @@ export const deletePendingSession = async (
   sessionId: string
 ): Promise<{ success: boolean; error?: string }> => {
   return cancelWorkoutSession(sessionId);
+};
+
+// =============================================================================
+// PREVIOUS WORKOUT DATA FUNCTIONS
+// =============================================================================
+
+export interface PreviousSetData {
+  exerciseInstanceId: string;
+  setOrder: number;
+  weight: number | null;
+  reps: number;
+}
+
+/**
+ * Get the most recent completed session's sets for a workout
+ * This is used to pre-fill weights from the last workout
+ * @param workoutId The workout ID
+ * @param userId The user's auth ID
+ * @returns Map of exercise instance ID to array of previous set data
+ */
+export const getLastWorkoutSets = async (
+  workoutId: string,
+  userId: string
+): Promise<{ sets: Map<string, PreviousSetData[]>; error?: string }> => {
+  try {
+    // Find the most recent completed session for this workout
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('workout_sessions')
+      .select('id')
+      .eq('workout_id', workoutId)
+      .eq('user_id', userId)
+      .not('end_time', 'is', null)
+      .order('end_time', { ascending: false })
+      .limit(1);
+
+    if (sessionError) {
+      console.error('Error fetching last session:', sessionError);
+      return { sets: new Map(), error: sessionError.message };
+    }
+
+    if (!sessionData || sessionData.length === 0) {
+      // No previous completed session found
+      return { sets: new Map() };
+    }
+
+    const lastSessionId = sessionData[0].id;
+
+    // Get all completed sets from that session
+    const { data: setsData, error: setsError } = await supabase
+      .from('completed_exercise_sets')
+      .select('exercise_instance_id, set_order, weight, reps')
+      .eq('workout_session_id', lastSessionId)
+      .eq('is_completed', true)
+      .order('set_order', { ascending: true });
+
+    if (setsError) {
+      console.error('Error fetching last workout sets:', setsError);
+      return { sets: new Map(), error: setsError.message };
+    }
+
+    // Group sets by exercise instance ID
+    const setsMap = new Map<string, PreviousSetData[]>();
+
+    (setsData || []).forEach((row) => {
+      const exerciseId = row.exercise_instance_id;
+      const existingSets = setsMap.get(exerciseId) || [];
+      existingSets.push({
+        exerciseInstanceId: exerciseId,
+        setOrder: row.set_order,
+        weight: row.weight,
+        reps: row.reps,
+      });
+      setsMap.set(exerciseId, existingSets);
+    });
+
+    return { sets: setsMap };
+  } catch (err: any) {
+    console.error('Error in getLastWorkoutSets:', err);
+    return { sets: new Map(), error: err.message };
+  }
+};
+
+// =============================================================================
+// EXERCISE FEEDBACK FUNCTIONS
+// =============================================================================
+
+import {
+  ExerciseFeedback,
+  FeedbackRecommendation,
+} from '../types/workoutSession';
+
+/**
+ * Save exercise feedback
+ * @param feedback The feedback data to save
+ * @returns Success status and the saved feedback ID
+ */
+export const saveExerciseFeedback = async (
+  feedback: Omit<ExerciseFeedback, 'id' | 'created_at' | 'updated_at'>
+): Promise<{ success: boolean; feedbackId?: string; error?: string }> => {
+  try {
+    // Check if feedback already exists for this session/exercise
+    const { data: existing } = await supabase
+      .from('exercise_feedback')
+      .select('id')
+      .eq('workout_session_id', feedback.workout_session_id)
+      .eq('exercise_instance_id', feedback.exercise_instance_id)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      // Update existing feedback
+      const { data, error } = await supabase
+        .from('exercise_feedback')
+        .update({
+          pain_level: feedback.pain_level,
+          pump_level: feedback.pump_level,
+          workload_level: feedback.workload_level,
+          notes: feedback.notes,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing[0].id)
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('Error updating exercise feedback:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, feedbackId: data?.id };
+    } else {
+      // Insert new feedback
+      const { data, error } = await supabase
+        .from('exercise_feedback')
+        .insert({
+          workout_session_id: feedback.workout_session_id,
+          exercise_instance_id: feedback.exercise_instance_id,
+          pain_level: feedback.pain_level,
+          pump_level: feedback.pump_level,
+          workload_level: feedback.workload_level,
+          notes: feedback.notes,
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('Error inserting exercise feedback:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, feedbackId: data?.id };
+    }
+  } catch (err: any) {
+    console.error('Error in saveExerciseFeedback:', err);
+    return { success: false, error: err.message };
+  }
+};
+
+/**
+ * Get feedback for current session
+ * @param sessionId The workout session ID
+ * @returns Map of exercise instance ID to feedback
+ */
+export const getSessionFeedback = async (
+  sessionId: string
+): Promise<{ feedback: Map<string, ExerciseFeedback>; error?: string }> => {
+  try {
+    const { data, error } = await supabase
+      .from('exercise_feedback')
+      .select('*')
+      .eq('workout_session_id', sessionId);
+
+    if (error) {
+      console.error('Error fetching session feedback:', error);
+      return { feedback: new Map(), error: error.message };
+    }
+
+    const feedbackMap = new Map<string, ExerciseFeedback>();
+    (data || []).forEach((row) => {
+      feedbackMap.set(row.exercise_instance_id, {
+        id: row.id,
+        workout_session_id: row.workout_session_id,
+        exercise_instance_id: row.exercise_instance_id,
+        pain_level: row.pain_level,
+        pump_level: row.pump_level,
+        workload_level: row.workload_level,
+        notes: row.notes,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      });
+    });
+
+    return { feedback: feedbackMap };
+  } catch (err: any) {
+    console.error('Error in getSessionFeedback:', err);
+    return { feedback: new Map(), error: err.message };
+  }
+};
+
+/**
+ * Get previous feedback for an exercise to generate recommendations
+ * @param exerciseInstanceId The exercise instance ID
+ * @param userId The user ID
+ * @returns The most recent feedback and generated recommendations
+ */
+export const getPreviousFeedback = async (
+  exerciseInstanceId: string,
+  userId: string
+): Promise<{
+  feedback: ExerciseFeedback | null;
+  recommendations: FeedbackRecommendation[];
+  error?: string;
+}> => {
+  try {
+    // Get the most recent feedback for this exercise from a completed session
+    const { data, error } = await supabase
+      .from('exercise_feedback')
+      .select(`
+        *,
+        workout_sessions!inner (
+          id,
+          user_id,
+          end_time
+        )
+      `)
+      .eq('exercise_instance_id', exerciseInstanceId)
+      .eq('workout_sessions.user_id', userId)
+      .not('workout_sessions.end_time', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error('Error fetching previous feedback:', error);
+      return { feedback: null, recommendations: [], error: error.message };
+    }
+
+    if (!data || data.length === 0) {
+      return { feedback: null, recommendations: [] };
+    }
+
+    const feedbackData = data[0];
+    const feedback: ExerciseFeedback = {
+      id: feedbackData.id,
+      workout_session_id: feedbackData.workout_session_id,
+      exercise_instance_id: feedbackData.exercise_instance_id,
+      pain_level: feedbackData.pain_level,
+      pump_level: feedbackData.pump_level,
+      workload_level: feedbackData.workload_level,
+      notes: feedbackData.notes,
+      created_at: feedbackData.created_at,
+      updated_at: feedbackData.updated_at,
+    };
+
+    // Generate recommendations based on feedback
+    const recommendations = generateRecommendations(feedback);
+
+    return { feedback, recommendations };
+  } catch (err: any) {
+    console.error('Error in getPreviousFeedback:', err);
+    return { feedback: null, recommendations: [], error: err.message };
+  }
+};
+
+/**
+ * Generate recommendations based on feedback
+ */
+export const generateRecommendations = (
+  feedback: ExerciseFeedback
+): FeedbackRecommendation[] => {
+  const recommendations: FeedbackRecommendation[] = [];
+
+  // Pain level recommendations (highest priority)
+  if (feedback.pain_level && feedback.pain_level >= 4) {
+    recommendations.push({
+      type: 'pain',
+      message: 'High pain reported last session. Consider modifying or replacing this exercise.',
+      action: 'change_exercise',
+    });
+  } else if (feedback.pain_level && feedback.pain_level === 3) {
+    recommendations.push({
+      type: 'pain',
+      message: 'Moderate discomfort reported. Monitor form and reduce weight if needed.',
+      action: 'decrease_weight',
+    });
+  }
+
+  // Workload level recommendations
+  if (feedback.workload_level && feedback.workload_level <= 2) {
+    recommendations.push({
+      type: 'workload',
+      message: 'Last session felt too easy. Consider increasing weight.',
+      action: 'increase_weight',
+    });
+  } else if (feedback.workload_level && feedback.workload_level >= 5) {
+    recommendations.push({
+      type: 'workload',
+      message: 'Last session was very heavy. Consider reducing weight for better form.',
+      action: 'decrease_weight',
+    });
+  }
+
+  // Pump level recommendations
+  if (feedback.pump_level && feedback.pump_level <= 2) {
+    recommendations.push({
+      type: 'pump',
+      message: 'Low muscle pump reported. Try increasing reps or slowing tempo.',
+      action: 'adjust_reps',
+    });
+  }
+
+  return recommendations;
 };
