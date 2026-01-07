@@ -15,6 +15,7 @@ interface WorkoutSessionHeaderProps {
   customRestTime?: number | null;
   onTimerSettingsPress?: () => void;
   onCountdownPress?: () => void;
+  estimatedDuration?: number;
 }
 
 /**
@@ -32,6 +33,7 @@ export const WorkoutSessionHeader = ({
   customRestTime,
   onTimerSettingsPress,
   onCountdownPress,
+  estimatedDuration,
 }: WorkoutSessionHeaderProps) => {
   const { isDark } = useTheme();
 
@@ -43,6 +45,15 @@ export const WorkoutSessionHeader = ({
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+  };
+
+  // Format estimated duration
+  const formatEstimatedDuration = (seconds: number): string => {
+    const mins = Math.round(seconds / 60);
+    if (mins < 60) return `~${mins} min`;
+    const hours = Math.floor(mins / 60);
+    const remainingMins = mins % 60;
+    return remainingMins > 0 ? `~${hours}h ${remainingMins}m` : `~${hours}h`;
   };
 
   return (
@@ -167,6 +178,18 @@ export const WorkoutSessionHeader = ({
           </Text>
           {isPaused && (
             <Text style={{ marginLeft: 8, fontSize: 12, color: '#F59E0B' }}>PAUSED</Text>
+          )}
+          {/* Estimated duration - show when not started or as comparison */}
+          {estimatedDuration && estimatedDuration > 0 && (
+            <Text
+              style={{
+                marginLeft: 8,
+                fontSize: 12,
+                color: isDark ? '#6B7280' : '#9CA3AF',
+              }}
+            >
+              / {formatEstimatedDuration(estimatedDuration)}
+            </Text>
           )}
         </View>
 

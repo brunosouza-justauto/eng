@@ -245,6 +245,170 @@ const [modalVisible, setModalVisible] = useState(false);
 </Modal>
 ```
 
+### Bottom Sheet Modal Pattern
+
+Use slide-up bottom sheets for selection modals, pickers, and forms. This provides a consistent mobile-native experience.
+
+```typescript
+<Modal
+  visible={visible}
+  transparent
+  animationType="slide"
+  onRequestClose={onClose}
+>
+  <View
+    style={{
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'flex-end',
+    }}
+  >
+    <View
+      style={{
+        backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        height: '90%', // or specific height like 400/500
+        paddingBottom: insets.bottom,
+      }}
+    >
+      {/* Header with title and close button */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 20,
+          borderBottomWidth: 1,
+          borderBottomColor: isDark ? '#374151' : '#E5E7EB',
+        }}
+      >
+        <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#F3F4F6' : '#1F2937' }}>
+          Modal Title
+        </Text>
+        <Pressable
+          onPress={onClose}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: isDark ? '#374151' : '#F3F4F6',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+        </Pressable>
+      </View>
+
+      {/* Content */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
+        {/* Modal content here */}
+      </ScrollView>
+
+      {/* Optional: Action button at bottom */}
+      <View style={{ padding: 20, paddingTop: 12 }}>
+        <Pressable
+          onPress={handleAction}
+          style={{
+            backgroundColor: '#6366F1',
+            borderRadius: 12,
+            paddingVertical: 14,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>
+            Action Button
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  </View>
+</Modal>
+```
+
+Key conventions:
+- `animationType="slide"` for bottom-up animation
+- `borderTopLeftRadius: 24, borderTopRightRadius: 24` for rounded top corners
+- Close button: circular with X icon in top-right
+- Use `useSafeAreaInsets()` for bottom padding
+- Height: `'90%'` for full-height, or specific pixels (400-500) for smaller modals
+
+### Scroll Picker Pattern
+
+Use scroll wheel pickers instead of text inputs for numeric values. This provides better UX on mobile.
+
+```typescript
+const ITEM_HEIGHT = 56;
+const VISIBLE_ITEMS = 5;
+
+<View style={{ height: VISIBLE_ITEMS * ITEM_HEIGHT, position: 'relative' }}>
+  {/* Selection indicator - centered highlight */}
+  <View
+    pointerEvents="none"
+    style={{
+      position: 'absolute',
+      top: Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT,
+      left: 20,
+      right: 20,
+      height: ITEM_HEIGHT,
+      backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)',
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: '#6366F1',
+      zIndex: 1,
+    }}
+  />
+
+  <ScrollView
+    ref={scrollViewRef}
+    showsVerticalScrollIndicator={false}
+    snapToInterval={ITEM_HEIGHT}
+    decelerationRate="fast"
+    onScroll={handleScroll}
+    scrollEventThrottle={16}
+    contentContainerStyle={{
+      paddingVertical: Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT,
+    }}
+  >
+    {options.map((option, index) => (
+      <Pressable
+        key={option.value}
+        onPress={() => handleSelect(option.value)}
+        style={{
+          height: ITEM_HEIGHT,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 24,
+            fontWeight: '600',
+            color: index === selectedIndex ? '#6366F1' : (isDark ? '#F3F4F6' : '#1F2937'),
+          }}
+        >
+          {option.label}
+        </Text>
+      </Pressable>
+    ))}
+  </ScrollView>
+</View>
+```
+
+Key conventions:
+- `ITEM_HEIGHT = 56` for comfortable touch targets
+- `VISIBLE_ITEMS = 5` shows 5 items with center selected
+- `snapToInterval` for snap-to-item scrolling
+- Padding top/bottom = `(VISIBLE_ITEMS / 2) * ITEM_HEIGHT` to center first/last items
+- Selection indicator positioned at exact center
+- Track selected index via scroll position: `Math.round(offsetY / ITEM_HEIGHT)`
+
+Examples in codebase:
+- `RepsPickerModal` - Numeric picker for reps (1-50)
+- `CountdownPickerModal` - Duration picker with labels (30 sec, 1 min, etc.)
+- `RestTimePickerModal` - Rest period selection
+
 ### Custom Picker Component
 
 Use `CustomPicker` instead of the native `@react-native-picker/picker` for dark mode support on Android.
@@ -344,6 +508,88 @@ import { User, Mail, Lock } from 'lucide-react-native';
 <User color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
 ```
 
+## Workout Session Features
+
+The workout session screen (`app/workout-session/[id].tsx`) provides a comprehensive workout tracking experience:
+
+### Core Features
+
+- **Workout Timer**: Tracks total workout duration with pause/resume
+- **Set Tracking**: Mark sets as complete with weight and reps
+- **Rest Timer**: Automatic rest timer between sets with customizable duration
+- **Countdown Timer**: For timed exercises (planks, cardio, etc.)
+- **Session Recovery**: Detects and resumes incomplete workout sessions
+- **Estimated Duration**: Calculates workout time based on sets, rest periods, and exercise types
+
+### Components
+
+| Component | Purpose |
+|-----------|---------|
+| `WorkoutSessionHeader` | Displays timer, progress, and action buttons |
+| `ExerciseCard` | Individual exercise with sets table |
+| `ExerciseGroupContainer` | Wraps supersets/bi-sets/giant sets |
+| `RestTimerBanner` | Shows rest countdown between sets |
+| `CountdownTimerBanner` | Shows countdown for timed exercises |
+| `RepsPickerModal` | Scroll picker for selecting reps |
+| `RestTimePickerModal` | Custom rest time selection |
+| `CountdownPickerModal` | Duration picker for countdown timer |
+| `ExerciseDemoModal` | Exercise demonstration videos |
+| `ExerciseFeedbackModal` | Pain/pump/workload rating after exercises |
+| `PendingSessionModal` | Resume/discard incomplete sessions |
+| `ConfirmationModal` | Reusable confirmation dialogs |
+
+### Hooks
+
+| Hook | Purpose |
+|------|---------|
+| `useWorkoutTimer` | Main workout duration tracking |
+| `useRestTimer` | Rest period countdown with haptic feedback |
+| `useCountdownTimer` | General countdown for timed exercises |
+
+### Exercise Feedback System
+
+Athletes can provide feedback on each exercise:
+- **Pain Level** (1-5): Track discomfort for injury prevention
+- **Pump Level** (1-5): Track muscle engagement
+- **Workload Level** (1-5): Track difficulty for progression
+- **Notes**: Free-form comments
+
+Previous session feedback generates recommendations:
+- High pain → Suggests modifying/replacing exercise
+- Low workload → Suggests increasing weight
+- High workload → Suggests reducing weight for form
+- Low pump → Suggests increasing reps or tempo
+
+### Superset Support
+
+- Exercises with same `group_id` are grouped visually
+- Completing a set propagates to all exercises in the group
+- Rest timer uses the last exercise's rest period (typical superset config)
+- Transition time not counted between grouped exercises
+
+### Estimated Duration Calculation
+
+Factors considered:
+- ~40 seconds per set (regular exercises)
+- Actual duration for time-based exercises (detected by keywords: plank, cardio, bike, treadmill, etc.)
+- Rest periods (custom or per-exercise)
+- ~45 seconds transition between exercises
+- Superset grouping (no transition within groups)
+
+### Previous Session Data
+
+When loading a workout:
+- Pre-fills weights from last completed session
+- Pre-fills reps from last completed session
+- Shows feedback recommendations from previous session
+- Shows previous notes on each exercise
+
+### Android Back Button
+
+- Prevents accidental navigation during active workout
+- Shows confirmation modal instead of navigating back
+- Blocked when pending session modal is visible
+
 ## Backend
 
 The app uses Supabase for:
@@ -352,6 +598,15 @@ The app uses Supabase for:
 - Real-time subscriptions
 
 Configure Supabase credentials in `lib/supabase.ts`.
+
+### Key Tables for Workouts
+
+| Table | Purpose |
+|-------|---------|
+| `workout_sessions` | Tracks workout start/end times |
+| `completed_exercise_sets` | Individual set completions with weight/reps |
+| `exercise_feedback` | Pain/pump/workload ratings per exercise |
+| `exercise_instances` | Exercise definitions within workouts |
 
 ## Related Projects
 

@@ -542,6 +542,80 @@ export default function WorkoutSessionScreen() {
     return groupExercises(workout.exercise_instances);
   }, [workout]);
 
+  // Calculate estimated workout duration
+  const estimatedDuration = useMemo(() => {
+    if (!workout) return 0;
+
+    const AVG_TIME_PER_SET = 40; // seconds for regular exercises
+    const DEFAULT_REST_TIME = 60; // seconds
+    const TRANSITION_TIME = 45; // seconds between exercises
+
+    // Keywords that indicate time-based exercises
+    const TIME_BASED_KEYWORDS = [
+      'plank', 'hold', 'cardio', 'bike', 'treadmill', 'elliptical',
+      'rowing', 'stairmaster', 'walk', 'run', 'jog', 'sprint',
+      'cycle', 'cycling', 'hiit', 'stretch', 'iso', 'isometric',
+      'dead hang', 'hang', 'wall sit', 'farmer'
+    ];
+
+    const isTimeBased = (exerciseName: string): boolean => {
+      const nameLower = exerciseName.toLowerCase();
+      return TIME_BASED_KEYWORDS.some(keyword => nameLower.includes(keyword));
+    };
+
+    let totalSeconds = 0;
+    const exercises = workout.exercise_instances;
+
+    exercises.forEach((exercise, index) => {
+      const setsData = exercise.sets_data || [];
+      const numSets = setsData.length > 0 ? setsData.length : parseInt(exercise.sets || '0', 10);
+      // Use custom rest time if set, otherwise use exercise's rest time or default
+      const restTime = customRestTime !== null
+        ? customRestTime
+        : (exercise.rest_period_seconds || DEFAULT_REST_TIME);
+
+      // Determine time per set based on exercise type
+      let timePerSet = AVG_TIME_PER_SET;
+      if (isTimeBased(exercise.exercise_name)) {
+        // For time-based exercises, use the reps value as seconds
+        // Common formats: "60" (60 sec), "30" (30 sec), etc.
+        const repsValue = parseInt(exercise.reps || '0', 10);
+        if (repsValue > 0) {
+          timePerSet = repsValue; // Treat reps as seconds for time-based exercises
+        } else {
+          timePerSet = 60; // Default 1 minute for time-based if no value
+        }
+      }
+
+      // Time to perform all sets
+      totalSeconds += numSets * timePerSet;
+
+      // Rest time between sets (sets - 1 rest periods per exercise)
+      // But for supersets, only the last exercise has rest
+      if (exercise.group_id) {
+        // Check if this is the last exercise in its group
+        const groupExercises = exercises.filter(e => e.group_id === exercise.group_id);
+        const isLastInGroup = groupExercises[groupExercises.length - 1]?.id === exercise.id;
+        if (isLastInGroup && numSets > 0) {
+          totalSeconds += numSets * restTime; // Rest after each superset round
+        }
+      } else {
+        // Regular exercise - rest between sets
+        if (numSets > 1) {
+          totalSeconds += (numSets - 1) * restTime;
+        }
+      }
+
+      // Transition time (except for exercises in the same group)
+      const nextExercise = exercises[index + 1];
+      if (nextExercise && nextExercise.group_id !== exercise.group_id) {
+        totalSeconds += TRANSITION_TIME;
+      }
+    });
+
+    return totalSeconds;
+  }, [workout, customRestTime]);
+
   // Get the overall index for an exercise (for numbering)
   const getExerciseIndex = (exerciseId: string): number => {
     if (!workout) return 0;
@@ -613,6 +687,7 @@ export default function WorkoutSessionScreen() {
         customRestTime={customRestTime}
         onTimerSettingsPress={() => setShowRestTimePicker(true)}
         onCountdownPress={() => setShowCountdownPicker(true)}
+        estimatedDuration={estimatedDuration}
       />
 
       {/* Countdown Timer Banner */}
