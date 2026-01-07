@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Animated, RefreshControl } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import {
   Dumbbell,
@@ -56,6 +56,7 @@ export default function WorkoutScreen() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [completedDates, setCompletedDates] = useState<CompletedWorkoutDate[]>([]);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Pulse animation for "Click to start workout" badge
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -154,8 +155,15 @@ export default function WorkoutScreen() {
       setError(err.message || 'Failed to load workout data');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    fetchWorkoutData();
+    fetchCalendarData();
+  }, []);
 
   const fetchCalendarData = async () => {
     if (!user?.id) return;
@@ -523,7 +531,59 @@ export default function WorkoutScreen() {
     <ScrollView
       className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
       contentContainerStyle={{ padding: 16 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+        />
+      }
     >
+      {/* Today's Workout Header with View Plan link */}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 12,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Dumbbell size={20} color="#6366F1" />
+          <Text
+            style={{
+              marginLeft: 8,
+              fontSize: 17,
+              fontWeight: '600',
+              color: isDark ? '#F3F4F6' : '#1F2937',
+            }}
+          >
+            Today's Workout
+          </Text>
+        </View>
+
+        {assignment?.program_template_id && (
+          <Pressable
+            onPress={() => router.push(`/workout-plan/${assignment.program_template_id}`)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                color: '#6366F1',
+                fontWeight: '500',
+              }}
+            >
+              View Plan
+            </Text>
+            <ExternalLink size={14} color="#6366F1" style={{ marginLeft: 4 }} />
+          </Pressable>
+        )}
+      </View>
+
       {/* Today's Workout Card */}
       <View
         className={`rounded-2xl p-5 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
@@ -535,25 +595,6 @@ export default function WorkoutScreen() {
           elevation: 3,
         }}
       >
-        {/* Header */}
-        <View className="flex-row justify-between items-center mb-4">
-          <View className="flex-row items-center">
-            <Dumbbell color="#6366F1" size={20} />
-            <Text className={`ml-2 text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Today's Workout
-            </Text>
-          </View>
-          {assignment?.program_template_id && (
-            <Pressable
-              onPress={() => router.push(`/workout-plan/${assignment.program_template_id}`)}
-              className="flex-row items-center"
-            >
-              <Text className="text-indigo-500 text-sm font-medium mr-1">View Plan</Text>
-              <ExternalLink color="#6366F1" size={14} />
-            </Pressable>
-          )}
-        </View>
-
         {isLoading ? (
           <View className="py-10 items-center">
             <ActivityIndicator size="large" color="#6366F1" />

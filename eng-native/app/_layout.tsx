@@ -133,6 +133,12 @@ function AppContent() {
           title: 'Workout History',
         }}
       />
+      <Stack.Screen
+        name="nutrition-plan/[id]"
+        options={{
+          title: 'Nutrition Plan',
+        }}
+      />
     </Stack>
   );
 }

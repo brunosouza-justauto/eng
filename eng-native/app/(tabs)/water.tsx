@@ -1,6 +1,6 @@
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { Droplets, Plus, Minus, Target, AlertCircle } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -9,6 +9,13 @@ export default function WaterScreen() {
   const { isDark } = useTheme();
   const { user } = useAuth();
   const [glasses, setGlasses] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    // TODO: Fetch water intake data
+    setTimeout(() => setIsRefreshing(false), 1000);
+  }, []);
 
   const waterGoal = 8; // glasses
   const glassSize = 250; // ml
@@ -46,6 +53,13 @@ export default function WaterScreen() {
     <ScrollView
       className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
       contentContainerStyle={{ padding: 16 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+        />
+      }
     >
       {/* Today's Water Intake */}
       <View

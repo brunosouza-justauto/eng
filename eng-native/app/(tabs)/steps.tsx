@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { Footprints, Target, TrendingUp, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,6 +8,13 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 export default function StepsScreen() {
   const { isDark } = useTheme();
   const { user } = useAuth();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    // TODO: Fetch steps data
+    setTimeout(() => setIsRefreshing(false), 1000);
+  }, []);
 
   if (!isSupabaseConfigured) {
     return (
@@ -44,6 +52,13 @@ export default function StepsScreen() {
     <ScrollView
       className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
       contentContainerStyle={{ padding: 16 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+        />
+      }
     >
       {/* Today's Steps Card */}
       <View

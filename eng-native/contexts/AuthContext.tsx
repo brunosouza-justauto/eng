@@ -26,10 +26,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch profile from Supabase
-  const fetchProfile = async (userId: string) => {
+  // Fetch profile from Supabase with timeout
+  const fetchProfile = async (userId: string): Promise<ProfileData | null> => {
     try {
       console.log('Fetching profile for user:', userId);
+
       const { data, error, status } = await supabase
         .from('profiles')
         .select('*')
@@ -156,20 +157,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, currentSession) => {
             console.log('Auth state changed:', event, currentSession ? 'has session' : 'no session');
-            if (isMounted) {
-              setSession(currentSession);
-              setUser(currentSession?.user ?? null);
+            if (!isMounted) return;
 
-              // Fetch profile when user logs in
-              if (currentSession?.user) {
+            setSession(currentSession);
+            setUser(currentSession?.user ?? null);
+
+            // Only fetch profile on SIGNED_IN event, not on TOKEN_REFRESHED
+            // TOKEN_REFRESHED happens frequently and we already have the profile
+            if (event === 'SIGNED_IN' && currentSession?.user) {
+              try {
                 const profileData = await fetchProfile(currentSession.user.id);
                 if (isMounted) {
                   setProfile(profileData);
                 }
-              } else {
-                setProfile(null);
+              } catch (error) {
+                console.error('Error fetching profile on sign in:', error);
               }
+            } else if (event === 'SIGNED_OUT') {
+              setProfile(null);
             }
+            // For TOKEN_REFRESHED, we keep the existing profile - no need to refetch
           }
         );
         authSubscription = subscription;

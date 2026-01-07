@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, ScrollView, Pressable, Switch, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, Switch, Modal, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
 import { User, Moon, Bell, LogOut, ChevronRight, Mail, AlertCircle, Lock, X, Eye, EyeOff, UserCog } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -8,7 +8,16 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export default function ProfileScreen() {
   const { isDark, toggleTheme } = useTheme();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, refreshProfile } = useAuth();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    if (refreshProfile) {
+      await refreshProfile();
+    }
+    setIsRefreshing(false);
+  }, [refreshProfile]);
 
   // Change password modal state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -153,6 +162,13 @@ export default function ProfileScreen() {
       <ScrollView
         className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
         contentContainerStyle={{ padding: 16 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+          />
+        }
       >
         {/* Profile Card */}
         <View

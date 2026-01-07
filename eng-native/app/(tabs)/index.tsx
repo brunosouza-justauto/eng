@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
-import { Calendar, Dumbbell, Utensils, Pill, Footprints, Droplets, ClipboardCheck } from 'lucide-react-native';
+import { Calendar, Dumbbell, Utensils, Pill, Footprints, Droplets, ClipboardCheck, Sparkles } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -15,6 +15,7 @@ export default function HomeScreen() {
   const [mealsLogged, setMealsLogged] = useState(0);
   const [stepsCount, setStepsCount] = useState(0);
   const [waterIntake, setWaterIntake] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch today's stats on focus
   useFocusEffect(
@@ -44,13 +45,30 @@ export default function HomeScreen() {
         setWorkoutsCompleted(workouts.length);
       }
 
-      // TODO: Fetch meals logged today
+      // Fetch meals logged today
+      const { data: meals, error: mealsError } = await supabase
+        .from('meal_logs')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('date', today);
+
+      if (!mealsError && meals) {
+        setMealsLogged(meals.length);
+      }
+
       // TODO: Fetch steps today
       // TODO: Fetch water intake today
     } catch (err) {
       console.error('Error fetching today stats:', err);
+    } finally {
+      setIsRefreshing(false);
     }
   };
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    fetchTodaysStats();
+  }, []);
 
   // Get display name
   const getDisplayName = () => {
@@ -106,12 +124,22 @@ export default function HomeScreen() {
     <ScrollView
       className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
       contentContainerStyle={{ padding: 16 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+        />
+      }
     >
       {/* Welcome Section */}
       <View className="mb-6">
-        <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Welcome back, {getDisplayName()}!
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Dumbbell size={24} color="#6366F1" style={{ marginRight: 8 }} />
+          <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Welcome back, {getDisplayName()}!
+          </Text>
+        </View>
         <Text className={`text-base mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
           Let's crush today's goals
         </Text>
@@ -143,19 +171,19 @@ export default function HomeScreen() {
             </Text>
           </View>
           <View className="items-center flex-1">
-            <Text className="text-green-500 text-2xl font-bold">0</Text>
+            <Text className="text-green-500 text-2xl font-bold">{mealsLogged}</Text>
             <Text className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               Meals
             </Text>
           </View>
           <View className="items-center flex-1">
-            <Text className="text-blue-500 text-2xl font-bold">0</Text>
+            <Text className="text-blue-500 text-2xl font-bold">{stepsCount}</Text>
             <Text className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               Steps
             </Text>
           </View>
           <View className="items-center flex-1">
-            <Text className="text-cyan-500 text-2xl font-bold">0</Text>
+            <Text className="text-cyan-500 text-2xl font-bold">{waterIntake}</Text>
             <Text className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               Water
             </Text>
