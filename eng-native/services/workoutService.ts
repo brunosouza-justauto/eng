@@ -265,3 +265,344 @@ export const getFullProgram = async (
     return { program: null, error: err.message };
   }
 };
+
+// =============================================================================
+// WORKOUT SESSION FUNCTIONS
+// =============================================================================
+
+/**
+ * Get a single workout with all exercise instances
+ * @param workoutId The workout ID
+ * @returns The workout with exercises
+ */
+export const getWorkoutById = async (
+  workoutId: string
+): Promise<{ workout: WorkoutData | null; error?: string }> => {
+  try {
+    const { data, error } = await supabase
+      .from('workouts')
+      .select(`
+        id,
+        name,
+        day_of_week,
+        week_number,
+        order_in_program,
+        description,
+        exercise_instances (
+          id,
+          exercise_db_id,
+          exercise_name,
+          sets,
+          reps,
+          rest_period_seconds,
+          tempo,
+          notes,
+          order_in_workout,
+          set_type,
+          sets_data,
+          group_id,
+          group_type,
+          group_order,
+          is_bodyweight,
+          each_side
+        )
+      `)
+      .eq('id', workoutId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching workout:', error);
+      return { workout: null, error: error.message };
+    }
+
+    // Sort exercises by order
+    if (data?.exercise_instances) {
+      data.exercise_instances.sort(
+        (a: any, b: any) => (a.order_in_workout ?? 0) - (b.order_in_workout ?? 0)
+      );
+    }
+
+    return { workout: data as WorkoutData };
+  } catch (err: any) {
+    console.error('Error in getWorkoutById:', err);
+    return { workout: null, error: err.message };
+  }
+};
+
+/**
+ * Start a new workout session
+ * @param workoutId The workout ID
+ * @param userId The user's auth ID
+ * @returns The created session ID
+ */
+export const startWorkoutSession = async (
+  workoutId: string,
+  userId: string
+): Promise<{ sessionId: string | null; error?: string }> => {
+  try {
+    const { data, error } = await supabase
+      .from('workout_sessions')
+      .insert({
+        workout_id: workoutId,
+        user_id: userId,
+        start_time: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error starting workout session:', error);
+      return { sessionId: null, error: error.message };
+    }
+
+    return { sessionId: data.id };
+  } catch (err: any) {
+    console.error('Error in startWorkoutSession:', err);
+    return { sessionId: null, error: err.message };
+  }
+};
+
+/**
+ * Complete a workout session
+ * @param sessionId The session ID
+ * @param durationSeconds Total duration in seconds
+ * @returns Success status
+ */
+export const completeWorkoutSession = async (
+  sessionId: string,
+  durationSeconds: number
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('workout_sessions')
+      .update({
+        end_time: new Date().toISOString(),
+        duration_seconds: durationSeconds,
+      })
+      .eq('id', sessionId);
+
+    if (error) {
+      console.error('Error completing workout session:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error in completeWorkoutSession:', err);
+    return { success: false, error: err.message };
+  }
+};
+
+/**
+ * Cancel a workout session (delete session and completed sets)
+ * @param sessionId The session ID
+ * @returns Success status
+ */
+export const cancelWorkoutSession = async (
+  sessionId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // Delete completed sets first
+    await supabase
+      .from('completed_exercise_sets')
+      .delete()
+      .eq('workout_session_id', sessionId);
+
+    // Delete the session
+    const { error } = await supabase
+      .from('workout_sessions')
+      .delete()
+      .eq('id', sessionId);
+
+    if (error) {
+      console.error('Error canceling workout session:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error in cancelWorkoutSession:', err);
+    return { success: false, error: err.message };
+  }
+};
+
+/**
+ * Save a completed set
+ * @param sessionId The session ID
+ * @param exerciseInstanceId The exercise instance ID
+ * @param setOrder The set order (1-based)
+ * @param weight Weight used (null for bodyweight)
+ * @param reps Number of reps performed
+ * @returns Success status
+ */
+export const saveCompletedSet = async (
+  sessionId: string,
+  exerciseInstanceId: string,
+  setOrder: number,
+  weight: number | null,
+  reps: number
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase.from('completed_exercise_sets').upsert({
+      workout_session_id: sessionId,
+      exercise_instance_id: exerciseInstanceId,
+      set_order: setOrder,
+      weight: weight,
+      reps: reps,
+      is_completed: true,
+    });
+
+    if (error) {
+      console.error('Error saving completed set:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error in saveCompletedSet:', err);
+    return { success: false, error: err.message };
+  }
+};
+
+/**
+ * Remove a completed set (uncomplete)
+ * @param sessionId The session ID
+ * @param exerciseInstanceId The exercise instance ID
+ * @param setOrder The set order (1-based)
+ * @returns Success status
+ */
+export const removeCompletedSet = async (
+  sessionId: string,
+  exerciseInstanceId: string,
+  setOrder: number
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('completed_exercise_sets')
+      .delete()
+      .eq('workout_session_id', sessionId)
+      .eq('exercise_instance_id', exerciseInstanceId)
+      .eq('set_order', setOrder);
+
+    if (error) {
+      console.error('Error removing completed set:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error in removeCompletedSet:', err);
+    return { success: false, error: err.message };
+  }
+};
+
+// =============================================================================
+// SESSION RECOVERY FUNCTIONS
+// =============================================================================
+
+export interface PendingSession {
+  id: string;
+  workoutId: string;
+  startTime: string;
+  isFromToday: boolean;
+}
+
+export interface CompletedSetRecord {
+  exerciseInstanceId: string;
+  setOrder: number;
+  weight: number | null;
+  reps: number;
+}
+
+/**
+ * Check for an incomplete (pending) session for a workout
+ * @param workoutId The workout ID
+ * @param userId The user's auth ID
+ * @returns The pending session if found, with info about whether it's from today
+ */
+export const getPendingSession = async (
+  workoutId: string,
+  userId: string
+): Promise<{ session: PendingSession | null; error?: string }> => {
+  try {
+    const { data, error } = await supabase
+      .from('workout_sessions')
+      .select('id, workout_id, start_time')
+      .eq('workout_id', workoutId)
+      .eq('user_id', userId)
+      .is('end_time', null)
+      .order('start_time', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error('Error checking pending session:', error);
+      return { session: null, error: error.message };
+    }
+
+    if (!data || data.length === 0) {
+      return { session: null };
+    }
+
+    const sessionData = data[0];
+    const sessionDate = new Date(sessionData.start_time).toDateString();
+    const today = new Date().toDateString();
+    const isFromToday = sessionDate === today;
+
+    return {
+      session: {
+        id: sessionData.id,
+        workoutId: sessionData.workout_id,
+        startTime: sessionData.start_time,
+        isFromToday,
+      },
+    };
+  } catch (err: any) {
+    console.error('Error in getPendingSession:', err);
+    return { session: null, error: err.message };
+  }
+};
+
+/**
+ * Get all completed sets for a session
+ * @param sessionId The session ID
+ * @returns Array of completed set records
+ */
+export const getCompletedSetsForSession = async (
+  sessionId: string
+): Promise<{ sets: CompletedSetRecord[]; error?: string }> => {
+  try {
+    const { data, error } = await supabase
+      .from('completed_exercise_sets')
+      .select('exercise_instance_id, set_order, weight, reps')
+      .eq('workout_session_id', sessionId)
+      .eq('is_completed', true);
+
+    if (error) {
+      console.error('Error fetching completed sets:', error);
+      return { sets: [], error: error.message };
+    }
+
+    const sets: CompletedSetRecord[] = (data || []).map((row) => ({
+      exerciseInstanceId: row.exercise_instance_id,
+      setOrder: row.set_order,
+      weight: row.weight,
+      reps: row.reps,
+    }));
+
+    return { sets };
+  } catch (err: any) {
+    console.error('Error in getCompletedSetsForSession:', err);
+    return { sets: [], error: err.message };
+  }
+};
+
+/**
+ * Delete a pending session and its completed sets
+ * @param sessionId The session ID
+ * @returns Success status
+ */
+export const deletePendingSession = async (
+  sessionId: string
+): Promise<{ success: boolean; error?: string }> => {
+  return cancelWorkoutSession(sessionId);
+};

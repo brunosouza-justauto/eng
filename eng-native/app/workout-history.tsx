@@ -6,13 +6,13 @@ import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
-  Modal
 } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Calendar, Clock, CheckCircle, ChevronDown, ChevronUp, Trash2, Dumbbell } from 'lucide-react-native';
 import { cleanExerciseName } from '../types/workout';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const PAGE_SIZE = 5;
 
@@ -736,107 +736,17 @@ export default function WorkoutHistoryScreen() {
       />
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      <ConfirmationModal
         visible={deleteModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={cancelDelete}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 20,
-          }}
-        >
-          <View
-            style={{
-              width: '100%',
-              maxWidth: 340,
-              backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-              borderRadius: 16,
-              padding: 24,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: '600',
-                color: isDark ? '#F3F4F6' : '#1F2937',
-                marginBottom: 12,
-              }}
-            >
-              Delete Workout Session
-            </Text>
-            <Text
-              style={{
-                fontSize: 14,
-                color: isDark ? '#9CA3AF' : '#6B7280',
-                marginBottom: 24,
-                lineHeight: 20,
-              }}
-            >
-              Are you sure you want to delete "{sessionToDelete?.workout_name}"? This action cannot be undone.
-            </Text>
-
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <Pressable
-                onPress={cancelDelete}
-                disabled={isDeleting}
-                style={{
-                  flex: 1,
-                  height: 48,
-                  borderRadius: 10,
-                  borderWidth: 1.5,
-                  borderColor: isDark ? '#4B5563' : '#D1D5DB',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: '600',
-                    color: isDark ? '#D1D5DB' : '#374151',
-                  }}
-                >
-                  Cancel
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={confirmDelete}
-                disabled={isDeleting}
-                style={{
-                  flex: 1,
-                  height: 48,
-                  borderRadius: 10,
-                  backgroundColor: '#EF4444',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: isDeleting ? 0.7 : 1,
-                }}
-              >
-                {isDeleting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: '600',
-                      color: '#FFFFFF',
-                    }}
-                  >
-                    Delete
-                  </Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        title="Delete Workout Session"
+        message={`Are you sure you want to delete "${sessionToDelete?.workout_name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmColor="red"
+        isLoading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
     </View>
   );
 }

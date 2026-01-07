@@ -22,20 +22,35 @@ npx expo run:ios
 
 ```
 eng-native/
-├── app/                    # Expo Router screens
-│   ├── (tabs)/            # Tab navigation screens
-│   ├── _layout.tsx        # Root layout with auth
-│   ├── login.tsx          # Login/Register screen
-│   └── onboarding.tsx     # Onboarding wizard
-├── components/            # Reusable components
-│   └── CustomPicker.tsx   # Dark-mode aware picker
-├── contexts/              # React contexts
-│   ├── AuthContext.tsx    # Authentication state
-│   └── ThemeContext.tsx   # Theme (dark/light mode)
-├── lib/                   # External service configs
-│   └── supabase.ts        # Supabase client
-└── types/                 # TypeScript types
-    └── profile.ts         # Profile data types
+├── app/                        # Expo Router screens
+│   ├── (tabs)/                # Tab navigation screens
+│   │   ├── index.tsx          # Home dashboard
+│   │   ├── workout.tsx        # Workout dashboard
+│   │   ├── nutrition.tsx      # Nutrition tab
+│   │   └── profile.tsx        # Profile tab
+│   ├── workout-plan/
+│   │   └── [id].tsx           # View workout plan details
+│   ├── workout-session/
+│   │   └── [id].tsx           # Active workout session
+│   ├── workout-history.tsx    # Workout history with infinite scroll
+│   ├── _layout.tsx            # Root layout with auth
+│   ├── login.tsx              # Login/Register screen
+│   ├── onboarding.tsx         # Onboarding wizard
+│   └── edit-profile.tsx       # Edit profile screen
+├── components/                # Reusable components
+│   └── CustomPicker.tsx       # Dark-mode aware picker
+├── contexts/                  # React contexts
+│   ├── AuthContext.tsx        # Authentication state
+│   └── ThemeContext.tsx       # Theme (dark/light mode)
+├── lib/                       # External service configs
+│   └── supabase.ts            # Supabase client
+├── services/                  # API/business logic
+│   └── workoutService.ts      # Workout data fetching
+├── types/                     # TypeScript types
+│   ├── profile.ts             # Profile data types
+│   └── workout.ts             # Workout/exercise types
+└── database/                  # Database documentation
+    └── README.md              # Schema reference
 ```
 
 ## Coding Patterns & Standards
@@ -126,6 +141,21 @@ const { isDark } = useTheme();
 <Text className={isDark ? 'text-white' : 'text-gray-900'}>
 ```
 
+#### Inline Styles for Reliability
+
+Some NativeWind/Tailwind classes don't work reliably in React Native (e.g., `gap`, `self-start`, opacity modifiers like `bg-indigo-900/30`). Use inline styles for critical styling:
+
+```typescript
+// Instead of className="gap-4" or className="bg-indigo-500/20"
+<View style={{
+  gap: 16,
+  backgroundColor: 'rgba(99, 102, 241, 0.2)'
+}}>
+
+// For padding/margin that must work
+<View style={{ paddingTop: 20, paddingBottom: 20, paddingLeft: 20, paddingRight: 20 }}>
+```
+
 #### Common Dark Mode Classes:
 - Background: `bg-gray-900` (dark) / `bg-gray-50` (light)
 - Card: `bg-gray-800` (dark) / `bg-white` (light)
@@ -133,6 +163,87 @@ const { isDark } = useTheme();
 - Text primary: `text-white` (dark) / `text-gray-900` (light)
 - Text secondary: `text-gray-400` (dark) / `text-gray-500` (light)
 - Text muted: `text-gray-500` (dark) / `text-gray-400` (light)
+
+### Custom Confirmation Modal
+
+The native `Alert` component doesn't support dark mode styling. Use a custom `Modal` for confirmations that need to match the app theme:
+
+```typescript
+import { Modal } from 'react-native';
+
+const [modalVisible, setModalVisible] = useState(false);
+
+<Modal
+  visible={modalVisible}
+  transparent
+  animationType="fade"
+  onRequestClose={() => setModalVisible(false)}
+>
+  <View
+    style={{
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    }}
+  >
+    <View
+      style={{
+        width: '100%',
+        maxWidth: 340,
+        backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+        borderRadius: 16,
+        padding: 24,
+      }}
+    >
+      <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#F3F4F6' : '#1F2937', marginBottom: 12 }}>
+        Modal Title
+      </Text>
+      <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 24 }}>
+        Modal message content here.
+      </Text>
+
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        {/* Cancel Button (outline) */}
+        <Pressable
+          onPress={() => setModalVisible(false)}
+          style={{
+            flex: 1,
+            height: 48,
+            borderRadius: 10,
+            borderWidth: 1.5,
+            borderColor: isDark ? '#4B5563' : '#D1D5DB',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#D1D5DB' : '#374151' }}>
+            Cancel
+          </Text>
+        </Pressable>
+
+        {/* Confirm Button (solid - use red for destructive actions) */}
+        <Pressable
+          onPress={handleConfirm}
+          style={{
+            flex: 1,
+            height: 48,
+            borderRadius: 10,
+            backgroundColor: '#EF4444', // or '#6366F1' for non-destructive
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>
+            Confirm
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  </View>
+</Modal>
+```
 
 ### Custom Picker Component
 
