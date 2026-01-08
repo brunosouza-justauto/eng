@@ -4,6 +4,7 @@ import { Pill, Clock, AlertCircle, Check, Flame, CheckCheck } from 'lucide-react
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
   getTodaysSupplements,
@@ -22,30 +23,57 @@ import {
   DailySupplementSummary,
   SupplementGroupBySchedule,
   CATEGORY_COLORS,
+  SupplementSchedule,
 } from '../../types/supplements';
 import { getLocalDateString } from '../../utils/date';
+import {
+  getSupplementReminderStatus,
+  getScheduleTimeConfig,
+  formatTimeForDisplay,
+  ReminderStatus,
+} from '../../utils/supplementReminders';
+import { ProfileData } from '../../types/profile';
 
 // Reminder Banner Component
 function ReminderBanner({
-  count,
+  groups,
+  profile,
   isDark,
 }: {
-  count: number;
+  groups: SupplementGroupBySchedule[];
+  profile: ProfileData | null;
   isDark: boolean;
 }) {
-  if (count === 0) return null;
+  // Find groups that are due or overdue with untaken supplements
+  const urgentGroups = groups.filter((group) => {
+    if (group.taken === group.total) return false; // All taken
+    const status = getSupplementReminderStatus(
+      group.schedule as SupplementSchedule,
+      false,
+      profile
+    );
+    return status === 'due' || status === 'overdue';
+  });
 
-  const hour = new Date().getHours();
-  let timeOfDay = 'now';
-  if (hour >= 5 && hour < 12) timeOfDay = 'this morning';
-  else if (hour >= 12 && hour < 17) timeOfDay = 'this afternoon';
-  else if (hour >= 17 && hour < 21) timeOfDay = 'this evening';
-  else timeOfDay = 'before bed';
+  if (urgentGroups.length === 0) return null;
+
+  // Count total urgent supplements
+  const urgentCount = urgentGroups.reduce((sum, g) => sum + (g.total - g.taken), 0);
+
+  // Get the most urgent group (first overdue, then first due)
+  const overdueGroups = urgentGroups.filter((g) =>
+    getSupplementReminderStatus(g.schedule as SupplementSchedule, false, profile) === 'overdue'
+  );
+  const mostUrgent = overdueGroups[0] || urgentGroups[0];
+  const isOverdue = overdueGroups.length > 0;
+
+  const config = getScheduleTimeConfig(mostUrgent.schedule as SupplementSchedule, profile);
+  const timeLabel = formatTimeForDisplay(config.expectedTime);
 
   return (
     <View
       style={{
-        backgroundColor: '#FEF3C7',
+        backgroundColor: isOverdue ? '#FEE2E2' : '#FEF3C7',
         borderRadius: 12,
         padding: 14,
         marginBottom: 16,
@@ -53,18 +81,29 @@ function ReminderBanner({
         alignItems: 'center',
       }}
     >
-      <Pill size={20} color="#D97706" />
-      <Text
-        style={{
-          flex: 1,
-          marginLeft: 10,
-          fontSize: 14,
-          fontWeight: '500',
-          color: '#92400E',
-        }}
-      >
-        You have {count} supplement{count > 1 ? 's' : ''} to take {timeOfDay}
-      </Text>
+      <Pill size={20} color={isOverdue ? '#DC2626' : '#D97706'} />
+      <View style={{ flex: 1, marginLeft: 10 }}>
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '600',
+            color: isOverdue ? '#991B1B' : '#92400E',
+          }}
+        >
+          {isOverdue
+            ? `${urgentCount} supplement${urgentCount > 1 ? 's' : ''} overdue!`
+            : `${urgentCount} supplement${urgentCount > 1 ? 's' : ''} to take now`}
+        </Text>
+        <Text
+          style={{
+            fontSize: 12,
+            color: isOverdue ? '#B91C1C' : '#B45309',
+            marginTop: 2,
+          }}
+        >
+          {mostUrgent.schedule} supplements were due at {timeLabel}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -148,6 +187,7 @@ function TodaySupplementItem({
 function ScheduleGroupCard({
   group,
   isDark,
+  profile,
   onToggleSupplement,
   onMarkAllTaken,
   togglingIds,
@@ -155,6 +195,7 @@ function ScheduleGroupCard({
 }: {
   group: SupplementGroupBySchedule;
   isDark: boolean;
+  profile: ProfileData | null;
   onToggleSupplement: (supplement: TodaysSupplement) => void;
   onMarkAllTaken: (group: SupplementGroupBySchedule) => void;
   togglingIds: Set<string>;
@@ -163,6 +204,24 @@ function ScheduleGroupCard({
   const allTaken = group.taken === group.total;
   const hasUnloggedSupplements = group.supplements.some(s => !s.isLogged);
 
+  // Get reminder status for this group
+  const reminderStatus = getSupplementReminderStatus(
+    group.schedule as SupplementSchedule,
+    allTaken,
+    profile
+  );
+  const config = getScheduleTimeConfig(group.schedule as SupplementSchedule, profile);
+  const expectedTime = formatTimeForDisplay(config.expectedTime);
+
+  // Status colors
+  const statusColors: Record<ReminderStatus, { bg: string; text: string; icon: string }> = {
+    taken: { bg: '#DCFCE7', text: '#166534', icon: '#22C55E' },
+    overdue: { bg: '#FEE2E2', text: '#991B1B', icon: '#DC2626' },
+    due: { bg: '#FEF3C7', text: '#92400E', icon: '#D97706' },
+    upcoming: { bg: isDark ? '#374151' : '#F3F4F6', text: isDark ? '#9CA3AF' : '#6B7280', icon: '#6366F1' },
+  };
+  const statusStyle = statusColors[reminderStatus];
+
   return (
     <View
       style={{
@@ -170,14 +229,18 @@ function ScheduleGroupCard({
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
-        borderWidth: 1,
-        borderColor: isDark ? '#374151' : '#E5E7EB',
+        borderWidth: reminderStatus === 'overdue' ? 2 : 1,
+        borderColor: reminderStatus === 'overdue'
+          ? '#FCA5A5'
+          : reminderStatus === 'due'
+          ? '#FCD34D'
+          : isDark ? '#374151' : '#E5E7EB',
       }}
     >
       {/* Group Header */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <Clock size={16} color="#6366F1" />
+          <Clock size={16} color={statusStyle.icon} />
           <Text
             style={{
               marginLeft: 8,
@@ -188,15 +251,31 @@ function ScheduleGroupCard({
           >
             {group.schedule}
           </Text>
-          <Text
+          <View
             style={{
               marginLeft: 8,
-              fontSize: 12,
-              color: isDark ? '#6B7280' : '#9CA3AF',
+              backgroundColor: statusStyle.bg,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderRadius: 10,
             }}
           >
-            ({getScheduleDisplayText(group.schedule)})
-          </Text>
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '500',
+                color: statusStyle.text,
+              }}
+            >
+              {reminderStatus === 'taken'
+                ? 'Done'
+                : reminderStatus === 'overdue'
+                ? `Overdue (${expectedTime})`
+                : reminderStatus === 'due'
+                ? `Due now`
+                : expectedTime}
+            </Text>
+          </View>
         </View>
 
         {/* Progress Badge */}
@@ -352,7 +431,8 @@ function WeeklyDayBar({
 
 export default function SupsScreen() {
   const { isDark } = useTheme();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const { refreshReminders } = useNotifications();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -439,6 +519,8 @@ export default function SupsScreen() {
         await logSupplementTaken(user.id, supplement.id);
       }
       await loadSupplements();
+      // Refresh notification reminders to update the bell badge
+      refreshReminders();
     } catch (err) {
       console.error('Error toggling supplement:', err);
     } finally {
@@ -448,7 +530,7 @@ export default function SupsScreen() {
         return next;
       });
     }
-  }, [user?.id, loadSupplements]);
+  }, [user?.id, loadSupplements, refreshReminders]);
 
   // Handle mark all as taken for a group
   const handleMarkAllTaken = useCallback(async (group: SupplementGroupBySchedule) => {
@@ -465,12 +547,14 @@ export default function SupsScreen() {
     try {
       await logMultipleSupplements(user.id, unloggedIds);
       await loadSupplements();
+      // Refresh notification reminders to update the bell badge
+      refreshReminders();
     } catch (err) {
       console.error('Error marking all supplements:', err);
     } finally {
       setMarkingAllSchedule(null);
     }
-  }, [user?.id, loadSupplements]);
+  }, [user?.id, loadSupplements, refreshReminders]);
 
   // Refresh handler
   const handleRefresh = useCallback(() => {
@@ -631,8 +715,8 @@ export default function SupsScreen() {
         />
       }
     >
-      {/* Reminder Banner */}
-      <ReminderBanner count={unloggedCount} isDark={isDark} />
+      {/* Reminder Banner - shows when supplements are due/overdue based on user's schedule */}
+      <ReminderBanner groups={groupedSupplements} profile={profile} isDark={isDark} />
 
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -677,6 +761,7 @@ export default function SupsScreen() {
           key={group.schedule}
           group={group}
           isDark={isDark}
+          profile={profile}
           onToggleSupplement={handleToggleSupplement}
           onMarkAllTaken={handleMarkAllTaken}
           togglingIds={togglingIds}

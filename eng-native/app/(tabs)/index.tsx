@@ -1,17 +1,20 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, RefreshControl } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import { Dumbbell, Utensils, Pill, Footprints, Droplets, ClipboardCheck, Zap } from 'lucide-react-native';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { View, Text, ScrollView, RefreshControl, Pressable } from 'react-native';
+import { useFocusEffect, Link } from 'expo-router';
+import { Dumbbell, Utensils, Pill, Footprints, Droplets, ClipboardCheck, Zap, AlertTriangle } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { getLocalDateString, getCurrentDayOfWeek } from '../../utils/date';
 import { getGreeting, getMotivationalMessage, getStreakMessage } from '../../utils/motivationalMessages';
 import { getTodaysSupplements } from '../../services/supplementService';
+import { getDaysSinceLastCheckIn } from '../../services/checkinService';
+import { getWorkoutReminderStatus, getTrainingTime, formatTimeForDisplay, WorkoutReminderStatus } from '../../utils/supplementReminders';
 import CircularProgress from '../../components/home/CircularProgress';
 import DailyTaskCard from '../../components/home/DailyTaskCard';
 import StreakCounter from '../../components/home/StreakCounter';
 import CelebrationOverlay from '../../components/home/CelebrationOverlay';
+import SkeletonCard from '../../components/home/SkeletonCard';
 
 export default function HomeScreen() {
   const { isDark } = useTheme();
@@ -28,10 +31,14 @@ export default function HomeScreen() {
   const [waterGoal, setWaterGoal] = useState(2500);
   const [supplementsTaken, setSupplementsTaken] = useState(0);
   const [supplementsTotal, setSupplementsTotal] = useState(0);
+  const [checkInStatus, setCheckInStatus] = useState<'complete' | 'todo' | 'overdue'>('todo');
+  const [daysSinceCheckIn, setDaysSinceCheckIn] = useState<number | null>(null);
   const [streak, setStreak] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const prevAllGoalsMet = useRef(false);
+  const hasLoadedOnce = useRef(false);
 
   // Calculate goal completion
   const workoutGoalMet = hasWorkoutToday ? workoutsCompleted > 0 : true; // If no workout scheduled, consider it met
@@ -73,6 +80,13 @@ export default function HomeScreen() {
 
   const overallProgress = calculateOverallProgress();
   const allGoalsMet = overallProgress === 100;
+
+  // Calculate workout reminder status based on user's training time
+  const workoutReminderStatus = useMemo(() => {
+    return getWorkoutReminderStatus(hasWorkoutToday, workoutsCompleted > 0, profile);
+  }, [hasWorkoutToday, workoutsCompleted, profile]);
+
+  const trainingTime = useMemo(() => getTrainingTime(profile), [profile]);
 
   // Show celebration when all goals are met for the first time
   useEffect(() => {
@@ -292,10 +306,29 @@ export default function HomeScreen() {
         setSupplementsTotal(todaysSupplements.length);
         setSupplementsTaken(todaysSupplements.filter(s => s.isLogged).length);
       }
+
+      // Fetch check-in status
+      const { days } = await getDaysSinceLastCheckIn(user.id);
+      setDaysSinceCheckIn(days);
+      if (days === null) {
+        // Never done a check-in
+        setCheckInStatus('todo');
+      } else if (days <= 7) {
+        // Check-in within last 7 days
+        setCheckInStatus('complete');
+      } else {
+        // More than 7 days since last check-in
+        setCheckInStatus('overdue');
+      }
     } catch (err) {
       console.error('Error fetching today stats:', err);
     } finally {
       setIsRefreshing(false);
+      // Only set loading false on first load
+      if (!hasLoadedOnce.current) {
+        hasLoadedOnce.current = true;
+        setIsLoading(false);
+      }
     }
   };
 
@@ -382,6 +415,35 @@ export default function HomeScreen() {
           />
         }
       >
+        {/* Workout Overdue Reminder Banner */}
+        {workoutReminderStatus === 'overdue' && (
+          <Link href="/(tabs)/workout" asChild>
+            <Pressable
+              style={{
+                backgroundColor: '#FEE2E2',
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: '#FECACA',
+              }}
+            >
+              <AlertTriangle size={20} color="#DC2626" />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#991B1B' }}>
+                  Workout overdue!
+                </Text>
+                <Text style={{ fontSize: 12, color: '#B91C1C', marginTop: 2 }}>
+                  Your training was scheduled for {trainingTime}. Tap to start!
+                </Text>
+              </View>
+              <Dumbbell size={20} color="#DC2626" />
+            </Pressable>
+          </Link>
+        )}
+
         {/* Header with Greeting and Streak */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <View style={{ flex: 1, marginRight: 12 }}>
@@ -396,40 +458,43 @@ export default function HomeScreen() {
         </View>
 
         {/* Progress Ring Card */}
-        <View
-          className={`rounded-2xl p-6 mb-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-          style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: isDark ? 0.4 : 0.15,
-            shadowRadius: 12,
-            elevation: 5,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {/* Progress Ring */}
-            <CircularProgress progress={overallProgress} size={140} strokeWidth={12}>
-              <View style={{ alignItems: 'center' }}>
-                <Text
-                  style={{
-                    fontSize: 36,
-                    fontWeight: '800',
-                    color: allGoalsMet ? '#22C55E' : isDark ? '#F3F4F6' : '#1F2937',
-                  }}
-                >
-                  {overallProgress}%
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: isDark ? '#9CA3AF' : '#6B7280',
-                    marginTop: -2,
-                  }}
-                >
-                  complete
-                </Text>
-              </View>
-            </CircularProgress>
+        {isLoading ? (
+          <SkeletonCard variant="progress" />
+        ) : (
+          <View
+            className={`rounded-2xl p-6 mb-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: isDark ? 0.4 : 0.15,
+              shadowRadius: 12,
+              elevation: 5,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {/* Progress Ring */}
+              <CircularProgress progress={overallProgress} size={140} strokeWidth={12}>
+                <View style={{ alignItems: 'center' }}>
+                  <Text
+                    style={{
+                      fontSize: 36,
+                      fontWeight: '800',
+                      color: allGoalsMet ? '#22C55E' : isDark ? '#F3F4F6' : '#1F2937',
+                    }}
+                  >
+                    {overallProgress}%
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: isDark ? '#9CA3AF' : '#6B7280',
+                      marginTop: -2,
+                    }}
+                  >
+                    complete
+                  </Text>
+                </View>
+              </CircularProgress>
 
             {/* Stats Summary */}
             <View style={{ flex: 1, marginLeft: 24 }}>
@@ -467,58 +532,89 @@ export default function HomeScreen() {
                 {getStreakMessage(streak, 'secondary')}
               </Text>
             </View>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Section Header */}
         <Text className={`text-lg font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           Today's Goals
         </Text>
 
-        {/* Task Cards */}
-        {tasks.filter(t => t.show).map((task, index) => (
-          <DailyTaskCard
-            key={index}
-            title={task.title}
-            subtitle={task.subtitle}
-            icon={task.icon}
-            color={task.color}
-            progress={task.progress}
-            current={task.current}
-            goal={task.goal}
-            isComplete={task.isComplete}
-            href={task.href}
-          />
-        ))}
+        {/* Task Cards - Show skeletons while loading */}
+        {isLoading ? (
+          <>
+            <SkeletonCard variant="task" />
+            <SkeletonCard variant="task" />
+            <SkeletonCard variant="task" />
+            <SkeletonCard variant="task" />
+          </>
+        ) : (
+          tasks.filter(t => t.show).map((task, index) => (
+            <DailyTaskCard
+              key={index}
+              title={task.title}
+              subtitle={task.subtitle}
+              icon={task.icon}
+              color={task.color}
+              progress={task.progress}
+              current={task.current}
+              goal={task.goal}
+              isComplete={task.isComplete}
+              href={task.href}
+            />
+          ))
+        )}
 
         {/* Quick Links */}
         <Text className={`text-lg font-semibold mt-4 mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           More
         </Text>
 
-        <DailyTaskCard
-          title="Supplements"
-          subtitle={supplementsTotal > 0 ? "Track your daily supplements" : "No supplements assigned"}
-          icon={Pill}
-          color="#8B5CF6"
-          progress={supplementsTotal > 0 ? Math.round((supplementsTaken / supplementsTotal) * 100) : 0}
-          current={supplementsTotal > 0 ? supplementsTaken.toString() : "—"}
-          goal={supplementsTotal > 0 ? supplementsTotal.toString() : "—"}
-          isComplete={supplementsTotal > 0 && supplementsTaken === supplementsTotal}
-          href="/(tabs)/sups"
-        />
+        {isLoading ? (
+          <>
+            <SkeletonCard variant="task" />
+            <SkeletonCard variant="task" />
+          </>
+        ) : (
+          <>
+            <DailyTaskCard
+              title="Supplements"
+              subtitle={supplementsTotal > 0 ? "Track your daily supplements" : "No supplements assigned"}
+              icon={Pill}
+              color="#8B5CF6"
+              progress={supplementsTotal > 0 ? Math.round((supplementsTaken / supplementsTotal) * 100) : 0}
+              current={supplementsTotal > 0 ? supplementsTaken.toString() : "—"}
+              goal={supplementsTotal > 0 ? supplementsTotal.toString() : "—"}
+              isComplete={supplementsTotal > 0 && supplementsTaken === supplementsTotal}
+              href="/(tabs)/sups"
+            />
 
-        <DailyTaskCard
-          title="Weekly Check-in"
-          subtitle="Log your progress and photos"
-          icon={ClipboardCheck}
-          color="#F59E0B"
-          progress={0}
-          current="—"
-          goal="—"
-          isComplete={false}
-          href="/(tabs)/checkin"
-        />
+            <DailyTaskCard
+              title="Weekly Check-in"
+              subtitle={
+                checkInStatus === 'complete'
+                  ? `Completed ${daysSinceCheckIn === 0 ? 'today' : daysSinceCheckIn === 1 ? 'yesterday' : `${daysSinceCheckIn} days ago`}`
+                  : checkInStatus === 'overdue'
+                  ? `Last check-in was ${daysSinceCheckIn} days ago`
+                  : "Log your progress and photos"
+              }
+              icon={ClipboardCheck}
+              color={checkInStatus === 'overdue' ? '#EF4444' : '#F59E0B'}
+              progress={checkInStatus === 'complete' ? 100 : 0}
+              current={
+                checkInStatus === 'complete'
+                  ? 'Complete'
+                  : checkInStatus === 'overdue'
+                  ? 'Overdue'
+                  : 'To do'
+              }
+              goal=""
+              isComplete={checkInStatus === 'complete'}
+              href="/(tabs)/checkin"
+            />
+          </>
+        )}
       </ScrollView>
 
       {/* Celebration Overlay */}

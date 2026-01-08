@@ -26,6 +26,7 @@ export function useAppUpdates() {
     showUpdatePrompt: false,
   });
   const hasCheckedOnMount = useRef(false);
+  const userDeclinedUpdate = useRef(false);
 
   // Check for updates
   const checkForUpdates = useCallback(async (showNoUpdateAlert = false, showPromptOnAvailable = false): Promise<UpdateCheckResult> => {
@@ -60,8 +61,9 @@ export function useAppUpdates() {
     }
   }, []);
 
-  // Dismiss update prompt
+  // Dismiss update prompt (user clicked "Later")
   const dismissUpdatePrompt = useCallback(() => {
+    userDeclinedUpdate.current = true;
     setState(prev => ({ ...prev, showUpdatePrompt: false }));
   }, []);
 
@@ -71,6 +73,11 @@ export function useAppUpdates() {
       setState(prev => ({ ...prev, showUpdatePrompt: true }));
     }
   }, [state.isUpdateAvailable]);
+
+  // Reset declined flag (call when user manually checks for updates)
+  const resetDeclined = useCallback(() => {
+    userDeclinedUpdate.current = false;
+  }, []);
 
   // Download and apply update
   const downloadAndApplyUpdate = useCallback(async (): Promise<boolean> => {
@@ -103,7 +110,12 @@ export function useAppUpdates() {
   }, [checkForUpdates]);
 
   // Silently check and download (for background updates)
+  // Respects user's choice if they clicked "Later"
   const silentUpdate = useCallback(async () => {
+    // Don't auto-download if user declined this session
+    if (userDeclinedUpdate.current) {
+      return;
+    }
     const { hasUpdate } = await checkForUpdates();
     if (hasUpdate) {
       await downloadAndApplyUpdate();
@@ -155,6 +167,7 @@ export function useAppUpdates() {
     reloadApp,
     dismissUpdatePrompt,
     showPrompt,
+    resetDeclined,
     // Expose update info
     updateId: Updates.updateId,
     isEmbeddedLaunch: Updates.isEmbeddedLaunch,

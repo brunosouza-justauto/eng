@@ -1,24 +1,29 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Notification } from '../types/notifications';
+import { Notification, LocalReminder } from '../types/notifications';
 import {
   fetchNotifications,
   fetchUnreadCount,
   markNotificationsAsRead,
   markAllAsRead as markAllAsReadService,
 } from '../services/notificationService';
+import { useLocalReminders } from '../hooks/useLocalReminders';
 
 interface NotificationsContextType {
   isOpen: boolean;
   openNotifications: () => void;
   closeNotifications: () => void;
   notifications: Notification[];
+  localReminders: LocalReminder[];
   unreadCount: number;
+  reminderCount: number;
+  totalCount: number;
   isLoading: boolean;
   isRefreshing: boolean;
   loadNotifications: (showLoading?: boolean) => Promise<void>;
   handleRefresh: () => void;
   handleMarkAllAsRead: () => Promise<void>;
   markAsRead: (notificationId: string) => Promise<void>;
+  refreshReminders: () => void;
 }
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
@@ -29,6 +34,17 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Local reminders (client-side generated)
+  const {
+    reminders: localReminders,
+    reminderCount,
+    refreshReminders,
+    isLoading: remindersLoading,
+  } = useLocalReminders();
+
+  // Total badge count includes both unread notifications and active reminders
+  const totalCount = unreadCount + reminderCount;
 
   const openNotifications = useCallback(() => setIsOpen(true), []);
   const closeNotifications = useCallback(() => setIsOpen(false), []);
@@ -64,7 +80,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     loadNotifications(false);
-  }, [loadNotifications]);
+    refreshReminders();
+  }, [loadNotifications, refreshReminders]);
 
   const handleMarkAllAsRead = useCallback(async () => {
     await markAllAsReadService();
@@ -87,13 +104,17 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         openNotifications,
         closeNotifications,
         notifications,
+        localReminders,
         unreadCount,
-        isLoading,
+        reminderCount,
+        totalCount,
+        isLoading: isLoading || remindersLoading,
         isRefreshing,
         loadNotifications,
         handleRefresh,
         handleMarkAllAsRead,
         markAsRead,
+        refreshReminders,
       }}
     >
       {children}

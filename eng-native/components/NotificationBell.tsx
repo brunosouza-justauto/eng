@@ -10,7 +10,7 @@ import { useNotifications } from '../contexts/NotificationsContext';
  */
 export default function NotificationBell() {
   const { isDark } = useTheme();
-  const { openNotifications, unreadCount } = useNotifications();
+  const { openNotifications, totalCount } = useNotifications();
 
   return (
     <TouchableOpacity
@@ -22,7 +22,7 @@ export default function NotificationBell() {
           size={24}
           color={isDark ? '#FFFFFF' : '#374151'}
         />
-        {unreadCount > 0 && (
+        {totalCount > 0 && (
           <View
             style={{
               position: 'absolute',
@@ -38,7 +38,7 @@ export default function NotificationBell() {
             }}
           >
             <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {totalCount > 9 ? '9+' : totalCount}
             </Text>
           </View>
         )}

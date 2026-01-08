@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { NotificationsProvider } from '../contexts/NotificationsContext';
 import NotificationsModal from '../components/NotificationsModal';
 import UpdatePrompt from '../components/UpdatePrompt';
+import IncompleteProfilePrompt from '../components/IncompleteProfilePrompt';
 
 // Import global CSS for NativeWind/Tailwind
 import '../global.css';
@@ -164,6 +165,7 @@ export default function RootLayout() {
                 <AppContent />
                 <NotificationsModal />
                 <UpdatePrompt />
+                <IncompleteProfilePrompt />
               </NotificationsProvider>
             </AuthProvider>
           </ThemeProvider>

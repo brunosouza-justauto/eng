@@ -15,7 +15,7 @@ export default function ProfileScreen() {
   const { isDark, toggleTheme } = useTheme();
   const { user, profile, signOut, refreshProfile } = useAuth();
   const { openNotifications } = useNotifications();
-  const { isChecking, isDownloading, isUpdateAvailable, isUpdatePending, checkForUpdates, downloadAndApplyUpdate, reloadApp } = useAppUpdates();
+  const { isChecking, isDownloading, isUpdateAvailable, isUpdatePending, checkForUpdates, downloadAndApplyUpdate, reloadApp, resetDeclined } = useAppUpdates();
   const insets = useSafeAreaInsets();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -46,6 +46,9 @@ export default function ProfileScreen() {
       return;
     }
 
+    // Reset declined flag so auto-updates can work again after manual check
+    resetDeclined();
+
     setUpdateModalType('checking');
     setShowUpdateModal(true);
 
@@ -56,7 +59,7 @@ export default function ProfileScreen() {
     } else {
       setUpdateModalType('upToDate');
     }
-  }, [checkForUpdates]);
+  }, [checkForUpdates, resetDeclined]);
 
   // Handle download update
   const handleDownloadUpdate = useCallback(async () => {

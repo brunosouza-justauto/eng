@@ -29,3 +29,27 @@ export interface NotificationCount {
   total: number;
   unread: number;
 }
+
+// ==================== LOCAL REMINDERS ====================
+// These are client-side generated reminders based on user's schedule
+
+export type LocalReminderType =
+  | 'workout_overdue'
+  | 'workout_due'
+  | 'supplements_overdue'
+  | 'supplements_due'
+  | 'meals_behind'
+  | 'water_behind'
+  | 'steps_behind'
+  | 'checkin_overdue';
+
+export interface LocalReminder {
+  id: string; // Generated client-side (e.g., 'reminder-workout-overdue')
+  type: LocalReminderType;
+  title: string;
+  message: string;
+  priority: 'high' | 'medium' | 'low';
+  iconColor: string;
+  href: string; // Navigation target
+  createdAt: Date;
+}

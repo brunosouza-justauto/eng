@@ -65,9 +65,34 @@ export const supabase: SupabaseClient = isSupabaseConfigured
 
 // Set up app state listener for token refresh (only on native)
 if (isSupabaseConfigured && Platform.OS !== 'web') {
-  AppState.addEventListener('change', (state) => {
+  AppState.addEventListener('change', async (state) => {
     if (state === 'active') {
-      supabase.auth.startAutoRefresh();
+      try {
+        // Check if session is valid before starting auto refresh
+        const { error } = await supabase.auth.getSession();
+        if (error) {
+          // Invalid session - don't start auto refresh
+          if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token')) {
+            console.log('[Supabase] Invalid refresh token on app resume - clearing session');
+            await AsyncStorage.removeItem('eng_supabase_auth');
+            await supabase.auth.signOut();
+            return;
+          }
+        }
+        supabase.auth.startAutoRefresh();
+      } catch (err) {
+        console.error('[Supabase] Error checking session on app resume:', err);
+        // If there's an error, try to clear and sign out
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        if (errorMessage.includes('Refresh Token') || errorMessage.includes('refresh_token')) {
+          try {
+            await AsyncStorage.removeItem('eng_supabase_auth');
+            await supabase.auth.signOut();
+          } catch (clearErr) {
+            console.error('[Supabase] Error clearing session:', clearErr);
+          }
+        }
+      }
     } else {
       supabase.auth.stopAutoRefresh();
     }

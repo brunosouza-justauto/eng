@@ -187,6 +187,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (error) {
           console.error('Error getting session:', error.message);
+
+          // Handle invalid refresh token - clear session and storage
+          if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token')) {
+            console.log('Invalid refresh token detected - clearing session');
+            try {
+              await AsyncStorage.removeItem('eng_supabase_auth');
+              await supabase.auth.signOut();
+            } catch (clearError) {
+              console.error('Error clearing invalid session:', clearError);
+            }
+            if (isMounted) {
+              setSession(null);
+              setUser(null);
+              setProfile(null);
+              setLoading(false);
+              didComplete = true;
+            }
+            return;
+          }
         } else {
           console.log('Initial session:', data?.session ? 'found' : 'none');
         }
@@ -208,7 +227,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
+
+        // Handle invalid refresh token errors thrown as exceptions
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('Refresh Token') || errorMessage.includes('refresh_token')) {
+          console.log('Invalid refresh token exception - clearing session');
+          try {
+            await AsyncStorage.removeItem('eng_supabase_auth');
+            await supabase.auth.signOut();
+          } catch (clearError) {
+            console.error('Error clearing invalid session:', clearError);
+          }
+        }
+
         if (isMounted) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
           setLoading(false);
           didComplete = true;
         }

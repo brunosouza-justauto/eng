@@ -84,19 +84,21 @@ export default function DailyTaskCard({
                     fontSize: 14,
                     fontWeight: '700',
                     color: isComplete ? '#22C55E' : color,
-                    marginRight: 4,
+                    marginRight: goal ? 4 : 0,
                   }}
                 >
                   {current}
                 </Text>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    color: isDark ? '#6B7280' : '#9CA3AF',
-                  }}
-                >
-                  / {goal}
-                </Text>
+                {goal ? (
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: isDark ? '#6B7280' : '#9CA3AF',
+                    }}
+                  >
+                    / {goal}
+                  </Text>
+                ) : null}
               </View>
             </View>
 
