@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { getLocalDateString, getCurrentDayOfWeek } from '../../utils/date';
 import { getGreeting, getMotivationalMessage, getStreakMessage } from '../../utils/motivationalMessages';
+import { getTodaysSupplements } from '../../services/supplementService';
 import CircularProgress from '../../components/home/CircularProgress';
 import DailyTaskCard from '../../components/home/DailyTaskCard';
 import StreakCounter from '../../components/home/StreakCounter';
@@ -25,6 +26,8 @@ export default function HomeScreen() {
   const [stepsGoal, setStepsGoal] = useState(10000);
   const [waterIntake, setWaterIntake] = useState(0);
   const [waterGoal, setWaterGoal] = useState(2500);
+  const [supplementsTaken, setSupplementsTaken] = useState(0);
+  const [supplementsTotal, setSupplementsTotal] = useState(0);
   const [streak, setStreak] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -282,6 +285,13 @@ export default function HomeScreen() {
       }
 
       setWaterGoal(waterGoalData?.water_goal_ml || 2500);
+
+      // Fetch supplements data
+      const { supplements: todaysSupplements } = await getTodaysSupplements(user.id);
+      if (todaysSupplements) {
+        setSupplementsTotal(todaysSupplements.length);
+        setSupplementsTaken(todaysSupplements.filter(s => s.isLogged).length);
+      }
     } catch (err) {
       console.error('Error fetching today stats:', err);
     } finally {
@@ -454,7 +464,7 @@ export default function HomeScreen() {
                   fontStyle: 'italic',
                 }}
               >
-                {getStreakMessage(streak)}
+                {getStreakMessage(streak, 'secondary')}
               </Text>
             </View>
           </View>
@@ -488,13 +498,13 @@ export default function HomeScreen() {
 
         <DailyTaskCard
           title="Supplements"
-          subtitle="Track your daily supplements"
+          subtitle={supplementsTotal > 0 ? "Track your daily supplements" : "No supplements assigned"}
           icon={Pill}
           color="#8B5CF6"
-          progress={0}
-          current="—"
-          goal="—"
-          isComplete={false}
+          progress={supplementsTotal > 0 ? Math.round((supplementsTaken / supplementsTotal) * 100) : 0}
+          current={supplementsTotal > 0 ? supplementsTaken.toString() : "—"}
+          goal={supplementsTotal > 0 ? supplementsTotal.toString() : "—"}
+          isComplete={supplementsTotal > 0 && supplementsTaken === supplementsTotal}
           href="/(tabs)/sups"
         />
 

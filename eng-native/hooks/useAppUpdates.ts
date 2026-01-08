@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import * as Updates from 'expo-updates';
 
@@ -8,6 +8,7 @@ interface UpdateState {
   isUpdateAvailable: boolean;
   isUpdatePending: boolean;
   error: string | null;
+  showUpdatePrompt: boolean;
 }
 
 interface UpdateCheckResult {
@@ -22,10 +23,12 @@ export function useAppUpdates() {
     isUpdateAvailable: false,
     isUpdatePending: false,
     error: null,
+    showUpdatePrompt: false,
   });
+  const hasCheckedOnMount = useRef(false);
 
   // Check for updates
-  const checkForUpdates = useCallback(async (showNoUpdateAlert = false): Promise<UpdateCheckResult> => {
+  const checkForUpdates = useCallback(async (showNoUpdateAlert = false, showPromptOnAvailable = false): Promise<UpdateCheckResult> => {
     // Skip in development mode
     if (__DEV__) {
       console.log('[Updates] Skipping update check in development mode');
@@ -38,7 +41,12 @@ export function useAppUpdates() {
       const update = await Updates.checkForUpdateAsync();
 
       if (update.isAvailable) {
-        setState(prev => ({ ...prev, isChecking: false, isUpdateAvailable: true }));
+        setState(prev => ({
+          ...prev,
+          isChecking: false,
+          isUpdateAvailable: true,
+          showUpdatePrompt: showPromptOnAvailable,
+        }));
         return { hasUpdate: true };
       } else {
         setState(prev => ({ ...prev, isChecking: false, isUpdateAvailable: false }));
@@ -51,6 +59,18 @@ export function useAppUpdates() {
       return { hasUpdate: false };
     }
   }, []);
+
+  // Dismiss update prompt
+  const dismissUpdatePrompt = useCallback(() => {
+    setState(prev => ({ ...prev, showUpdatePrompt: false }));
+  }, []);
+
+  // Show update prompt manually
+  const showPrompt = useCallback(() => {
+    if (state.isUpdateAvailable) {
+      setState(prev => ({ ...prev, showUpdatePrompt: true }));
+    }
+  }, [state.isUpdateAvailable]);
 
   // Download and apply update
   const downloadAndApplyUpdate = useCallback(async (): Promise<boolean> => {
@@ -76,6 +96,12 @@ export function useAppUpdates() {
     }
   }, []);
 
+  // Check and show prompt if update available
+  const checkAndPrompt = useCallback(async () => {
+    const { hasUpdate } = await checkForUpdates(false, true);
+    return hasUpdate;
+  }, [checkForUpdates]);
+
   // Silently check and download (for background updates)
   const silentUpdate = useCallback(async () => {
     const { hasUpdate } = await checkForUpdates();
@@ -91,11 +117,11 @@ export function useAppUpdates() {
     }
   }, [state.isUpdatePending]);
 
-  // Check for updates when app comes to foreground
+  // Check for updates when app comes to foreground (silently in background)
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
-        // Silently check for updates when app becomes active
+      if (nextAppState === 'active' && hasCheckedOnMount.current) {
+        // Silently check for updates when app becomes active (after initial check)
         silentUpdate();
       }
     };
@@ -107,22 +133,28 @@ export function useAppUpdates() {
     };
   }, [silentUpdate]);
 
-  // Initial check on mount
+  // Initial check on mount - show prompt if update available
   useEffect(() => {
+    if (hasCheckedOnMount.current) return;
+    hasCheckedOnMount.current = true;
+
     // Small delay to not block app startup
     const timer = setTimeout(() => {
-      silentUpdate();
-    }, 3000);
+      checkAndPrompt();
+    }, 2000);
 
     return () => clearTimeout(timer);
-  }, [silentUpdate]);
+  }, [checkAndPrompt]);
 
   return {
     ...state,
     checkForUpdates,
     downloadAndApplyUpdate,
+    checkAndPrompt,
     silentUpdate,
     reloadApp,
+    dismissUpdatePrompt,
+    showPrompt,
     // Expose update info
     updateId: Updates.updateId,
     isEmbeddedLaunch: Updates.isEmbeddedLaunch,

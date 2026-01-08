@@ -8,6 +8,7 @@ import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { NotificationsProvider } from '../contexts/NotificationsContext';
 import NotificationsModal from '../components/NotificationsModal';
+import UpdatePrompt from '../components/UpdatePrompt';
 
 // Import global CSS for NativeWind/Tailwind
 import '../global.css';
@@ -162,6 +163,7 @@ export default function RootLayout() {
               <NotificationsProvider>
                 <AppContent />
                 <NotificationsModal />
+                <UpdatePrompt />
               </NotificationsProvider>
             </AuthProvider>
           </ThemeProvider>

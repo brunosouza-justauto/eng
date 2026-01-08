@@ -5,7 +5,13 @@ import {
   SupplementsBySchedule,
   SupplementSchedule,
   SCHEDULE_TIMING_ORDER,
+  SupplementLog,
+  TodaysSupplement,
+  SupplementAdherence,
+  DailySupplementSummary,
+  SupplementGroupBySchedule,
 } from '../types/supplements';
+import { getLocalDateString } from '../utils/date';
 
 /**
  * Gets all supplements assigned to an athlete
@@ -198,4 +204,387 @@ export const getScheduleDisplayText = (schedule: SupplementSchedule): string => 
   };
 
   return displayMap[schedule] || schedule;
+};
+
+// ============================================
+// SUPPLEMENT LOGGING FUNCTIONS
+// ============================================
+
+/**
+ * Log a supplement as taken for today
+ * @param userId User ID
+ * @param athleteSupplementId The athlete_supplement record ID
+ * @param date Optional date (defaults to today)
+ * @param notes Optional notes
+ */
+export const logSupplementTaken = async (
+  userId: string,
+  athleteSupplementId: string,
+  date?: string,
+  notes?: string
+): Promise<{ log: SupplementLog | null; error?: string }> => {
+  try {
+    const logDate = date || getLocalDateString();
+
+    const { data, error } = await supabase
+      .from('supplement_logs')
+      .upsert(
+        {
+          user_id: userId,
+          athlete_supplement_id: athleteSupplementId,
+          date: logDate,
+          taken_at: new Date().toISOString(),
+          notes: notes || null,
+        },
+        { onConflict: 'athlete_supplement_id,date' }
+      )
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error logging supplement:', error);
+      return { log: null, error: error.message };
+    }
+
+    return { log: data };
+  } catch (err) {
+    console.error('Error in logSupplementTaken:', err);
+    return { log: null, error: 'Failed to log supplement' };
+  }
+};
+
+/**
+ * Remove a supplement log (uncheck)
+ * @param logId The supplement log ID to remove
+ */
+export const unlogSupplement = async (
+  logId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('supplement_logs')
+      .delete()
+      .eq('id', logId);
+
+    if (error) {
+      console.error('Error removing supplement log:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('Error in unlogSupplement:', err);
+    return { success: false, error: 'Failed to remove supplement log' };
+  }
+};
+
+/**
+ * Get today's supplements with their log status
+ * @param userId User ID
+ */
+export const getTodaysSupplements = async (
+  userId: string
+): Promise<{ supplements: TodaysSupplement[]; error?: string }> => {
+  try {
+    const today = getLocalDateString();
+
+    // Get all active supplements
+    const { supplements, error: supplementsError } = await getAthleteSupplements(userId);
+    if (supplementsError) {
+      return { supplements: [], error: supplementsError };
+    }
+
+    const activeSupplements = filterActiveSupplements(supplements);
+
+    // Get today's logs
+    const { data: logs, error: logsError } = await supabase
+      .from('supplement_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', today);
+
+    if (logsError) {
+      console.error('Error fetching supplement logs:', logsError);
+      return { supplements: [], error: logsError.message };
+    }
+
+    // Map logs to supplement IDs for quick lookup
+    const logsBySupplementId = new Map<string, SupplementLog>();
+    (logs || []).forEach((log) => {
+      logsBySupplementId.set(log.athlete_supplement_id, log);
+    });
+
+    // Combine supplements with log status
+    const todaysSupplements: TodaysSupplement[] = activeSupplements.map((supplement) => {
+      const log = logsBySupplementId.get(supplement.id);
+      return {
+        ...supplement,
+        isLogged: !!log,
+        logId: log?.id,
+        loggedAt: log?.taken_at,
+      };
+    });
+
+    return { supplements: todaysSupplements };
+  } catch (err) {
+    console.error('Error in getTodaysSupplements:', err);
+    return { supplements: [], error: 'Failed to fetch today\'s supplements' };
+  }
+};
+
+/**
+ * Get supplement logs for a date range
+ * @param userId User ID
+ * @param startDate Start date (YYYY-MM-DD)
+ * @param endDate End date (YYYY-MM-DD)
+ */
+export const getSupplementLogs = async (
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ logs: SupplementLog[]; error?: string }> => {
+  try {
+    const { data, error } = await supabase
+      .from('supplement_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching supplement logs:', error);
+      return { logs: [], error: error.message };
+    }
+
+    return { logs: data || [] };
+  } catch (err) {
+    console.error('Error in getSupplementLogs:', err);
+    return { logs: [], error: 'Failed to fetch supplement logs' };
+  }
+};
+
+/**
+ * Get supplement history with daily summaries
+ * @param userId User ID
+ * @param days Number of days to look back
+ */
+export const getSupplementHistory = async (
+  userId: string,
+  days: number = 7
+): Promise<{ history: DailySupplementSummary[]; error?: string }> => {
+  try {
+    // Get active supplements
+    const { supplements, error: supplementsError } = await getAthleteSupplements(userId);
+    if (supplementsError) {
+      return { history: [], error: supplementsError };
+    }
+
+    const activeSupplements = filterActiveSupplements(supplements);
+    const total = activeSupplements.length;
+
+    // Calculate date range
+    const endDate = getLocalDateString();
+    const startDateObj = new Date();
+    startDateObj.setDate(startDateObj.getDate() - (days - 1));
+    const startDate = startDateObj.toISOString().split('T')[0];
+
+    // Get logs for the date range
+    const { logs, error: logsError } = await getSupplementLogs(userId, startDate, endDate);
+    if (logsError) {
+      return { history: [], error: logsError };
+    }
+
+    // Group logs by date
+    const logsByDate = new Map<string, SupplementLog[]>();
+    logs.forEach((log) => {
+      const existing = logsByDate.get(log.date) || [];
+      existing.push(log);
+      logsByDate.set(log.date, existing);
+    });
+
+    // Build daily summaries
+    const history: DailySupplementSummary[] = [];
+    for (let i = 0; i < days; i++) {
+      const dateObj = new Date();
+      dateObj.setDate(dateObj.getDate() - i);
+      const dateStr = dateObj.toISOString().split('T')[0];
+      const dayLogs = logsByDate.get(dateStr) || [];
+
+      // Map logs to supplement IDs
+      const loggedIds = new Set(dayLogs.map((l) => l.athlete_supplement_id));
+
+      const dailySupplements: TodaysSupplement[] = activeSupplements.map((supplement) => {
+        const log = dayLogs.find((l) => l.athlete_supplement_id === supplement.id);
+        return {
+          ...supplement,
+          isLogged: loggedIds.has(supplement.id),
+          logId: log?.id,
+          loggedAt: log?.taken_at,
+        };
+      });
+
+      const taken = dayLogs.length;
+      history.push({
+        date: dateStr,
+        supplements: dailySupplements,
+        taken,
+        total,
+        percentage: total > 0 ? Math.round((taken / total) * 100) : 0,
+      });
+    }
+
+    return { history };
+  } catch (err) {
+    console.error('Error in getSupplementHistory:', err);
+    return { history: [], error: 'Failed to fetch supplement history' };
+  }
+};
+
+/**
+ * Calculate supplement adherence stats
+ * @param userId User ID
+ * @param days Number of days to calculate adherence for
+ */
+export const calculateSupplementAdherence = async (
+  userId: string,
+  days: number = 7
+): Promise<{ adherence: SupplementAdherence | null; error?: string }> => {
+  try {
+    const { history, error } = await getSupplementHistory(userId, days);
+    if (error) {
+      return { adherence: null, error };
+    }
+
+    if (history.length === 0 || history[0].total === 0) {
+      return {
+        adherence: {
+          totalAssigned: 0,
+          totalTaken: 0,
+          percentage: 0,
+          streak: 0,
+        },
+      };
+    }
+
+    const totalAssigned = history.reduce((sum, day) => sum + day.total, 0);
+    const totalTaken = history.reduce((sum, day) => sum + day.taken, 0);
+    const percentage = totalAssigned > 0 ? Math.round((totalTaken / totalAssigned) * 100) : 0;
+
+    // Calculate streak (consecutive days with 100% completion)
+    let streak = 0;
+    for (const day of history) {
+      if (day.percentage === 100) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    return {
+      adherence: {
+        totalAssigned,
+        totalTaken,
+        percentage,
+        streak,
+      },
+    };
+  } catch (err) {
+    console.error('Error in calculateSupplementAdherence:', err);
+    return { adherence: null, error: 'Failed to calculate adherence' };
+  }
+};
+
+/**
+ * Group today's supplements by schedule
+ * @param supplements Array of today's supplements
+ */
+export const groupSupplementsBySchedule = (
+  supplements: TodaysSupplement[]
+): SupplementGroupBySchedule[] => {
+  // Group supplements by schedule
+  const grouped = supplements.reduce((acc, supplement) => {
+    const schedule = supplement.schedule;
+    if (!acc[schedule]) {
+      acc[schedule] = [];
+    }
+    acc[schedule].push(supplement);
+    return acc;
+  }, {} as Record<string, TodaysSupplement[]>);
+
+  // Convert to array and sort by timing order
+  return Object.entries(grouped)
+    .map(([schedule, supps]) => ({
+      schedule: schedule as SupplementSchedule,
+      supplements: supps,
+      taken: supps.filter((s) => s.isLogged).length,
+      total: supps.length,
+    }))
+    .sort((a, b) => {
+      const aIndex = SCHEDULE_TIMING_ORDER.indexOf(a.schedule);
+      const bIndex = SCHEDULE_TIMING_ORDER.indexOf(b.schedule);
+      return aIndex - bIndex;
+    });
+};
+
+/**
+ * Log multiple supplements as taken at once
+ * @param userId User ID
+ * @param athleteSupplementIds Array of athlete_supplement IDs
+ * @param date Optional date (defaults to today)
+ */
+export const logMultipleSupplements = async (
+  userId: string,
+  athleteSupplementIds: string[],
+  date?: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const logDate = date || getLocalDateString();
+
+    const logsToInsert = athleteSupplementIds.map((id) => ({
+      user_id: userId,
+      athlete_supplement_id: id,
+      date: logDate,
+      taken_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from('supplement_logs')
+      .upsert(logsToInsert, { onConflict: 'athlete_supplement_id,date' });
+
+    if (error) {
+      console.error('Error logging multiple supplements:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('Error in logMultipleSupplements:', err);
+    return { success: false, error: 'Failed to log supplements' };
+  }
+};
+
+/**
+ * Get count of unlogged supplements for current time period
+ * Used for reminder banners
+ * @param userId User ID
+ */
+export const getUnloggedSupplementsCount = async (
+  userId: string
+): Promise<{ count: number; supplements: TodaysSupplement[]; error?: string }> => {
+  try {
+    const { supplements, error } = await getTodaysSupplements(userId);
+    if (error) {
+      return { count: 0, supplements: [], error };
+    }
+
+    // Filter for current time period (cast to TodaysSupplement since we're filtering TodaysSupplement[])
+    const currentTimeSupplements = getSupplementsForCurrentTime(supplements) as TodaysSupplement[];
+    const unlogged = currentTimeSupplements.filter((s) => !s.isLogged);
+
+    return { count: unlogged.length, supplements: unlogged };
+  } catch (err) {
+    console.error('Error in getUnloggedSupplementsCount:', err);
+    return { count: 0, supplements: [], error: 'Failed to check unlogged supplements' };
+  }
 };

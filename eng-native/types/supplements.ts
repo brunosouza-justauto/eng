@@ -121,3 +121,46 @@ export const SCHEDULE_TIMING_ORDER: SupplementSchedule[] = [
   'Yearly',
   'Custom',
 ];
+
+// Supplement logging interfaces
+export interface SupplementLog {
+  id: string;
+  user_id: string;
+  athlete_supplement_id: string;
+  taken_at: string;
+  date: string;
+  notes?: string;
+  created_at: string;
+}
+
+// Extended supplement with today's log status
+export interface TodaysSupplement extends AthleteSupplementWithDetails {
+  isLogged: boolean;
+  logId?: string;
+  loggedAt?: string;
+}
+
+// Adherence tracking
+export interface SupplementAdherence {
+  totalAssigned: number;
+  totalTaken: number;
+  percentage: number;
+  streak: number;
+}
+
+// Daily summary for history view
+export interface DailySupplementSummary {
+  date: string;
+  supplements: TodaysSupplement[];
+  taken: number;
+  total: number;
+  percentage: number;
+}
+
+// Grouped supplements by schedule for Today's view
+export interface SupplementGroupBySchedule {
+  schedule: SupplementSchedule;
+  supplements: TodaysSupplement[];
+  taken: number;
+  total: number;
+}

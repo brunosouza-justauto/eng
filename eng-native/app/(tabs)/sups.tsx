@@ -1,105 +1,278 @@
-import { useState, useCallback, useEffect } from 'react';
-import { View, Text, ScrollView, RefreshControl } from 'react-native';
-import { Pill, Clock, AlertCircle, Info } from 'lucide-react-native';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { View, Text, ScrollView, RefreshControl, Pressable, ActivityIndicator } from 'react-native';
+import { Pill, Clock, AlertCircle, Check, Flame, CheckCheck } from 'lucide-react-native';
+import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
-  getAthleteSupplementsBySchedule,
-  filterActiveSupplements,
+  getTodaysSupplements,
+  logSupplementTaken,
+  unlogSupplement,
+  logMultipleSupplements,
+  calculateSupplementAdherence,
+  getSupplementHistory,
+  getUnloggedSupplementsCount,
+  groupSupplementsBySchedule,
   getScheduleDisplayText,
 } from '../../services/supplementService';
 import {
-  AthleteSupplementWithDetails,
-  SupplementsBySchedule,
+  TodaysSupplement,
+  SupplementAdherence,
+  DailySupplementSummary,
+  SupplementGroupBySchedule,
   CATEGORY_COLORS,
 } from '../../types/supplements';
+import { getLocalDateString } from '../../utils/date';
 
-// Supplement card component
-function SupplementCard({
-  supplement,
+// Reminder Banner Component
+function ReminderBanner({
+  count,
   isDark,
 }: {
-  supplement: AthleteSupplementWithDetails;
+  count: number;
   isDark: boolean;
 }) {
-  const categoryColor = CATEGORY_COLORS[supplement.supplement_category] || '#6B7280';
+  if (count === 0) return null;
+
+  const hour = new Date().getHours();
+  let timeOfDay = 'now';
+  if (hour >= 5 && hour < 12) timeOfDay = 'this morning';
+  else if (hour >= 12 && hour < 17) timeOfDay = 'this afternoon';
+  else if (hour >= 17 && hour < 21) timeOfDay = 'this evening';
+  else timeOfDay = 'before bed';
 
   return (
     <View
       style={{
+        backgroundColor: '#FEF3C7',
+        borderRadius: 12,
+        padding: 14,
+        marginBottom: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+      }}
+    >
+      <Pill size={20} color="#D97706" />
+      <Text
+        style={{
+          flex: 1,
+          marginLeft: 10,
+          fontSize: 14,
+          fontWeight: '500',
+          color: '#92400E',
+        }}
+      >
+        You have {count} supplement{count > 1 ? 's' : ''} to take {timeOfDay}
+      </Text>
+    </View>
+  );
+}
+
+// Today's Supplement Item with Checkbox
+function TodaySupplementItem({
+  supplement,
+  isDark,
+  onToggle,
+  isToggling,
+}: {
+  supplement: TodaysSupplement;
+  isDark: boolean;
+  onToggle: (supplement: TodaysSupplement) => void;
+  isToggling: boolean;
+}) {
+  const categoryColor = CATEGORY_COLORS[supplement.supplement_category] || '#6B7280';
+
+  return (
+    <Pressable
+      onPress={() => !isToggling && onToggle(supplement)}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
         backgroundColor: isDark ? '#374151' : '#F9FAFB',
         borderRadius: 12,
         padding: 14,
         marginBottom: 10,
         borderLeftWidth: 4,
         borderLeftColor: categoryColor,
+        opacity: isToggling ? 0.7 : 1,
       }}
     >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <View style={{ flex: 1 }}>
+      {/* Checkbox */}
+      <View
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 6,
+          borderWidth: 2,
+          borderColor: supplement.isLogged ? '#22C55E' : (isDark ? '#6B7280' : '#D1D5DB'),
+          backgroundColor: supplement.isLogged ? '#22C55E' : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: 12,
+        }}
+      >
+        {isToggling ? (
+          <ActivityIndicator size="small" color={supplement.isLogged ? '#FFFFFF' : '#6B7280'} />
+        ) : supplement.isLogged ? (
+          <Check size={16} color="#FFFFFF" strokeWidth={3} />
+        ) : null}
+      </View>
+
+      {/* Supplement Info */}
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            fontSize: 15,
+            fontWeight: '600',
+            color: isDark ? '#F3F4F6' : '#1F2937',
+            textDecorationLine: supplement.isLogged ? 'line-through' : 'none',
+            opacity: supplement.isLogged ? 0.7 : 1,
+          }}
+        >
+          {supplement.supplement_name}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+          <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280' }}>
+            {supplement.dosage}
+          </Text>
+          <Text style={{ fontSize: 13, color: isDark ? '#6B7280' : '#9CA3AF', marginHorizontal: 6 }}>•</Text>
+          <Text style={{ fontSize: 13, color: categoryColor }}>{supplement.supplement_category}</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+// Schedule Group with Mark All button
+function ScheduleGroupCard({
+  group,
+  isDark,
+  onToggleSupplement,
+  onMarkAllTaken,
+  togglingIds,
+  isMarkingAll,
+}: {
+  group: SupplementGroupBySchedule;
+  isDark: boolean;
+  onToggleSupplement: (supplement: TodaysSupplement) => void;
+  onMarkAllTaken: (group: SupplementGroupBySchedule) => void;
+  togglingIds: Set<string>;
+  isMarkingAll: boolean;
+}) {
+  const allTaken = group.taken === group.total;
+  const hasUnloggedSupplements = group.supplements.some(s => !s.isLogged);
+
+  return (
+    <View
+      style={{
+        backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: isDark ? '#374151' : '#E5E7EB',
+      }}
+    >
+      {/* Group Header */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <Clock size={16} color="#6366F1" />
           <Text
             style={{
-              fontSize: 16,
+              marginLeft: 8,
+              fontSize: 15,
               fontWeight: '600',
               color: isDark ? '#F3F4F6' : '#1F2937',
-              marginBottom: 4,
             }}
           >
-            {supplement.supplement_name}
+            {group.schedule}
           </Text>
+          <Text
+            style={{
+              marginLeft: 8,
+              fontSize: 12,
+              color: isDark ? '#6B7280' : '#9CA3AF',
+            }}
+          >
+            ({getScheduleDisplayText(group.schedule)})
+          </Text>
+        </View>
+
+        {/* Progress Badge */}
+        <View
+          style={{
+            backgroundColor: allTaken ? '#DCFCE7' : (isDark ? '#374151' : '#F3F4F6'),
+            paddingHorizontal: 10,
+            paddingVertical: 4,
+            borderRadius: 12,
+          }}
+        >
           <Text
             style={{
               fontSize: 13,
-              color: categoryColor,
-              fontWeight: '500',
-              marginBottom: 6,
+              fontWeight: '600',
+              color: allTaken ? '#166534' : (isDark ? '#D1D5DB' : '#4B5563'),
             }}
           >
-            {supplement.supplement_category}
+            {group.taken}/{group.total}
           </Text>
         </View>
       </View>
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 4 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pill size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
-          <Text style={{ marginLeft: 4, fontSize: 13, color: isDark ? '#D1D5DB' : '#4B5563' }}>
-            {supplement.dosage}
-          </Text>
-        </View>
+      {/* Supplements List */}
+      {group.supplements.map((supplement) => (
+        <TodaySupplementItem
+          key={supplement.id}
+          supplement={supplement}
+          isDark={isDark}
+          onToggle={onToggleSupplement}
+          isToggling={togglingIds.has(supplement.id)}
+        />
+      ))}
 
-        {supplement.timing && (
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Clock size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
-            <Text style={{ marginLeft: 4, fontSize: 13, color: isDark ? '#D1D5DB' : '#4B5563' }}>
-              {supplement.timing}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {supplement.notes && (
-        <View
+      {/* Mark All Button */}
+      {hasUnloggedSupplements && (
+        <Pressable
+          onPress={() => onMarkAllTaken(group)}
+          disabled={isMarkingAll}
           style={{
-            marginTop: 10,
-            paddingTop: 10,
-            borderTopWidth: 1,
-            borderTopColor: isDark ? '#4B5563' : '#E5E7EB',
             flexDirection: 'row',
-            alignItems: 'flex-start',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#8B5CF6',
+            paddingVertical: 12,
+            borderRadius: 10,
+            marginTop: 4,
+            opacity: isMarkingAll ? 0.7 : 1,
           }}
         >
-          <Info size={14} color={isDark ? '#9CA3AF' : '#6B7280'} style={{ marginTop: 2 }} />
-          <Text
-            style={{
-              marginLeft: 6,
-              fontSize: 12,
-              color: isDark ? '#9CA3AF' : '#6B7280',
-              flex: 1,
-            }}
-          >
-            {supplement.notes}
+          {isMarkingAll ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <CheckCheck size={18} color="#FFFFFF" />
+              <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>
+                Mark All as Taken
+              </Text>
+            </>
+          )}
+        </Pressable>
+      )}
+
+      {/* All Complete Message */}
+      {allTaken && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 8,
+          }}
+        >
+          <Check size={16} color="#22C55E" />
+          <Text style={{ marginLeft: 6, color: '#22C55E', fontWeight: '500', fontSize: 13 }}>
+            All done!
           </Text>
         </View>
       )}
@@ -107,42 +280,72 @@ function SupplementCard({
   );
 }
 
-// Schedule group component
-function ScheduleGroup({
-  group,
+// Weekly Day Bar (similar to water)
+function WeeklyDayBar({
+  date,
+  taken,
+  total,
+  maxTotal,
+  isToday,
   isDark,
 }: {
-  group: SupplementsBySchedule;
+  date: string;
+  taken: number;
+  total: number;
+  maxTotal: number;
+  isToday: boolean;
   isDark: boolean;
 }) {
-  return (
-    <View style={{ marginBottom: 20 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-        <Clock size={16} color="#6366F1" />
-        <Text
-          style={{
-            marginLeft: 8,
-            fontSize: 15,
-            fontWeight: '600',
-            color: isDark ? '#F3F4F6' : '#1F2937',
-          }}
-        >
-          {group.schedule}
-        </Text>
-        <Text
-          style={{
-            marginLeft: 8,
-            fontSize: 13,
-            color: isDark ? '#9CA3AF' : '#6B7280',
-          }}
-        >
-          ({getScheduleDisplayText(group.schedule)})
-        </Text>
-      </View>
+  const dayDate = new Date(date + 'T00:00:00');
+  const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayDate.getDay()];
+  const percentage = total > 0 ? (taken / total) * 100 : 0;
+  const heightPercentage = maxTotal > 0 ? (taken / maxTotal) * 100 : 0;
+  const goalMet = taken === total && total > 0;
 
-      {group.supplements.map((supplement) => (
-        <SupplementCard key={supplement.id} supplement={supplement} isDark={isDark} />
-      ))}
+  return (
+    <View style={{ alignItems: 'center', flex: 1 }}>
+      <View
+        style={{
+          height: 80,
+          width: 28,
+          backgroundColor: isDark ? '#374151' : '#E5E7EB',
+          borderRadius: 14,
+          overflow: 'hidden',
+          justifyContent: 'flex-end',
+        }}
+      >
+        <View
+          style={{
+            height: `${Math.max(5, heightPercentage)}%`,
+            backgroundColor: isToday
+              ? '#8B5CF6'
+              : goalMet
+              ? '#22C55E'
+              : isDark
+              ? '#6B7280'
+              : '#9CA3AF',
+            borderRadius: 14,
+          }}
+        />
+      </View>
+      <Text
+        style={{
+          fontSize: 11,
+          fontWeight: isToday ? '600' : '400',
+          color: isToday ? '#8B5CF6' : isDark ? '#9CA3AF' : '#6B7280',
+          marginTop: 6,
+        }}
+      >
+        {dayName}
+      </Text>
+      <Text
+        style={{
+          fontSize: 10,
+          color: isDark ? '#6B7280' : '#9CA3AF',
+        }}
+      >
+        {total > 0 ? `${taken}/${total}` : '-'}
+      </Text>
     </View>
   );
 }
@@ -152,32 +355,54 @@ export default function SupsScreen() {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [supplementGroups, setSupplementGroups] = useState<SupplementsBySchedule[]>([]);
-  const [totalSupplements, setTotalSupplements] = useState(0);
 
-  // Load supplements data
+  // State for tracking features
+  const [todaysSupplements, setTodaysSupplements] = useState<TodaysSupplement[]>([]);
+  const [adherence, setAdherence] = useState<SupplementAdherence | null>(null);
+  const [history, setHistory] = useState<DailySupplementSummary[]>([]);
+  const [unloggedCount, setUnloggedCount] = useState(0);
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+  const [markingAllSchedule, setMarkingAllSchedule] = useState<string | null>(null);
+
+  // Today's date
+  const today = useMemo(() => getLocalDateString(), []);
+
+  // Group supplements by schedule
+  const groupedSupplements = useMemo(() => {
+    return groupSupplementsBySchedule(todaysSupplements);
+  }, [todaysSupplements]);
+
+  // Load all supplement data
   const loadSupplements = useCallback(async () => {
     if (!user?.id) return;
 
     try {
-      const { groups, error } = await getAthleteSupplementsBySchedule(user.id);
+      // Load all data in parallel
+      const [todaysResult, adherenceResult, historyResult, unloggedResult] = await Promise.all([
+        getTodaysSupplements(user.id),
+        calculateSupplementAdherence(user.id, 7),
+        getSupplementHistory(user.id, 7),
+        getUnloggedSupplementsCount(user.id),
+      ]);
 
-      if (error) {
-        console.error('Error loading supplements:', error);
-      } else {
-        // Filter to active supplements only
-        const activeGroups = groups
-          .map((group) => ({
-            ...group,
-            supplements: filterActiveSupplements(group.supplements),
-          }))
-          .filter((group) => group.supplements.length > 0);
+      // Set today's supplements
+      if (!todaysResult.error) {
+        setTodaysSupplements(todaysResult.supplements);
+      }
 
-        setSupplementGroups(activeGroups);
+      // Set adherence
+      if (!adherenceResult.error) {
+        setAdherence(adherenceResult.adherence);
+      }
 
-        // Count total supplements
-        const total = activeGroups.reduce((sum, g) => sum + g.supplements.length, 0);
-        setTotalSupplements(total);
+      // Set history
+      if (!historyResult.error) {
+        setHistory(historyResult.history);
+      }
+
+      // Set unlogged count
+      if (!unloggedResult.error) {
+        setUnloggedCount(unloggedResult.count);
       }
     } catch (err) {
       console.error('Error in loadSupplements:', err);
@@ -192,11 +417,71 @@ export default function SupsScreen() {
     loadSupplements();
   }, [loadSupplements]);
 
+  // Refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (!isLoading) {
+        loadSupplements();
+      }
+    }, [loadSupplements, isLoading])
+  );
+
+  // Handle supplement toggle
+  const handleToggleSupplement = useCallback(async (supplement: TodaysSupplement) => {
+    if (!user?.id) return;
+
+    setTogglingIds((prev) => new Set(prev).add(supplement.id));
+
+    try {
+      if (supplement.isLogged && supplement.logId) {
+        await unlogSupplement(supplement.logId);
+      } else {
+        await logSupplementTaken(user.id, supplement.id);
+      }
+      await loadSupplements();
+    } catch (err) {
+      console.error('Error toggling supplement:', err);
+    } finally {
+      setTogglingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(supplement.id);
+        return next;
+      });
+    }
+  }, [user?.id, loadSupplements]);
+
+  // Handle mark all as taken for a group
+  const handleMarkAllTaken = useCallback(async (group: SupplementGroupBySchedule) => {
+    if (!user?.id) return;
+
+    const unloggedIds = group.supplements
+      .filter(s => !s.isLogged)
+      .map(s => s.id);
+
+    if (unloggedIds.length === 0) return;
+
+    setMarkingAllSchedule(group.schedule);
+
+    try {
+      await logMultipleSupplements(user.id, unloggedIds);
+      await loadSupplements();
+    } catch (err) {
+      console.error('Error marking all supplements:', err);
+    } finally {
+      setMarkingAllSchedule(null);
+    }
+  }, [user?.id, loadSupplements]);
+
   // Refresh handler
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     loadSupplements();
   }, [loadSupplements]);
+
+  // Calculate totals
+  const totalSupplements = todaysSupplements.length;
+  const takenCount = todaysSupplements.filter((s) => s.isLogged).length;
+  const todaysPercentage = totalSupplements > 0 ? Math.round((takenCount / totalSupplements) * 100) : 0;
 
   if (!isSupabaseConfigured) {
     return (
@@ -283,7 +568,8 @@ export default function SupsScreen() {
           backgroundColor: isDark ? '#111827' : '#F9FAFB',
         }}
       >
-        <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280' }}>Loading supplements...</Text>
+        <ActivityIndicator size="large" color="#6366F1" />
+        <Text style={{ marginTop: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>Loading supplements...</Text>
       </View>
     );
   }
@@ -345,102 +631,163 @@ export default function SupsScreen() {
         />
       }
     >
-      {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-        <Pill size={20} color="#8B5CF6" />
-        <Text
-          style={{
-            marginLeft: 8,
-            fontSize: 17,
-            fontWeight: '600',
-            color: isDark ? '#F3F4F6' : '#1F2937',
-          }}
-        >
-          Your Supplements
-        </Text>
-      </View>
+      {/* Reminder Banner */}
+      <ReminderBanner count={unloggedCount} isDark={isDark} />
 
-      {/* Today's Supplements - Coming Soon */}
-      <View
-        style={{
-          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-          borderRadius: 16,
-          padding: 20,
-          marginBottom: 24,
-          borderWidth: 1,
-          borderColor: isDark ? '#374151' : '#E5E7EB',
-        }}
-      >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Pill size={20} color="#8B5CF6" />
           <Text
             style={{
-              fontSize: 16,
+              marginLeft: 8,
+              fontSize: 17,
               fontWeight: '600',
               color: isDark ? '#F3F4F6' : '#1F2937',
             }}
           >
             Today's Supplements
           </Text>
-          <View
-            style={{
-              backgroundColor: isDark ? '#374151' : '#F3F4F6',
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 6,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 11,
-                fontWeight: '600',
-                color: isDark ? '#9CA3AF' : '#6B7280',
-              }}
-            >
-              COMING SOON
-            </Text>
-          </View>
         </View>
 
-        <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-          <Clock color={isDark ? '#4B5563' : '#9CA3AF'} size={32} />
+        {/* Overall Progress Badge */}
+        <View
+          style={{
+            backgroundColor: todaysPercentage === 100 ? '#DCFCE7' : (isDark ? '#374151' : '#F3F4F6'),
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 16,
+          }}
+        >
           <Text
             style={{
-              marginTop: 8,
               fontSize: 14,
-              color: isDark ? '#6B7280' : '#9CA3AF',
-              textAlign: 'center',
+              fontWeight: '600',
+              color: todaysPercentage === 100 ? '#166534' : (isDark ? '#D1D5DB' : '#4B5563'),
             }}
           >
-            Track your daily supplement intake
+            {takenCount}/{totalSupplements}
           </Text>
         </View>
       </View>
 
-      {/* All Supplements by Schedule */}
-      <Text
-        style={{
-          fontSize: 17,
-          fontWeight: '600',
-          color: isDark ? '#F3F4F6' : '#1F2937',
-          marginBottom: 16,
-        }}
-      >
-        Full Schedule
-      </Text>
+      {/* Grouped Supplements */}
+      {groupedSupplements.map((group) => (
+        <ScheduleGroupCard
+          key={group.schedule}
+          group={group}
+          isDark={isDark}
+          onToggleSupplement={handleToggleSupplement}
+          onMarkAllTaken={handleMarkAllTaken}
+          togglingIds={togglingIds}
+          isMarkingAll={markingAllSchedule === group.schedule}
+        />
+      ))}
 
-      <View
-        style={{
-          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-          borderRadius: 16,
-          padding: 16,
-          borderWidth: 1,
-          borderColor: isDark ? '#374151' : '#E5E7EB',
-        }}
-      >
-        {supplementGroups.map((group) => (
-          <ScheduleGroup key={group.schedule} group={group} isDark={isDark} />
-        ))}
-      </View>
+      {/* This Week Section (like water) */}
+      {history.length > 0 && (
+        <>
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: '600',
+              color: isDark ? '#F3F4F6' : '#1F2937',
+              marginTop: 8,
+              marginBottom: 12,
+            }}
+          >
+            This Week
+          </Text>
+
+          <View
+            style={{
+              backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+              borderRadius: 16,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: isDark ? '#374151' : '#E5E7EB',
+            }}
+          >
+            <View style={{ flexDirection: 'row' }}>
+              {(() => {
+                const maxTotal = Math.max(...history.map((d) => d.total));
+                return history.slice().reverse().map((day) => (
+                  <WeeklyDayBar
+                    key={day.date}
+                    date={day.date}
+                    taken={day.taken}
+                    total={day.total}
+                    maxTotal={maxTotal}
+                    isToday={day.date === today}
+                    isDark={isDark}
+                  />
+                ));
+              })()}
+            </View>
+
+            {/* Weekly Stats */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-around',
+                marginTop: 16,
+                paddingTop: 16,
+                borderTopWidth: 1,
+                borderTopColor: isDark ? '#374151' : '#E5E7EB',
+              }}
+            >
+              <View style={{ alignItems: 'center' }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '700',
+                    color: isDark ? '#F3F4F6' : '#1F2937',
+                  }}
+                >
+                  {history.filter((d) => d.percentage === 100).length}
+                </Text>
+                <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
+                  Perfect Days
+                </Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '700',
+                    color: isDark ? '#F3F4F6' : '#1F2937',
+                  }}
+                >
+                  {adherence?.percentage || 0}%
+                </Text>
+                <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
+                  Adherence
+                </Text>
+              </View>
+              {adherence && adherence.streak > 0 && (
+                <View style={{ alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Flame size={16} color="#F97316" />
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        fontWeight: '700',
+                        color: isDark ? '#F3F4F6' : '#1F2937',
+                        marginLeft: 4,
+                      }}
+                    >
+                      {adherence.streak}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
+                    Day Streak
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </>
+      )}
     </ScrollView>
   );
 }
