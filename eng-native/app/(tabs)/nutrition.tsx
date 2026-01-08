@@ -5,6 +5,7 @@ import { Utensils, AlertCircle, ExternalLink } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
+import { getLocalDateString } from '../../utils/date';
 import {
   MacroCircle,
   PlannedMealCard,
@@ -25,6 +26,11 @@ import {
   getDayTypeTargets,
 } from '../../services/nutritionService';
 import {
+  getAssignedProgram,
+  getProgramWorkouts,
+  getTodaysWorkout,
+} from '../../services/workoutService';
+import {
   NutritionPlanWithMeals,
   DailyNutritionLog,
   SimpleDayType,
@@ -39,7 +45,7 @@ export default function NutritionScreen() {
   // State
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlanWithMeals | null>(null);
   const [dailyLog, setDailyLog] = useState<DailyNutritionLog | null>(null);
-  const [selectedDayType, setSelectedDayType] = useState<SimpleDayType>('Training');
+  const [selectedDayType, setSelectedDayType] = useState<SimpleDayType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loggingMealId, setLoggingMealId] = useState<string | null>(null);
@@ -47,12 +53,12 @@ export default function NutritionScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [mealToDelete, setMealToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showUnlogModal, setShowUnlogModal] = useState(false);
+  const [mealToUnlog, setMealToUnlog] = useState<string | null>(null);
+  const [isUnlogging, setIsUnlogging] = useState(false);
 
-  // Get today's date in YYYY-MM-DD format
-  const today = useMemo(() => {
-    const date = new Date();
-    return date.toISOString().split('T')[0];
-  }, []);
+  // Get today's date in YYYY-MM-DD format (local timezone)
+  const today = useMemo(() => getLocalDateString(), []);
 
   // Load nutrition data
   const loadNutritionData = useCallback(async () => {
@@ -66,13 +72,30 @@ export default function NutritionScreen() {
       // Get today's logged meals (uses user.id for meal_logs)
       const { dailyLog: log } = await getLoggedMealsForDate(user.id, today, plan);
       setDailyLog(log);
+
+      // Determine if today is a training or rest day (only on initial load)
+      if (selectedDayType === null) {
+        const { assignment } = await getAssignedProgram(profile.id);
+        if (assignment?.program_template_id) {
+          const { workouts } = await getProgramWorkouts(assignment.program_template_id);
+          const todaysWorkout = getTodaysWorkout(workouts);
+          setSelectedDayType(todaysWorkout ? 'Training' : 'Rest');
+        } else {
+          // No program assigned, default to Training
+          setSelectedDayType('Training');
+        }
+      }
     } catch (error) {
       console.error('Error loading nutrition data:', error);
+      // Default to Training if there's an error
+      if (selectedDayType === null) {
+        setSelectedDayType('Training');
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [profile?.id, user?.id, today]);
+  }, [profile?.id, user?.id, today, selectedDayType]);
 
   // Initial load
   useEffect(() => {
@@ -87,7 +110,7 @@ export default function NutritionScreen() {
 
   // Get meals for selected day type
   const mealsForDayType = useMemo(() => {
-    if (!nutritionPlan) return [];
+    if (!nutritionPlan || !selectedDayType) return [];
     return getMealsForDayType(nutritionPlan, selectedDayType);
   }, [nutritionPlan, selectedDayType]);
 
@@ -98,6 +121,17 @@ export default function NutritionScreen() {
       .map((m) => m.meal_id!);
   }, [dailyLog]);
 
+  // Map of meal_id to meal_log_id (for unlogging planned meals)
+  const mealIdToLogId = useMemo(() => {
+    const map: Record<string, string> = {};
+    (dailyLog?.logged_meals || [])
+      .filter((m) => !m.is_extra_meal && m.meal_id)
+      .forEach((m) => {
+        map[m.meal_id!] = m.id;
+      });
+    return map;
+  }, [dailyLog]);
+
   // Get extra meals for today
   const extraMeals = useMemo(() => {
     return (dailyLog?.logged_meals || []).filter((m) => m.is_extra_meal);
@@ -105,13 +139,13 @@ export default function NutritionScreen() {
 
   // Get missed meals
   const missedMeals = useMemo((): MissedMeal[] => {
-    if (!mealsForDayType.length) return [];
+    if (!mealsForDayType.length || !selectedDayType) return [];
     return getMissedMeals(mealsForDayType, loggedMealIds, selectedDayType);
   }, [mealsForDayType, loggedMealIds, selectedDayType]);
 
   // Calculate daily targets based on day type
   const dailyTargets = useMemo(() => {
-    if (!nutritionPlan) {
+    if (!nutritionPlan || !selectedDayType) {
       return { calories: 0, protein: 0, carbs: 0, fat: 0 };
     }
     return getDayTypeTargets(nutritionPlan, selectedDayType);
@@ -169,6 +203,37 @@ export default function NutritionScreen() {
     },
     [user?.id, profile?.id, nutritionPlan?.id, today, loadNutritionData]
   );
+
+  // Unlog a planned meal - show confirmation modal
+  const handleUnlogMeal = useCallback((mealId: string) => {
+    setMealToUnlog(mealId);
+    setShowUnlogModal(true);
+  }, []);
+
+  // Confirm unlog planned meal
+  const confirmUnlogMeal = useCallback(async () => {
+    if (!mealToUnlog) return;
+
+    const logId = mealIdToLogId[mealToUnlog];
+    if (!logId) {
+      setShowUnlogModal(false);
+      setMealToUnlog(null);
+      return;
+    }
+
+    setIsUnlogging(true);
+    const { error } = await deleteLoggedMeal(logId);
+    setIsUnlogging(false);
+
+    if (error) {
+      Alert.alert('Error', error);
+    } else {
+      await loadNutritionData();
+    }
+
+    setShowUnlogModal(false);
+    setMealToUnlog(null);
+  }, [mealToUnlog, mealIdToLogId, loadNutritionData]);
 
   // Delete an extra meal - show confirmation modal
   const handleDeleteExtraMeal = useCallback((mealLogId: string) => {
@@ -434,7 +499,7 @@ export default function NutritionScreen() {
             marginBottom: 20,
           }}
         >
-          Daily Nutrition ({selectedDayType.toLowerCase()})
+          Daily Nutrition ({selectedDayType?.toLowerCase() || 'loading'})
         </Text>
 
         {/* Macro Circles - 2x2 Grid */}
@@ -496,7 +561,7 @@ export default function NutritionScreen() {
           }}
         >
           <Text style={{ fontSize: 14, color: isDark ? '#6B7280' : '#9CA3AF', textAlign: 'center' }}>
-            No meals scheduled for {selectedDayType.toLowerCase()} days
+            No meals scheduled for {selectedDayType?.toLowerCase() || 'this'} days
           </Text>
         </View>
       ) : (
@@ -507,6 +572,7 @@ export default function NutritionScreen() {
             isLogged={loggedMealIds.includes(meal.id)}
             isLogging={loggingMealId === meal.id}
             onLogMeal={handleLogMeal}
+            onUnlogMeal={handleUnlogMeal}
           />
         ))
       )}
@@ -539,6 +605,22 @@ export default function NutritionScreen() {
         onCancel={() => {
           setShowDeleteModal(false);
           setMealToDelete(null);
+        }}
+      />
+
+      {/* Unlog Planned Meal Confirmation Modal */}
+      <ConfirmationModal
+        visible={showUnlogModal}
+        title="Unlog Meal"
+        message="Are you sure you want to unlog this meal? You can log it again later."
+        confirmText="Unlog"
+        cancelText="Cancel"
+        confirmColor="red"
+        isLoading={isUnlogging}
+        onConfirm={confirmUnlogMeal}
+        onCancel={() => {
+          setShowUnlogModal(false);
+          setMealToUnlog(null);
         }}
       />
     </ScrollView>

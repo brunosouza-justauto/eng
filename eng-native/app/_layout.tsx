@@ -3,8 +3,11 @@ import { Stack, useRouter, useSegments, SplashScreen } from 'expo-router';
 import { Platform, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { NotificationsProvider } from '../contexts/NotificationsContext';
+import NotificationsModal from '../components/NotificationsModal';
 
 // Import global CSS for NativeWind/Tailwind
 import '../global.css';
@@ -139,6 +142,12 @@ function AppContent() {
           title: 'Nutrition Plan',
         }}
       />
+      <Stack.Screen
+        name="checkin-form"
+        options={{
+          title: 'Weekly Check-in',
+        }}
+      />
     </Stack>
   );
 }
@@ -147,11 +156,16 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <AppContent />
-          </AuthProvider>
-        </ThemeProvider>
+        <BottomSheetModalProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <NotificationsProvider>
+                <AppContent />
+                <NotificationsModal />
+              </NotificationsProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </BottomSheetModalProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

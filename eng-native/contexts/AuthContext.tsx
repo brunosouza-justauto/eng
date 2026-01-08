@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { ProfileData } from '../types/profile';
 
@@ -271,7 +272,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     if (!isSupabaseConfigured) return;
-    await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      // Ignore "Auth session missing" error - it just means already signed out
+      if (error && !error.message?.includes('session missing')) {
+        console.error('Sign out error:', error);
+      }
+    } catch (err) {
+      // Ignore session missing errors
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (!errorMessage.includes('session missing')) {
+        console.error('Sign out exception:', err);
+      }
+    }
+    // Always clear the storage and local state
+    try {
+      await AsyncStorage.removeItem('eng_supabase_auth');
+    } catch (storageErr) {
+      console.error('Failed to clear auth storage:', storageErr);
+    }
+    setSession(null);
+    setUser(null);
     setProfile(null);
   };
 

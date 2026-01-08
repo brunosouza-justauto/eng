@@ -1,7 +1,9 @@
 import { Tabs } from 'expo-router';
-import { Home, Dumbbell, Utensils, Pill, Footprints, Droplets, ClipboardCheck, User } from 'lucide-react-native';
+import { View, Text, Image } from 'react-native';
+import { Home, Dumbbell, Utensils, Pill, Footprints, Droplets, ClipboardCheck } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
+import HeaderRight from '../../components/HeaderRight';
 
 export default function TabLayout() {
   const { isDark } = useTheme();
@@ -40,6 +42,7 @@ export default function TabLayout() {
           fontWeight: '600',
         },
         headerShadowVisible: false,
+        headerRight: () => <HeaderRight />,
       }}
     >
       <Tabs.Screen
@@ -47,7 +50,17 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <Home color={color} size={20} />,
-          headerTitle: 'ENG',
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Image
+                source={require('../../assets/images/icon.png')}
+                style={{ width: 28, height: 28, borderRadius: 6, marginRight: 8 }}
+              />
+              <Text style={{ fontSize: 17, fontWeight: '600', color: isDark ? '#FFFFFF' : '#111827' }}>
+                Earned Not Given 👊
+              </Text>
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
@@ -102,8 +115,8 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <User color={color} size={20} />,
           headerTitle: 'Profile',
+          href: null, // Hide from tab bar, accessible via header
         }}
       />
     </Tabs>

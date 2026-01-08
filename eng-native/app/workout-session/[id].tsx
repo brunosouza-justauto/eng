@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, BackHandler, Modal } from 'react-native';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, BackHandler } from 'react-native';
+import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -96,10 +97,41 @@ export default function WorkoutSessionScreen() {
   const [exerciseRecommendations, setExerciseRecommendations] = useState<Map<string, FeedbackRecommendation[]>>(new Map());
   const [previousFeedbackNotes, setPreviousFeedbackNotes] = useState<Map<string, string>>(new Map());
 
+  // Notes modal bottom sheet
+  const notesBottomSheetRef = useRef<BottomSheetModal>(null);
+  const notesSnapPoints = useMemo(() => ['85%'], []);
+
   // Timers
   const workoutTimer = useWorkoutTimer();
   const restTimer = useRestTimer();
   const countdownTimer = useCountdownTimer();
+
+  // Notes bottom sheet control
+  useEffect(() => {
+    if (showNotesModal) {
+      notesBottomSheetRef.current?.present();
+    } else {
+      notesBottomSheetRef.current?.dismiss();
+    }
+  }, [showNotesModal]);
+
+  const handleNotesSheetChanges = useCallback((index: number) => {
+    if (index === -1) {
+      setShowNotesModal(false);
+    }
+  }, []);
+
+  const renderNotesBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.6}
+      />
+    ),
+    []
+  );
 
   // Fetch workout data (only on initial load, not on token refresh)
   useEffect(() => {
@@ -915,82 +947,78 @@ export default function WorkoutSessionScreen() {
       />
 
       {/* Workout Notes Modal */}
-      <Modal
-        visible={showNotesModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowNotesModal(false)}
+      <BottomSheetModal
+        ref={notesBottomSheetRef}
+        snapPoints={notesSnapPoints}
+        onChange={handleNotesSheetChanges}
+        enablePanDownToClose={true}
+        backdropComponent={renderNotesBackdrop}
+        bottomInset={insets.bottom}
+        detached={false}
+        handleIndicatorStyle={{
+          backgroundColor: isDark ? '#6B7280' : '#9CA3AF',
+          width: 40,
+        }}
+        handleStyle={{
+          paddingBottom: 12,
+        }}
+        backgroundStyle={{
+          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+        }}
       >
+        {/* Header */}
         <View
           style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            justifyContent: 'flex-end',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 20,
+            paddingTop: 8,
+            borderBottomWidth: 1,
+            borderBottomColor: isDark ? '#374151' : '#E5E7EB',
           }}
         >
-          <View
+          <Text
             style={{
-              backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              height: '90%',
-              paddingBottom: insets.bottom,
+              fontSize: 18,
+              fontWeight: '600',
+              color: isDark ? '#F3F4F6' : '#1F2937',
             }}
           >
-            {/* Header */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: 20,
-                borderBottomWidth: 1,
-                borderBottomColor: isDark ? '#374151' : '#E5E7EB',
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: '600',
-                  color: isDark ? '#F3F4F6' : '#1F2937',
-                }}
-              >
-                Workout Notes
-              </Text>
-              <Pressable
-                onPress={() => setShowNotesModal(false)}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: isDark ? '#374151' : '#F3F4F6',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 18, color: isDark ? '#9CA3AF' : '#6B7280' }}>✕</Text>
-              </Pressable>
-            </View>
-
-            {/* Content */}
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{ padding: 20 }}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text
-                style={{
-                  fontSize: 15,
-                  color: isDark ? '#D1D5DB' : '#374151',
-                  lineHeight: 24,
-                }}
-              >
-                {workout?.description}
-              </Text>
-            </ScrollView>
-          </View>
+            Workout Notes
+          </Text>
+          <Pressable
+            onPress={() => setShowNotesModal(false)}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: isDark ? '#374151' : '#F3F4F6',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 18, color: isDark ? '#9CA3AF' : '#6B7280' }}>✕</Text>
+          </Pressable>
         </View>
-      </Modal>
+
+        {/* Content */}
+        <BottomSheetScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 20, paddingBottom: 20, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text
+            style={{
+              fontSize: 15,
+              color: isDark ? '#D1D5DB' : '#374151',
+              lineHeight: 24,
+            }}
+          >
+            {workout?.description}
+          </Text>
+        </BottomSheetScrollView>
+      </BottomSheetModal>
     </View>
   );
 }

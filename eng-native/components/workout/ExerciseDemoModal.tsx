@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  Modal,
   View,
   Text,
   Pressable,
-  ScrollView,
   ActivityIndicator,
   Image,
   Linking,
 } from 'react-native';
+import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Youtube, Dumbbell, Info, Lightbulb } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -33,9 +32,20 @@ export const ExerciseDemoModal = ({
 }: ExerciseDemoModalProps) => {
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ['85%'], []);
+
   const [exercise, setExercise] = useState<ExerciseDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      bottomSheetRef.current?.present();
+    } else {
+      bottomSheetRef.current?.dismiss();
+    }
+  }, [visible]);
 
   useEffect(() => {
     if (visible && exerciseDbId) {
@@ -50,6 +60,24 @@ export const ExerciseDemoModal = ({
       setImageError(false);
     }
   }, [visible, exerciseDbId]);
+
+  const handleSheetChanges = useCallback((index: number) => {
+    if (index === -1) {
+      onClose();
+    }
+  }, [onClose]);
+
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.6}
+      />
+    ),
+    []
+  );
 
   const fetchExercise = async () => {
     if (!exerciseDbId) {
@@ -91,367 +119,363 @@ export const ExerciseDemoModal = ({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
+    <BottomSheetModal
+      ref={bottomSheetRef}
+      snapPoints={snapPoints}
+      onChange={handleSheetChanges}
+      enablePanDownToClose={true}
+      backdropComponent={renderBackdrop}
+      bottomInset={insets.bottom}
+      detached={false}
+      handleIndicatorStyle={{
+        backgroundColor: isDark ? '#6B7280' : '#9CA3AF',
+        width: 40,
+      }}
+      handleStyle={{
+        paddingBottom: 12,
+      }}
+      backgroundStyle={{
+        backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+      }}
     >
+      {/* Header */}
       <View
         style={{
-          flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          justifyContent: 'flex-end',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 20,
+          paddingTop: 8,
+          borderBottomWidth: 1,
+          borderBottomColor: isDark ? '#374151' : '#E5E7EB',
         }}
       >
-        <View
+        <Text
           style={{
-            backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            height: '90%',
-            paddingBottom: insets.bottom,
+            flex: 1,
+            fontSize: 18,
+            fontWeight: '600',
+            color: isDark ? '#F3F4F6' : '#1F2937',
+            marginRight: 16,
+          }}
+          numberOfLines={2}
+        >
+          {cleanExerciseName(exerciseName)}
+        </Text>
+        <Pressable
+          onPress={handleClose}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: isDark ? '#374151' : '#F3F4F6',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          {/* Header */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: 20,
-              borderBottomWidth: 1,
-              borderBottomColor: isDark ? '#374151' : '#E5E7EB',
-            }}
-          >
+          <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+        </Pressable>
+      </View>
+
+      {/* Content */}
+      <BottomSheetScrollView
+        style={{ flex: 1, minHeight: 200 }}
+        contentContainerStyle={{ padding: 20, flexGrow: 1, paddingBottom: 20 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {isLoading ? (
+          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+            <ActivityIndicator size="large" color="#6366F1" />
             <Text
               style={{
-                flex: 1,
-                fontSize: 18,
-                fontWeight: '600',
-                color: isDark ? '#F3F4F6' : '#1F2937',
-                marginRight: 16,
+                marginTop: 12,
+                color: isDark ? '#9CA3AF' : '#6B7280',
               }}
-              numberOfLines={2}
             >
-              {cleanExerciseName(exerciseName)}
+              Loading exercise details...
             </Text>
-            <Pressable
-              onPress={handleClose}
+          </View>
+        ) : exercise ? (
+          <>
+            {/* Demo Image/GIF */}
+            <View
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
                 backgroundColor: isDark ? '#374151' : '#F3F4F6',
+                borderRadius: 12,
+                overflow: 'hidden',
+                marginBottom: 20,
+                minHeight: 200,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-            </Pressable>
-          </View>
-
-          {/* Content */}
-          <ScrollView
-            style={{ flex: 1, minHeight: 200 }}
-            contentContainerStyle={{ padding: 20, flexGrow: 1 }}
-            showsVerticalScrollIndicator={false}
-          >
-            {isLoading ? (
-              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-                <ActivityIndicator size="large" color="#6366F1" />
-                <Text
-                  style={{
-                    marginTop: 12,
-                    color: isDark ? '#9CA3AF' : '#6B7280',
-                  }}
-                >
-                  Loading exercise details...
-                </Text>
-              </View>
-            ) : exercise ? (
-              <>
-                {/* Demo Image/GIF */}
-                <View
-                  style={{
-                    backgroundColor: isDark ? '#374151' : '#F3F4F6',
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                    marginBottom: 20,
-                    minHeight: 200,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {exercise.gifUrl && !imageError ? (
-                    <>
-                      <Image
-                        source={{ uri: exercise.gifUrl }}
-                        style={{
-                          width: '100%',
-                          height: 250,
-                          resizeMode: 'contain',
-                        }}
-                        onError={() => setImageError(true)}
-                      />
-                      {exercise.gifUrl.toLowerCase().endsWith('.gif') && (
-                        <View
-                          style={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 12,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: '#FFFFFF',
-                              fontSize: 10,
-                              fontWeight: '600',
-                            }}
-                          >
-                            GIF
-                          </Text>
-                        </View>
-                      )}
-                    </>
-                  ) : (
-                    <View style={{ alignItems: 'center', padding: 40 }}>
-                      <Dumbbell
-                        size={48}
-                        color={isDark ? '#6B7280' : '#9CA3AF'}
-                      />
+              {exercise.gifUrl && !imageError ? (
+                <>
+                  <Image
+                    source={{ uri: exercise.gifUrl }}
+                    style={{
+                      width: '100%',
+                      height: 250,
+                      resizeMode: 'contain',
+                    }}
+                    onError={() => setImageError(true)}
+                  />
+                  {exercise.gifUrl.toLowerCase().endsWith('.gif') && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 12,
+                      }}
+                    >
                       <Text
                         style={{
-                          marginTop: 12,
-                          color: isDark ? '#6B7280' : '#9CA3AF',
-                          textAlign: 'center',
+                          color: '#FFFFFF',
+                          fontSize: 10,
+                          fontWeight: '600',
                         }}
                       >
-                        No demo available
+                        GIF
                       </Text>
                     </View>
                   )}
-                </View>
-
-                {/* YouTube Button */}
-                {exercise.youtubeLink && (
-                  <Pressable
-                    onPress={handleYoutubePress}
+                </>
+              ) : (
+                <View style={{ alignItems: 'center', padding: 40 }}>
+                  <Dumbbell
+                    size={48}
+                    color={isDark ? '#6B7280' : '#9CA3AF'}
+                  />
+                  <Text
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: '#DC2626',
-                      borderRadius: 10,
-                      paddingVertical: 12,
-                      marginBottom: 20,
+                      marginTop: 12,
+                      color: isDark ? '#6B7280' : '#9CA3AF',
+                      textAlign: 'center',
                     }}
                   >
-                    <Youtube size={18} color="#FFFFFF" />
+                    No demo available
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* YouTube Button */}
+            {exercise.youtubeLink && (
+              <Pressable
+                onPress={handleYoutubePress}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#DC2626',
+                  borderRadius: 10,
+                  paddingVertical: 12,
+                  marginBottom: 20,
+                }}
+              >
+                <Youtube size={18} color="#FFFFFF" />
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    color: '#FFFFFF',
+                    fontSize: 14,
+                    fontWeight: '600',
+                  }}
+                >
+                  Watch on YouTube
+                </Text>
+              </Pressable>
+            )}
+
+            {/* Muscle & Equipment Tags */}
+            {(exercise.primaryMuscle || exercise.equipment?.length) && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  marginBottom: 16,
+                  gap: 8,
+                }}
+              >
+                {exercise.primaryMuscle && (
+                  <View
+                    style={{
+                      backgroundColor: isDark
+                        ? 'rgba(99, 102, 241, 0.2)'
+                        : 'rgba(99, 102, 241, 0.1)',
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 16,
+                    }}
+                  >
                     <Text
                       style={{
-                        marginLeft: 8,
-                        color: '#FFFFFF',
-                        fontSize: 14,
-                        fontWeight: '600',
+                        fontSize: 12,
+                        fontWeight: '500',
+                        color: isDark ? '#A5B4FC' : '#6366F1',
                       }}
                     >
-                      Watch on YouTube
+                      {exercise.primaryMuscle}
                     </Text>
-                  </Pressable>
-                )}
-
-                {/* Muscle & Equipment Tags */}
-                {(exercise.primaryMuscle || exercise.equipment?.length) && (
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      flexWrap: 'wrap',
-                      marginBottom: 16,
-                      gap: 8,
-                    }}
-                  >
-                    {exercise.primaryMuscle && (
-                      <View
-                        style={{
-                          backgroundColor: isDark
-                            ? 'rgba(99, 102, 241, 0.2)'
-                            : 'rgba(99, 102, 241, 0.1)',
-                          paddingHorizontal: 12,
-                          paddingVertical: 6,
-                          borderRadius: 16,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontWeight: '500',
-                            color: isDark ? '#A5B4FC' : '#6366F1',
-                          }}
-                        >
-                          {exercise.primaryMuscle}
-                        </Text>
-                      </View>
-                    )}
-                    {exercise.equipment?.map((equip, index) => (
-                      <View
-                        key={index}
-                        style={{
-                          backgroundColor: isDark
-                            ? 'rgba(34, 197, 94, 0.2)'
-                            : 'rgba(34, 197, 94, 0.1)',
-                          paddingHorizontal: 12,
-                          paddingVertical: 6,
-                          borderRadius: 16,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontWeight: '500',
-                            color: isDark ? '#86EFAC' : '#22C55E',
-                          }}
-                        >
-                          {equip}
-                        </Text>
-                      </View>
-                    ))}
                   </View>
                 )}
-
-                {/* Instructions */}
-                {exercise.instructions && exercise.instructions.length > 0 && (
+                {exercise.equipment?.map((equip, index) => (
                   <View
+                    key={index}
                     style={{
                       backgroundColor: isDark
-                        ? 'rgba(55, 65, 81, 0.5)'
-                        : '#F9FAFB',
-                      borderRadius: 12,
-                      padding: 16,
-                      marginBottom: 16,
+                        ? 'rgba(34, 197, 94, 0.2)'
+                        : 'rgba(34, 197, 94, 0.1)',
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 16,
                     }}
                   >
-                    <View
+                    <Text
                       style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        marginBottom: 12,
+                        fontSize: 12,
+                        fontWeight: '500',
+                        color: isDark ? '#86EFAC' : '#22C55E',
                       }}
                     >
-                      <Info size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                      <Text
-                        style={{
-                          marginLeft: 8,
-                          fontSize: 12,
-                          fontWeight: '600',
-                          color: isDark ? '#9CA3AF' : '#6B7280',
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        Instructions
-                      </Text>
-                    </View>
-                    {exercise.instructions.map((instruction, index) => (
-                      <Text
-                        key={index}
-                        style={{
-                          fontSize: 14,
-                          color: isDark ? '#D1D5DB' : '#374151',
-                          lineHeight: 22,
-                          marginBottom:
-                            index < exercise.instructions!.length - 1 ? 8 : 0,
-                        }}
-                      >
-                        {instruction}
-                      </Text>
-                    ))}
+                      {equip}
+                    </Text>
                   </View>
-                )}
-
-                {/* Tips */}
-                {exercise.tips && exercise.tips.length > 0 && (
-                  <View
-                    style={{
-                      backgroundColor: isDark
-                        ? 'rgba(234, 179, 8, 0.1)'
-                        : 'rgba(234, 179, 8, 0.1)',
-                      borderRadius: 12,
-                      padding: 16,
-                      marginBottom: 16,
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        marginBottom: 12,
-                      }}
-                    >
-                      <Lightbulb size={16} color="#EAB308" />
-                      <Text
-                        style={{
-                          marginLeft: 8,
-                          fontSize: 12,
-                          fontWeight: '600',
-                          color: '#EAB308',
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        Tips
-                      </Text>
-                    </View>
-                    {exercise.tips.map((tip, index) => (
-                      <Text
-                        key={index}
-                        style={{
-                          fontSize: 14,
-                          color: isDark ? '#D1D5DB' : '#374151',
-                          lineHeight: 22,
-                          marginBottom:
-                            index < exercise.tips!.length - 1 ? 8 : 0,
-                        }}
-                      >
-                        {tip}
-                      </Text>
-                    ))}
-                  </View>
-                )}
-
-                {/* Bottom spacer */}
-                <View style={{ height: 20 }} />
-              </>
-            ) : (
-              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-                <Dumbbell size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />
-                <Text
-                  style={{
-                    marginTop: 12,
-                    fontSize: 16,
-                    fontWeight: '500',
-                    color: isDark ? '#D1D5DB' : '#374151',
-                  }}
-                >
-                  Exercise Not Found
-                </Text>
-                <Text
-                  style={{
-                    marginTop: 4,
-                    color: isDark ? '#6B7280' : '#9CA3AF',
-                    textAlign: 'center',
-                  }}
-                >
-                  Unable to load exercise details
-                </Text>
+                ))}
               </View>
             )}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+
+            {/* Instructions */}
+            {exercise.instructions && exercise.instructions.length > 0 && (
+              <View
+                style={{
+                  backgroundColor: isDark
+                    ? 'rgba(55, 65, 81, 0.5)'
+                    : '#F9FAFB',
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 16,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <Info size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  <Text
+                    style={{
+                      marginLeft: 8,
+                      fontSize: 12,
+                      fontWeight: '600',
+                      color: isDark ? '#9CA3AF' : '#6B7280',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Instructions
+                  </Text>
+                </View>
+                {exercise.instructions.map((instruction, index) => (
+                  <Text
+                    key={index}
+                    style={{
+                      fontSize: 14,
+                      color: isDark ? '#D1D5DB' : '#374151',
+                      lineHeight: 22,
+                      marginBottom:
+                        index < exercise.instructions!.length - 1 ? 8 : 0,
+                    }}
+                  >
+                    {instruction}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {/* Tips */}
+            {exercise.tips && exercise.tips.length > 0 && (
+              <View
+                style={{
+                  backgroundColor: isDark
+                    ? 'rgba(234, 179, 8, 0.1)'
+                    : 'rgba(234, 179, 8, 0.1)',
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 16,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <Lightbulb size={16} color="#EAB308" />
+                  <Text
+                    style={{
+                      marginLeft: 8,
+                      fontSize: 12,
+                      fontWeight: '600',
+                      color: '#EAB308',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Tips
+                  </Text>
+                </View>
+                {exercise.tips.map((tip, index) => (
+                  <Text
+                    key={index}
+                    style={{
+                      fontSize: 14,
+                      color: isDark ? '#D1D5DB' : '#374151',
+                      lineHeight: 22,
+                      marginBottom:
+                        index < exercise.tips!.length - 1 ? 8 : 0,
+                    }}
+                  >
+                    {tip}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {/* Bottom spacer */}
+            <View style={{ height: 20 }} />
+          </>
+        ) : (
+          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+            <Dumbbell size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />
+            <Text
+              style={{
+                marginTop: 12,
+                fontSize: 16,
+                fontWeight: '500',
+                color: isDark ? '#D1D5DB' : '#374151',
+              }}
+            >
+              Exercise Not Found
+            </Text>
+            <Text
+              style={{
+                marginTop: 4,
+                color: isDark ? '#6B7280' : '#9CA3AF',
+                textAlign: 'center',
+              }}
+            >
+              Unable to load exercise details
+            </Text>
+          </View>
+        )}
+      </BottomSheetScrollView>
+    </BottomSheetModal>
   );
 };
 

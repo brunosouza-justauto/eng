@@ -9,6 +9,7 @@ interface PlannedMealCardProps {
   isLogged: boolean;
   isLogging?: boolean;
   onLogMeal: (mealId: string) => void;
+  onUnlogMeal?: (mealId: string) => void;
 }
 
 /**
@@ -19,6 +20,7 @@ export const PlannedMealCard = ({
   isLogged,
   isLogging,
   onLogMeal,
+  onUnlogMeal,
 }: PlannedMealCardProps) => {
   const { isDark } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -100,10 +102,16 @@ export const PlannedMealCard = ({
           </Text>
         </View>
 
-        {/* Log button */}
+        {/* Log/Unlog button */}
         <Pressable
-          onPress={() => onLogMeal(meal.id)}
-          disabled={isLogged || isLogging}
+          onPress={() => {
+            if (isLogged && onUnlogMeal) {
+              onUnlogMeal(meal.id);
+            } else if (!isLogged) {
+              onLogMeal(meal.id);
+            }
+          }}
+          disabled={isLogging}
           style={{
             width: 36,
             height: 36,

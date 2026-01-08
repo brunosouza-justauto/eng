@@ -1,15 +1,34 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, Switch, Modal, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
-import { User, Moon, Bell, LogOut, ChevronRight, Mail, AlertCircle, Lock, X, Eye, EyeOff, UserCog } from 'lucide-react-native';
+import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { User, Moon, Bell, LogOut, ChevronRight, Mail, AlertCircle, Lock, X, Eye, EyeOff, UserCog, RefreshCw, Info } from 'lucide-react-native';
 import { router } from 'expo-router';
+import Constants from 'expo-constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
+import { useAppUpdates } from '../../hooks/useAppUpdates';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export default function ProfileScreen() {
   const { isDark, toggleTheme } = useTheme();
   const { user, profile, signOut, refreshProfile } = useAuth();
+  const { openNotifications } = useNotifications();
+  const { isChecking, isDownloading, isUpdateAvailable, isUpdatePending, checkForUpdates, downloadAndApplyUpdate, reloadApp } = useAppUpdates();
+  const insets = useSafeAreaInsets();
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Password bottom sheet
+  const passwordBottomSheetRef = useRef<BottomSheetModal>(null);
+  const passwordSnapPoints = useMemo(() => ['85%'], []);
+
+  // App version
+  const appVersion = Constants.expoConfig?.version || '1.0.0';
+
+  // Update modal state
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [updateModalType, setUpdateModalType] = useState<'checking' | 'available' | 'downloading' | 'ready' | 'upToDate' | 'devMode'>('checking');
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -18,6 +37,43 @@ export default function ProfileScreen() {
     }
     setIsRefreshing(false);
   }, [refreshProfile]);
+
+  // Handle check for updates with modal feedback
+  const handleCheckForUpdates = useCallback(async () => {
+    if (__DEV__) {
+      setUpdateModalType('devMode');
+      setShowUpdateModal(true);
+      return;
+    }
+
+    setUpdateModalType('checking');
+    setShowUpdateModal(true);
+
+    const result = await checkForUpdates(true);
+
+    if (result.hasUpdate) {
+      setUpdateModalType('available');
+    } else {
+      setUpdateModalType('upToDate');
+    }
+  }, [checkForUpdates]);
+
+  // Handle download update
+  const handleDownloadUpdate = useCallback(async () => {
+    setUpdateModalType('downloading');
+    const success = await downloadAndApplyUpdate();
+    if (success) {
+      setUpdateModalType('ready');
+    } else {
+      setShowUpdateModal(false);
+    }
+  }, [downloadAndApplyUpdate]);
+
+  // Handle restart app
+  const handleRestartApp = useCallback(async () => {
+    setShowUpdateModal(false);
+    await reloadApp();
+  }, [reloadApp]);
 
   // Change password modal state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -113,6 +169,33 @@ export default function ProfileScreen() {
     setShowNewPassword(false);
   };
 
+  // Password bottom sheet control
+  useEffect(() => {
+    if (showPasswordModal) {
+      passwordBottomSheetRef.current?.present();
+    } else {
+      passwordBottomSheetRef.current?.dismiss();
+    }
+  }, [showPasswordModal]);
+
+  const handlePasswordSheetChanges = useCallback((index: number) => {
+    if (index === -1) {
+      setShowPasswordModal(false);
+    }
+  }, []);
+
+  const renderPasswordBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.6}
+      />
+    ),
+    []
+  );
+
   const menuItems = [
     {
       title: 'Edit Profile',
@@ -133,6 +216,7 @@ export default function ProfileScreen() {
       title: 'Notifications',
       icon: Bell,
       type: 'link' as const,
+      onPress: openNotifications,
     },
     {
       title: 'Dark Mode',
@@ -171,7 +255,8 @@ export default function ProfileScreen() {
         }
       >
         {/* Profile Card */}
-        <View
+        <Pressable
+          onPress={() => router.push('/edit-profile')}
           className={`rounded-2xl p-5 mb-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
           style={{
             shadowColor: '#000',
@@ -216,8 +301,9 @@ export default function ProfileScreen() {
                 </>
               )}
             </View>
+            <ChevronRight color={isDark ? '#6B7280' : '#9CA3AF'} size={20} />
           </View>
-        </View>
+        </Pressable>
 
         {/* Settings Menu */}
         <Text className={`text-lg font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -265,6 +351,65 @@ export default function ProfileScreen() {
           ))}
         </View>
 
+        {/* App Section */}
+        <Text className={`text-lg font-semibold mb-3 mt-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          App
+        </Text>
+
+        <View
+          className={`rounded-2xl overflow-hidden mb-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: isDark ? 0.3 : 0.1,
+            shadowRadius: 8,
+            elevation: 3,
+          }}
+        >
+          {/* Version Info */}
+          <View
+            className={`flex-row items-center px-4 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}
+          >
+            <View
+              className="w-10 h-10 rounded-lg items-center justify-center mr-3"
+              style={{ backgroundColor: isDark ? '#374151' : '#F3F4F6' }}
+            >
+              <Info color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
+            </View>
+            <View className="flex-1">
+              <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Version</Text>
+              <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{appVersion}</Text>
+            </View>
+          </View>
+
+          {/* Check for Updates */}
+          <Pressable
+            onPress={handleCheckForUpdates}
+            disabled={isChecking || isDownloading}
+            className="flex-row items-center px-4 py-4"
+          >
+            <View
+              className="w-10 h-10 rounded-lg items-center justify-center mr-3"
+              style={{ backgroundColor: isDark ? '#312E81' : '#EEF2FF' }}
+            >
+              {isChecking || isDownloading ? (
+                <ActivityIndicator size="small" color="#6366F1" />
+              ) : (
+                <RefreshCw color="#6366F1" size={20} />
+              )}
+            </View>
+            <View className="flex-1">
+              <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Check for Updates
+              </Text>
+              <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                {isChecking ? 'Checking...' : isDownloading ? 'Downloading...' : 'Tap to check for new version'}
+              </Text>
+            </View>
+            <ChevronRight color={isDark ? '#6B7280' : '#9CA3AF'} size={20} />
+          </Pressable>
+        </View>
+
         {/* Sign Out Button */}
         {user && (
           <Pressable
@@ -278,156 +423,374 @@ export default function ProfileScreen() {
           </Pressable>
         )}
 
-        {/* App Info */}
-        <View className="items-center mt-8 mb-4">
+        {/* App Branding */}
+        <View className="items-center mt-6 mb-8">
           <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             ENG - Earned Not Given
-          </Text>
-          <Text className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>
-            Version 1.0.0
           </Text>
         </View>
       </ScrollView>
 
-      {/* Change Password Modal */}
-      <Modal
-        visible={showPasswordModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowPasswordModal(false)}
+      {/* Change Password Bottom Sheet Modal */}
+      <BottomSheetModal
+        ref={passwordBottomSheetRef}
+        snapPoints={passwordSnapPoints}
+        onChange={handlePasswordSheetChanges}
+        enablePanDownToClose={true}
+        backdropComponent={renderPasswordBackdrop}
+        bottomInset={insets.bottom}
+        detached={false}
+        handleIndicatorStyle={{
+          backgroundColor: isDark ? '#6B7280' : '#9CA3AF',
+          width: 40,
+        }}
+        handleStyle={{
+          paddingBottom: 12,
+        }}
+        backgroundStyle={{
+          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+        }}
       >
-        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View
-            className={`rounded-t-3xl p-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-            style={{ maxHeight: '80%' }}
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 20,
+            paddingTop: 8,
+            borderBottomWidth: 1,
+            borderBottomColor: isDark ? '#374151' : '#E5E7EB',
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: '600',
+              color: isDark ? '#F3F4F6' : '#1F2937',
+            }}
           >
-            {/* Header */}
-            <View className="flex-row items-center justify-between mb-6">
-              <Text className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Change Password
-              </Text>
-              <Pressable
-                onPress={() => setShowPasswordModal(false)}
-                className="w-8 h-8 items-center justify-center rounded-full"
-                style={{ backgroundColor: isDark ? '#374151' : '#F3F4F6' }}
-              >
-                <X color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
+            Change Password
+          </Text>
+          <Pressable
+            onPress={() => setShowPasswordModal(false)}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: isDark ? '#374151' : '#F3F4F6',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          </Pressable>
+        </View>
+
+        {/* Content */}
+        <BottomSheetScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 20, flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Success Message */}
+          {passwordSuccess ? (
+            <View
+              style={{
+                marginBottom: 16,
+                padding: 12,
+                borderRadius: 8,
+                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#F0FDF4',
+              }}
+            >
+              <Text style={{ color: '#22C55E', fontSize: 14 }}>{passwordSuccess}</Text>
+            </View>
+          ) : null}
+
+          {/* Error Message */}
+          {passwordError ? (
+            <View
+              style={{
+                marginBottom: 16,
+                padding: 12,
+                borderRadius: 8,
+                backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2',
+              }}
+            >
+              <Text style={{ color: '#EF4444', fontSize: 14 }}>{passwordError}</Text>
+            </View>
+          ) : null}
+
+          {/* Current Password */}
+          <View style={{ marginBottom: 16 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: '500',
+                marginBottom: 8,
+                color: isDark ? '#D1D5DB' : '#374151',
+              }}
+            >
+              Current Password
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderRadius: 12,
+                paddingHorizontal: 16,
+                borderWidth: 1,
+                backgroundColor: isDark ? '#374151' : '#F9FAFB',
+                borderColor: isDark ? '#4B5563' : '#E5E7EB',
+              }}
+            >
+              <Lock color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
+              <TextInput
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  paddingHorizontal: 12,
+                  fontSize: 16,
+                  color: isDark ? '#F3F4F6' : '#1F2937',
+                }}
+                placeholder="Enter current password"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry={!showCurrentPassword}
+                autoCapitalize="none"
+                editable={!isUpdating}
+              />
+              <Pressable onPress={() => setShowCurrentPassword(!showCurrentPassword)}>
+                {showCurrentPassword ? (
+                  <EyeOff color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
+                ) : (
+                  <Eye color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
+                )}
               </Pressable>
             </View>
+          </View>
 
-            {/* Success Message */}
-            {passwordSuccess ? (
-              <View className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-green-900/30' : 'bg-green-50'}`}>
-                <Text className="text-green-600 text-sm">{passwordSuccess}</Text>
-              </View>
-            ) : null}
-
-            {/* Error Message */}
-            {passwordError ? (
-              <View className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-red-900/30' : 'bg-red-50'}`}>
-                <Text className="text-red-500 text-sm">{passwordError}</Text>
-              </View>
-            ) : null}
-
-            {/* Current Password */}
-            <View className="mb-4">
-              <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Current Password
-              </Text>
-              <View
-                className={`flex-row items-center rounded-xl px-4 border ${
-                  isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <Lock color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
-                <TextInput
-                  className={`flex-1 py-3 px-3 text-base ${isDark ? 'text-white' : 'text-gray-900'}`}
-                  placeholder="Enter current password"
-                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  secureTextEntry={!showCurrentPassword}
-                  autoCapitalize="none"
-                  editable={!isUpdating}
-                />
-                <Pressable onPress={() => setShowCurrentPassword(!showCurrentPassword)}>
-                  {showCurrentPassword ? (
-                    <EyeOff color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
-                  ) : (
-                    <Eye color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
-                  )}
-                </Pressable>
-              </View>
-            </View>
-
-            {/* New Password */}
-            <View className="mb-4">
-              <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                New Password
-              </Text>
-              <View
-                className={`flex-row items-center rounded-xl px-4 border ${
-                  isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <Lock color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
-                <TextInput
-                  className={`flex-1 py-3 px-3 text-base ${isDark ? 'text-white' : 'text-gray-900'}`}
-                  placeholder="Enter new password"
-                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  secureTextEntry={!showNewPassword}
-                  autoCapitalize="none"
-                  editable={!isUpdating}
-                />
-                <Pressable onPress={() => setShowNewPassword(!showNewPassword)}>
-                  {showNewPassword ? (
-                    <EyeOff color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
-                  ) : (
-                    <Eye color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
-                  )}
-                </Pressable>
-              </View>
-            </View>
-
-            {/* Confirm Password */}
-            <View className="mb-6">
-              <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Confirm New Password
-              </Text>
-              <View
-                className={`flex-row items-center rounded-xl px-4 border ${
-                  isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <Lock color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
-                <TextInput
-                  className={`flex-1 py-3 px-3 text-base ${isDark ? 'text-white' : 'text-gray-900'}`}
-                  placeholder="Confirm new password"
-                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showNewPassword}
-                  autoCapitalize="none"
-                  editable={!isUpdating}
-                />
-              </View>
-            </View>
-
-            {/* Update Button */}
-            <Pressable
-              onPress={handleChangePassword}
-              disabled={isUpdating}
-              className={`rounded-xl py-4 items-center ${isUpdating ? 'opacity-50' : ''}`}
-              style={{ backgroundColor: '#6366F1' }}
+          {/* New Password */}
+          <View style={{ marginBottom: 16 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: '500',
+                marginBottom: 8,
+                color: isDark ? '#D1D5DB' : '#374151',
+              }}
             >
-              {isUpdating ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text className="text-white font-semibold text-base">Update Password</Text>
-              )}
-            </Pressable>
+              New Password
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderRadius: 12,
+                paddingHorizontal: 16,
+                borderWidth: 1,
+                backgroundColor: isDark ? '#374151' : '#F9FAFB',
+                borderColor: isDark ? '#4B5563' : '#E5E7EB',
+              }}
+            >
+              <Lock color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
+              <TextInput
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  paddingHorizontal: 12,
+                  fontSize: 16,
+                  color: isDark ? '#F3F4F6' : '#1F2937',
+                }}
+                placeholder="Enter new password"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry={!showNewPassword}
+                autoCapitalize="none"
+                editable={!isUpdating}
+              />
+              <Pressable onPress={() => setShowNewPassword(!showNewPassword)}>
+                {showNewPassword ? (
+                  <EyeOff color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
+                ) : (
+                  <Eye color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
+                )}
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Confirm Password */}
+          <View style={{ marginBottom: 24 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: '500',
+                marginBottom: 8,
+                color: isDark ? '#D1D5DB' : '#374151',
+              }}
+            >
+              Confirm New Password
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderRadius: 12,
+                paddingHorizontal: 16,
+                borderWidth: 1,
+                backgroundColor: isDark ? '#374151' : '#F9FAFB',
+                borderColor: isDark ? '#4B5563' : '#E5E7EB',
+              }}
+            >
+              <Lock color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
+              <TextInput
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  paddingHorizontal: 12,
+                  fontSize: 16,
+                  color: isDark ? '#F3F4F6' : '#1F2937',
+                }}
+                placeholder="Confirm new password"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showNewPassword}
+                autoCapitalize="none"
+                editable={!isUpdating}
+              />
+            </View>
+          </View>
+
+          {/* Update Button */}
+          <Pressable
+            onPress={handleChangePassword}
+            disabled={isUpdating}
+            style={{
+              backgroundColor: '#6366F1',
+              borderRadius: 12,
+              paddingVertical: 16,
+              alignItems: 'center',
+              opacity: isUpdating ? 0.5 : 1,
+            }}
+          >
+            {isUpdating ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>
+                Update Password
+              </Text>
+            )}
+          </Pressable>
+        </BottomSheetScrollView>
+      </BottomSheetModal>
+
+      {/* Update Modal */}
+      <Modal
+        visible={showUpdateModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowUpdateModal(false)}
+      >
+        <View className="flex-1 justify-center items-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View
+            className={`rounded-2xl p-6 mx-6 w-80 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 12,
+              elevation: 8,
+            }}
+          >
+            {/* Icon */}
+            <View className="items-center mb-4">
+              <View
+                className="w-16 h-16 rounded-full items-center justify-center"
+                style={{
+                  backgroundColor: updateModalType === 'ready' ? '#DEF7EC' :
+                    updateModalType === 'available' ? '#EEF2FF' :
+                    isDark ? '#374151' : '#F3F4F6'
+                }}
+              >
+                {(updateModalType === 'checking' || updateModalType === 'downloading') ? (
+                  <ActivityIndicator size="large" color="#6366F1" />
+                ) : updateModalType === 'ready' ? (
+                  <RefreshCw color="#22C55E" size={32} />
+                ) : (
+                  <RefreshCw color="#6366F1" size={32} />
+                )}
+              </View>
+            </View>
+
+            {/* Title */}
+            <Text className={`text-xl font-semibold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {updateModalType === 'checking' && 'Checking for Updates'}
+              {updateModalType === 'available' && 'Update Available'}
+              {updateModalType === 'downloading' && 'Downloading Update'}
+              {updateModalType === 'ready' && 'Update Ready'}
+              {updateModalType === 'upToDate' && 'Up to Date'}
+              {updateModalType === 'devMode' && 'Development Mode'}
+            </Text>
+
+            {/* Message */}
+            <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              {updateModalType === 'checking' && 'Please wait while we check for updates...'}
+              {updateModalType === 'available' && 'A new version is available. Would you like to download it now?'}
+              {updateModalType === 'downloading' && 'Downloading the latest version...'}
+              {updateModalType === 'ready' && 'The update has been downloaded. Restart the app to apply changes.'}
+              {updateModalType === 'upToDate' && 'You have the latest version of the app.'}
+              {updateModalType === 'devMode' && 'OTA updates are not available in development mode. Build a preview or production version to test updates.'}
+            </Text>
+
+            {/* Buttons */}
+            {updateModalType === 'available' && (
+              <View className="flex-row space-x-3">
+                <Pressable
+                  onPress={() => setShowUpdateModal(false)}
+                  className={`flex-1 py-3 rounded-xl items-center mr-2 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}
+                >
+                  <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>Later</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleDownloadUpdate}
+                  className="flex-1 py-3 rounded-xl items-center ml-2"
+                  style={{ backgroundColor: '#6366F1' }}
+                >
+                  <Text className="text-white font-semibold">Download</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {updateModalType === 'ready' && (
+              <View className="flex-row space-x-3">
+                <Pressable
+                  onPress={() => setShowUpdateModal(false)}
+                  className={`flex-1 py-3 rounded-xl items-center mr-2 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}
+                >
+                  <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>Later</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleRestartApp}
+                  className="flex-1 py-3 rounded-xl items-center ml-2"
+                  style={{ backgroundColor: '#22C55E' }}
+                >
+                  <Text className="text-white font-semibold">Restart Now</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {(updateModalType === 'upToDate' || updateModalType === 'devMode') && (
+              <Pressable
+                onPress={() => setShowUpdateModal(false)}
+                className="py-3 rounded-xl items-center"
+                style={{ backgroundColor: '#6366F1' }}
+              >
+                <Text className="text-white font-semibold">OK</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </Modal>

@@ -1,6 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
-  Modal,
   View,
   Text,
   Pressable,
@@ -11,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, QrCode, Plus, Search, Trash2, ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -25,7 +25,7 @@ import { ConfirmationModal } from '../ConfirmationModal';
 
 interface AddExtraMealModalProps {
   visible: boolean;
-  currentDayType: SimpleDayType;
+  currentDayType: SimpleDayType | null;
   onSubmit: (mealData: ExtraMealFormData) => void;
   onClose: () => void;
 }
@@ -48,6 +48,8 @@ export const AddExtraMealModal = ({
 }: AddExtraMealModalProps) => {
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ['85%'], []);
 
   // Form state
   const [mealName, setMealName] = useState('');
@@ -74,6 +76,32 @@ export const AddExtraMealModal = ({
   const [showBarcodeNotFound, setShowBarcodeNotFound] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
   const [showBarcodeError, setShowBarcodeError] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      bottomSheetRef.current?.present();
+    } else {
+      bottomSheetRef.current?.dismiss();
+    }
+  }, [visible]);
+
+  const handleSheetChanges = useCallback((index: number) => {
+    if (index === -1) {
+      onClose();
+    }
+  }, [onClose]);
+
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.6}
+      />
+    ),
+    []
+  );
 
   // Reset custom food form
   const resetCustomFoodForm = () => {
@@ -169,7 +197,7 @@ export const AddExtraMealModal = ({
 
     onSubmit({
       name: mealName.trim(),
-      day_type: currentDayType === 'Training' ? 'Training Day' : 'Rest Day',
+      day_type: currentDayType === 'Rest' ? 'Rest Day' : 'Training Day',
       notes: notes.trim() || undefined,
       food_items: addedFoodItems.map((item) => ({
         food_item_id: item.food_item_id,
@@ -273,55 +301,49 @@ export const AddExtraMealModal = ({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          justifyContent: 'flex-end',
+    <>
+      <BottomSheetModal
+        ref={bottomSheetRef}
+        snapPoints={snapPoints}
+        onChange={handleSheetChanges}
+        enablePanDownToClose={true}
+        backdropComponent={renderBackdrop}
+        bottomInset={insets.bottom}
+        detached={false}
+        handleIndicatorStyle={{
+          backgroundColor: isDark ? '#6B7280' : '#9CA3AF',
+          width: 40,
+        }}
+        handleStyle={{
+          paddingBottom: 12,
+        }}
+        backgroundStyle={{
+          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
         }}
       >
+        {/* Header */}
         <View
           style={{
-            backgroundColor: isDark ? '#111827' : '#FFFFFF',
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            height: '90%',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 20,
+            paddingTop: 8,
+            borderBottomWidth: 1,
+            borderBottomColor: isDark ? '#374151' : '#E5E7EB',
           }}
         >
-          {/* Header */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: 20,
-              borderBottomWidth: 1,
-              borderBottomColor: isDark ? '#374151' : '#E5E7EB',
-            }}
-          >
-            {showCustomFoodForm ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Pressable
-                  onPress={() => {
-                    setShowCustomFoodForm(false);
-                    resetCustomFoodForm();
-                  }}
-                  style={{ marginRight: 12 }}
-                >
-                  <ChevronLeft size={24} color={isDark ? '#F3F4F6' : '#1F2937'} />
-                </Pressable>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: '600',
-                    color: isDark ? '#F3F4F6' : '#1F2937',
-                  }}
-                >
-                  Add Custom Food
-                </Text>
-              </View>
-            ) : (
+          {showCustomFoodForm ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Pressable
+                onPress={() => {
+                  setShowCustomFoodForm(false);
+                  resetCustomFoodForm();
+                }}
+                style={{ marginRight: 12 }}
+              >
+                <ChevronLeft size={24} color={isDark ? '#F3F4F6' : '#1F2937'} />
+              </Pressable>
               <Text
                 style={{
                   fontSize: 18,
@@ -329,94 +351,136 @@ export const AddExtraMealModal = ({
                   color: isDark ? '#F3F4F6' : '#1F2937',
                 }}
               >
-                Log Extra Meal
+                Add Custom Food
               </Text>
-            )}
-            <Pressable
-              onPress={handleClose}
+            </View>
+          ) : (
+            <Text
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: isDark ? '#374151' : '#F3F4F6',
-                alignItems: 'center',
-                justifyContent: 'center',
+                fontSize: 18,
+                fontWeight: '600',
+                color: isDark ? '#F3F4F6' : '#1F2937',
               }}
             >
-              <X size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
-            </Pressable>
-          </View>
+              Log Extra Meal
+            </Text>
+          )}
+          <Pressable
+            onPress={handleClose}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: isDark ? '#374151' : '#F3F4F6',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <X size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          </Pressable>
+        </View>
 
-          {/* Custom Food Form */}
-          {showCustomFoodForm ? (
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        {/* Custom Food Form */}
+        {showCustomFoodForm ? (
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+          >
+            <BottomSheetScrollView
               style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 20 }}
+              keyboardShouldPersistTaps="handled"
             >
-              <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 20 }}
-                keyboardShouldPersistTaps="handled"
+              {/* Food Name */}
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: isDark ? '#F3F4F6' : '#1F2937',
+                  marginBottom: 8,
+                }}
               >
-                {/* Food Name */}
+                Food Name <Text style={{ color: '#EF4444' }}>*</Text>
+              </Text>
+              <TextInput
+                value={customFoodName}
+                onChangeText={setCustomFoodName}
+                placeholder="e.g., Homemade Protein Bar"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                style={{
+                  backgroundColor: isDark ? '#374151' : '#F9FAFB',
+                  borderRadius: 10,
+                  padding: 14,
+                  fontSize: 15,
+                  color: isDark ? '#F3F4F6' : '#1F2937',
+                  borderWidth: 1,
+                  borderColor: isDark ? '#374151' : '#E5E7EB',
+                  marginBottom: 20,
+                }}
+              />
+
+              {/* Nutrition Info Header */}
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: isDark ? '#F3F4F6' : '#1F2937',
+                  marginBottom: 12,
+                }}
+              >
+                Nutrition Info (per 100g)
+              </Text>
+
+              {/* Calories */}
+              <View style={{ marginBottom: 12 }}>
                 <Text
                   style={{
-                    fontSize: 14,
-                    fontWeight: '500',
-                    color: isDark ? '#F3F4F6' : '#1F2937',
-                    marginBottom: 8,
+                    fontSize: 13,
+                    color: isDark ? '#9CA3AF' : '#6B7280',
+                    marginBottom: 6,
                   }}
                 >
-                  Food Name <Text style={{ color: '#EF4444' }}>*</Text>
+                  Calories
                 </Text>
                 <TextInput
-                  value={customFoodName}
-                  onChangeText={setCustomFoodName}
-                  placeholder="e.g., Homemade Protein Bar"
+                  value={customCalories}
+                  onChangeText={setCustomCalories}
+                  placeholder="0"
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                  keyboardType="numeric"
                   style={{
-                    backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
+                    backgroundColor: isDark ? '#374151' : '#F9FAFB',
                     borderRadius: 10,
                     padding: 14,
                     fontSize: 15,
                     color: isDark ? '#F3F4F6' : '#1F2937',
                     borderWidth: 1,
                     borderColor: isDark ? '#374151' : '#E5E7EB',
-                    marginBottom: 20,
                   }}
                 />
+              </View>
 
-                {/* Nutrition Info Header */}
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: '500',
-                    color: isDark ? '#F3F4F6' : '#1F2937',
-                    marginBottom: 12,
-                  }}
-                >
-                  Nutrition Info (per 100g)
-                </Text>
-
-                {/* Calories */}
-                <View style={{ marginBottom: 12 }}>
+              {/* Macros Row */}
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+                {/* Protein */}
+                <View style={{ flex: 1 }}>
                   <Text
                     style={{
                       fontSize: 13,
-                      color: isDark ? '#9CA3AF' : '#6B7280',
+                      color: '#A78BFA',
                       marginBottom: 6,
                     }}
                   >
-                    Calories
+                    Protein (g)
                   </Text>
                   <TextInput
-                    value={customCalories}
-                    onChangeText={setCustomCalories}
+                    value={customProtein}
+                    onChangeText={setCustomProtein}
                     placeholder="0"
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     keyboardType="numeric"
                     style={{
-                      backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
+                      backgroundColor: isDark ? '#374151' : '#F9FAFB',
                       borderRadius: 10,
                       padding: 14,
                       fontSize: 15,
@@ -427,115 +491,25 @@ export const AddExtraMealModal = ({
                   />
                 </View>
 
-                {/* Macros Row */}
-                <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-                  {/* Protein */}
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: '#A78BFA',
-                        marginBottom: 6,
-                      }}
-                    >
-                      Protein (g)
-                    </Text>
-                    <TextInput
-                      value={customProtein}
-                      onChangeText={setCustomProtein}
-                      placeholder="0"
-                      placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-                      keyboardType="numeric"
-                      style={{
-                        backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
-                        borderRadius: 10,
-                        padding: 14,
-                        fontSize: 15,
-                        color: isDark ? '#F3F4F6' : '#1F2937',
-                        borderWidth: 1,
-                        borderColor: isDark ? '#374151' : '#E5E7EB',
-                      }}
-                    />
-                  </View>
-
-                  {/* Carbs */}
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: '#FBBF24',
-                        marginBottom: 6,
-                      }}
-                    >
-                      Carbs (g)
-                    </Text>
-                    <TextInput
-                      value={customCarbs}
-                      onChangeText={setCustomCarbs}
-                      placeholder="0"
-                      placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-                      keyboardType="numeric"
-                      style={{
-                        backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
-                        borderRadius: 10,
-                        padding: 14,
-                        fontSize: 15,
-                        color: isDark ? '#F3F4F6' : '#1F2937',
-                        borderWidth: 1,
-                        borderColor: isDark ? '#374151' : '#E5E7EB',
-                      }}
-                    />
-                  </View>
-
-                  {/* Fat */}
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: '#60A5FA',
-                        marginBottom: 6,
-                      }}
-                    >
-                      Fat (g)
-                    </Text>
-                    <TextInput
-                      value={customFat}
-                      onChangeText={setCustomFat}
-                      placeholder="0"
-                      placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-                      keyboardType="numeric"
-                      style={{
-                        backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
-                        borderRadius: 10,
-                        padding: 14,
-                        fontSize: 15,
-                        color: isDark ? '#F3F4F6' : '#1F2937',
-                        borderWidth: 1,
-                        borderColor: isDark ? '#374151' : '#E5E7EB',
-                      }}
-                    />
-                  </View>
-                </View>
-
-                {/* Serving Size */}
-                <View style={{ marginBottom: 20 }}>
+                {/* Carbs */}
+                <View style={{ flex: 1 }}>
                   <Text
                     style={{
                       fontSize: 13,
-                      color: isDark ? '#9CA3AF' : '#6B7280',
+                      color: '#FBBF24',
                       marginBottom: 6,
                     }}
                   >
-                    Serving Size (g)
+                    Carbs (g)
                   </Text>
                   <TextInput
-                    value={customServingSize}
-                    onChangeText={setCustomServingSize}
-                    placeholder="100"
+                    value={customCarbs}
+                    onChangeText={setCustomCarbs}
+                    placeholder="0"
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     keyboardType="numeric"
                     style={{
-                      backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
+                      backgroundColor: isDark ? '#374151' : '#F9FAFB',
                       borderRadius: 10,
                       padding: 14,
                       fontSize: 15,
@@ -546,434 +520,72 @@ export const AddExtraMealModal = ({
                   />
                 </View>
 
-                {/* Preview */}
-                {(customCalories || customProtein || customCarbs || customFat) && (
-                  <View
+                {/* Fat */}
+                <View style={{ flex: 1 }}>
+                  <Text
                     style={{
-                      backgroundColor: isDark ? '#374151' : '#E5E7EB',
+                      fontSize: 13,
+                      color: '#60A5FA',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Fat (g)
+                  </Text>
+                  <TextInput
+                    value={customFat}
+                    onChangeText={setCustomFat}
+                    placeholder="0"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    keyboardType="numeric"
+                    style={{
+                      backgroundColor: isDark ? '#374151' : '#F9FAFB',
                       borderRadius: 10,
                       padding: 14,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: '600',
-                        color: isDark ? '#F3F4F6' : '#1F2937',
-                        marginBottom: 6,
-                      }}
-                    >
-                      Preview (per serving)
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: isDark ? '#D1D5DB' : '#374151',
-                      }}
-                    >
-                      {Math.round(
-                        ((parseFloat(customCalories) || 0) * (parseFloat(customServingSize) || 100)) /
-                          100
-                      )}{' '}
-                      cal • P:{' '}
-                      {Math.round(
-                        ((parseFloat(customProtein) || 0) * (parseFloat(customServingSize) || 100)) /
-                          100
-                      )}
-                      g • C:{' '}
-                      {Math.round(
-                        ((parseFloat(customCarbs) || 0) * (parseFloat(customServingSize) || 100)) /
-                          100
-                      )}
-                      g • F:{' '}
-                      {Math.round(
-                        ((parseFloat(customFat) || 0) * (parseFloat(customServingSize) || 100)) / 100
-                      )}
-                      g
-                    </Text>
-                  </View>
-                )}
-              </ScrollView>
-
-              {/* Custom Food Footer */}
-              <View
-                style={{
-                  flexDirection: 'row',
-                  padding: 20,
-                  paddingBottom: insets.bottom > 0 ? insets.bottom : 20,
-                  gap: 12,
-                  borderTopWidth: 1,
-                  borderTopColor: isDark ? '#374151' : '#E5E7EB',
-                }}
-              >
-                <Pressable
-                  onPress={() => {
-                    setShowCustomFoodForm(false);
-                    resetCustomFoodForm();
-                  }}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 14,
-                    borderRadius: 10,
-                    backgroundColor: isDark ? '#374151' : '#F3F4F6',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text
-                    style={{
                       fontSize: 15,
-                      fontWeight: '600',
                       color: isDark ? '#F3F4F6' : '#1F2937',
+                      borderWidth: 1,
+                      borderColor: isDark ? '#374151' : '#E5E7EB',
                     }}
-                  >
-                    Cancel
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={handleSubmitCustomFood}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 14,
-                    borderRadius: 10,
-                    backgroundColor: '#6366F1',
-                    alignItems: 'center',
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Plus size={18} color="#FFFFFF" />
-                  <Text
-                    style={{
-                      marginLeft: 6,
-                      fontSize: 15,
-                      fontWeight: '600',
-                      color: '#FFFFFF',
-                    }}
-                  >
-                    Add Food
-                  </Text>
-                </Pressable>
+                  />
+                </View>
               </View>
-            </KeyboardAvoidingView>
-          ) : (
-            <>
-              {/* Content */}
-              <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 20 }}
-                keyboardShouldPersistTaps="handled"
-              >
-            {/* Meal Name */}
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '500',
-                color: isDark ? '#F3F4F6' : '#1F2937',
-                marginBottom: 8,
-              }}
-            >
-              Meal Name <Text style={{ color: '#EF4444' }}>*</Text>
-            </Text>
-            <TextInput
-              value={mealName}
-              onChangeText={setMealName}
-              placeholder="e.g., Post-Workout Snack"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-              style={{
-                backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
-                borderRadius: 10,
-                padding: 14,
-                fontSize: 15,
-                color: isDark ? '#F3F4F6' : '#1F2937',
-                borderWidth: 1,
-                borderColor: isDark ? '#374151' : '#E5E7EB',
-                marginBottom: 16,
-              }}
-            />
 
-            {/* Notes */}
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '500',
-                color: isDark ? '#F3F4F6' : '#1F2937',
-                marginBottom: 8,
-              }}
-            >
-              Notes (Optional)
-            </Text>
-            <TextInput
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Add any additional notes here..."
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-              multiline
-              numberOfLines={3}
-              style={{
-                backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
-                borderRadius: 10,
-                padding: 14,
-                fontSize: 15,
-                color: isDark ? '#F3F4F6' : '#1F2937',
-                borderWidth: 1,
-                borderColor: isDark ? '#374151' : '#E5E7EB',
-                marginBottom: 20,
-                minHeight: 80,
-                textAlignVertical: 'top',
-              }}
-            />
-
-            {/* Food Items */}
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '500',
-                color: isDark ? '#F3F4F6' : '#1F2937',
-                marginBottom: 12,
-              }}
-            >
-              Food Items <Text style={{ color: '#EF4444' }}>*</Text>
-            </Text>
-
-            {/* Action buttons */}
-            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-              <Pressable
-                onPress={handleScanBarcode}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: isDark ? '#4B5563' : '#D1D5DB',
-                }}
-              >
-                <QrCode size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              {/* Serving Size */}
+              <View style={{ marginBottom: 20 }}>
                 <Text
                   style={{
-                    marginLeft: 8,
                     fontSize: 13,
                     color: isDark ? '#9CA3AF' : '#6B7280',
+                    marginBottom: 6,
                   }}
                 >
-                  Scan Barcode
+                  Serving Size (g)
                 </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={handleAddCustomItem}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: '#6366F1',
-                }}
-              >
-                <Plus size={16} color="#6366F1" />
-                <Text style={{ marginLeft: 8, fontSize: 13, color: '#6366F1' }}>
-                  Add Custom Item
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* Search input */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: isDark ? '#374151' : '#E5E7EB',
-                paddingHorizontal: 12,
-              }}
-            >
-              <Search size={18} color={isDark ? '#6B7280' : '#9CA3AF'} />
-              <TextInput
-                value={searchQuery}
-                onChangeText={handleSearch}
-                placeholder="Search for food items..."
-                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-                style={{
-                  flex: 1,
-                  padding: 12,
-                  fontSize: 15,
-                  color: isDark ? '#F3F4F6' : '#1F2937',
-                }}
-              />
-              {isSearching && <ActivityIndicator size="small" color="#6366F1" />}
-              {searchQuery.length > 0 && !isSearching && (
-                <Pressable onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
-                  <X size={18} color={isDark ? '#6B7280' : '#9CA3AF'} />
-                </Pressable>
-              )}
-            </View>
-
-            {/* Search results */}
-            {searchResults.length > 0 && (
-              <View
-                style={{
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
-                  marginTop: 8,
-                  maxHeight: 200,
-                }}
-              >
-                <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
-                  {searchResults.map((item, index) => (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => handleAddFoodItem(item)}
-                      style={{
-                        padding: 12,
-                        borderBottomWidth: index < searchResults.length - 1 ? 1 : 0,
-                        borderBottomColor: isDark ? '#374151' : '#F3F4F6',
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            color: isDark ? '#F3F4F6' : '#1F2937',
-                          }}
-                          numberOfLines={1}
-                        >
-                          {item.food_name}
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            color: isDark ? '#6B7280' : '#9CA3AF',
-                            marginTop: 2,
-                          }}
-                        >
-                          {item.calories_per_100g} cal • P:{item.protein_per_100g}g C:{item.carbs_per_100g}g F:{item.fat_per_100g}g
-                        </Text>
-                      </View>
-                      <Plus size={18} color="#6366F1" />
-                    </Pressable>
-                  ))}
-                </ScrollView>
+                <TextInput
+                  value={customServingSize}
+                  onChangeText={setCustomServingSize}
+                  placeholder="100"
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                  keyboardType="numeric"
+                  style={{
+                    backgroundColor: isDark ? '#374151' : '#F9FAFB',
+                    borderRadius: 10,
+                    padding: 14,
+                    fontSize: 15,
+                    color: isDark ? '#F3F4F6' : '#1F2937',
+                    borderWidth: 1,
+                    borderColor: isDark ? '#374151' : '#E5E7EB',
+                  }}
+                />
               </View>
-            )}
 
-            <View style={{ height: 12 }} />
-
-            {/* Added food items */}
-            {addedFoodItems.length === 0 ? (
-              <View
-                style={{
-                  borderWidth: 1,
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
-                  borderStyle: 'dashed',
-                  borderRadius: 10,
-                  padding: 24,
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 14, color: isDark ? '#6B7280' : '#9CA3AF' }}>
-                  No food items added yet. Search and add food items above.
-                </Text>
-              </View>
-            ) : (
-              <View>
-                {addedFoodItems.map((item, index) => {
-                  const nutrition = calculateNutrition(item.food_item, item.quantity, item.unit);
-
-                  return (
-                    <View
-                      key={`${item.food_item_id}-${index}`}
-                      style={{
-                        backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
-                        borderRadius: 10,
-                        padding: 12,
-                        marginBottom: 10,
-                        borderWidth: 1,
-                        borderColor: isDark ? '#374151' : '#E5E7EB',
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: '500',
-                              color: isDark ? '#F3F4F6' : '#1F2937',
-                            }}
-                          >
-                            {item.food_item.food_name}
-                          </Text>
-                          <Text
-                            style={{
-                              fontSize: 12,
-                              color: isDark ? '#6B7280' : '#9CA3AF',
-                              marginTop: 4,
-                            }}
-                          >
-                            {nutrition.calories} cal • P: {nutrition.protein}g • C: {nutrition.carbs}
-                            g • F: {nutrition.fat}g
-                          </Text>
-                        </View>
-
-                        {/* Quantity input */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <TextInput
-                            value={String(item.quantity)}
-                            onChangeText={(text) => handleUpdateQuantity(index, text)}
-                            keyboardType="numeric"
-                            style={{
-                              width: 60,
-                              padding: 8,
-                              borderRadius: 6,
-                              backgroundColor: isDark ? '#374151' : '#FFFFFF',
-                              borderWidth: 1,
-                              borderColor: isDark ? '#4B5563' : '#E5E7EB',
-                              fontSize: 14,
-                              color: isDark ? '#F3F4F6' : '#1F2937',
-                              textAlign: 'center',
-                            }}
-                          />
-                          <Text
-                            style={{
-                              marginLeft: 6,
-                              fontSize: 13,
-                              color: isDark ? '#9CA3AF' : '#6B7280',
-                            }}
-                          >
-                            {item.unit}
-                          </Text>
-
-                          <Pressable
-                            onPress={() => handleRemoveFoodItem(index)}
-                            style={{
-                              marginLeft: 10,
-                              padding: 6,
-                            }}
-                          >
-                            <Trash2 size={18} color="#EF4444" />
-                          </Pressable>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
-
-                {/* Totals */}
+              {/* Preview */}
+              {(customCalories || customProtein || customCarbs || customFat) && (
                 <View
                   style={{
                     backgroundColor: isDark ? '#374151' : '#E5E7EB',
                     borderRadius: 10,
                     padding: 14,
-                    marginTop: 8,
                   }}
                 >
                   <Text
@@ -984,7 +596,7 @@ export const AddExtraMealModal = ({
                       marginBottom: 6,
                     }}
                   >
-                    Total
+                    Preview (per serving)
                   </Text>
                   <Text
                     style={{
@@ -992,113 +604,531 @@ export const AddExtraMealModal = ({
                       color: isDark ? '#D1D5DB' : '#374151',
                     }}
                   >
-                    {totals.calories} cal • Protein: {Math.round(totals.protein)}g • Carbs:{' '}
-                    {Math.round(totals.carbs)}g • Fat: {Math.round(totals.fat)}g
+                    {Math.round(
+                      ((parseFloat(customCalories) || 0) * (parseFloat(customServingSize) || 100)) /
+                        100
+                    )}{' '}
+                    cal • P:{' '}
+                    {Math.round(
+                      ((parseFloat(customProtein) || 0) * (parseFloat(customServingSize) || 100)) /
+                        100
+                    )}
+                    g • C:{' '}
+                    {Math.round(
+                      ((parseFloat(customCarbs) || 0) * (parseFloat(customServingSize) || 100)) /
+                        100
+                    )}
+                    g • F:{' '}
+                    {Math.round(
+                      ((parseFloat(customFat) || 0) * (parseFloat(customServingSize) || 100)) / 100
+                    )}
+                    g
                   </Text>
                 </View>
-              </View>
-            )}
-          </ScrollView>
+              )}
+            </BottomSheetScrollView>
 
-          {/* Footer buttons */}
-          <View
-            style={{
-              flexDirection: 'row',
-              padding: 20,
-              paddingBottom: insets.bottom > 0 ? insets.bottom : 20,
-              gap: 12,
-              borderTopWidth: 1,
-              borderTopColor: isDark ? '#374151' : '#E5E7EB',
-            }}
-          >
-            <Pressable
-              onPress={handleClose}
-              style={{
-                flex: 1,
-                paddingVertical: 14,
-                borderRadius: 10,
-                backgroundColor: isDark ? '#374151' : '#F3F4F6',
-                alignItems: 'center',
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontWeight: '600',
-                  color: isDark ? '#F3F4F6' : '#1F2937',
-                }}
-              >
-                Cancel
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={handleSubmit}
-              style={{
-                flex: 1,
-                paddingVertical: 14,
-                borderRadius: 10,
-                backgroundColor: '#6366F1',
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-              }}
-            >
-              <Plus size={18} color="#FFFFFF" />
-              <Text
-                style={{
-                  marginLeft: 6,
-                  fontSize: 15,
-                  fontWeight: '600',
-                  color: '#FFFFFF',
-                }}
-              >
-                Log Meal
-              </Text>
-            </Pressable>
-          </View>
-            </>
-          )}
-
-          {/* Loading overlay when looking up barcode */}
-          {isLookingUpBarcode && (
+            {/* Custom Food Footer */}
             <View
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
+                flexDirection: 'row',
+                padding: 20,
+                gap: 12,
+                borderTopWidth: 1,
+                borderTopColor: isDark ? '#374151' : '#E5E7EB',
               }}
             >
-              <View
+              <Pressable
+                onPress={() => {
+                  setShowCustomFoodForm(false);
+                  resetCustomFoodForm();
+                }}
                 style={{
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  padding: 24,
-                  borderRadius: 12,
+                  flex: 1,
+                  paddingVertical: 14,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? '#374151' : '#F3F4F6',
                   alignItems: 'center',
                 }}
               >
-                <ActivityIndicator size="large" color="#6366F1" />
                 <Text
                   style={{
-                    marginTop: 12,
-                    fontSize: 14,
+                    fontSize: 15,
+                    fontWeight: '600',
                     color: isDark ? '#F3F4F6' : '#1F2937',
                   }}
                 >
-                  Looking up barcode...
+                  Cancel
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleSubmitCustomFood}
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  borderRadius: 10,
+                  backgroundColor: '#6366F1',
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                }}
+              >
+                <Plus size={18} color="#FFFFFF" />
+                <Text
+                  style={{
+                    marginLeft: 6,
+                    fontSize: 15,
+                    fontWeight: '600',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  Add Food
+                </Text>
+              </Pressable>
+            </View>
+          </KeyboardAvoidingView>
+        ) : (
+          <>
+            {/* Content */}
+            <BottomSheetScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 20 }}
+              keyboardShouldPersistTaps="handled"
+            >
+          {/* Meal Name */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: '500',
+              color: isDark ? '#F3F4F6' : '#1F2937',
+              marginBottom: 8,
+            }}
+          >
+            Meal Name <Text style={{ color: '#EF4444' }}>*</Text>
+          </Text>
+          <TextInput
+            value={mealName}
+            onChangeText={setMealName}
+            placeholder="e.g., Post-Workout Snack"
+            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            style={{
+              backgroundColor: isDark ? '#374151' : '#F9FAFB',
+              borderRadius: 10,
+              padding: 14,
+              fontSize: 15,
+              color: isDark ? '#F3F4F6' : '#1F2937',
+              borderWidth: 1,
+              borderColor: isDark ? '#374151' : '#E5E7EB',
+              marginBottom: 16,
+            }}
+          />
+
+          {/* Notes */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: '500',
+              color: isDark ? '#F3F4F6' : '#1F2937',
+              marginBottom: 8,
+            }}
+          >
+            Notes (Optional)
+          </Text>
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Add any additional notes here..."
+            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            multiline
+            numberOfLines={3}
+            style={{
+              backgroundColor: isDark ? '#374151' : '#F9FAFB',
+              borderRadius: 10,
+              padding: 14,
+              fontSize: 15,
+              color: isDark ? '#F3F4F6' : '#1F2937',
+              borderWidth: 1,
+              borderColor: isDark ? '#374151' : '#E5E7EB',
+              marginBottom: 20,
+              minHeight: 80,
+              textAlignVertical: 'top',
+            }}
+          />
+
+          {/* Food Items */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: '500',
+              color: isDark ? '#F3F4F6' : '#1F2937',
+              marginBottom: 12,
+            }}
+          >
+            Food Items <Text style={{ color: '#EF4444' }}>*</Text>
+          </Text>
+
+          {/* Action buttons */}
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+            <Pressable
+              onPress={handleScanBarcode}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: isDark ? '#4B5563' : '#D1D5DB',
+              }}
+            >
+              <QrCode size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <Text
+                style={{
+                  marginLeft: 8,
+                  fontSize: 13,
+                  color: isDark ? '#9CA3AF' : '#6B7280',
+                }}
+              >
+                Scan Barcode
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleAddCustomItem}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: '#6366F1',
+              }}
+            >
+              <Plus size={16} color="#6366F1" />
+              <Text style={{ marginLeft: 8, fontSize: 13, color: '#6366F1' }}>
+                Add Custom Item
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Search input */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: isDark ? '#374151' : '#F9FAFB',
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: isDark ? '#374151' : '#E5E7EB',
+              paddingHorizontal: 12,
+            }}
+          >
+            <Search size={18} color={isDark ? '#6B7280' : '#9CA3AF'} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={handleSearch}
+              placeholder="Search for food items..."
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              style={{
+                flex: 1,
+                padding: 12,
+                fontSize: 15,
+                color: isDark ? '#F3F4F6' : '#1F2937',
+              }}
+            />
+            {isSearching && <ActivityIndicator size="small" color="#6366F1" />}
+            {searchQuery.length > 0 && !isSearching && (
+              <Pressable onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
+                <X size={18} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Search results */}
+          {searchResults.length > 0 && (
+            <View
+              style={{
+                backgroundColor: isDark ? '#374151' : '#FFFFFF',
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: isDark ? '#4B5563' : '#E5E7EB',
+                marginTop: 8,
+                maxHeight: 200,
+              }}
+            >
+              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                {searchResults.map((item, index) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => handleAddFoodItem(item)}
+                    style={{
+                      padding: 12,
+                      borderBottomWidth: index < searchResults.length - 1 ? 1 : 0,
+                      borderBottomColor: isDark ? '#374151' : '#F3F4F6',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: isDark ? '#F3F4F6' : '#1F2937',
+                        }}
+                        numberOfLines={1}
+                      >
+                        {item.food_name}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: isDark ? '#6B7280' : '#9CA3AF',
+                          marginTop: 2,
+                        }}
+                      >
+                        {item.calories_per_100g} cal • P:{item.protein_per_100g}g C:{item.carbs_per_100g}g F:{item.fat_per_100g}g
+                      </Text>
+                    </View>
+                    <Plus size={18} color="#6366F1" />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          <View style={{ height: 12 }} />
+
+          {/* Added food items */}
+          {addedFoodItems.length === 0 ? (
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: isDark ? '#374151' : '#E5E7EB',
+                borderStyle: 'dashed',
+                borderRadius: 10,
+                padding: 24,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 14, color: isDark ? '#6B7280' : '#9CA3AF' }}>
+                No food items added yet. Search and add food items above.
+              </Text>
+            </View>
+          ) : (
+            <View>
+              {addedFoodItems.map((item, index) => {
+                const nutrition = calculateNutrition(item.food_item, item.quantity, item.unit);
+
+                return (
+                  <View
+                    key={`${item.food_item_id}-${index}`}
+                    style={{
+                      backgroundColor: isDark ? '#374151' : '#F9FAFB',
+                      borderRadius: 10,
+                      padding: 12,
+                      marginBottom: 10,
+                      borderWidth: 1,
+                      borderColor: isDark ? '#374151' : '#E5E7EB',
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: '500',
+                            color: isDark ? '#F3F4F6' : '#1F2937',
+                          }}
+                        >
+                          {item.food_item.food_name}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: isDark ? '#6B7280' : '#9CA3AF',
+                            marginTop: 4,
+                          }}
+                        >
+                          {nutrition.calories} cal • P: {nutrition.protein}g • C: {nutrition.carbs}
+                          g • F: {nutrition.fat}g
+                        </Text>
+                      </View>
+
+                      {/* Quantity input */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <TextInput
+                          value={String(item.quantity)}
+                          onChangeText={(text) => handleUpdateQuantity(index, text)}
+                          keyboardType="numeric"
+                          style={{
+                            width: 60,
+                            padding: 8,
+                            borderRadius: 6,
+                            backgroundColor: isDark ? '#374151' : '#FFFFFF',
+                            borderWidth: 1,
+                            borderColor: isDark ? '#4B5563' : '#E5E7EB',
+                            fontSize: 14,
+                            color: isDark ? '#F3F4F6' : '#1F2937',
+                            textAlign: 'center',
+                          }}
+                        />
+                        <Text
+                          style={{
+                            marginLeft: 6,
+                            fontSize: 13,
+                            color: isDark ? '#9CA3AF' : '#6B7280',
+                          }}
+                        >
+                          {item.unit}
+                        </Text>
+
+                        <Pressable
+                          onPress={() => handleRemoveFoodItem(index)}
+                          style={{
+                            marginLeft: 10,
+                            padding: 6,
+                          }}
+                        >
+                          <Trash2 size={18} color="#EF4444" />
+                        </Pressable>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+
+              {/* Totals */}
+              <View
+                style={{
+                  backgroundColor: isDark ? '#374151' : '#E5E7EB',
+                  borderRadius: 10,
+                  padding: 14,
+                  marginTop: 8,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: isDark ? '#F3F4F6' : '#1F2937',
+                    marginBottom: 6,
+                  }}
+                >
+                  Total
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: isDark ? '#D1D5DB' : '#374151',
+                  }}
+                >
+                  {totals.calories} cal • Protein: {Math.round(totals.protein)}g • Carbs:{' '}
+                  {Math.round(totals.carbs)}g • Fat: {Math.round(totals.fat)}g
                 </Text>
               </View>
             </View>
           )}
+        </BottomSheetScrollView>
+
+        {/* Footer buttons */}
+        <View
+          style={{
+            flexDirection: 'row',
+            padding: 20,
+            gap: 12,
+            borderTopWidth: 1,
+            borderTopColor: isDark ? '#374151' : '#E5E7EB',
+          }}
+        >
+          <Pressable
+            onPress={handleClose}
+            style={{
+              flex: 1,
+              paddingVertical: 14,
+              borderRadius: 10,
+              backgroundColor: isDark ? '#374151' : '#F3F4F6',
+              alignItems: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: '600',
+                color: isDark ? '#F3F4F6' : '#1F2937',
+              }}
+            >
+              Cancel
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleSubmit}
+            style={{
+              flex: 1,
+              paddingVertical: 14,
+              borderRadius: 10,
+              backgroundColor: '#6366F1',
+              alignItems: 'center',
+              flexDirection: 'row',
+              justifyContent: 'center',
+            }}
+          >
+            <Plus size={18} color="#FFFFFF" />
+            <Text
+              style={{
+                marginLeft: 6,
+                fontSize: 15,
+                fontWeight: '600',
+                color: '#FFFFFF',
+              }}
+            >
+              Log Meal
+            </Text>
+          </Pressable>
         </View>
-      </View>
+          </>
+        )}
+
+        {/* Loading overlay when looking up barcode */}
+        {isLookingUpBarcode && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                padding: 24,
+                borderRadius: 12,
+                alignItems: 'center',
+              }}
+            >
+              <ActivityIndicator size="large" color="#6366F1" />
+              <Text
+                style={{
+                  marginTop: 12,
+                  fontSize: 14,
+                  color: isDark ? '#F3F4F6' : '#1F2937',
+                }}
+              >
+                Looking up barcode...
+              </Text>
+            </View>
+          </View>
+        )}
+      </BottomSheetModal>
 
       {/* Barcode Scanner Modal */}
       <BarcodeScannerModal
@@ -1133,7 +1163,7 @@ export const AddExtraMealModal = ({
         onConfirm={() => setShowBarcodeError(false)}
         onCancel={() => setShowBarcodeError(false)}
       />
-    </Modal>
+    </>
   );
 };
 

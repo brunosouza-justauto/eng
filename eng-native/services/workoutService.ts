@@ -6,6 +6,7 @@ import {
   CompletedWorkoutDate,
   getCurrentDayOfWeek,
 } from '../types/workout';
+import { getLocalDateString } from '../utils/date';
 
 /**
  * Get the athlete's assigned workout program
@@ -125,8 +126,7 @@ export const checkWorkoutCompletion = async (
   userId: string
 ): Promise<{ isCompleted: boolean; completionTime: string | null; error?: string }> => {
   try {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
 
     const { data, error } = await supabase
       .from('workout_sessions')
@@ -170,8 +170,8 @@ export const getCompletedWorkoutDates = async (
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
 
-    const startDate = firstDay.toISOString().split('T')[0];
-    const endDate = lastDay.toISOString().split('T')[0];
+    const startDate = getLocalDateString(firstDay);
+    const endDate = getLocalDateString(lastDay);
 
     const { data, error } = await supabase
       .from('workout_sessions')

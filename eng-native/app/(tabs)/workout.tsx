@@ -96,10 +96,12 @@ export default function WorkoutScreen() {
     }
   }, [user?.id, currentMonth]);
 
-  const fetchWorkoutData = async () => {
+  const fetchWorkoutData = async (showLoading = false) => {
     if (!profile?.id || !user?.id) return;
 
-    setIsLoading(true);
+    if (showLoading) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {

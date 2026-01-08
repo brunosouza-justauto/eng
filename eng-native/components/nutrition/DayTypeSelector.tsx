@@ -3,7 +3,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { SimpleDayType } from '../../types/nutrition';
 
 interface DayTypeSelectorProps {
-  selectedDayType: SimpleDayType;
+  selectedDayType: SimpleDayType | null;
   onSelectDayType: (dayType: SimpleDayType) => void;
 }
 

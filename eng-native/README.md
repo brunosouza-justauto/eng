@@ -268,7 +268,7 @@ Use slide-up bottom sheets for selection modals, pickers, and forms. This provid
         backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        height: '90%', // or specific height like 400/500
+        height: '85%', // or specific height like 400/500
         paddingBottom: insets.bottom,
       }}
     >

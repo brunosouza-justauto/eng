@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ENG - Earned Not Given",
+    "name": "Earned Not Given",
     "slug": "eng-native",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -32,18 +32,23 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-updates"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
       "eas": {
-        "projectId": ""
-      }
+        "projectId": "a02e9f4f-284a-4a87-8c2b-82058f17a5cc"
+      },
+      "router": {}
     },
     "updates": {
-      "url": ""
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/a02e9f4f-284a-4a87-8c2b-82058f17a5cc"
     },
     "runtimeVersion": {
       "policy": "appVersion"
