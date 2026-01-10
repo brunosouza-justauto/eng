@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Utensils, AlertCircle, ExternalLink } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { getLocalDateString } from '../../utils/date';
 import {
@@ -41,6 +42,7 @@ import {
 export default function NutritionScreen() {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
+  const { refreshReminders } = useNotifications();
 
   // State
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlanWithMeals | null>(null);
@@ -177,13 +179,14 @@ export default function NutritionScreen() {
       if (error) {
         Alert.alert('Error', error);
       } else {
-        // Refresh data
+        // Refresh data and reminders
         await loadNutritionData();
+        refreshReminders();
       }
 
       setLoggingMealId(null);
     },
-    [user?.id, today, loadNutritionData]
+    [user?.id, today, loadNutritionData, refreshReminders]
   );
 
   // Log an extra meal
@@ -199,9 +202,10 @@ export default function NutritionScreen() {
         Alert.alert('Error', error);
       } else {
         await loadNutritionData();
+        refreshReminders();
       }
     },
-    [user?.id, profile?.id, nutritionPlan?.id, today, loadNutritionData]
+    [user?.id, profile?.id, nutritionPlan?.id, today, loadNutritionData, refreshReminders]
   );
 
   // Unlog a planned meal - show confirmation modal
@@ -229,11 +233,12 @@ export default function NutritionScreen() {
       Alert.alert('Error', error);
     } else {
       await loadNutritionData();
+      refreshReminders();
     }
 
     setShowUnlogModal(false);
     setMealToUnlog(null);
-  }, [mealToUnlog, mealIdToLogId, loadNutritionData]);
+  }, [mealToUnlog, mealIdToLogId, loadNutritionData, refreshReminders]);
 
   // Delete an extra meal - show confirmation modal
   const handleDeleteExtraMeal = useCallback((mealLogId: string) => {
@@ -253,11 +258,12 @@ export default function NutritionScreen() {
       Alert.alert('Error', error);
     } else {
       await loadNutritionData();
+      refreshReminders();
     }
 
     setShowDeleteModal(false);
     setMealToDelete(null);
-  }, [mealToDelete, loadNutritionData]);
+  }, [mealToDelete, loadNutritionData, refreshReminders]);
 
   // Supabase not configured
   if (!isSupabaseConfigured) {

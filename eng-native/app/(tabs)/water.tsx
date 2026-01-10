@@ -4,6 +4,7 @@ import { Droplets, Plus, Minus, Target, AlertCircle, Award, X } from 'lucide-rea
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
   getWaterEntryForDate,
@@ -187,6 +188,7 @@ function WeeklyDayBar({
 export default function WaterScreen() {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
+  const { refreshReminders } = useNotifications();
 
   // State
   const [isLoading, setIsLoading] = useState(true);
@@ -276,6 +278,7 @@ export default function WaterScreen() {
       setShowErrorModal(true);
     } else if (entry) {
       setTodayEntry(entry);
+      refreshReminders();
       // Update history entries to reflect the change in weekly graph
       setHistoryEntries((prev) => {
         const existingIndex = prev.findIndex((e) => e.date === today);
@@ -303,6 +306,7 @@ export default function WaterScreen() {
       setShowErrorModal(true);
     } else if (entry) {
       setTodayEntry(entry);
+      refreshReminders();
       // Update history entries to reflect the change in weekly graph
       setHistoryEntries((prev) => {
         const existingIndex = prev.findIndex((e) => e.date === today);
@@ -338,6 +342,7 @@ export default function WaterScreen() {
       setTodayEntry(entry);
       setCustomWaterAmount('');
       setShowCustomEntry(false);
+      refreshReminders();
       setHistoryEntries((prev) => {
         const existingIndex = prev.findIndex((e) => e.date === today);
         if (existingIndex >= 0) {

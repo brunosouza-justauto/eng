@@ -24,6 +24,7 @@ import {
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
   getActiveStepGoal,
@@ -192,6 +193,7 @@ function WeeklyDayBar({
 export default function StepsScreen() {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
+  const { refreshReminders } = useNotifications();
 
   // State
   const [isLoading, setIsLoading] = useState(true);
@@ -296,6 +298,7 @@ export default function StepsScreen() {
       setTodayEntry(entry);
       setManualSteps('');
       setShowManualEntry(false);
+      refreshReminders();
       // Refresh to update stats
       loadStepsData();
     }
@@ -314,6 +317,7 @@ export default function StepsScreen() {
       setShowErrorModal(true);
     } else if (entry) {
       setTodayEntry(entry);
+      refreshReminders();
       loadStepsData();
     }
   };
@@ -331,6 +335,7 @@ export default function StepsScreen() {
       setShowErrorModal(true);
     } else if (entry) {
       setTodayEntry(entry);
+      refreshReminders();
       loadStepsData();
     }
   };

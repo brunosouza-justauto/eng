@@ -1,5 +1,5 @@
-import { Modal, View, Text, Pressable, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useRef, useEffect, useState } from 'react';
+import { Modal, View, Text, Pressable, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Timer, Play } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -10,8 +10,9 @@ interface CountdownPickerModalProps {
   onClose: () => void;
 }
 
-const ITEM_HEIGHT = 56;
+const ITEM_HEIGHT = 50;
 const VISIBLE_ITEMS = 5;
+const PICKER_HEIGHT = VISIBLE_ITEMS * ITEM_HEIGHT;
 
 // Common countdown durations in seconds
 const COUNTDOWN_OPTIONS = [
@@ -84,17 +85,29 @@ export const CountdownPickerModal = ({
             backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
-            height: 500,
-            paddingBottom: insets.bottom,
+            paddingBottom: insets.bottom || 20,
           }}
         >
+          {/* Handle indicator */}
+          <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: isDark ? '#6B7280' : '#9CA3AF',
+              }}
+            />
+          </View>
+
           {/* Header */}
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: 20,
+              paddingHorizontal: 20,
+              paddingVertical: 12,
               borderBottomWidth: 1,
               borderBottomColor: isDark ? '#374151' : '#E5E7EB',
             }}
@@ -128,60 +141,65 @@ export const CountdownPickerModal = ({
           </View>
 
           {/* Picker */}
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <View style={{ height: VISIBLE_ITEMS * ITEM_HEIGHT, position: 'relative' }}>
-              {/* Selection indicator */}
-              <View
-                pointerEvents="none"
-                style={{
-                  position: 'absolute',
-                  top: Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT,
-                  left: 20,
-                  right: 20,
-                  height: ITEM_HEIGHT,
-                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
-                  borderRadius: 12,
-                  borderWidth: 2,
-                  borderColor: '#3B82F6',
-                  zIndex: 1,
-                }}
-              />
+          <View style={{ height: PICKER_HEIGHT, position: 'relative', marginVertical: 16 }}>
+            {/* Selection indicator */}
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT,
+                left: 20,
+                right: 20,
+                height: ITEM_HEIGHT,
+                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+                borderRadius: 12,
+                borderWidth: 2,
+                borderColor: '#3B82F6',
+                zIndex: 1,
+              }}
+            />
 
-              <ScrollView
-                ref={scrollViewRef}
-                showsVerticalScrollIndicator={false}
-                snapToInterval={ITEM_HEIGHT}
-                decelerationRate="fast"
-                onScroll={handleScroll}
-                scrollEventThrottle={16}
-                contentContainerStyle={{
-                  paddingVertical: Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT,
-                }}
-              >
-                {COUNTDOWN_OPTIONS.map((option, index) => (
-                  <View
-                    key={option.value}
+            <ScrollView
+              ref={scrollViewRef}
+              showsVerticalScrollIndicator={false}
+              snapToInterval={ITEM_HEIGHT}
+              decelerationRate="fast"
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              contentContainerStyle={{
+                paddingVertical: Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT,
+              }}
+            >
+              {COUNTDOWN_OPTIONS.map((option, index) => (
+                <Pressable
+                  key={option.value}
+                  onPress={() => {
+                    setSelectedIndex(index);
+                    scrollViewRef.current?.scrollTo({
+                      y: index * ITEM_HEIGHT,
+                      animated: true,
+                    });
+                  }}
+                  style={{
+                    height: ITEM_HEIGHT,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text
                     style={{
-                      height: ITEM_HEIGHT,
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      fontSize: 24,
+                      fontWeight: '600',
+                      color: index === selectedIndex
+                        ? '#3B82F6'
+                        : isDark ? '#F3F4F6' : '#1F2937',
                     }}
                   >
-                    <Text
-                      style={{
-                        fontSize: 24,
-                        fontWeight: '600',
-                        color: index === selectedIndex
-                          ? '#3B82F6'
-                          : isDark ? '#F3F4F6' : '#1F2937',
-                      }}
-                    >
-                      {option.label}
-                    </Text>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
           </View>
 
           {/* Start Button */}

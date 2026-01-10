@@ -403,7 +403,7 @@ export default function HomeScreen() {
   const totalCount = tasks.filter(t => t.show).length;
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <ScrollView
         className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
@@ -622,6 +622,6 @@ export default function HomeScreen() {
         visible={showCelebration}
         onComplete={() => setShowCelebration(false)}
       />
-    </>
+    </View>
   );
 }

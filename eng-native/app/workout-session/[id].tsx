@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { WorkoutData, ExerciseInstanceData } from '../../types/workout';
 import { CompletedSetData, SetInputState } from '../../types/workoutSession';
 import { formatTime } from '../../utils/formatters';
@@ -49,6 +50,7 @@ import ExerciseFeedbackModal from '../../components/workout/ExerciseFeedbackModa
 export default function WorkoutSessionScreen() {
   const { isDark } = useTheme();
   const { user } = useAuth();
+  const { refreshReminders } = useNotifications();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -287,6 +289,7 @@ export default function WorkoutSessionScreen() {
     if (!workoutSessionId) return;
 
     await completeWorkoutSession(workoutSessionId, workoutTimer.elapsedTime);
+    refreshReminders();
 
     setShowCompleteModal(false);
     router.back();
@@ -563,6 +566,7 @@ export default function WorkoutSessionScreen() {
     const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
 
     await completeWorkoutSession(pendingSession.id, durationSeconds);
+    refreshReminders();
     setShowPendingModal(false);
     setPendingSession(null);
     setIsHandlingPending(false);

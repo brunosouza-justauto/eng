@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, Dimensions } from 'react-native';
+import { View, Text, Animated } from 'react-native';
 import { Trophy, Star, Sparkles } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -8,7 +8,7 @@ interface CelebrationOverlayProps {
   onComplete?: () => void;
 }
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const STAR_RADIUS = 85; // Distance stars travel from center
 
 export default function CelebrationOverlay({ visible, onComplete }: CelebrationOverlayProps) {
   const { isDark } = useTheme();
@@ -25,6 +25,16 @@ export default function CelebrationOverlay({ visible, onComplete }: CelebrationO
 
   useEffect(() => {
     if (visible) {
+      // Reset animations first
+      scaleAnim.setValue(0);
+      opacityAnim.setValue(0);
+      starAnims.forEach((anim) => {
+        anim.translateX.setValue(0);
+        anim.translateY.setValue(0);
+        anim.opacity.setValue(0);
+        anim.scale.setValue(0);
+      });
+
       // Main animation
       Animated.parallel([
         Animated.spring(scaleAnim, {
@@ -42,7 +52,7 @@ export default function CelebrationOverlay({ visible, onComplete }: CelebrationO
 
       // Star animations
       starAnims.forEach((anim, index) => {
-        const angle = (index / 8) * Math.PI * 2;
+        const angle = (index / 8) * Math.PI * 2 - Math.PI / 2; // Start from top
         const delay = index * 50;
 
         Animated.sequence([
@@ -60,12 +70,12 @@ export default function CelebrationOverlay({ visible, onComplete }: CelebrationO
               useNativeDriver: true,
             }),
             Animated.timing(anim.translateX, {
-              toValue: Math.cos(angle) * 80,
+              toValue: Math.cos(angle) * STAR_RADIUS,
               duration: 500,
               useNativeDriver: true,
             }),
             Animated.timing(anim.translateY, {
-              toValue: Math.sin(angle) * 80,
+              toValue: Math.sin(angle) * STAR_RADIUS,
               duration: 500,
               useNativeDriver: true,
             }),
@@ -126,32 +136,10 @@ export default function CelebrationOverlay({ visible, onComplete }: CelebrationO
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)',
+          backgroundColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.6)',
           opacity: opacityAnim,
         }}
       />
-
-      {/* Stars */}
-      {starAnims.map((anim, index) => (
-        <Animated.View
-          key={index}
-          style={{
-            position: 'absolute',
-            opacity: anim.opacity,
-            transform: [
-              { translateX: anim.translateX },
-              { translateY: anim.translateY },
-              { scale: anim.scale },
-            ],
-          }}
-        >
-          <Star
-            size={24}
-            color="#FBBF24"
-            fill="#FBBF24"
-          />
-        </Animated.View>
-      ))}
 
       {/* Main content */}
       <Animated.View
@@ -161,25 +149,59 @@ export default function CelebrationOverlay({ visible, onComplete }: CelebrationO
           opacity: opacityAnim,
         }}
       >
+        {/* Trophy with stars container */}
         <View
           style={{
-            width: 100,
-            height: 100,
-            borderRadius: 50,
-            backgroundColor: '#22C55E',
+            width: 200,
+            height: 200,
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: 16,
-            shadowColor: '#22C55E',
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.5,
-            shadowRadius: 20,
-            elevation: 10,
+            marginBottom: 20,
           }}
         >
-          <Trophy size={48} color="#FFFFFF" />
+          {/* Stars - positioned relative to this container */}
+          {starAnims.map((anim, index) => (
+            <Animated.View
+              key={index}
+              style={{
+                position: 'absolute',
+                opacity: anim.opacity,
+                transform: [
+                  { translateX: anim.translateX },
+                  { translateY: anim.translateY },
+                  { scale: anim.scale },
+                ],
+              }}
+            >
+              <Star
+                size={24}
+                color="#FBBF24"
+                fill="#FBBF24"
+              />
+            </Animated.View>
+          ))}
+
+          {/* Trophy */}
+          <View
+            style={{
+              width: 100,
+              height: 100,
+              borderRadius: 50,
+              backgroundColor: '#22C55E',
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: '#22C55E',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.5,
+              shadowRadius: 20,
+              elevation: 10,
+            }}
+          >
+            <Trophy size={48} color="#FFFFFF" />
+          </View>
         </View>
 
+        {/* Text below stars */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
           <Sparkles size={20} color="#FBBF24" />
           <Text

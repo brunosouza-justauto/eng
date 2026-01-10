@@ -1,7 +1,7 @@
-import { Modal, View, Text, Pressable, ScrollView } from 'react-native';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
+import { Modal, View, Text, Pressable, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X } from 'lucide-react-native';
+import { X, Check } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface RepsPickerModalProps {
@@ -11,9 +11,10 @@ interface RepsPickerModalProps {
   onClose: () => void;
 }
 
-const ITEM_HEIGHT = 56;
+const ITEM_HEIGHT = 50;
 const VISIBLE_ITEMS = 5;
 const MAX_REPS = 50;
+const PICKER_HEIGHT = VISIBLE_ITEMS * ITEM_HEIGHT;
 
 /**
  * Modal picker for selecting reps with a scroll wheel
@@ -27,6 +28,7 @@ export const RepsPickerModal = ({
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
+  const [selectedIndex, setSelectedIndex] = useState(currentReps - 1);
 
   const repsOptions = Array.from({ length: MAX_REPS }, (_, i) => i + 1);
 
@@ -34,6 +36,7 @@ export const RepsPickerModal = ({
   useEffect(() => {
     if (visible && scrollViewRef.current) {
       const index = Math.max(0, currentReps - 1);
+      setSelectedIndex(index);
       setTimeout(() => {
         scrollViewRef.current?.scrollTo({
           y: index * ITEM_HEIGHT,
@@ -43,8 +46,15 @@ export const RepsPickerModal = ({
     }
   }, [visible, currentReps]);
 
-  const handleSelect = (reps: number) => {
-    onSelect(reps);
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / ITEM_HEIGHT);
+    const clampedIndex = Math.max(0, Math.min(index, repsOptions.length - 1));
+    setSelectedIndex(clampedIndex);
+  };
+
+  const handleConfirm = () => {
+    onSelect(repsOptions[selectedIndex]);
     onClose();
   };
 
@@ -67,17 +77,29 @@ export const RepsPickerModal = ({
             backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
-            height: 400,
-            paddingBottom: insets.bottom,
+            paddingBottom: insets.bottom || 20,
           }}
         >
+          {/* Handle indicator */}
+          <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: isDark ? '#6B7280' : '#9CA3AF',
+              }}
+            />
+          </View>
+
           {/* Header */}
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: 20,
+              paddingHorizontal: 20,
+              paddingVertical: 12,
               borderBottomWidth: 1,
               borderBottomColor: isDark ? '#374151' : '#E5E7EB',
             }}
@@ -107,57 +129,92 @@ export const RepsPickerModal = ({
           </View>
 
           {/* Picker */}
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <View style={{ height: VISIBLE_ITEMS * ITEM_HEIGHT, position: 'relative' }}>
-              {/* Selection indicator */}
-              <View
-                pointerEvents="none"
-                style={{
-                  position: 'absolute',
-                  top: Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT,
-                  left: 20,
-                  right: 20,
-                  height: ITEM_HEIGHT,
-                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)',
-                  borderRadius: 12,
-                  borderWidth: 2,
-                  borderColor: '#6366F1',
-                  zIndex: 1,
-                }}
-              />
+          <View style={{ height: PICKER_HEIGHT, position: 'relative', marginVertical: 16 }}>
+            {/* Selection indicator */}
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT,
+                left: 20,
+                right: 20,
+                height: ITEM_HEIGHT,
+                backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)',
+                borderRadius: 12,
+                borderWidth: 2,
+                borderColor: '#6366F1',
+                zIndex: 1,
+              }}
+            />
 
-              <ScrollView
-                ref={scrollViewRef}
-                showsVerticalScrollIndicator={false}
-                snapToInterval={ITEM_HEIGHT}
-                decelerationRate="fast"
-                contentContainerStyle={{
-                  paddingVertical: Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT,
-                }}
-              >
-                {repsOptions.map((reps) => (
-                  <Pressable
-                    key={reps}
-                    onPress={() => handleSelect(reps)}
+            <ScrollView
+              ref={scrollViewRef}
+              showsVerticalScrollIndicator={false}
+              snapToInterval={ITEM_HEIGHT}
+              decelerationRate="fast"
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              contentContainerStyle={{
+                paddingVertical: Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT,
+              }}
+            >
+              {repsOptions.map((reps, index) => (
+                <Pressable
+                  key={reps}
+                  onPress={() => {
+                    setSelectedIndex(index);
+                    scrollViewRef.current?.scrollTo({
+                      y: index * ITEM_HEIGHT,
+                      animated: true,
+                    });
+                  }}
+                  style={{
+                    height: ITEM_HEIGHT,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text
                     style={{
-                      height: ITEM_HEIGHT,
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      fontSize: 28,
+                      fontWeight: '600',
+                      color: index === selectedIndex
+                        ? '#6366F1'
+                        : isDark ? '#F3F4F6' : '#1F2937',
                     }}
                   >
-                    <Text
-                      style={{
-                        fontSize: 28,
-                        fontWeight: '600',
-                        color: isDark ? '#F3F4F6' : '#1F2937',
-                      }}
-                    >
-                      {reps}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
+                    {reps}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Confirm Button */}
+          <View style={{ paddingHorizontal: 20 }}>
+            <Pressable
+              onPress={handleConfirm}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#6366F1',
+                borderRadius: 12,
+                paddingVertical: 14,
+                gap: 8,
+              }}
+            >
+              <Check size={20} color="#FFFFFF" />
+              <Text
+                style={{
+                  color: '#FFFFFF',
+                  fontSize: 16,
+                  fontWeight: '600',
+                }}
+              >
+                Select {repsOptions[selectedIndex]} Reps
+              </Text>
+            </Pressable>
           </View>
         </View>
       </View>

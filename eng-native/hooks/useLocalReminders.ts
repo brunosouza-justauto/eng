@@ -148,14 +148,14 @@ export function useLocalReminders() {
       }
 
       // ==================== MEALS REMINDER ====================
-      // Check meal logging progress
+      // Check meal logging progress - filter by day type (training vs rest)
       const { data: mealsLogged } = await supabase
         .from('meal_logs')
         .select('id')
         .eq('user_id', user.id)
         .eq('date', today);
 
-      const { data: assignedPlan } = await supabase
+      const { data: nutritionPlan } = await supabase
         .from('assigned_plans')
         .select('nutrition_plan_id')
         .eq('athlete_id', profile.id)
@@ -165,24 +165,42 @@ export function useLocalReminders() {
         .limit(1)
         .maybeSingle();
 
-      if (assignedPlan?.nutrition_plan_id) {
+      if (nutritionPlan?.nutrition_plan_id) {
         const { data: planMeals } = await supabase
           .from('meals')
           .select('id, day_type')
-          .eq('nutrition_plan_id', assignedPlan.nutrition_plan_id);
+          .eq('nutrition_plan_id', nutritionPlan.nutrition_plan_id);
 
         if (planMeals && planMeals.length > 0) {
+          // Filter meals by day type (training vs rest day)
+          const filteredMeals = planMeals.filter((meal) => {
+            if (!meal.day_type) return true;
+            const dayType = meal.day_type.toLowerCase();
+
+            if (hasWorkoutToday) {
+              return dayType.includes('training') || dayType.includes('heavy') || dayType === 'all';
+            } else {
+              return dayType.includes('rest') || dayType.includes('light') || dayType === 'all';
+            }
+          });
+
           const mealsLoggedCount = mealsLogged?.length || 0;
-          const totalMeals = planMeals.length;
+          const totalMeals = filteredMeals.length;
           const hour = now.getHours();
 
-          // Show reminder if we're past certain times and behind on meals
-          const expectedMealsByHour = Math.min(
-            Math.floor((hour - 6) / 3), // Roughly 1 meal every 3 hours starting at 6am
+          // Only show reminder if there are planned meals and we're behind
+          // Consider user's wake time for expected meals calculation
+          const wakeHour = parseInt(profile.nutrition_wakeup_time_of_day?.split(':')[0] || '6');
+          const hoursSinceWake = Math.max(0, hour - wakeHour);
+
+          // Expect roughly 1 meal every 3-4 hours after waking
+          const expectedMeals = Math.min(
+            Math.floor(hoursSinceWake / 3.5),
             totalMeals
           );
 
-          if (hour >= 12 && mealsLoggedCount < Math.max(1, expectedMealsByHour - 1)) {
+          // Show reminder if past noon, have planned meals, and behind by at least 1 meal
+          if (totalMeals > 0 && hour >= 12 && mealsLoggedCount < expectedMeals) {
             newReminders.push({
               id: 'reminder-meals-behind',
               type: 'meals_behind',
