@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, RefreshControl, Pressable, ActivityIndicator } from 'react-native';
-import { Pill, Clock, AlertCircle, Check, Flame, CheckCheck } from 'lucide-react-native';
+import { Pill, Clock, AlertCircle, Check, Flame, CheckCheck, Plus, Trash2, User } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,6 +16,9 @@ import {
   getUnloggedSupplementsCount,
   groupSupplementsBySchedule,
   getScheduleDisplayText,
+  addPersonalSupplement,
+  removePersonalSupplement,
+  isPersonalSupplement,
 } from '../../services/supplementService';
 import {
   TodaysSupplement,
@@ -24,8 +27,11 @@ import {
   SupplementGroupBySchedule,
   CATEGORY_COLORS,
   SupplementSchedule,
+  SupplementCategory,
 } from '../../types/supplements';
 import { getLocalDateString } from '../../utils/date';
+import AddSupplementModal from '../../components/supplements/AddSupplementModal';
+import ConfirmationModal from '../../components/ConfirmationModal';
 import {
   getSupplementReminderStatus,
   getScheduleTimeConfig,
@@ -113,18 +119,22 @@ function TodaySupplementItem({
   supplement,
   isDark,
   onToggle,
+  onDelete,
   isToggling,
+  isDeleting,
 }: {
   supplement: TodaysSupplement;
   isDark: boolean;
   onToggle: (supplement: TodaysSupplement) => void;
+  onDelete?: (supplement: TodaysSupplement) => void;
   isToggling: boolean;
+  isDeleting?: boolean;
 }) {
   const categoryColor = CATEGORY_COLORS[supplement.supplement_category] || '#6B7280';
+  const isPersonal = isPersonalSupplement(supplement);
 
   return (
-    <Pressable
-      onPress={() => !isToggling && onToggle(supplement)}
+    <View
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -134,11 +144,12 @@ function TodaySupplementItem({
         marginBottom: 10,
         borderLeftWidth: 4,
         borderLeftColor: categoryColor,
-        opacity: isToggling ? 0.7 : 1,
+        opacity: isToggling || isDeleting ? 0.7 : 1,
       }}
     >
       {/* Checkbox */}
-      <View
+      <Pressable
+        onPress={() => !isToggling && !isDeleting && onToggle(supplement)}
         style={{
           width: 24,
           height: 24,
@@ -156,21 +167,39 @@ function TodaySupplementItem({
         ) : supplement.isLogged ? (
           <Check size={16} color="#FFFFFF" strokeWidth={3} />
         ) : null}
-      </View>
+      </Pressable>
 
       {/* Supplement Info */}
-      <View style={{ flex: 1 }}>
-        <Text
-          style={{
-            fontSize: 15,
-            fontWeight: '600',
-            color: isDark ? '#F3F4F6' : '#1F2937',
-            textDecorationLine: supplement.isLogged ? 'line-through' : 'none',
-            opacity: supplement.isLogged ? 0.7 : 1,
-          }}
-        >
-          {supplement.supplement_name}
-        </Text>
+      <Pressable
+        onPress={() => !isToggling && !isDeleting && onToggle(supplement)}
+        style={{ flex: 1 }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text
+            style={{
+              fontSize: 15,
+              fontWeight: '600',
+              color: isDark ? '#F3F4F6' : '#1F2937',
+              textDecorationLine: supplement.isLogged ? 'line-through' : 'none',
+              opacity: supplement.isLogged ? 0.7 : 1,
+            }}
+          >
+            {supplement.supplement_name}
+          </Text>
+          {isPersonal && (
+            <View
+              style={{
+                marginLeft: 8,
+                backgroundColor: isDark ? '#4B5563' : '#E5E7EB',
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+                borderRadius: 4,
+              }}
+            >
+              <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280' }}>Personal</Text>
+            </View>
+          )}
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
           <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280' }}>
             {supplement.dosage}
@@ -178,8 +207,30 @@ function TodaySupplementItem({
           <Text style={{ fontSize: 13, color: isDark ? '#6B7280' : '#9CA3AF', marginHorizontal: 6 }}>•</Text>
           <Text style={{ fontSize: 13, color: categoryColor }}>{supplement.supplement_category}</Text>
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+
+      {/* Delete Button (only for personal supplements) */}
+      {isPersonal && onDelete && (
+        <Pressable
+          onPress={() => !isDeleting && onDelete(supplement)}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            backgroundColor: isDark ? '#4B5563' : '#FEE2E2',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginLeft: 8,
+          }}
+        >
+          {isDeleting ? (
+            <ActivityIndicator size="small" color="#EF4444" />
+          ) : (
+            <Trash2 size={16} color="#EF4444" />
+          )}
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -189,16 +240,20 @@ function ScheduleGroupCard({
   isDark,
   profile,
   onToggleSupplement,
+  onDeleteSupplement,
   onMarkAllTaken,
   togglingIds,
+  deletingIds,
   isMarkingAll,
 }: {
   group: SupplementGroupBySchedule;
   isDark: boolean;
   profile: ProfileData | null;
   onToggleSupplement: (supplement: TodaysSupplement) => void;
+  onDeleteSupplement: (supplement: TodaysSupplement) => void;
   onMarkAllTaken: (group: SupplementGroupBySchedule) => void;
   togglingIds: Set<string>;
+  deletingIds: Set<string>;
   isMarkingAll: boolean;
 }) {
   const allTaken = group.taken === group.total;
@@ -306,7 +361,9 @@ function ScheduleGroupCard({
           supplement={supplement}
           isDark={isDark}
           onToggle={onToggleSupplement}
+          onDelete={onDeleteSupplement}
           isToggling={togglingIds.has(supplement.id)}
+          isDeleting={deletingIds.has(supplement.id)}
         />
       ))}
 
@@ -442,7 +499,16 @@ export default function SupsScreen() {
   const [history, setHistory] = useState<DailySupplementSummary[]>([]);
   const [unloggedCount, setUnloggedCount] = useState(0);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [markingAllSchedule, setMarkingAllSchedule] = useState<string | null>(null);
+
+  // Add supplement modal
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isAddingSupplement, setIsAddingSupplement] = useState(false);
+
+  // Delete confirmation
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [supplementToDelete, setSupplementToDelete] = useState<TodaysSupplement | null>(null);
 
   // Today's date
   const today = useMemo(() => getLocalDateString(), []);
@@ -556,6 +622,76 @@ export default function SupsScreen() {
     }
   }, [user?.id, loadSupplements, refreshReminders]);
 
+  // Handle adding a personal supplement
+  const handleAddSupplement = useCallback(async (data: {
+    name: string;
+    category: SupplementCategory;
+    dosage: string;
+    schedule: SupplementSchedule;
+    notes?: string;
+  }) => {
+    if (!user?.id) return;
+
+    setIsAddingSupplement(true);
+
+    try {
+      const { error } = await addPersonalSupplement(
+        user.id,
+        data.name,
+        data.category,
+        data.dosage,
+        data.schedule,
+        data.notes
+      );
+
+      if (error) {
+        console.error('Error adding supplement:', error);
+      } else {
+        setShowAddModal(false);
+        await loadSupplements();
+        refreshReminders();
+      }
+    } catch (err) {
+      console.error('Error in handleAddSupplement:', err);
+    } finally {
+      setIsAddingSupplement(false);
+    }
+  }, [user?.id, loadSupplements, refreshReminders]);
+
+  // Handle delete supplement confirmation
+  const handleDeletePress = useCallback((supplement: TodaysSupplement) => {
+    setSupplementToDelete(supplement);
+    setShowDeleteConfirm(true);
+  }, []);
+
+  // Handle confirmed delete
+  const handleConfirmDelete = useCallback(async () => {
+    if (!user?.id || !supplementToDelete) return;
+
+    setDeletingIds((prev) => new Set(prev).add(supplementToDelete.id));
+    setShowDeleteConfirm(false);
+
+    try {
+      const { error } = await removePersonalSupplement(user.id, supplementToDelete.id);
+
+      if (error) {
+        console.error('Error deleting supplement:', error);
+      } else {
+        await loadSupplements();
+        refreshReminders();
+      }
+    } catch (err) {
+      console.error('Error in handleConfirmDelete:', err);
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(supplementToDelete.id);
+        return next;
+      });
+      setSupplementToDelete(null);
+    }
+  }, [user?.id, supplementToDelete, loadSupplements, refreshReminders]);
+
   // Refresh handler
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -661,14 +797,92 @@ export default function SupsScreen() {
   // No supplements assigned
   if (totalSupplements === 0) {
     return (
+      <>
+        <ScrollView
+          style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}
+          contentContainerStyle={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+            />
+          }
+        >
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: isDark ? '#374151' : '#F3F4F6',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 20,
+            }}
+          >
+            <Pill color={isDark ? '#6B7280' : '#9CA3AF'} size={40} />
+          </View>
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: '600',
+              marginBottom: 8,
+              textAlign: 'center',
+              color: isDark ? '#F3F4F6' : '#1F2937',
+            }}
+          >
+            No Supplements Yet
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              textAlign: 'center',
+              color: isDark ? '#9CA3AF' : '#6B7280',
+              marginBottom: 24,
+              paddingHorizontal: 20,
+            }}
+          >
+            Add your own supplements to track, or wait for your coach to assign them
+          </Text>
+          <Pressable
+            onPress={() => setShowAddModal(true)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#8B5CF6',
+              paddingHorizontal: 24,
+              paddingVertical: 14,
+              borderRadius: 12,
+            }}
+          >
+            <Plus size={20} color="#FFFFFF" />
+            <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>
+              Add My Supplements
+            </Text>
+          </Pressable>
+        </ScrollView>
+
+        {/* Add Supplement Modal */}
+        <AddSupplementModal
+          visible={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onAdd={handleAddSupplement}
+          isLoading={isAddingSupplement}
+        />
+      </>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
       <ScrollView
         style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}
-        contentContainerStyle={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 24,
-        }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -677,44 +891,6 @@ export default function SupsScreen() {
           />
         }
       >
-        <Pill color={isDark ? '#4B5563' : '#9CA3AF'} size={48} />
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '600',
-            marginTop: 16,
-            textAlign: 'center',
-            color: isDark ? '#F3F4F6' : '#1F2937',
-          }}
-        >
-          No Supplements Assigned
-        </Text>
-        <Text
-          style={{
-            fontSize: 14,
-            marginTop: 8,
-            textAlign: 'center',
-            color: isDark ? '#9CA3AF' : '#6B7280',
-          }}
-        >
-          Your coach will assign supplements to you. Pull down to refresh!
-        </Text>
-      </ScrollView>
-    );
-  }
-
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefreshing}
-          onRefresh={handleRefresh}
-          tintColor={isDark ? '#9CA3AF' : '#6B7280'}
-        />
-      }
-    >
       {/* Reminder Banner - shows when supplements are due/overdue based on user's schedule */}
       <ReminderBanner groups={groupedSupplements} profile={profile} isDark={isDark} />
 
@@ -763,11 +939,42 @@ export default function SupsScreen() {
           isDark={isDark}
           profile={profile}
           onToggleSupplement={handleToggleSupplement}
+          onDeleteSupplement={handleDeletePress}
           onMarkAllTaken={handleMarkAllTaken}
           togglingIds={togglingIds}
+          deletingIds={deletingIds}
           isMarkingAll={markingAllSchedule === group.schedule}
         />
       ))}
+
+      {/* Add More Button */}
+      <Pressable
+        onPress={() => setShowAddModal(true)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: isDark ? '#374151' : '#F3F4F6',
+          paddingVertical: 14,
+          borderRadius: 12,
+          marginBottom: 16,
+          borderWidth: 2,
+          borderColor: isDark ? '#4B5563' : '#E5E7EB',
+          borderStyle: 'dashed',
+        }}
+      >
+        <Plus size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+        <Text
+          style={{
+            marginLeft: 8,
+            color: isDark ? '#9CA3AF' : '#6B7280',
+            fontWeight: '500',
+            fontSize: 14,
+          }}
+        >
+          Add Supplement
+        </Text>
+      </Pressable>
 
       {/* This Week Section (like water) */}
       {history.length > 0 && (
@@ -873,6 +1080,30 @@ export default function SupsScreen() {
           </View>
         </>
       )}
-    </ScrollView>
+      </ScrollView>
+
+      {/* Add Supplement Modal */}
+      <AddSupplementModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={handleAddSupplement}
+        isLoading={isAddingSupplement}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        visible={showDeleteConfirm}
+        title="Remove Supplement"
+        message={`Are you sure you want to remove "${supplementToDelete?.supplement_name}" from your list?`}
+        confirmText="Remove"
+        cancelText="Keep"
+        confirmColor="red"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setSupplementToDelete(null);
+        }}
+      />
+    </View>
   );
 }

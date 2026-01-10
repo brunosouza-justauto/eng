@@ -588,3 +588,199 @@ export const getUnloggedSupplementsCount = async (
     return { count: 0, supplements: [], error: 'Failed to check unlogged supplements' };
   }
 };
+
+// ============================================
+// PERSONAL SUPPLEMENT MANAGEMENT
+// ============================================
+
+/**
+ * Add a personal supplement (self-assigned by user)
+ * @param userId User ID (auth.users.id)
+ * @param supplementName Name of the supplement
+ * @param category Category of the supplement
+ * @param dosage Dosage string (e.g., "5g", "1 capsule")
+ * @param schedule When to take the supplement
+ * @param notes Optional notes
+ */
+export const addPersonalSupplement = async (
+  userId: string,
+  supplementName: string,
+  category: SupplementCategory,
+  dosage: string,
+  schedule: SupplementSchedule,
+  notes?: string
+): Promise<{ supplement: AthleteSupplementWithDetails | null; error?: string }> => {
+  try {
+    // First, check if the supplement exists in the master supplements table
+    let supplementId: string;
+
+    const { data: existingSupplement, error: searchError } = await supabase
+      .from('supplements')
+      .select('id')
+      .ilike('name', supplementName)
+      .maybeSingle();
+
+    if (searchError) {
+      console.error('Error searching for supplement:', searchError);
+      return { supplement: null, error: searchError.message };
+    }
+
+    if (existingSupplement) {
+      supplementId = existingSupplement.id;
+    } else {
+      // Create a new supplement in the master table
+      const { data: newSupplement, error: createError } = await supabase
+        .from('supplements')
+        .insert({
+          name: supplementName,
+          category: category,
+          default_dosage: dosage,
+        })
+        .select('id')
+        .single();
+
+      if (createError) {
+        console.error('Error creating supplement:', createError);
+        return { supplement: null, error: createError.message };
+      }
+
+      supplementId = newSupplement.id;
+    }
+
+    // Now create the athlete_supplements record
+    // For personal supplements, prescribed_by is the user's own ID (self-assigned)
+    const today = getLocalDateString();
+
+    const { data: athleteSupplement, error: assignError } = await supabase
+      .from('athlete_supplements')
+      .insert({
+        user_id: userId,
+        supplement_id: supplementId,
+        prescribed_by: userId, // Same as user_id indicates self-assigned
+        dosage: dosage,
+        schedule: schedule,
+        notes: notes || null,
+        start_date: today,
+      })
+      .select(`
+        *,
+        supplement:supplement_id (
+          id,
+          name,
+          category,
+          default_dosage,
+          default_timing,
+          notes,
+          created_at,
+          updated_at
+        )
+      `)
+      .single();
+
+    if (assignError) {
+      console.error('Error assigning supplement:', assignError);
+      return { supplement: null, error: assignError.message };
+    }
+
+    const result: AthleteSupplementWithDetails = {
+      ...athleteSupplement,
+      supplement_name: athleteSupplement.supplement?.name || supplementName,
+      supplement_category: (athleteSupplement.supplement?.category as SupplementCategory) || category,
+    };
+
+    return { supplement: result };
+  } catch (err) {
+    console.error('Error in addPersonalSupplement:', err);
+    return { supplement: null, error: 'Failed to add supplement' };
+  }
+};
+
+/**
+ * Remove a personal supplement (only works for self-assigned supplements)
+ * @param userId User ID
+ * @param athleteSupplementId The athlete_supplement record ID
+ */
+export const removePersonalSupplement = async (
+  userId: string,
+  athleteSupplementId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // First verify this is a personal supplement (prescribed_by is null) and belongs to the user
+    const { data: supplement, error: fetchError } = await supabase
+      .from('athlete_supplements')
+      .select('id, user_id, prescribed_by')
+      .eq('id', athleteSupplementId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching supplement:', fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    if (supplement.user_id !== userId) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    if (supplement.prescribed_by !== userId) {
+      return { success: false, error: 'Cannot remove coach-assigned supplements' };
+    }
+
+    // Delete any associated logs first
+    await supabase
+      .from('supplement_logs')
+      .delete()
+      .eq('athlete_supplement_id', athleteSupplementId);
+
+    // Delete the athlete_supplement record
+    const { error: deleteError } = await supabase
+      .from('athlete_supplements')
+      .delete()
+      .eq('id', athleteSupplementId);
+
+    if (deleteError) {
+      console.error('Error deleting supplement:', deleteError);
+      return { success: false, error: deleteError.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('Error in removePersonalSupplement:', err);
+    return { success: false, error: 'Failed to remove supplement' };
+  }
+};
+
+/**
+ * Check if a supplement is self-assigned (personal)
+ * @param supplement The supplement to check
+ */
+export const isPersonalSupplement = (supplement: AthleteSupplementWithDetails): boolean => {
+  return supplement.prescribed_by === supplement.user_id;
+};
+
+/**
+ * Search supplements from the master list for autocomplete
+ * @param query Search query
+ * @param limit Max results to return
+ */
+export const searchSupplements = async (
+  query: string,
+  limit: number = 10
+): Promise<{ supplements: { id: string; name: string; category: SupplementCategory }[]; error?: string }> => {
+  try {
+    const { data, error } = await supabase
+      .from('supplements')
+      .select('id, name, category')
+      .ilike('name', `%${query}%`)
+      .limit(limit);
+
+    if (error) {
+      console.error('Error searching supplements:', error);
+      return { supplements: [], error: error.message };
+    }
+
+    return { supplements: data || [] };
+  } catch (err) {
+    console.error('Error in searchSupplements:', err);
+    return { supplements: [], error: 'Failed to search supplements' };
+  }
+};
