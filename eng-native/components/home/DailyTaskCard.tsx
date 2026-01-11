@@ -13,6 +13,8 @@ interface DailyTaskCardProps {
   current: string;
   goal: string;
   isComplete: boolean;
+  isOverdue?: boolean;
+  isWarning?: boolean;
   href: string;
 }
 
@@ -25,9 +27,19 @@ export default function DailyTaskCard({
   current,
   goal,
   isComplete,
+  isOverdue = false,
+  isWarning = false,
   href,
 }: DailyTaskCardProps) {
   const { isDark } = useTheme();
+
+  // Determine border color: green if complete, red if overdue, yellow if warning, default otherwise
+  const getBorderColor = () => {
+    if (isComplete) return '#22C55E';
+    if (isOverdue) return '#DC2626';
+    if (isWarning) return '#F59E0B';
+    return isDark ? '#374151' : '#E5E7EB';
+  };
 
   return (
     <Link href={href as any} asChild>
@@ -37,15 +49,50 @@ export default function DailyTaskCard({
           borderRadius: 16,
           padding: 16,
           marginBottom: 12,
-          borderWidth: isComplete ? 2 : 1,
-          borderColor: isComplete ? '#22C55E' : isDark ? '#374151' : '#E5E7EB',
+          borderWidth: isComplete || isOverdue || isWarning ? 2 : 1,
+          borderColor: getBorderColor(),
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: isDark ? 0.3 : 0.1,
           shadowRadius: 4,
           elevation: 2,
+          position: 'relative',
         }}
       >
+        {/* Overdue notification badge (red) */}
+        {isOverdue && !isComplete && (
+          <View
+            style={{
+              position: 'absolute',
+              top: -5,
+              right: -5,
+              width: 16,
+              height: 16,
+              borderRadius: 8,
+              backgroundColor: '#DC2626',
+              borderWidth: 2,
+              borderColor: isDark ? '#1F2937' : '#FFFFFF',
+              zIndex: 1,
+            }}
+          />
+        )}
+        {/* Warning notification badge (yellow) */}
+        {isWarning && !isComplete && !isOverdue && (
+          <View
+            style={{
+              position: 'absolute',
+              top: -5,
+              right: -5,
+              width: 16,
+              height: 16,
+              borderRadius: 8,
+              backgroundColor: '#F59E0B',
+              borderWidth: 2,
+              borderColor: isDark ? '#1F2937' : '#FFFFFF',
+              zIndex: 1,
+            }}
+          />
+        )}
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {/* Icon */}
           <View

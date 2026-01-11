@@ -38,6 +38,7 @@ export type LocalReminderType =
   | 'workout_due'
   | 'supplements_overdue'
   | 'supplements_due'
+  | 'meals_overdue'
   | 'meals_behind'
   | 'water_behind'
   | 'steps_behind'

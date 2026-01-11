@@ -63,6 +63,7 @@ export default function NotificationsModal() {
       case 'supplements_due':
         return Pill;
       case 'meals_behind':
+      case 'meals_overdue':
         return Utensils;
       case 'water_behind':
         return Droplets;

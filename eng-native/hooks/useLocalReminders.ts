@@ -148,13 +148,7 @@ export function useLocalReminders() {
       }
 
       // ==================== MEALS REMINDER ====================
-      // Check meal logging progress - filter by day type (training vs rest)
-      const { data: mealsLogged } = await supabase
-        .from('meal_logs')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('date', today);
-
+      // Check for missed meals based on actual meal times (time_suggestion)
       const { data: nutritionPlan } = await supabase
         .from('assigned_plans')
         .select('nutrition_plan_id')
@@ -166,48 +160,62 @@ export function useLocalReminders() {
         .maybeSingle();
 
       if (nutritionPlan?.nutrition_plan_id) {
+        // Fetch meals with time_suggestion
         const { data: planMeals } = await supabase
           .from('meals')
-          .select('id, day_type')
+          .select('id, name, day_type, time_suggestion')
           .eq('nutrition_plan_id', nutritionPlan.nutrition_plan_id);
+
+        // Fetch today's logged meals
+        const { data: mealsLogged } = await supabase
+          .from('meal_logs')
+          .select('meal_id')
+          .eq('user_id', user.id)
+          .eq('date', today);
 
         if (planMeals && planMeals.length > 0) {
           // Filter meals by day type (training vs rest day)
           const filteredMeals = planMeals.filter((meal) => {
             if (!meal.day_type) return true;
-            const dayType = meal.day_type.toLowerCase();
+            const mealDayType = meal.day_type.toLowerCase();
 
             if (hasWorkoutToday) {
-              return dayType.includes('training') || dayType.includes('heavy') || dayType === 'all';
+              return mealDayType.includes('training') || mealDayType.includes('heavy') || mealDayType === 'all';
             } else {
-              return dayType.includes('rest') || dayType.includes('light') || dayType === 'all';
+              return mealDayType.includes('rest') || mealDayType.includes('light') || mealDayType === 'all';
             }
           });
 
-          const mealsLoggedCount = mealsLogged?.length || 0;
-          const totalMeals = filteredMeals.length;
-          const hour = now.getHours();
+          // Get logged meal IDs
+          const loggedMealIds = (mealsLogged || []).map((log) => log.meal_id).filter(Boolean);
 
-          // Only show reminder if there are planned meals and we're behind
-          // Consider user's wake time for expected meals calculation
-          const wakeHour = parseInt(profile.nutrition_wakeup_time_of_day?.split(':')[0] || '6');
-          const hoursSinceWake = Math.max(0, hour - wakeHour);
+          // Calculate current time for comparison
+          const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-          // Expect roughly 1 meal every 3-4 hours after waking
-          const expectedMeals = Math.min(
-            Math.floor(hoursSinceWake / 3.5),
-            totalMeals
-          );
+          // Find missed meals (time has passed but not logged)
+          const missedMeals = filteredMeals.filter((meal) => {
+            // Skip if already logged
+            if (loggedMealIds.includes(meal.id)) return false;
+            // Check if time has passed
+            return meal.time_suggestion && meal.time_suggestion < currentTime;
+          });
 
-          // Show reminder if past noon, have planned meals, and behind by at least 1 meal
-          if (totalMeals > 0 && hour >= 12 && mealsLoggedCount < expectedMeals) {
+          if (missedMeals.length > 0) {
+            // Sort by time and get the first missed meal for the message
+            const sortedMissed = missedMeals.sort((a, b) =>
+              (a.time_suggestion || '').localeCompare(b.time_suggestion || '')
+            );
+            const firstMissed = sortedMissed[0];
+
             newReminders.push({
-              id: 'reminder-meals-behind',
-              type: 'meals_behind',
-              title: 'Log Your Meals',
-              message: `You've logged ${mealsLoggedCount}/${totalMeals} meals today. Stay on track!`,
-              priority: 'medium',
-              iconColor: '#22C55E',
+              id: 'reminder-meals-overdue',
+              type: 'meals_overdue',
+              title: missedMeals.length === 1 ? 'Meal Overdue' : `${missedMeals.length} Meals Overdue`,
+              message: missedMeals.length === 1
+                ? `${firstMissed.name} was scheduled for ${firstMissed.time_suggestion}`
+                : `${firstMissed.name} and ${missedMeals.length - 1} other${missedMeals.length > 2 ? 's' : ''} need logging`,
+              priority: 'high',
+              iconColor: '#DC2626',
               href: '/(tabs)/nutrition',
               createdAt: now,
             });
@@ -315,12 +323,12 @@ export function useLocalReminders() {
         newReminders.push({
           id: 'reminder-checkin-overdue',
           type: 'checkin_overdue',
-          title: 'Weekly Check-in Due',
+          title: 'Weekly Check-in Overdue',
           message: daysSinceCheckIn === null
             ? "You haven't done a check-in yet. Submit your progress!"
             : `It's been ${daysSinceCheckIn} days since your last check-in`,
-          priority: daysSinceCheckIn && daysSinceCheckIn > 10 ? 'high' : 'medium',
-          iconColor: '#F59E0B',
+          priority: 'high',
+          iconColor: '#DC2626',
           href: '/(tabs)/checkin',
           createdAt: now,
         });

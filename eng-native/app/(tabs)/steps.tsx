@@ -42,6 +42,7 @@ import {
 const DEFAULT_STEP_INCREMENT = 1000;
 import { StepGoal, StepEntry, DayStepData, WeeklyStepStats } from '../../types/steps';
 import { ConfirmationModal } from '../../components/ConfirmationModal';
+import EmptyState from '../../components/EmptyState';
 import { getLocalDateString } from '../../utils/date';
 
 // Progress Circle Component using SVG for smooth progress
@@ -457,6 +458,135 @@ export default function StepsScreen() {
     );
   }
 
+  // No goal set - show empty state
+  if (!stepGoal) {
+    return (
+      <View style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flex: 1 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+            />
+          }
+        >
+          <EmptyState
+            icon={Footprints}
+            iconColor="#3B82F6"
+            title="No Step Goal Set"
+            subtitle="Set your own goal or wait for your coach to assign one"
+            buttonText="Set My Goal"
+            buttonIcon={Target}
+            onButtonPress={() => setShowSetGoalModal(true)}
+          />
+        </ScrollView>
+
+        {/* Set Goal Modal */}
+        <Modal
+          visible={showSetGoalModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowSetGoalModal(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 24,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                borderRadius: 16,
+                padding: 24,
+                width: '100%',
+                maxWidth: 340,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '600',
+                  color: isDark ? '#F3F4F6' : '#1F2937',
+                  marginBottom: 16,
+                  textAlign: 'center',
+                }}
+              >
+                Set Your Step Goal
+              </Text>
+
+              <TextInput
+                value={newGoalValue}
+                onChangeText={setNewGoalValue}
+                placeholder="Daily step goal"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                keyboardType="numeric"
+                style={{
+                  backgroundColor: isDark ? '#374151' : '#F3F4F6',
+                  borderRadius: 8,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  fontSize: 16,
+                  color: isDark ? '#F3F4F6' : '#1F2937',
+                  marginBottom: 12,
+                }}
+              />
+
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: isDark ? '#9CA3AF' : '#6B7280',
+                  marginBottom: 20,
+                }}
+              >
+                Recommended: 7,000-10,000 steps for general health
+              </Text>
+
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Pressable
+                  onPress={() => setShowSetGoalModal(false)}
+                  style={{
+                    flex: 1,
+                    backgroundColor: isDark ? '#374151' : '#E5E7EB',
+                    paddingVertical: 12,
+                    borderRadius: 8,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: isDark ? '#D1D5DB' : '#4B5563', fontWeight: '600' }}>
+                    Cancel
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSetGoal}
+                  disabled={isSettingGoal}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#3B82F6',
+                    paddingVertical: 12,
+                    borderRadius: 8,
+                    alignItems: 'center',
+                    opacity: isSettingGoal ? 0.7 : 1,
+                  }}
+                >
+                  <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                    {isSettingGoal ? 'Saving...' : 'Save'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -500,7 +630,7 @@ export default function StepsScreen() {
             borderColor: isDark ? '#374151' : '#E5E7EB',
           }}
         >
-          {stepGoal ? (
+          <>
             <>
               {/* Progress Circle */}
               <ProgressCircle
@@ -767,66 +897,11 @@ export default function StepsScreen() {
                 </Text>
               </View>
             </>
-          ) : (
-            // No goal set
-            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-              <View
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  backgroundColor: isDark ? '#374151' : '#E5E7EB',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 16,
-                }}
-              >
-                <Target size={32} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              </View>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: '600',
-                  color: isDark ? '#F3F4F6' : '#1F2937',
-                  marginBottom: 8,
-                }}
-              >
-                No Step Goal Set
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: isDark ? '#9CA3AF' : '#6B7280',
-                  textAlign: 'center',
-                  marginBottom: 20,
-                }}
-              >
-                Set your own goal or wait for your coach to assign one
-              </Text>
-              <Pressable
-                onPress={() => setShowSetGoalModal(true)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: '#6366F1',
-                  paddingHorizontal: 20,
-                  paddingVertical: 12,
-                  borderRadius: 8,
-                }}
-              >
-                <Target size={18} color="#FFFFFF" />
-                <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>
-                  Set My Goal
-                </Text>
-              </Pressable>
-            </View>
-          )}
+          </>
         </View>
 
         {/* Weekly Stats */}
-        {stepGoal && (
-          <>
-            <Text
+        <Text
               style={{
                 fontSize: 17,
                 fontWeight: '600',
@@ -912,8 +987,6 @@ export default function StepsScreen() {
                 </View>
               </View>
             </View>
-          </>
-        )}
 
         {/* Set Goal Modal */}
         <Modal

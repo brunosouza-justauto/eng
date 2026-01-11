@@ -8,8 +8,9 @@ import { supabase } from '../../lib/supabase';
 import { getLocalDateString, getCurrentDayOfWeek } from '../../utils/date';
 import { getGreeting, getMotivationalMessage, getStreakMessage } from '../../utils/motivationalMessages';
 import { getTodaysSupplements } from '../../services/supplementService';
+import { SupplementSchedule } from '../../types/supplements';
 import { getDaysSinceLastCheckIn } from '../../services/checkinService';
-import { getWorkoutReminderStatus, getTrainingTime, formatTimeForDisplay, WorkoutReminderStatus } from '../../utils/supplementReminders';
+import { getWorkoutReminderStatus, getTrainingTime, getSupplementReminderStatus, formatTimeForDisplay, WorkoutReminderStatus } from '../../utils/supplementReminders';
 import CircularProgress from '../../components/home/CircularProgress';
 import DailyTaskCard from '../../components/home/DailyTaskCard';
 import StreakCounter from '../../components/home/StreakCounter';
@@ -22,17 +23,20 @@ export default function HomeScreen() {
 
   // Today's overview stats
   const [workoutsCompleted, setWorkoutsCompleted] = useState(0);
+  const [hasWorkoutProgram, setHasWorkoutProgram] = useState(false);
   const [hasWorkoutToday, setHasWorkoutToday] = useState(false);
   const [mealsLogged, setMealsLogged] = useState(0);
   const [mealsPlanned, setMealsPlanned] = useState(0);
   const [stepsCount, setStepsCount] = useState(0);
-  const [stepsGoal, setStepsGoal] = useState(10000);
+  const [stepsGoal, setStepsGoal] = useState(0);
   const [waterIntake, setWaterIntake] = useState(0);
-  const [waterGoal, setWaterGoal] = useState(2500);
+  const [waterGoal, setWaterGoal] = useState(0);
   const [supplementsTaken, setSupplementsTaken] = useState(0);
   const [supplementsTotal, setSupplementsTotal] = useState(0);
   const [checkInStatus, setCheckInStatus] = useState<'complete' | 'todo' | 'overdue'>('todo');
   const [daysSinceCheckIn, setDaysSinceCheckIn] = useState<number | null>(null);
+  const [hasMealsOverdue, setHasMealsOverdue] = useState(false);
+  const [hasSupplementsOverdue, setHasSupplementsOverdue] = useState(false);
   const [streak, setStreak] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -46,13 +50,33 @@ export default function HomeScreen() {
   const stepsGoalMet = stepsGoal > 0 && stepsCount >= stepsGoal;
   const waterGoalMet = waterGoal > 0 && waterIntake >= waterGoal;
 
+  // Calculate water/steps overdue status (same logic as useLocalReminders)
+  const { isWaterOverdue, isStepsOverdue } = useMemo(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    const wakeHour = parseInt(profile?.nutrition_wakeup_time_of_day?.split(':')[0] || '6');
+    const bedHour = parseInt(profile?.nutrition_bed_time_of_day?.split(':')[0] || '22');
+    const awakeHours = bedHour - wakeHour;
+    const hoursSinceWake = Math.max(0, hour - wakeHour);
+
+    // Water: behind by more than 500ml after noon
+    const expectedWater = Math.floor((hoursSinceWake / awakeHours) * waterGoal);
+    const waterOverdue = hour >= 12 && waterGoal > 0 && waterIntake < expectedWater - 500;
+
+    // Steps: behind by more than 2000 steps after 2pm
+    const expectedSteps = Math.floor((hoursSinceWake / awakeHours) * stepsGoal);
+    const stepsOverdue = hour >= 14 && stepsGoal > 0 && stepsCount < expectedSteps - 2000;
+
+    return { isWaterOverdue: waterOverdue, isStepsOverdue: stepsOverdue };
+  }, [profile, waterGoal, waterIntake, stepsGoal, stepsCount]);
+
   // Calculate overall progress
   const calculateOverallProgress = () => {
     let totalTasks = 0;
     let completedTasks = 0;
 
-    // Workout (only count if there's one scheduled)
-    if (hasWorkoutToday) {
+    // Workout (only count if user has a program assigned)
+    if (hasWorkoutProgram) {
       totalTasks++;
       if (workoutGoalMet) completedTasks++;
     }
@@ -159,7 +183,11 @@ export default function HomeScreen() {
   };
 
   const fetchTodaysStats = async () => {
-    if (!user?.id || !profile?.id) return;
+    if (!user?.id || !profile?.id) {
+      setIsRefreshing(false);
+      setIsLoading(false);
+      return;
+    }
 
     const today = getLocalDateString();
 
@@ -177,7 +205,7 @@ export default function HomeScreen() {
         setWorkoutsCompleted(workouts.length);
       }
 
-      // Check if there's a workout scheduled for today
+      // Check if there's a workout program assigned and if there's a workout scheduled for today
       const { data: workoutAssignment } = await supabase
         .from('assigned_plans')
         .select('program_template_id')
@@ -188,6 +216,7 @@ export default function HomeScreen() {
         .maybeSingle();
 
       if (workoutAssignment?.program_template_id) {
+        setHasWorkoutProgram(true);
         const currentDayOfWeek = getCurrentDayOfWeek();
         const { data: todaysWorkout } = await supabase
           .from('workouts')
@@ -199,21 +228,22 @@ export default function HomeScreen() {
 
         setHasWorkoutToday(!!todaysWorkout);
       } else {
+        setHasWorkoutProgram(false);
         setHasWorkoutToday(false);
       }
 
       // Fetch meals logged today
-      const { data: meals, error: mealsError } = await supabase
+      const { data: mealLogs, error: mealsError } = await supabase
         .from('meal_logs')
-        .select('id')
+        .select('id, meal_id')
         .eq('user_id', user.id)
         .eq('date', today);
 
-      if (!mealsError && meals) {
-        setMealsLogged(meals.length);
+      if (!mealsError && mealLogs) {
+        setMealsLogged(mealLogs.length);
       }
 
-      // Fetch nutrition plan to get planned meals count
+      // Fetch nutrition plan to get planned meals count and check for overdue
       const { data: assignedPlan } = await supabase
         .from('assigned_plans')
         .select('nutrition_plan_id')
@@ -229,7 +259,7 @@ export default function HomeScreen() {
 
         const { data: planMeals } = await supabase
           .from('meals')
-          .select('id, day_type')
+          .select('id, day_type, time_suggestion')
           .eq('nutrition_plan_id', assignedPlan.nutrition_plan_id);
 
         if (planMeals) {
@@ -244,7 +274,20 @@ export default function HomeScreen() {
             }
           });
           setMealsPlanned(filteredMeals.length);
+
+          // Check for overdue meals (time has passed but not logged)
+          const loggedMealIds = (mealLogs || []).map((log) => log.meal_id).filter(Boolean);
+          const now = new Date();
+          const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+          const hasOverdue = filteredMeals.some((meal) => {
+            if (loggedMealIds.includes(meal.id)) return false;
+            return meal.time_suggestion && meal.time_suggestion < currentTime;
+          });
+          setHasMealsOverdue(hasOverdue);
         }
+      } else {
+        setHasMealsOverdue(false);
       }
 
       // Fetch steps today
@@ -267,7 +310,7 @@ export default function HomeScreen() {
         .limit(1)
         .maybeSingle();
 
-      setStepsGoal(stepGoalData?.daily_steps || 10000);
+      setStepsGoal(stepGoalData?.daily_steps || 0);
 
       // Fetch water intake today
       const { data: waterEntry } = await supabase
@@ -298,13 +341,27 @@ export default function HomeScreen() {
         waterGoalData = waterGoalByProfileId;
       }
 
-      setWaterGoal(waterGoalData?.water_goal_ml || 2500);
+      setWaterGoal(waterGoalData?.water_goal_ml || 0);
 
       // Fetch supplements data
       const { supplements: todaysSupplements } = await getTodaysSupplements(user.id);
       if (todaysSupplements) {
         setSupplementsTotal(todaysSupplements.length);
         setSupplementsTaken(todaysSupplements.filter(s => s.isLogged).length);
+
+        // Check for overdue supplements
+        const hasOverdueSupps = todaysSupplements.some((supp) => {
+          if (supp.isLogged) return false;
+          const status = getSupplementReminderStatus(
+            supp.schedule as SupplementSchedule,
+            false,
+            profile
+          );
+          return status === 'overdue';
+        });
+        setHasSupplementsOverdue(hasOverdueSupps);
+      } else {
+        setHasSupplementsOverdue(false);
       }
 
       // Fetch check-in status
@@ -351,27 +408,31 @@ export default function HomeScreen() {
   const tasks = [
     {
       title: 'Workout',
-      subtitle: hasWorkoutToday ? 'Training day - Hit the gym!' : 'Rest day - Recover well!',
+      subtitle: hasWorkoutProgram
+        ? (hasWorkoutToday ? 'Training day - Hit the gym!' : 'Rest day - Recover well!')
+        : 'No program assigned',
       icon: Dumbbell,
       color: '#6366F1',
-      progress: hasWorkoutToday ? (workoutsCompleted > 0 ? 100 : 0) : 100,
-      current: workoutsCompleted.toString(),
-      goal: hasWorkoutToday ? '1' : '0',
-      isComplete: workoutGoalMet,
+      progress: hasWorkoutProgram ? (hasWorkoutToday ? (workoutsCompleted > 0 ? 100 : 0) : 100) : 0,
+      current: hasWorkoutProgram ? (hasWorkoutToday ? workoutsCompleted.toString() : 'Rest') : '—',
+      goal: hasWorkoutProgram ? (hasWorkoutToday ? '1' : '') : '',
+      isComplete: hasWorkoutProgram && workoutGoalMet,
+      isOverdue: hasWorkoutProgram && workoutReminderStatus === 'overdue',
       href: '/(tabs)/workout',
-      show: true,
+      show: hasWorkoutProgram,
     },
     {
       title: 'Nutrition',
       subtitle: `Log your meals to hit your macros`,
       icon: Utensils,
       color: '#22C55E',
-      progress: mealsPlanned > 0 ? Math.min((mealsLogged / mealsPlanned) * 100, 100) : (mealsLogged > 0 ? 100 : 0),
+      progress: mealsPlanned > 0 ? Math.min((mealsLogged / mealsPlanned) * 100, 100) : 0,
       current: mealsLogged.toString(),
-      goal: mealsPlanned > 0 ? mealsPlanned.toString() : '—',
+      goal: mealsPlanned.toString(),
       isComplete: mealsGoalMet,
+      isOverdue: hasMealsOverdue,
       href: '/(tabs)/nutrition',
-      show: true,
+      show: mealsPlanned > 0,
     },
     {
       title: 'Steps',
@@ -382,6 +443,7 @@ export default function HomeScreen() {
       current: stepsCount >= 1000 ? `${(stepsCount / 1000).toFixed(1)}k` : stepsCount.toString(),
       goal: stepsGoal >= 1000 ? `${(stepsGoal / 1000).toFixed(0)}k` : stepsGoal.toString(),
       isComplete: stepsGoalMet,
+      isOverdue: isStepsOverdue,
       href: '/(tabs)/steps',
       show: stepsGoal > 0,
     },
@@ -394,6 +456,7 @@ export default function HomeScreen() {
       current: waterIntake >= 1000 ? `${(waterIntake / 1000).toFixed(1)}L` : `${waterIntake}ml`,
       goal: waterGoal >= 1000 ? `${(waterGoal / 1000).toFixed(1)}L` : `${waterGoal}ml`,
       isComplete: waterGoalMet,
+      isOverdue: isWaterOverdue,
       href: '/(tabs)/water',
       show: waterGoal > 0,
     },
@@ -536,10 +599,12 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Section Header */}
-        <Text className={`text-lg font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Today's Goals
-        </Text>
+        {/* Section Header - only show if there are goals */}
+        {(isLoading || totalCount > 0) && (
+          <Text className={`text-lg font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Today's Goals
+          </Text>
+        )}
 
         {/* Task Cards - Show skeletons while loading */}
         {isLoading ? (
@@ -549,6 +614,20 @@ export default function HomeScreen() {
             <SkeletonCard variant="task" />
             <SkeletonCard variant="task" />
           </>
+        ) : totalCount === 0 ? (
+          <View
+            style={{
+              backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+              borderRadius: 16,
+              padding: 24,
+              marginBottom: 12,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 16, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center' }}>
+              No goals assigned yet.{'\n'}Ask your coach to set up your program!
+            </Text>
+          </View>
         ) : (
           tasks.filter(t => t.show).map((task, index) => (
             <DailyTaskCard
@@ -561,6 +640,7 @@ export default function HomeScreen() {
               current={task.current}
               goal={task.goal}
               isComplete={task.isComplete}
+              isOverdue={task.isOverdue}
               href={task.href}
             />
           ))
@@ -578,17 +658,20 @@ export default function HomeScreen() {
           </>
         ) : (
           <>
-            <DailyTaskCard
-              title="Supplements"
-              subtitle={supplementsTotal > 0 ? "Track your daily supplements" : "No supplements assigned"}
-              icon={Pill}
-              color="#8B5CF6"
-              progress={supplementsTotal > 0 ? Math.round((supplementsTaken / supplementsTotal) * 100) : 0}
-              current={supplementsTotal > 0 ? supplementsTaken.toString() : "—"}
-              goal={supplementsTotal > 0 ? supplementsTotal.toString() : "—"}
-              isComplete={supplementsTotal > 0 && supplementsTaken === supplementsTotal}
-              href="/(tabs)/sups"
-            />
+            {supplementsTotal > 0 && (
+              <DailyTaskCard
+                title="Supplements"
+                subtitle="Track your daily supplements"
+                icon={Pill}
+                color="#8B5CF6"
+                progress={Math.round((supplementsTaken / supplementsTotal) * 100)}
+                current={supplementsTaken.toString()}
+                goal={supplementsTotal.toString()}
+                isComplete={supplementsTaken === supplementsTotal}
+                isOverdue={hasSupplementsOverdue}
+                href="/(tabs)/sups"
+              />
+            )}
 
             <DailyTaskCard
               title="Weekly Check-in"
@@ -611,6 +694,8 @@ export default function HomeScreen() {
               }
               goal=""
               isComplete={checkInStatus === 'complete'}
+              isOverdue={checkInStatus === 'overdue'}
+              isWarning={checkInStatus === 'todo'}
               href="/(tabs)/checkin"
             />
           </>

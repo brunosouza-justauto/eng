@@ -16,6 +16,7 @@ import {
   AddExtraMealModal,
 } from '../../components/nutrition';
 import { ConfirmationModal } from '../../components/ConfirmationModal';
+import EmptyState from '../../components/EmptyState';
 import {
   getUserNutritionPlan,
   getLoggedMealsForDate,
@@ -362,12 +363,7 @@ export default function NutritionScreen() {
     return (
       <ScrollView
         style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}
-        contentContainerStyle={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 24,
-        }}
+        contentContainerStyle={{ flex: 1 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -376,28 +372,12 @@ export default function NutritionScreen() {
           />
         }
       >
-        <Utensils color={isDark ? '#4B5563' : '#9CA3AF'} size={48} />
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '600',
-            marginTop: 16,
-            textAlign: 'center',
-            color: isDark ? '#F3F4F6' : '#1F2937',
-          }}
-        >
-          No Nutrition Plan
-        </Text>
-        <Text
-          style={{
-            fontSize: 14,
-            marginTop: 8,
-            textAlign: 'center',
-            color: isDark ? '#9CA3AF' : '#6B7280',
-          }}
-        >
-          Your coach hasn't assigned a nutrition plan yet. Pull down to refresh!
-        </Text>
+        <EmptyState
+          icon={Utensils}
+          iconColor="#22C55E"
+          title="No Nutrition Plan"
+          subtitle="Your coach hasn't assigned a nutrition plan yet. Pull down to refresh!"
+        />
       </ScrollView>
     );
   }

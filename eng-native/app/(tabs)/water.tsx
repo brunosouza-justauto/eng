@@ -25,6 +25,7 @@ import {
   DEFAULT_WATER_GOAL,
 } from '../../types/water';
 import { ConfirmationModal } from '../../components/ConfirmationModal';
+import EmptyState from '../../components/EmptyState';
 import { getLocalDateString } from '../../utils/date';
 
 // Progress Circle Component using SVG for smooth progress
@@ -492,6 +493,134 @@ export default function WaterScreen() {
     );
   }
 
+  // No goal set - show empty state
+  if (!waterGoal) {
+    return (
+      <View style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flex: 1 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+            />
+          }
+        >
+          <EmptyState
+            icon={Droplets}
+            iconColor="#06B6D4"
+            title="No Water Goal Set"
+            subtitle="Set a daily water intake goal to track your hydration"
+            buttonText="Set My Goal"
+            buttonIcon={Target}
+            onButtonPress={() => {
+              setNewGoalValue(String(recommendedWaterIntake));
+              setShowSetGoalModal(true);
+            }}
+          />
+        </ScrollView>
+
+        {/* Set Goal Modal */}
+        <Modal
+          visible={showSetGoalModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowSetGoalModal(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 24,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                borderRadius: 16,
+                padding: 24,
+                width: '100%',
+                maxWidth: 340,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '600',
+                  color: isDark ? '#F3F4F6' : '#1F2937',
+                  marginBottom: 16,
+                  textAlign: 'center',
+                }}
+              >
+                Set Your Water Goal
+              </Text>
+
+              <TextInput
+                value={newGoalValue}
+                onChangeText={setNewGoalValue}
+                placeholder="Daily water goal (ml)"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                keyboardType="numeric"
+                style={{
+                  backgroundColor: isDark ? '#374151' : '#F3F4F6',
+                  borderRadius: 8,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  fontSize: 16,
+                  color: isDark ? '#F3F4F6' : '#1F2937',
+                  marginBottom: 8,
+                }}
+              />
+
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: isDark ? '#9CA3AF' : '#6B7280',
+                  marginBottom: 16,
+                }}
+              >
+                Recommended: {formatWaterAmount(recommendedWaterIntake)} based on your weight
+              </Text>
+
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Pressable
+                  onPress={() => setShowSetGoalModal(false)}
+                  style={{
+                    flex: 1,
+                    backgroundColor: isDark ? '#374151' : '#E5E7EB',
+                    paddingVertical: 12,
+                    borderRadius: 8,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: isDark ? '#D1D5DB' : '#4B5563', fontWeight: '600' }}>
+                    Cancel
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSetWaterGoal}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#06B6D4',
+                    paddingVertical: 12,
+                    borderRadius: 8,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Save Goal</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}
@@ -530,8 +659,7 @@ export default function WaterScreen() {
           borderColor: isDark ? '#374151' : '#E5E7EB',
         }}
       >
-        {waterGoal ? (
-          <>
+        <>
             {/* Progress Circle */}
             <WaterProgressCircle progress={progress} isDark={isDark} />
 
@@ -786,69 +914,10 @@ export default function WaterScreen() {
             </Pressable>
           )}
         </View>
-          </>
-        ) : (
-          // No goal set
-          <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-            <View
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 32,
-                backgroundColor: isDark ? '#374151' : '#E5E7EB',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 16,
-              }}
-            >
-              <Droplets size={32} color="#06B6D4" />
-            </View>
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: '600',
-                color: isDark ? '#F3F4F6' : '#1F2937',
-                marginBottom: 8,
-              }}
-            >
-              No Water Goal Set
-            </Text>
-            <Text
-              style={{
-                fontSize: 14,
-                color: isDark ? '#9CA3AF' : '#6B7280',
-                textAlign: 'center',
-                marginBottom: 20,
-              }}
-            >
-              Set a daily water intake goal to track your hydration
-            </Text>
-            <Pressable
-              onPress={() => {
-                setNewGoalValue(String(recommendedWaterIntake));
-                setShowSetGoalModal(true);
-              }}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: '#06B6D4',
-                paddingHorizontal: 20,
-                paddingVertical: 12,
-                borderRadius: 8,
-              }}
-            >
-              <Target size={18} color="#FFFFFF" />
-              <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>
-                Set My Goal
-              </Text>
-            </Pressable>
-          </View>
-        )}
+        </>
       </View>
 
-      {waterGoal && (
-        <>
-          {/* This Week Section */}
+      {/* This Week Section */}
       <Text
         style={{
           fontSize: 17,
@@ -933,8 +1002,6 @@ export default function WaterScreen() {
           </View>
         </View>
       </View>
-        </>
-      )}
 
       {/* Error Modal */}
       <ConfirmationModal

@@ -34,6 +34,7 @@ import {
   ExerciseInstanceData,
   ExerciseGroupType,
 } from '../../types/workout';
+import EmptyState from '../../components/EmptyState';
 
 const PREVIEW_COUNT = 3;
 
@@ -529,6 +530,46 @@ export default function WorkoutScreen() {
     );
   }
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: isDark ? '#111827' : '#F9FAFB',
+        }}
+      >
+        <ActivityIndicator size="large" color="#6366F1" />
+      </View>
+    );
+  }
+
+  // No program assigned - full screen EmptyState
+  if (!assignment?.program_template_id) {
+    return (
+      <ScrollView
+        style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}
+        contentContainerStyle={{ flex: 1 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+          />
+        }
+      >
+        <EmptyState
+          icon={Dumbbell}
+          iconColor="#6366F1"
+          title="No Active Program"
+          subtitle="Your coach hasn't assigned a training program yet. Pull down to refresh!"
+        />
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView
       className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
@@ -597,24 +638,9 @@ export default function WorkoutScreen() {
           elevation: 3,
         }}
       >
-        {isLoading ? (
-          <View className="py-10 items-center">
-            <ActivityIndicator size="large" color="#6366F1" />
-          </View>
-        ) : error ? (
+        {error ? (
           <View className={`p-4 rounded-lg ${isDark ? 'bg-red-900/20' : 'bg-red-50'}`}>
             <Text className="text-red-500 text-sm">{error}</Text>
-          </View>
-        ) : !assignment?.program_template_id ? (
-          // No program assigned
-          <View className="items-center py-10">
-            <Dumbbell color={isDark ? '#4B5563' : '#9CA3AF'} size={48} />
-            <Text className={`mt-4 text-lg font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              No Active Program
-            </Text>
-            <Text className={`mt-2 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              You don't have an active training program assigned
-            </Text>
           </View>
         ) : isRestDay ? (
           // Rest day
