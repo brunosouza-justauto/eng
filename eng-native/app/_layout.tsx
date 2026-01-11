@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Stack, useRouter, useSegments, SplashScreen } from 'expo-router';
 import { Platform, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -7,6 +7,8 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { NotificationsProvider } from '../contexts/NotificationsContext';
+import { OfflineProvider, useOffline } from '../contexts/OfflineContext';
+import { precacheAllUserData } from '../lib/precacheService';
 import NotificationsModal from '../components/NotificationsModal';
 import UpdatePrompt from '../components/UpdatePrompt';
 import IncompleteProfilePrompt from '../components/IncompleteProfilePrompt';
@@ -64,8 +66,38 @@ function useProtectedRoute(user: any, profile: any, loading: boolean) {
 function AppContent() {
   const { isDark } = useTheme();
   const { user, profile, loading } = useAuth();
+  const { isOnline, isInitialized } = useOffline();
+  const hasPrecached = useRef(false);
 
   useProtectedRoute(user, profile, loading);
+
+  // Proactively cache all user data when app loads while online
+  useEffect(() => {
+    if (
+      !loading &&
+      isInitialized &&
+      isOnline &&
+      user?.id &&
+      profile?.id &&
+      !hasPrecached.current
+    ) {
+      hasPrecached.current = true;
+      console.log('[AppContent] Starting proactive data precaching...');
+
+      precacheAllUserData(user.id, profile.id, profile)
+        .then((result) => {
+          console.log(
+            `[AppContent] Precaching complete: ${result.cached} items cached, success: ${result.success}`
+          );
+          if (result.errors.length > 0) {
+            console.warn('[AppContent] Precache errors:', result.errors);
+          }
+        })
+        .catch((err) => {
+          console.error('[AppContent] Precaching failed:', err);
+        });
+    }
+  }, [loading, isInitialized, isOnline, user?.id, profile?.id, profile]);
 
   // Show loading screen while auth is initializing
   if (loading) {
@@ -161,12 +193,14 @@ export default function RootLayout() {
         <BottomSheetModalProvider>
           <ThemeProvider>
             <AuthProvider>
-              <NotificationsProvider>
-                <AppContent />
-                <NotificationsModal />
-                <UpdatePrompt />
-                <IncompleteProfilePrompt />
-              </NotificationsProvider>
+              <OfflineProvider>
+                <NotificationsProvider>
+                  <AppContent />
+                  <NotificationsModal />
+                  <UpdatePrompt />
+                  <IncompleteProfilePrompt />
+                </NotificationsProvider>
+              </OfflineProvider>
             </AuthProvider>
           </ThemeProvider>
         </BottomSheetModalProvider>

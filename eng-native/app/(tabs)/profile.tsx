@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, Switch, Modal, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, Moon, Bell, LogOut, ChevronRight, Mail, AlertCircle, Lock, X, Eye, EyeOff, UserCog, RefreshCw, Info } from 'lucide-react-native';
+import { User, Moon, Bell, LogOut, ChevronRight, Mail, AlertCircle, Lock, X, Eye, EyeOff, UserCog, RefreshCw, Info, Database } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useAppUpdates } from '../../hooks/useAppUpdates';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import CacheDebugView from '../../components/CacheDebugView';
 
 export default function ProfileScreen() {
   const { isDark, toggleTheme } = useTheme();
@@ -29,6 +30,9 @@ export default function ProfileScreen() {
   // Update modal state
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateModalType, setUpdateModalType] = useState<'checking' | 'available' | 'downloading' | 'ready' | 'upToDate' | 'devMode'>('checking');
+
+  // Cache debug modal state
+  const [showCacheDebug, setShowCacheDebug] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -384,6 +388,28 @@ export default function ProfileScreen() {
               <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{appVersion}</Text>
             </View>
           </View>
+
+          {/* Cache Debug (for development/debugging) */}
+          <Pressable
+            onPress={() => setShowCacheDebug(true)}
+            className={`flex-row items-center px-4 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}
+          >
+            <View
+              className="w-10 h-10 rounded-lg items-center justify-center mr-3"
+              style={{ backgroundColor: isDark ? '#374151' : '#F3F4F6' }}
+            >
+              <Database color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
+            </View>
+            <View className="flex-1">
+              <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Cache & Offline Debug
+              </Text>
+              <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                View cached data and sync status
+              </Text>
+            </View>
+            <ChevronRight color={isDark ? '#6B7280' : '#9CA3AF'} size={20} />
+          </Pressable>
 
           {/* Check for Updates */}
           <Pressable
@@ -797,6 +823,9 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Cache Debug View */}
+      <CacheDebugView visible={showCacheDebug} onClose={() => setShowCacheDebug(false)} />
     </>
   );
 }

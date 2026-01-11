@@ -291,6 +291,11 @@ export function useLocalReminders() {
         const stepsCount = stepEntry?.step_count || 0;
 
         // Calculate expected steps by time of day (linear distribution during waking hours)
+        const hour = now.getHours();
+        const wakeHour = 6; // Assume wake at 6am
+        const sleepHour = 22; // Assume sleep at 10pm
+        const awakeHours = sleepHour - wakeHour; // 16 hours
+        const hoursSinceWake = Math.max(0, Math.min(hour - wakeHour, awakeHours));
         const expectedSteps = Math.floor((hoursSinceWake / awakeHours) * stepGoal);
 
         // Show reminder if significantly behind (more than 2000 steps behind expected)

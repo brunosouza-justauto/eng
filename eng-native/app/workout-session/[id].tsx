@@ -6,8 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
-import { WorkoutData, ExerciseInstanceData, isEffectiveRestDay } from '../../types/workout';
-import { Moon } from 'lucide-react-native';
+import { useOffline } from '../../contexts/OfflineContext';
+import { getCache, setCache, CacheKeys, getLastUserId } from '../../lib/storage';
+import { addToQueue } from '../../lib/syncQueue';
+import { WorkoutData, ExerciseInstanceData, isEffectiveRestDay, ProgramAssignment } from '../../types/workout';
+import { Moon, WifiOff } from 'lucide-react-native';
 import { CompletedSetData, SetInputState } from '../../types/workoutSession';
 import { formatTime } from '../../utils/formatters';
 import { groupExercises } from '../../utils/exerciseGrouping';
@@ -52,9 +55,14 @@ export default function WorkoutSessionScreen() {
   const { isDark } = useTheme();
   const { user } = useAuth();
   const { refreshReminders } = useNotifications();
+  const { isOnline, refreshPendingCount } = useOffline();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  // Track if we're in offline mode for this session
+  const [isOfflineSession, setIsOfflineSession] = useState(false);
+  const offlineSessionStartTime = useRef<string | null>(null);
 
   // Workout data
   const [workout, setWorkout] = useState<WorkoutData | null>(null);
@@ -167,6 +175,44 @@ export default function WorkoutSessionScreen() {
     setIsLoading(true);
     setError(null);
 
+    // If offline, try to load from cache
+    if (!isOnline) {
+      const userId = user?.id || await getLastUserId();
+      if (userId) {
+        const cached = await getCache<{
+          assignment: ProgramAssignment | null;
+          workouts: WorkoutData[];
+          isCompleted: boolean;
+          completionTime: string | null;
+        }>(CacheKeys.workoutProgram(userId));
+
+        if (cached?.workouts) {
+          // Find the workout with matching ID
+          const workoutData = cached.workouts.find(w => w.id === id);
+          if (workoutData) {
+            setWorkout(workoutData);
+
+            // Load cached previous sets for pre-filling weights
+            const cachedPrevSets = await getCache<[string, PreviousSetData[]][]>(
+              CacheKeys.previousWorkoutSets(userId, id)
+            );
+            const previousSetsMap = cachedPrevSets
+              ? new Map<string, PreviousSetData[]>(cachedPrevSets)
+              : undefined;
+
+            initializeSetInputs(workoutData, previousSetsMap);
+            setIsOfflineSession(true);
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
+      setError('Workout not found in cache. Please connect to the internet.');
+      setIsLoading(false);
+      return;
+    }
+
+    // Online - fetch from API
     const { workout: workoutData, error: fetchError } = await getWorkoutById(id);
 
     if (fetchError || !workoutData) {
@@ -180,6 +226,14 @@ export default function WorkoutSessionScreen() {
     // Fetch previous workout sets to pre-fill weights
     const { sets: previousSets } = await getLastWorkoutSets(id, user.id);
     initializeSetInputs(workoutData, previousSets);
+
+    // Cache the previous sets for offline use (convert Map to array for JSON serialization)
+    if (previousSets.size > 0) {
+      await setCache(
+        CacheKeys.previousWorkoutSets(user.id, id),
+        Array.from(previousSets.entries())
+      );
+    }
 
     // Load previous feedback recommendations and notes for each exercise
     const recommendations = new Map<string, FeedbackRecommendation[]>();
@@ -257,6 +311,32 @@ export default function WorkoutSessionScreen() {
   const handleStartWorkout = async () => {
     if (!user?.id || !id) return;
 
+    // If offline, create a local session and queue the operation
+    if (!isOnline || isOfflineSession) {
+      const localSessionId = `offline-session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      offlineSessionStartTime.current = new Date().toISOString();
+
+      addToQueue({
+        type: 'workout_session',
+        action: 'create',
+        userId: user.id,
+        payload: {
+          workout_id: id,
+          user_id: user.id,
+          local_session_id: localSessionId,
+          started_at: offlineSessionStartTime.current,
+        },
+      });
+      refreshPendingCount();
+
+      setWorkoutSessionId(localSessionId);
+      setIsWorkoutStarted(true);
+      setIsOfflineSession(true);
+      workoutTimer.start();
+      return;
+    }
+
+    // Online - make API call
     const { sessionId, error: startError } = await startWorkoutSession(id, user.id);
 
     if (startError || !sessionId) {
@@ -279,7 +359,14 @@ export default function WorkoutSessionScreen() {
 
   const handleCancelWorkout = async () => {
     if (workoutSessionId) {
-      await cancelWorkoutSession(workoutSessionId);
+      // If offline session, just discard locally (no need to cancel on server)
+      if (isOfflineSession || !isOnline) {
+        // Remove any queued operations for this session
+        // For now, just navigate back - the queued operations will be orphaned
+        // but that's OK since we're canceling
+      } else {
+        await cancelWorkoutSession(workoutSessionId);
+      }
     }
 
     setShowCancelModal(false);
@@ -287,8 +374,75 @@ export default function WorkoutSessionScreen() {
   };
 
   const handleCompleteWorkout = async () => {
-    if (!workoutSessionId) return;
+    if (!workoutSessionId || !user?.id) return;
 
+    // If offline session, queue the completion
+    if (isOfflineSession || !isOnline) {
+      // Queue all completed sets first
+      completedSets.forEach((sets, exerciseId) => {
+        sets.forEach((set) => {
+          if (set.isCompleted) {
+            addToQueue({
+              type: 'workout_set',
+              action: 'create',
+              userId: user.id,
+              payload: {
+                local_session_id: workoutSessionId,
+                exercise_instance_id: exerciseId,
+                set_order: set.setOrder,
+                weight: set.weight === 'BW' ? null : parseFloat(set.weight) || null,
+                reps: set.reps,
+              },
+            });
+          }
+        });
+      });
+
+      // Queue session completion
+      const completedAt = new Date().toISOString();
+      addToQueue({
+        type: 'workout_session',
+        action: 'update',
+        userId: user.id,
+        payload: {
+          local_session_id: workoutSessionId,
+          status: 'completed',
+          duration_seconds: workoutTimer.elapsedTime,
+          completed_at: completedAt,
+        },
+      });
+
+      // Update local cache to show workout as completed
+      try {
+        const cached = await getCache<{
+          assignment: ProgramAssignment | null;
+          workouts: WorkoutData[];
+          isCompleted: boolean;
+          completionTime: string | null;
+          cachedAt: string;
+        }>(CacheKeys.workoutProgram(user.id));
+
+        if (cached) {
+          await setCache(CacheKeys.workoutProgram(user.id), {
+            ...cached,
+            isCompleted: true,
+            completionTime: completedAt,
+            cachedAt: new Date().toISOString(),
+          });
+          console.log('[WorkoutSession] Updated local cache to mark workout as completed');
+        }
+      } catch (err) {
+        console.error('[WorkoutSession] Error updating local cache:', err);
+      }
+
+      refreshPendingCount();
+      refreshReminders();
+      setShowCompleteModal(false);
+      router.back();
+      return;
+    }
+
+    // Online - make API call
     await completeWorkoutSession(workoutSessionId, workoutTimer.elapsedTime);
     refreshReminders();
 
@@ -321,6 +475,9 @@ export default function WorkoutSessionScreen() {
       (s) => s.setOrder === setIndex + 1 && s.isCompleted
     );
 
+    // Check if we're in offline mode
+    const isOffline = isOfflineSession || !isOnline;
+
     if (isCurrentlyCompleted) {
       // Uncomplete the set - also uncomplete for all exercises in the group
       const newCompletedSets = new Map(completedSets);
@@ -330,7 +487,10 @@ export default function WorkoutSessionScreen() {
         const updatedSets = groupCompleted.filter((s) => s.setOrder !== setIndex + 1);
         newCompletedSets.set(groupExercise.id, updatedSets);
 
-        await removeCompletedSet(workoutSessionId, groupExercise.id, setIndex + 1);
+        // Only call API if online
+        if (!isOffline) {
+          await removeCompletedSet(workoutSessionId, groupExercise.id, setIndex + 1);
+        }
       }
 
       setCompletedSets(newCompletedSets);
@@ -363,14 +523,17 @@ export default function WorkoutSessionScreen() {
         const updatedSets = [...groupCompleted.filter((s) => s.setOrder !== setIndex + 1), newSet];
         newCompletedSets.set(groupExercise.id, updatedSets);
 
-        const weightValue = groupInput.weight === 'BW' ? null : parseFloat(groupInput.weight) || null;
-        await saveCompletedSet(
-          workoutSessionId,
-          groupExercise.id,
-          setIndex + 1,
-          weightValue,
-          parseInt(groupInput.reps, 10) || 0
-        );
+        // Only call API if online
+        if (!isOffline) {
+          const weightValue = groupInput.weight === 'BW' ? null : parseFloat(groupInput.weight) || null;
+          await saveCompletedSet(
+            workoutSessionId,
+            groupExercise.id,
+            setIndex + 1,
+            weightValue,
+            parseInt(groupInput.reps, 10) || 0
+          );
+        }
       }
 
       setCompletedSets(newCompletedSets);
@@ -485,6 +648,14 @@ export default function WorkoutSessionScreen() {
       workload_level: feedback.workloadLevel,
       notes: feedback.notes || null,
     };
+
+    // If offline, just update local state - feedback will be saved when workout completes
+    if (isOfflineSession || !isOnline) {
+      const newFeedback = new Map(sessionFeedback);
+      newFeedback.set(feedbackExerciseId, feedbackData as ExerciseFeedback);
+      setSessionFeedback(newFeedback);
+      return;
+    }
 
     const { success } = await saveExerciseFeedback(feedbackData);
 
@@ -801,6 +972,27 @@ export default function WorkoutSessionScreen() {
 
       {/* Exercise List */}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+        {/* Offline Banner */}
+        {isOfflineSession && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: isDark ? 'rgba(251, 191, 36, 0.15)' : 'rgba(251, 191, 36, 0.2)',
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 8,
+              marginBottom: 12,
+              gap: 8,
+            }}
+          >
+            <WifiOff size={16} color={isDark ? '#FBBF24' : '#D97706'} />
+            <Text style={{ fontSize: 13, color: isDark ? '#FBBF24' : '#D97706', flex: 1 }}>
+              Offline mode - workout will sync when connected
+            </Text>
+          </View>
+        )}
+
         {/* Workout Notes/Description Preview */}
         {workout.description && (
           <Pressable

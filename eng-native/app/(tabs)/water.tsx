@@ -1,11 +1,14 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, RefreshControl, TextInput, Modal } from 'react-native';
-import { Droplets, Plus, Minus, Target, AlertCircle, Award, X } from 'lucide-react-native';
+import { Droplets, Plus, Minus, Target, AlertCircle, Award, X, WifiOff } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
+import { useOffline } from '../../contexts/OfflineContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
+import { getCache, setCache, CacheKeys } from '../../lib/storage';
+import { addToQueue } from '../../lib/syncQueue';
 import {
   getWaterEntryForDate,
   getWaterGoal,
@@ -190,10 +193,12 @@ export default function WaterScreen() {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { refreshReminders } = useNotifications();
+  const { isOnline, refreshPendingCount } = useOffline();
 
   // State
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFromCache, setIsFromCache] = useState(false);
   const [todayEntry, setTodayEntry] = useState<WaterTrackingEntry | null>(null);
   const [waterGoal, setWaterGoal] = useState<number | null>(null);
   const [historyEntries, setHistoryEntries] = useState<WaterTrackingEntry[]>([]);
@@ -235,6 +240,34 @@ export default function WaterScreen() {
   const loadWaterData = useCallback(async () => {
     if (!user?.id) return;
 
+    const cacheKey = CacheKeys.waterGoal(user.id);
+
+    // If offline, try to load from cache
+    if (!isOnline) {
+      try {
+        const cached = await getCache<{
+          goal: number | null;
+          entry: WaterTrackingEntry | null;
+          history: WaterTrackingEntry[];
+          date: string;
+        }>(cacheKey);
+
+        if (cached) {
+          setWaterGoal(cached.goal);
+          setTodayEntry(cached.date === today ? cached.entry : null);
+          setHistoryEntries(cached.history);
+          setIsFromCache(true);
+        }
+      } catch (err) {
+        console.error('Error loading cached water data:', err);
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+      return;
+    }
+
+    // Online - fetch from API
     try {
       // Fetch water goal (try both user.id and profile.id)
       const { goal } = await getWaterGoal(user.id, profile?.id);
@@ -247,13 +280,34 @@ export default function WaterScreen() {
       // Fetch history for weekly display
       const { entries } = await getWaterHistory(user.id, 7);
       setHistoryEntries(entries);
+
+      // Cache the data for offline use
+      await setCache(cacheKey, {
+        goal,
+        entry,
+        history: entries,
+        date: today,
+      });
+      setIsFromCache(false);
     } catch (err) {
       console.error('Error loading water data:', err);
+      // Try to fall back to cache
+      const cached = await getCache<{
+        goal: number | null;
+        entry: WaterTrackingEntry | null;
+        history: WaterTrackingEntry[];
+      }>(cacheKey);
+      if (cached) {
+        setWaterGoal(cached.goal);
+        setTodayEntry(cached.entry);
+        setHistoryEntries(cached.history);
+        setIsFromCache(true);
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [user?.id, profile?.id, today]);
+  }, [user?.id, profile?.id, today, isOnline]);
 
   // Initial load
   useEffect(() => {
@@ -270,6 +324,46 @@ export default function WaterScreen() {
   const handleAddWater = async (amountMl: number) => {
     if (!user?.id || isUpdating) return;
 
+    // If offline, queue the operation and update local state immediately
+    if (!isOnline) {
+      const newAmount = (todayEntry?.amount_ml || 0) + amountMl;
+      const updatedEntry: WaterTrackingEntry = {
+        id: todayEntry?.id || `offline-${Date.now()}`,
+        user_id: user.id,
+        date: today,
+        amount_ml: newAmount,
+        created_at: todayEntry?.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      addToQueue({
+        type: 'water_log',
+        action: 'update',
+        userId: user.id,
+        payload: {
+          user_id: user.id,
+          date: today,
+          amount_ml: newAmount,
+        },
+      });
+      refreshPendingCount();
+
+      // Update local state
+      setTodayEntry(updatedEntry);
+      setHistoryEntries((prev) => {
+        const existingIndex = prev.findIndex((e) => e.date === today);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = updatedEntry;
+          return updated;
+        } else {
+          return [updatedEntry, ...prev];
+        }
+      });
+      return;
+    }
+
+    // Online - make API call
     setIsUpdating(true);
     const { entry, error } = await addWaterAmount(user.id, today, amountMl);
     setIsUpdating(false);
@@ -298,6 +392,42 @@ export default function WaterScreen() {
   const handleRemoveWater = async () => {
     if (!user?.id || isUpdating || !todayEntry?.amount_ml) return;
 
+    // If offline, queue the operation and update local state immediately
+    if (!isOnline) {
+      const newAmount = Math.max(0, (todayEntry?.amount_ml || 0) - DEFAULT_GLASS_SIZE);
+      const updatedEntry: WaterTrackingEntry = {
+        ...todayEntry!,
+        amount_ml: newAmount,
+        updated_at: new Date().toISOString(),
+      };
+
+      addToQueue({
+        type: 'water_log',
+        action: 'update',
+        userId: user.id,
+        payload: {
+          user_id: user.id,
+          date: today,
+          amount_ml: newAmount,
+        },
+      });
+      refreshPendingCount();
+
+      // Update local state
+      setTodayEntry(updatedEntry);
+      setHistoryEntries((prev) => {
+        const existingIndex = prev.findIndex((e) => e.date === today);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = updatedEntry;
+          return updated;
+        }
+        return prev;
+      });
+      return;
+    }
+
+    // Online - make API call
     setIsUpdating(true);
     const { entry, error } = await removeWaterAmount(user.id, today, DEFAULT_GLASS_SIZE);
     setIsUpdating(false);
@@ -332,6 +462,48 @@ export default function WaterScreen() {
       return;
     }
 
+    // If offline, queue the operation and update local state immediately
+    if (!isOnline) {
+      const newAmount = (todayEntry?.amount_ml || 0) + amount;
+      const updatedEntry: WaterTrackingEntry = {
+        id: todayEntry?.id || `offline-${Date.now()}`,
+        user_id: user.id,
+        date: today,
+        amount_ml: newAmount,
+        created_at: todayEntry?.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      addToQueue({
+        type: 'water_log',
+        action: 'update',
+        userId: user.id,
+        payload: {
+          user_id: user.id,
+          date: today,
+          amount_ml: newAmount,
+        },
+      });
+      refreshPendingCount();
+
+      // Update local state
+      setTodayEntry(updatedEntry);
+      setCustomWaterAmount('');
+      setShowCustomEntry(false);
+      setHistoryEntries((prev) => {
+        const existingIndex = prev.findIndex((e) => e.date === today);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = updatedEntry;
+          return updated;
+        } else {
+          return [updatedEntry, ...prev];
+        }
+      });
+      return;
+    }
+
+    // Online - make API call
     setIsUpdating(true);
     const { entry, error } = await addWaterAmount(user.id, today, amount);
     setIsUpdating(false);
@@ -633,6 +805,33 @@ export default function WaterScreen() {
         />
       }
     >
+      {/* Offline Banner */}
+      {!isOnline && isFromCache && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: isDark ? '#78350F' : '#FEF3C7',
+            paddingVertical: 10,
+            paddingHorizontal: 14,
+            borderRadius: 10,
+            marginBottom: 16,
+          }}
+        >
+          <WifiOff size={16} color={isDark ? '#FDBA74' : '#92400E'} />
+          <Text
+            style={{
+              marginLeft: 8,
+              fontSize: 13,
+              color: isDark ? '#FDBA74' : '#92400E',
+              flex: 1,
+            }}
+          >
+            You're offline. Showing cached data.
+          </Text>
+        </View>
+      )}
+
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
         <Droplets size={20} color="#06B6D4" />

@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, RefreshControl, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
-import { Utensils, AlertCircle, ExternalLink, Search } from 'lucide-react-native';
+import { Utensils, AlertCircle, ExternalLink, Search, WifiOff } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
+import { useOffline } from '../../contexts/OfflineContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
+import { getCache, setCache, CacheKeys, getLastUserId } from '../../lib/storage';
+import { addToQueue } from '../../lib/syncQueue';
 import { getLocalDateString } from '../../utils/date';
 import {
   MacroCircle,
@@ -42,12 +45,14 @@ import {
   SimpleDayType,
   ExtraMealFormData,
   MissedMeal,
+  LoggedMealWithNutrition,
 } from '../../types/nutrition';
 
 export default function NutritionScreen() {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { refreshReminders } = useNotifications();
+  const { isOnline, refreshPendingCount, isSyncing, lastSyncTime } = useOffline();
 
   // State
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlanWithMeals | null>(null);
@@ -55,6 +60,7 @@ export default function NutritionScreen() {
   const [selectedDayType, setSelectedDayType] = useState<SimpleDayType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFromCache, setIsFromCache] = useState(false);
   const [loggingMealId, setLoggingMealId] = useState<string | null>(null);
   const [showAddExtraMealModal, setShowAddExtraMealModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -77,6 +83,51 @@ export default function NutritionScreen() {
   const loadNutritionData = useCallback(async () => {
     if (!profile?.id || !user?.id) return;
 
+    const cacheKey = CacheKeys.nutritionPlan(user.id);
+    const dailyCacheKey = CacheKeys.todaysMeals(user.id);
+
+    // If offline, try to load from cache
+    if (!isOnline) {
+      try {
+        const cachedPlan = await getCache<{
+          nutritionPlan: NutritionPlanWithMeals | null;
+          cachedAt: string;
+        }>(cacheKey);
+        const cachedDaily = await getCache<{
+          dailyLog: DailyNutritionLog | null;
+          selectedDayType: SimpleDayType;
+          date: string;
+        }>(dailyCacheKey);
+
+        if (cachedPlan) {
+          setNutritionPlan(cachedPlan.nutritionPlan);
+          setIsFromCache(true);
+        }
+        if (cachedDaily && cachedDaily.date === today) {
+          setDailyLog(cachedDaily.dailyLog);
+          if (selectedDayType === null) {
+            setSelectedDayType(cachedDaily.selectedDayType);
+          }
+        }
+        if (!cachedPlan) {
+          // Default to Training if no cache
+          if (selectedDayType === null) {
+            setSelectedDayType('Training');
+          }
+        }
+      } catch (error) {
+        console.error('Error loading cached nutrition data:', error);
+        if (selectedDayType === null) {
+          setSelectedDayType('Training');
+        }
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+      return;
+    }
+
+    // Online - fetch from API
     try {
       // Get nutrition plan (uses profile.id for assigned_plans)
       const { nutritionPlan: plan } = await getUserNutritionPlan(profile.id);
@@ -87,19 +138,43 @@ export default function NutritionScreen() {
       setDailyLog(log);
 
       // Determine if today is a training or rest day (only on initial load)
+      let dayType: SimpleDayType = 'Training';
       if (selectedDayType === null) {
         const { assignment } = await getAssignedProgram(profile.id);
         if (assignment?.program_template_id) {
           const { workouts } = await getProgramWorkouts(assignment.program_template_id);
           const todaysWorkout = getTodaysWorkout(workouts);
-          setSelectedDayType(todaysWorkout ? 'Training' : 'Rest');
+          dayType = todaysWorkout ? 'Training' : 'Rest';
+          setSelectedDayType(dayType);
         } else {
           // No program assigned, default to Training
           setSelectedDayType('Training');
         }
+      } else {
+        dayType = selectedDayType;
       }
+
+      // Cache the data for offline use
+      await setCache(cacheKey, {
+        nutritionPlan: plan,
+        cachedAt: new Date().toISOString(),
+      });
+      await setCache(dailyCacheKey, {
+        dailyLog: log,
+        selectedDayType: dayType,
+        date: today,
+      });
+      setIsFromCache(false);
     } catch (error) {
       console.error('Error loading nutrition data:', error);
+      // Try to fall back to cache
+      const cachedPlan = await getCache<{
+        nutritionPlan: NutritionPlanWithMeals | null;
+      }>(cacheKey);
+      if (cachedPlan) {
+        setNutritionPlan(cachedPlan.nutritionPlan);
+        setIsFromCache(true);
+      }
       // Default to Training if there's an error
       if (selectedDayType === null) {
         setSelectedDayType('Training');
@@ -108,12 +183,77 @@ export default function NutritionScreen() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [profile?.id, user?.id, today, selectedDayType]);
+  }, [profile?.id, user?.id, today, selectedDayType, isOnline]);
 
   // Initial load
   useEffect(() => {
     loadNutritionData();
   }, [loadNutritionData]);
+
+  // Handle offline cold start - load cached data when offline
+  useEffect(() => {
+    if (!isOnline && isLoading) {
+      const loadCachedDataOffline = async () => {
+        try {
+          // Use current user ID if available, otherwise get from cache
+          const userId = user?.id || await getLastUserId();
+          if (userId) {
+            const cachedPlan = await getCache<{
+              nutritionPlan: NutritionPlanWithMeals | null;
+            }>(CacheKeys.nutritionPlan(userId));
+            const cachedDaily = await getCache<{
+              dailyLog: DailyNutritionLog | null;
+              selectedDayType: SimpleDayType;
+            }>(CacheKeys.todaysMeals(userId));
+
+            if (cachedPlan?.nutritionPlan) {
+              setNutritionPlan(cachedPlan.nutritionPlan);
+              setIsFromCache(true);
+            }
+            if (cachedDaily) {
+              setDailyLog(cachedDaily.dailyLog);
+              setSelectedDayType(cachedDaily.selectedDayType || 'Training');
+            } else {
+              setSelectedDayType('Training');
+            }
+          } else {
+            setSelectedDayType('Training');
+          }
+        } catch (err) {
+          console.error('Error loading offline nutrition cache:', err);
+        } finally {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
+      };
+
+      // Small delay to allow normal flow first, but shorter if we have user
+      const delay = user?.id ? 100 : 500;
+      const timer = setTimeout(loadCachedDataOffline, delay);
+      return () => clearTimeout(timer);
+    }
+  }, [isOnline, isLoading, user?.id]);
+
+  // Refetch data after sync completes to pick up synced offline changes
+  const prevSyncTimeRef = useRef<Date | null>(null);
+  useEffect(() => {
+    // Only refetch if:
+    // 1. We have a new sync time (sync just completed)
+    // 2. We're online
+    // 3. Not currently syncing
+    // 4. Not already loading
+    if (
+      lastSyncTime &&
+      isOnline &&
+      !isSyncing &&
+      !isLoading &&
+      prevSyncTimeRef.current !== lastSyncTime
+    ) {
+      prevSyncTimeRef.current = lastSyncTime;
+      console.log('[Nutrition] Sync completed, refetching data');
+      loadNutritionData();
+    }
+  }, [lastSyncTime, isOnline, isSyncing, isLoading, loadNutritionData]);
 
   // Refresh handler
   const handleRefresh = useCallback(() => {
@@ -210,6 +350,61 @@ export default function NutritionScreen() {
 
       setLoggingMealId(mealId);
 
+      // If offline, queue the operation and update local state
+      if (!isOnline) {
+        addToQueue({
+          type: 'meal_log',
+          action: 'create',
+          userId: user.id,
+          payload: {
+            user_id: user.id,
+            meal_id: mealId,
+            log_date: today,
+            is_extra_meal: false,
+          },
+        });
+        refreshPendingCount();
+
+        // Update local state immediately - find the meal data and add to daily log
+        const meal = mealsForDayType.find(m => m.id === mealId);
+        if (meal && dailyLog) {
+          const totalCalories = meal.food_items?.reduce((sum, fi) => sum + (fi.calculated_calories || 0), 0) || 0;
+          const totalProtein = meal.food_items?.reduce((sum, fi) => sum + (fi.calculated_protein || 0), 0) || 0;
+          const totalCarbs = meal.food_items?.reduce((sum, fi) => sum + (fi.calculated_carbs || 0), 0) || 0;
+          const totalFat = meal.food_items?.reduce((sum, fi) => sum + (fi.calculated_fat || 0), 0) || 0;
+
+          const newLogEntry: LoggedMealWithNutrition = {
+            id: `offline-${Date.now()}`,
+            user_id: user.id,
+            meal_id: mealId,
+            nutrition_plan_id: nutritionPlan?.id || '',
+            name: meal.name,
+            date: today,
+            time: meal.time_suggestion || '',
+            day_type: selectedDayType || 'Training',
+            is_extra_meal: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            total_calories: totalCalories,
+            total_protein: totalProtein,
+            total_carbs: totalCarbs,
+            total_fat: totalFat,
+          };
+          setDailyLog({
+            ...dailyLog,
+            logged_meals: [...(dailyLog.logged_meals || []), newLogEntry],
+            total_calories: (dailyLog.total_calories || 0) + totalCalories,
+            total_protein: (dailyLog.total_protein || 0) + totalProtein,
+            total_carbs: (dailyLog.total_carbs || 0) + totalCarbs,
+            total_fat: (dailyLog.total_fat || 0) + totalFat,
+          });
+        }
+
+        setLoggingMealId(null);
+        return;
+      }
+
+      // Online - make API call
       const { error } = await logPlannedMeal(user.id, mealId, today);
 
       if (error) {
@@ -222,13 +417,19 @@ export default function NutritionScreen() {
 
       setLoggingMealId(null);
     },
-    [user?.id, today, loadNutritionData, refreshReminders]
+    [user?.id, today, loadNutritionData, refreshReminders, isOnline, refreshPendingCount, mealsForDayType, dailyLog]
   );
 
   // Log an extra meal
   const handleLogExtraMeal = useCallback(
     async (mealData: ExtraMealFormData) => {
       if (!user?.id || !profile?.id || !nutritionPlan?.id) return;
+
+      // Extra meals are more complex (creating food items, etc.) - require online for now
+      if (!isOnline) {
+        Alert.alert('Offline', 'Extra meals can only be logged when online. Please connect to the internet.');
+        return;
+      }
 
       // Pass user.id for meal_logs (references auth.users)
       // Pass profile.id for custom food items (references profiles)
@@ -241,7 +442,7 @@ export default function NutritionScreen() {
         refreshReminders();
       }
     },
-    [user?.id, profile?.id, nutritionPlan?.id, today, loadNutritionData, refreshReminders]
+    [user?.id, profile?.id, nutritionPlan?.id, today, loadNutritionData, refreshReminders, isOnline]
   );
 
   // Unlog a planned meal - show confirmation modal
@@ -252,7 +453,7 @@ export default function NutritionScreen() {
 
   // Confirm unlog planned meal
   const confirmUnlogMeal = useCallback(async () => {
-    if (!mealToUnlog) return;
+    if (!mealToUnlog || !user?.id) return;
 
     const logId = mealIdToLogId[mealToUnlog];
     if (!logId) {
@@ -262,6 +463,40 @@ export default function NutritionScreen() {
     }
 
     setIsUnlogging(true);
+
+    // If offline, queue the deletion and update local state
+    if (!isOnline) {
+      // Only queue for deletion if it's not an offline-created entry
+      if (!logId.startsWith('offline-')) {
+        addToQueue({
+          type: 'meal_log',
+          action: 'delete',
+          userId: user.id,
+          payload: { id: logId },
+        });
+        refreshPendingCount();
+      }
+
+      // Update local state immediately
+      if (dailyLog) {
+        const mealToRemove = dailyLog.logged_meals?.find(m => m.id === logId);
+        setDailyLog({
+          ...dailyLog,
+          logged_meals: (dailyLog.logged_meals || []).filter(m => m.id !== logId),
+          total_calories: (dailyLog.total_calories || 0) - (mealToRemove?.total_calories || 0),
+          total_protein: (dailyLog.total_protein || 0) - (mealToRemove?.total_protein || 0),
+          total_carbs: (dailyLog.total_carbs || 0) - (mealToRemove?.total_carbs || 0),
+          total_fat: (dailyLog.total_fat || 0) - (mealToRemove?.total_fat || 0),
+        });
+      }
+
+      setIsUnlogging(false);
+      setShowUnlogModal(false);
+      setMealToUnlog(null);
+      return;
+    }
+
+    // Online - make API call
     const { error } = await deleteLoggedMeal(logId);
     setIsUnlogging(false);
 
@@ -274,7 +509,7 @@ export default function NutritionScreen() {
 
     setShowUnlogModal(false);
     setMealToUnlog(null);
-  }, [mealToUnlog, mealIdToLogId, loadNutritionData, refreshReminders]);
+  }, [mealToUnlog, mealIdToLogId, loadNutritionData, refreshReminders, isOnline, user?.id, refreshPendingCount, dailyLog]);
 
   // Delete an extra meal - show confirmation modal
   const handleDeleteExtraMeal = useCallback((mealLogId: string) => {
@@ -284,9 +519,43 @@ export default function NutritionScreen() {
 
   // Confirm delete
   const confirmDeleteMeal = useCallback(async () => {
-    if (!mealToDelete) return;
+    if (!mealToDelete || !user?.id) return;
 
     setIsDeleting(true);
+
+    // If offline, queue the deletion and update local state
+    if (!isOnline) {
+      // Only queue for deletion if it's not an offline-created entry
+      if (!mealToDelete.startsWith('offline-')) {
+        addToQueue({
+          type: 'meal_log',
+          action: 'delete',
+          userId: user.id,
+          payload: { id: mealToDelete },
+        });
+        refreshPendingCount();
+      }
+
+      // Update local state immediately
+      if (dailyLog) {
+        const mealToRemove = dailyLog.logged_meals?.find(m => m.id === mealToDelete);
+        setDailyLog({
+          ...dailyLog,
+          logged_meals: (dailyLog.logged_meals || []).filter(m => m.id !== mealToDelete),
+          total_calories: (dailyLog.total_calories || 0) - (mealToRemove?.total_calories || 0),
+          total_protein: (dailyLog.total_protein || 0) - (mealToRemove?.total_protein || 0),
+          total_carbs: (dailyLog.total_carbs || 0) - (mealToRemove?.total_carbs || 0),
+          total_fat: (dailyLog.total_fat || 0) - (mealToRemove?.total_fat || 0),
+        });
+      }
+
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+      setMealToDelete(null);
+      return;
+    }
+
+    // Online - make API call
     const { error } = await deleteLoggedMeal(mealToDelete);
     setIsDeleting(false);
 
@@ -299,7 +568,7 @@ export default function NutritionScreen() {
 
     setShowDeleteModal(false);
     setMealToDelete(null);
-  }, [mealToDelete, loadNutritionData, refreshReminders]);
+  }, [mealToDelete, loadNutritionData, refreshReminders, isOnline, user?.id, refreshPendingCount, dailyLog]);
 
   // Supabase not configured
   if (!isSupabaseConfigured) {
@@ -454,6 +723,27 @@ export default function NutritionScreen() {
         />
       }
     >
+      {/* Offline Banner */}
+      {!isOnline && isFromCache && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: isDark ? '#7C2D12' : '#FEF3C7',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 8,
+            marginBottom: 12,
+            gap: 8,
+          }}
+        >
+          <WifiOff size={16} color={isDark ? '#FDBA74' : '#92400E'} />
+          <Text style={{ color: isDark ? '#FDBA74' : '#92400E', fontSize: 13, flex: 1 }}>
+            You're offline. Showing cached data.
+          </Text>
+        </View>
+      )}
+
       {/* Today's Meals Header with View Plan link */}
       <View
         style={{

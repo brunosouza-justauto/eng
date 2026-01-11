@@ -14,11 +14,14 @@ import {
   CheckCircle,
   Moon,
   Search,
+  WifiOff,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOffline } from '../../contexts/OfflineContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
+import { getCache, setCache, CacheKeys, getLastUserId } from '../../lib/storage';
 import {
   getAssignedProgram,
   getProgramWorkouts,
@@ -26,6 +29,7 @@ import {
   checkWorkoutCompletion,
   getCompletedWorkoutDates,
   assignWorkoutProgramToSelf,
+  getLastWorkoutSets,
   PublicWorkoutProgram,
 } from '../../services/workoutService';
 import BrowseWorkoutProgramsModal from '../../components/workout/BrowseWorkoutProgramsModal';
@@ -47,6 +51,7 @@ const PREVIEW_COUNT = 3;
 export default function WorkoutScreen() {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
+  const { isOnline, isSyncing, lastSyncTime } = useOffline();
 
   // State
   const [isLoading, setIsLoading] = useState(true);
@@ -58,6 +63,7 @@ export default function WorkoutScreen() {
   const [showAllExercises, setShowAllExercises] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [completionTime, setCompletionTime] = useState<string | null>(null);
+  const [isFromCache, setIsFromCache] = useState(false);
 
   // Calendar state
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -99,8 +105,72 @@ export default function WorkoutScreen() {
       if (profile?.id && user?.id) {
         fetchWorkoutData();
       }
-    }, [profile?.id, user?.id])
+    }, [profile?.id, user?.id, isOnline])
   );
+
+  // Handle offline cold start - load cached data when offline
+  useEffect(() => {
+    if (!isOnline && isLoading) {
+      const loadCachedDataOffline = async () => {
+        try {
+          // Use current user ID if available, otherwise get from cache
+          const userId = user?.id || await getLastUserId();
+          if (userId) {
+            const cached = await getCache<{
+              assignment: ProgramAssignment | null;
+              workouts: WorkoutData[];
+              isCompleted: boolean;
+              completionTime: string | null;
+            }>(CacheKeys.workoutProgram(userId));
+
+            if (cached) {
+              setAssignment(cached.assignment);
+              setAllWorkouts(cached.workouts);
+              const workout = getTodaysWorkout(cached.workouts);
+              setTodaysWorkout(workout);
+              setIsRestDay(isEffectiveRestDay(workout));
+              setIsCompleted(cached.isCompleted);
+              setCompletionTime(cached.completionTime);
+              setIsFromCache(true);
+              setError(null);
+            }
+          }
+        } catch (err) {
+          console.error('Error loading offline workout cache:', err);
+        } finally {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
+      };
+
+      // Small delay to allow normal flow first, but shorter if we have user
+      const delay = user?.id ? 100 : 500;
+      const timer = setTimeout(loadCachedDataOffline, delay);
+      return () => clearTimeout(timer);
+    }
+  }, [isOnline, isLoading, user?.id]);
+
+  // Refetch data after sync completes to pick up synced offline changes
+  const prevSyncTimeRef = useRef<Date | null>(null);
+  useEffect(() => {
+    // Only refetch if:
+    // 1. We have a new sync time (sync just completed)
+    // 2. We're online
+    // 3. Not currently syncing
+    // 4. Not already loading
+    if (
+      lastSyncTime &&
+      isOnline &&
+      !isSyncing &&
+      !isLoading &&
+      prevSyncTimeRef.current !== lastSyncTime
+    ) {
+      prevSyncTimeRef.current = lastSyncTime;
+      console.log('[Workout] Sync completed, refetching data');
+      fetchWorkoutData();
+      fetchCalendarData();
+    }
+  }, [lastSyncTime, isOnline, isSyncing, isLoading]);
 
   // Fetch calendar data when month changes
   useEffect(() => {
@@ -117,6 +187,42 @@ export default function WorkoutScreen() {
     }
     setError(null);
 
+    const cacheKey = CacheKeys.workoutProgram(user.id);
+
+    // If offline, try to load from cache
+    if (!isOnline) {
+      try {
+        const cached = await getCache<{
+          assignment: ProgramAssignment | null;
+          workouts: WorkoutData[];
+          isCompleted: boolean;
+          completionTime: string | null;
+          cachedAt: string;
+        }>(cacheKey);
+
+        if (cached) {
+          setAssignment(cached.assignment);
+          setAllWorkouts(cached.workouts);
+          const workout = getTodaysWorkout(cached.workouts);
+          setTodaysWorkout(workout);
+          setIsRestDay(isEffectiveRestDay(workout));
+          setIsCompleted(cached.isCompleted);
+          setCompletionTime(cached.completionTime);
+          setIsFromCache(true);
+          setError(null);
+        } else {
+          setError('No cached workout data available. Please connect to the internet.');
+        }
+      } catch (err) {
+        setError('Failed to load cached data');
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+      return;
+    }
+
+    // Online - fetch from API
     try {
       // Get assigned program
       const { assignment: programAssignment, error: assignError } = await getAssignedProgram(
@@ -158,17 +264,66 @@ export default function WorkoutScreen() {
       setIsRestDay(isEffectiveRestDay(workout));
 
       // Check completion status if there's a workout (and it's not an effective rest day)
+      let completed = false;
+      let time: string | null = null;
       if (workout && !isEffectiveRestDay(workout)) {
-        const { isCompleted: completed, completionTime: time } = await checkWorkoutCompletion(
-          workout.id,
-          user.id
-        );
+        const result = await checkWorkoutCompletion(workout.id, user.id);
+        completed = result.isCompleted;
+        time = result.completionTime;
         setIsCompleted(completed);
         setCompletionTime(time);
+      }
+
+      // Cache the data for offline use
+      await setCache(cacheKey, {
+        assignment: programAssignment,
+        workouts,
+        isCompleted: completed,
+        completionTime: time,
+        cachedAt: new Date().toISOString(),
+      });
+      setIsFromCache(false);
+
+      // Pre-fetch and cache previous workout sets for all workouts
+      // This enables offline weight/rep pre-filling
+      for (const workout of workouts) {
+        try {
+          const { sets: previousSets } = await getLastWorkoutSets(workout.id, user.id);
+          if (previousSets.size > 0) {
+            await setCache(
+              CacheKeys.previousWorkoutSets(user.id, workout.id),
+              Array.from(previousSets.entries())
+            );
+          }
+        } catch (err) {
+          // Don't fail the whole refresh if one workout fails
+          console.warn(`[Workout] Error caching previous sets for workout ${workout.id}:`, err);
+        }
       }
     } catch (err: any) {
       console.error('Error fetching workout data:', err);
       setError(err.message || 'Failed to load workout data');
+
+      // Try to fall back to cache
+      const cached = await getCache<{
+        assignment: ProgramAssignment | null;
+        workouts: WorkoutData[];
+        isCompleted: boolean;
+        completionTime: string | null;
+      }>(cacheKey);
+
+      if (cached) {
+        setAssignment(cached.assignment);
+        setAllWorkouts(cached.workouts);
+        const workout = getTodaysWorkout(cached.workouts);
+        setTodaysWorkout(workout);
+        setIsRestDay(isEffectiveRestDay(workout));
+        setIsCompleted(cached.isCompleted);
+        setCompletionTime(cached.completionTime);
+        setIsFromCache(true);
+        // Don't show error when we successfully fell back to cache
+        setError(null);
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -208,6 +363,9 @@ export default function WorkoutScreen() {
 
   const fetchCalendarData = async () => {
     if (!user?.id) return;
+
+    // Skip calendar fetch when offline - it's not critical
+    if (!isOnline) return;
 
     setIsCalendarLoading(true);
     try {
@@ -645,6 +803,27 @@ export default function WorkoutScreen() {
         />
       }
     >
+      {/* Offline Banner */}
+      {!isOnline && isFromCache && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: isDark ? '#7C2D12' : '#FEF3C7',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 8,
+            marginBottom: 12,
+            gap: 8,
+          }}
+        >
+          <WifiOff size={16} color={isDark ? '#FDBA74' : '#92400E'} />
+          <Text style={{ color: isDark ? '#FDBA74' : '#92400E', fontSize: 13, flex: 1 }}>
+            You're offline. Showing cached data.
+          </Text>
+        </View>
+      )}
+
       {/* Today's Workout Header with View Plan link */}
       <View
         style={{

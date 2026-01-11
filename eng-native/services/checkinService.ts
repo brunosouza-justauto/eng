@@ -336,8 +336,10 @@ export const updateCheckIn = async (
       waist_cm: formData.waist_cm || null,
       hip_cm: formData.hip_cm || null,
       chest_cm: formData.chest_cm || null,
-      arm_cm: formData.arm_cm || null,
-      thigh_cm: formData.thigh_cm || null,
+      left_arm_cm: formData.left_arm_cm || null,
+      right_arm_cm: formData.right_arm_cm || null,
+      left_thigh_cm: formData.left_thigh_cm || null,
+      right_thigh_cm: formData.right_thigh_cm || null,
     };
 
     const { error: bodyError } = await supabase
@@ -384,6 +386,14 @@ export const getPhotoUrl = (path: string): string => {
 };
 
 /**
+ * Check if an error is a network error (expected when offline)
+ */
+const isNetworkError = (error: any): boolean => {
+  const message = error?.message || String(error);
+  return message.includes('Network request failed') || message.includes('network');
+};
+
+/**
  * Get days since last check-in
  */
 export const getDaysSinceLastCheckIn = async (
@@ -399,7 +409,10 @@ export const getDaysSinceLastCheckIn = async (
       .maybeSingle();
 
     if (error) {
-      console.error('Error fetching last check-in date:', error);
+      // Don't log network errors as they're expected when offline
+      if (!isNetworkError(error)) {
+        console.error('Error fetching last check-in date:', error);
+      }
       return { days: null, error: error.message };
     }
 
@@ -417,7 +430,10 @@ export const getDaysSinceLastCheckIn = async (
 
     return { days: diffDays };
   } catch (err) {
-    console.error('Error in getDaysSinceLastCheckIn:', err);
+    // Don't log network errors as they're expected when offline
+    if (!isNetworkError(err)) {
+      console.error('Error in getDaysSinceLastCheckIn:', err);
+    }
     return { days: null, error: 'Failed to calculate days' };
   }
 };

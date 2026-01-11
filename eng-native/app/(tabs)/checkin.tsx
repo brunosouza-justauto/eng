@@ -762,19 +762,19 @@ export default function CheckinScreen() {
                     </Text>
                   </View>
                 )}
-                {selectedCheckIn.body_metrics.arm_cm && (
+                {selectedCheckIn.body_metrics.left_arm_cm && selectedCheckIn.body_metrics.right_arm_cm && (
                   <View style={{ width: '48%' }}>
                     <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>Arm</Text>
                     <Text style={{ fontSize: 16, fontWeight: '500', color: isDark ? '#F3F4F6' : '#1F2937' }}>
-                      {selectedCheckIn.body_metrics.arm_cm} cm
+                      {selectedCheckIn.body_metrics.left_arm_cm} cm / {selectedCheckIn.body_metrics.right_arm_cm} cm
                     </Text>
                   </View>
                 )}
-                {selectedCheckIn.body_metrics.thigh_cm && (
+                {selectedCheckIn.body_metrics.left_thigh_cm && selectedCheckIn.body_metrics.right_thigh_cm && (
                   <View style={{ width: '48%' }}>
                     <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>Thigh</Text>
                     <Text style={{ fontSize: 16, fontWeight: '500', color: isDark ? '#F3F4F6' : '#1F2937' }}>
-                      {selectedCheckIn.body_metrics.thigh_cm} cm
+                      {selectedCheckIn.body_metrics.left_thigh_cm} cm / {selectedCheckIn.body_metrics.right_thigh_cm} cm
                     </Text>
                   </View>
                 )}

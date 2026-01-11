@@ -1,11 +1,14 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, RefreshControl, Pressable, ActivityIndicator } from 'react-native';
-import { Pill, Clock, AlertCircle, Check, Flame, CheckCheck, Plus, Trash2, User } from 'lucide-react-native';
+import { Pill, Clock, AlertCircle, Check, Flame, CheckCheck, Plus, Trash2, User, WifiOff } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
+import { useOffline } from '../../contexts/OfflineContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
+import { getCache, setCache, CacheKeys } from '../../lib/storage';
+import { addToQueue } from '../../lib/syncQueue';
 import {
   getTodaysSupplements,
   logSupplementTaken,
@@ -490,8 +493,10 @@ export default function SupsScreen() {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { refreshReminders } = useNotifications();
+  const { isOnline, refreshPendingCount, isSyncing, lastSyncTime } = useOffline();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFromCache, setIsFromCache] = useState(false);
 
   // State for tracking features
   const [todaysSupplements, setTodaysSupplements] = useState<TodaysSupplement[]>([]);
@@ -522,6 +527,36 @@ export default function SupsScreen() {
   const loadSupplements = useCallback(async () => {
     if (!user?.id) return;
 
+    const cacheKey = CacheKeys.supplements(user.id);
+
+    // If offline, try to load from cache
+    if (!isOnline) {
+      try {
+        const cached = await getCache<{
+          supplements: TodaysSupplement[];
+          adherence: SupplementAdherence | null;
+          history: DailySupplementSummary[];
+          unloggedCount: number;
+          date: string;
+        }>(cacheKey);
+
+        if (cached) {
+          setTodaysSupplements(cached.supplements);
+          setAdherence(cached.adherence);
+          setHistory(cached.history);
+          setUnloggedCount(cached.unloggedCount);
+          setIsFromCache(true);
+        }
+      } catch (err) {
+        console.error('Error loading cached supplements:', err);
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+      return;
+    }
+
+    // Online - fetch from API
     try {
       // Load all data in parallel
       const [todaysResult, adherenceResult, historyResult, unloggedResult] = await Promise.all([
@@ -550,13 +585,37 @@ export default function SupsScreen() {
       if (!unloggedResult.error) {
         setUnloggedCount(unloggedResult.count);
       }
+
+      // Cache the data for offline use
+      await setCache(cacheKey, {
+        supplements: todaysResult.supplements || [],
+        adherence: adherenceResult.adherence || null,
+        history: historyResult.history || [],
+        unloggedCount: unloggedResult.count || 0,
+        date: today,
+      });
+      setIsFromCache(false);
     } catch (err) {
       console.error('Error in loadSupplements:', err);
+      // Try to fall back to cache
+      const cached = await getCache<{
+        supplements: TodaysSupplement[];
+        adherence: SupplementAdherence | null;
+        history: DailySupplementSummary[];
+        unloggedCount: number;
+      }>(cacheKey);
+      if (cached) {
+        setTodaysSupplements(cached.supplements);
+        setAdherence(cached.adherence);
+        setHistory(cached.history);
+        setUnloggedCount(cached.unloggedCount);
+        setIsFromCache(true);
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [user?.id]);
+  }, [user?.id, isOnline, today]);
 
   // Initial load
   useEffect(() => {
@@ -572,12 +631,77 @@ export default function SupsScreen() {
     }, [loadSupplements, isLoading])
   );
 
+  // Refetch data after sync completes to pick up synced offline changes
+  const prevSyncTimeRef = useRef<Date | null>(null);
+  useEffect(() => {
+    // Only refetch if:
+    // 1. We have a new sync time (sync just completed)
+    // 2. We're online
+    // 3. Not currently syncing
+    // 4. Not already loading
+    if (
+      lastSyncTime &&
+      isOnline &&
+      !isSyncing &&
+      !isLoading &&
+      prevSyncTimeRef.current !== lastSyncTime
+    ) {
+      prevSyncTimeRef.current = lastSyncTime;
+      console.log('[Supplements] Sync completed, refetching data');
+      loadSupplements();
+    }
+  }, [lastSyncTime, isOnline, isSyncing, isLoading, loadSupplements]);
+
   // Handle supplement toggle
   const handleToggleSupplement = useCallback(async (supplement: TodaysSupplement) => {
     if (!user?.id) return;
 
     setTogglingIds((prev) => new Set(prev).add(supplement.id));
 
+    // If offline, queue the operation and update local state immediately
+    if (!isOnline) {
+      if (supplement.isLogged && supplement.logId) {
+        // Only queue deletion if it's not an offline-created log
+        if (!supplement.logId.startsWith('offline-')) {
+          addToQueue({
+            type: 'supplement_log',
+            action: 'delete',
+            userId: user.id,
+            payload: { id: supplement.logId },
+          });
+        }
+        // Update local state
+        setTodaysSupplements(prev =>
+          prev.map(s => s.id === supplement.id ? { ...s, isLogged: false, logId: undefined } : s)
+        );
+      } else {
+        // Queue the log
+        addToQueue({
+          type: 'supplement_log',
+          action: 'create',
+          userId: user.id,
+          payload: {
+            user_id: user.id,
+            assignment_id: supplement.id,
+            schedule: supplement.schedule,
+            logged_at: new Date().toISOString(),
+          },
+        });
+        // Update local state
+        setTodaysSupplements(prev =>
+          prev.map(s => s.id === supplement.id ? { ...s, isLogged: true, logId: `offline-${Date.now()}` } : s)
+        );
+      }
+      refreshPendingCount();
+      setTogglingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(supplement.id);
+        return next;
+      });
+      return;
+    }
+
+    // Online - make API call
     try {
       if (supplement.isLogged && supplement.logId) {
         await unlogSupplement(supplement.logId);
@@ -596,22 +720,48 @@ export default function SupsScreen() {
         return next;
       });
     }
-  }, [user?.id, loadSupplements, refreshReminders]);
+  }, [user?.id, loadSupplements, refreshReminders, isOnline, refreshPendingCount]);
 
   // Handle mark all as taken for a group
   const handleMarkAllTaken = useCallback(async (group: SupplementGroupBySchedule) => {
     if (!user?.id) return;
 
-    const unloggedIds = group.supplements
-      .filter(s => !s.isLogged)
-      .map(s => s.id);
+    const unloggedSupplements = group.supplements.filter(s => !s.isLogged);
 
-    if (unloggedIds.length === 0) return;
+    if (unloggedSupplements.length === 0) return;
 
     setMarkingAllSchedule(group.schedule);
 
+    // If offline, queue all operations and update local state immediately
+    if (!isOnline) {
+      unloggedSupplements.forEach(supplement => {
+        addToQueue({
+          type: 'supplement_log',
+          action: 'create',
+          userId: user.id,
+          payload: {
+            user_id: user.id,
+            assignment_id: supplement.id,
+            schedule: supplement.schedule,
+            logged_at: new Date().toISOString(),
+          },
+        });
+      });
+
+      // Update local state
+      const unloggedIds = new Set(unloggedSupplements.map(s => s.id));
+      setTodaysSupplements(prev =>
+        prev.map(s => unloggedIds.has(s.id) ? { ...s, isLogged: true, logId: `offline-${Date.now()}-${s.id}` } : s)
+      );
+
+      refreshPendingCount();
+      setMarkingAllSchedule(null);
+      return;
+    }
+
+    // Online - make API call
     try {
-      await logMultipleSupplements(user.id, unloggedIds);
+      await logMultipleSupplements(user.id, unloggedSupplements.map(s => s.id));
       await loadSupplements();
       // Refresh notification reminders to update the bell badge
       refreshReminders();
@@ -620,7 +770,7 @@ export default function SupsScreen() {
     } finally {
       setMarkingAllSchedule(null);
     }
-  }, [user?.id, loadSupplements, refreshReminders]);
+  }, [user?.id, loadSupplements, refreshReminders, isOnline, refreshPendingCount]);
 
   // Handle adding a personal supplement
   const handleAddSupplement = useCallback(async (data: {
@@ -891,6 +1041,33 @@ export default function SupsScreen() {
           />
         }
       >
+      {/* Offline Banner */}
+      {!isOnline && isFromCache && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: isDark ? '#78350F' : '#FEF3C7',
+            paddingVertical: 10,
+            paddingHorizontal: 14,
+            borderRadius: 10,
+            marginBottom: 16,
+          }}
+        >
+          <WifiOff size={16} color={isDark ? '#FDBA74' : '#92400E'} />
+          <Text
+            style={{
+              marginLeft: 8,
+              fontSize: 13,
+              color: isDark ? '#FDBA74' : '#92400E',
+              flex: 1,
+            }}
+          >
+            You're offline. Showing cached data.
+          </Text>
+        </View>
+      )}
+
       {/* Reminder Banner - shows when supplements are due/overdue based on user's schedule */}
       <ReminderBanner groups={groupedSupplements} profile={profile} isDark={isDark} />
 

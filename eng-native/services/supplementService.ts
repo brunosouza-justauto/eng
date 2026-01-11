@@ -14,6 +14,14 @@ import {
 import { getLocalDateString } from '../utils/date';
 
 /**
+ * Check if an error is a network error (expected when offline)
+ */
+const isNetworkError = (error: any): boolean => {
+  const message = error?.message || String(error);
+  return message.includes('Network request failed') || message.includes('network');
+};
+
+/**
  * Gets all supplements assigned to an athlete
  * @param userId User ID (auth.users.id)
  * @returns Object with supplements array and optional error
@@ -41,7 +49,10 @@ export const getAthleteSupplements = async (
       .order('start_date', { ascending: false });
 
     if (error) {
-      console.error('Error fetching athlete supplements:', error);
+      // Don't log network errors as they're expected when offline
+      if (!isNetworkError(error)) {
+        console.error('Error fetching athlete supplements:', error);
+      }
       return { supplements: [], error: error.message };
     }
 
@@ -54,7 +65,10 @@ export const getAthleteSupplements = async (
 
     return { supplements };
   } catch (err) {
-    console.error('Error in getAthleteSupplements:', err);
+    // Don't log network errors as they're expected when offline
+    if (!isNetworkError(err)) {
+      console.error('Error in getAthleteSupplements:', err);
+    }
     return { supplements: [], error: 'Failed to fetch supplements' };
   }
 };

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationBell from './NotificationBell';
+import { OfflineIndicator } from './OfflineIndicator';
 
 /**
  * Header right component with notifications and profile buttons
@@ -20,7 +21,8 @@ export default function HeaderRight() {
   };
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <OfflineIndicator variant="minimal" />
       <NotificationBell />
       <TouchableOpacity
         onPress={handleProfilePress}

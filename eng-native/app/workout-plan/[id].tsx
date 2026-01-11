@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Calendar, Dumbbell } from 'lucide-react-native';
+import { Calendar, Dumbbell, WifiOff } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useOffline } from '../../contexts/OfflineContext';
 import { supabase } from '../../lib/supabase';
+import { getCache, CacheKeys, getLastUserId } from '../../lib/storage';
 import {
   WorkoutData,
   ExerciseInstanceData,
   ExerciseGroupType,
   getDayName,
   cleanExerciseName,
-  isEffectiveRestDay
+  isEffectiveRestDay,
+  ProgramAssignment
 } from '../../types/workout';
 import { Moon } from 'lucide-react-native';
 
@@ -25,12 +29,15 @@ interface ProgramData {
 
 export default function WorkoutPlanScreen() {
   const { isDark } = useTheme();
+  const { user } = useAuth();
+  const { isOnline } = useOffline();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
   const [programData, setProgramData] = useState<ProgramData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFromCache, setIsFromCache] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -38,11 +45,58 @@ export default function WorkoutPlanScreen() {
     }
   }, [id]);
 
+  // Try to load program data from cache
+  const loadFromCache = async (): Promise<boolean> => {
+    try {
+      const userId = user?.id || await getLastUserId();
+      if (!userId) return false;
+
+      const cached = await getCache<{
+        assignment: ProgramAssignment | null;
+        workouts: WorkoutData[];
+        isCompleted: boolean;
+        completionTime: string | null;
+      }>(CacheKeys.workoutProgram(userId));
+
+      if (cached?.assignment && cached?.workouts && cached.assignment.program_template_id === id) {
+        // Build program data from cached assignment and workouts
+        setProgramData({
+          id: cached.assignment.program_template_id,
+          name: cached.assignment.program_templates?.name || 'Workout Program',
+          description: cached.assignment.program_templates?.description || null,
+          phase: null, // Not stored in assignment cache
+          weeks: 1, // Default, not critical for display
+          workouts: cached.workouts
+        });
+        setIsFromCache(true);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error loading cached workout plan:', err);
+      return false;
+    }
+  };
+
   const fetchProgramData = async () => {
     if (!id) return;
 
     setIsLoading(true);
     setError(null);
+    setIsFromCache(false);
+
+    // If offline, try to load from cache first
+    if (!isOnline) {
+      const loadedFromCache = await loadFromCache();
+      if (loadedFromCache) {
+        setIsLoading(false);
+        return;
+      } else {
+        setError('No cached data available. Please connect to the internet.');
+        setIsLoading(false);
+        return;
+      }
+    }
 
     try {
       // Fetch basic program info
@@ -96,7 +150,11 @@ export default function WorkoutPlanScreen() {
       });
     } catch (err: any) {
       console.error('Error loading workout plan:', err);
-      setError('Failed to load workout plan details');
+      // On network error, try cache as fallback
+      const loadedFromCache = await loadFromCache();
+      if (!loadedFromCache) {
+        setError('Failed to load workout plan details');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -400,6 +458,27 @@ export default function WorkoutPlanScreen() {
       className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
       contentContainerStyle={{ padding: 16 }}
     >
+      {/* Offline Banner */}
+      {isFromCache && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: isDark ? 'rgba(251, 191, 36, 0.15)' : 'rgba(251, 191, 36, 0.2)',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 8,
+            marginBottom: 16,
+            gap: 8,
+          }}
+        >
+          <WifiOff size={16} color={isDark ? '#FBBF24' : '#D97706'} />
+          <Text style={{ fontSize: 13, color: isDark ? '#FBBF24' : '#D97706' }}>
+            Viewing cached data - some details may be limited
+          </Text>
+        </View>
+      )}
+
       {/* Program Header */}
       <View
         className={`rounded-xl p-4 mb-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}

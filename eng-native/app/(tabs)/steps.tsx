@@ -20,12 +20,16 @@ import {
   X,
   Flame,
   Award,
+  WifiOff,
 } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
+import { useOffline } from '../../contexts/OfflineContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
+import { getCache, setCache, CacheKeys, getLastUserId } from '../../lib/storage';
+import { addToQueue } from '../../lib/syncQueue';
 import {
   getActiveStepGoal,
   getStepEntryForDate,
@@ -195,10 +199,12 @@ export default function StepsScreen() {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { refreshReminders } = useNotifications();
+  const { isOnline, refreshPendingCount } = useOffline();
 
   // State
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFromCache, setIsFromCache] = useState(false);
   const [stepGoal, setStepGoal] = useState<StepGoal | null>(null);
   const [todayEntry, setTodayEntry] = useState<StepEntry | null>(null);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStepStats | null>(null);
@@ -225,6 +231,37 @@ export default function StepsScreen() {
   const loadStepsData = useCallback(async () => {
     if (!user?.id || !profile?.id) return;
 
+    const cacheKey = CacheKeys.todaysSteps(user.id);
+    const goalCacheKey = CacheKeys.stepGoal(user.id);
+
+    // If offline, try to load from cache
+    if (!isOnline) {
+      try {
+        const cached = await getCache<{
+          goal: StepGoal | null;
+          entry: StepEntry | null;
+          weeklyStats: WeeklyStepStats | null;
+          weeklyChartData: DayStepData[];
+          date: string;
+        }>(cacheKey);
+
+        if (cached) {
+          setStepGoal(cached.goal);
+          setTodayEntry(cached.date === today ? cached.entry : null);
+          setWeeklyStats(cached.weeklyStats);
+          setWeeklyChartData(cached.weeklyChartData);
+          setIsFromCache(true);
+        }
+      } catch (err) {
+        console.error('Error loading cached steps data:', err);
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+      return;
+    }
+
+    // Online - fetch from API
     try {
       // Fetch step goal (uses profile.id)
       const { goal } = await getActiveStepGoal(profile.id);
@@ -237,27 +274,91 @@ export default function StepsScreen() {
       // Fetch weekly history
       const { entries } = await getStepHistory(user.id, 7);
 
+      let stats: WeeklyStepStats | null = null;
+      let chartData: DayStepData[] = [];
       if (goal) {
         // Calculate stats
-        const stats = calculateWeeklyStats(entries, goal.daily_steps);
+        stats = calculateWeeklyStats(entries, goal.daily_steps);
         setWeeklyStats(stats);
 
         // Get chart data
-        const chartData = getWeeklyChartData(entries, goal.daily_steps);
+        chartData = getWeeklyChartData(entries, goal.daily_steps);
         setWeeklyChartData(chartData);
       }
+
+      // Cache the data for offline use
+      await setCache(cacheKey, {
+        goal,
+        entry,
+        weeklyStats: stats,
+        weeklyChartData: chartData,
+        date: today,
+      });
+      setIsFromCache(false);
     } catch (err) {
       console.error('Error loading steps data:', err);
+      // Try to fall back to cache
+      const cached = await getCache<{
+        goal: StepGoal | null;
+        entry: StepEntry | null;
+        weeklyStats: WeeklyStepStats | null;
+        weeklyChartData: DayStepData[];
+      }>(cacheKey);
+      if (cached) {
+        setStepGoal(cached.goal);
+        setTodayEntry(cached.entry);
+        setWeeklyStats(cached.weeklyStats);
+        setWeeklyChartData(cached.weeklyChartData);
+        setIsFromCache(true);
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [user?.id, profile?.id, today]);
+  }, [user?.id, profile?.id, today, isOnline]);
 
   // Initial load
   useEffect(() => {
     loadStepsData();
   }, [loadStepsData]);
+
+  // Handle offline cold start - load cached data when offline
+  useEffect(() => {
+    if (!isOnline && isLoading) {
+      const loadCachedDataOffline = async () => {
+        try {
+          // Use current user ID if available, otherwise get from cache
+          const userId = user?.id || await getLastUserId();
+          if (userId) {
+            const cachedSteps = await getCache<{
+              goal: StepGoal | null;
+              entry: StepEntry | null;
+              weeklyStats: WeeklyStepStats | null;
+              weeklyChartData: DayStepData[];
+            }>(CacheKeys.todaysSteps(userId));
+
+            if (cachedSteps) {
+              setStepGoal(cachedSteps.goal);
+              setTodayEntry(cachedSteps.entry);
+              setWeeklyStats(cachedSteps.weeklyStats);
+              setWeeklyChartData(cachedSteps.weeklyChartData);
+              setIsFromCache(true);
+            }
+          }
+        } catch (err) {
+          console.error('Error loading offline steps cache:', err);
+        } finally {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
+      };
+
+      // Small delay to allow normal flow first, but shorter if we have user
+      const delay = user?.id ? 100 : 500;
+      const timer = setTimeout(loadCachedDataOffline, delay);
+      return () => clearTimeout(timer);
+    }
+  }, [isOnline, isLoading, user?.id]);
 
   // Refresh handler
   const handleRefresh = useCallback(() => {
@@ -288,6 +389,38 @@ export default function StepsScreen() {
       return;
     }
 
+    // If offline, queue the operation and update local state immediately
+    if (!isOnline) {
+      const newStepCount = (todayEntry?.step_count || 0) + steps;
+      const updatedEntry: StepEntry = {
+        id: todayEntry?.id || `offline-${Date.now()}`,
+        user_id: user.id,
+        date: today,
+        step_count: newStepCount,
+        created_at: todayEntry?.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      addToQueue({
+        type: 'step_log',
+        action: 'update',
+        userId: user.id,
+        payload: {
+          user_id: user.id,
+          date: today,
+          step_count: newStepCount,
+          },
+      });
+      refreshPendingCount();
+
+      // Update local state
+      setTodayEntry(updatedEntry);
+      setManualSteps('');
+      setShowManualEntry(false);
+      return;
+    }
+
+    // Online - make API call
     setIsAddingSteps(true);
     const { entry, error } = await addStepsManually(user.id, today, steps);
     setIsAddingSteps(false);
@@ -309,6 +442,36 @@ export default function StepsScreen() {
   const handleQuickAddSteps = async (steps: number = DEFAULT_STEP_INCREMENT) => {
     if (!user?.id || isAddingSteps) return;
 
+    // If offline, queue the operation and update local state immediately
+    if (!isOnline) {
+      const newStepCount = (todayEntry?.step_count || 0) + steps;
+      const updatedEntry: StepEntry = {
+        id: todayEntry?.id || `offline-${Date.now()}`,
+        user_id: user.id,
+        date: today,
+        step_count: newStepCount,
+        created_at: todayEntry?.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      addToQueue({
+        type: 'step_log',
+        action: 'update',
+        userId: user.id,
+        payload: {
+          user_id: user.id,
+          date: today,
+          step_count: newStepCount,
+          },
+      });
+      refreshPendingCount();
+
+      // Update local state
+      setTodayEntry(updatedEntry);
+      return;
+    }
+
+    // Online - make API call
     setIsAddingSteps(true);
     const { entry, error } = await addStepsManually(user.id, today, steps);
     setIsAddingSteps(false);
@@ -327,6 +490,33 @@ export default function StepsScreen() {
   const handleQuickRemoveSteps = async (steps: number = DEFAULT_STEP_INCREMENT) => {
     if (!user?.id || isAddingSteps || !todayEntry?.step_count) return;
 
+    // If offline, queue the operation and update local state immediately
+    if (!isOnline) {
+      const newStepCount = Math.max(0, (todayEntry?.step_count || 0) - steps);
+      const updatedEntry: StepEntry = {
+        ...todayEntry!,
+        step_count: newStepCount,
+        updated_at: new Date().toISOString(),
+      };
+
+      addToQueue({
+        type: 'step_log',
+        action: 'update',
+        userId: user.id,
+        payload: {
+          user_id: user.id,
+          date: today,
+          step_count: newStepCount,
+          },
+      });
+      refreshPendingCount();
+
+      // Update local state
+      setTodayEntry(updatedEntry);
+      return;
+    }
+
+    // Online - make API call
     setIsAddingSteps(true);
     const { entry, error } = await removeStepsManually(user.id, today, steps);
     setIsAddingSteps(false);
@@ -604,6 +794,33 @@ export default function StepsScreen() {
         }
         keyboardShouldPersistTaps="handled"
       >
+        {/* Offline Banner */}
+        {!isOnline && isFromCache && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: isDark ? '#78350F' : '#FEF3C7',
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              borderRadius: 10,
+              marginBottom: 16,
+            }}
+          >
+            <WifiOff size={16} color={isDark ? '#FDBA74' : '#92400E'} />
+            <Text
+              style={{
+                marginLeft: 8,
+                fontSize: 13,
+                color: isDark ? '#FDBA74' : '#92400E',
+                flex: 1,
+              }}
+            >
+              You're offline. Showing cached data.
+            </Text>
+          </View>
+        )}
+
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
           <Footprints size={20} color="#3B82F6" />

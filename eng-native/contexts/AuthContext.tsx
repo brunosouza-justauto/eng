@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { ProfileData } from '../types/profile';
+import { getCache, setCache, CacheKeys } from '../lib/storage';
 
 interface AuthContextType {
   session: Session | null;
@@ -155,6 +157,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log('Initializing auth...');
 
+        // Check network status first
+        const netState = await NetInfo.fetch();
+        const isOffline = !netState.isConnected || netState.isInternetReachable === false;
+
+        // If offline, try to load cached user data immediately
+        if (isOffline) {
+          console.log('Offline detected - loading cached user data');
+          try {
+            const cachedUser = await getCache<User>(CacheKeys.lastUser);
+            const cachedProfile = await getCache<ProfileData>(CacheKeys.lastProfile);
+
+            if (cachedUser && isMounted) {
+              console.log('Loaded cached user:', cachedUser.email);
+              setUser(cachedUser);
+              setProfile(cachedProfile);
+              setLoading(false);
+              didComplete = true;
+              // Don't return - still set up auth listener for when we come online
+            }
+          } catch (cacheError) {
+            console.error('Error loading cached user data:', cacheError);
+          }
+        }
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, currentSession) => {
             console.log('Auth state changed:', event, currentSession ? 'has session' : 'no session');
@@ -170,12 +196,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const profileData = await fetchProfile(currentSession.user.id);
                 if (isMounted) {
                   setProfile(profileData);
+                  // Cache user and profile for offline cold start
+                  await setCache(CacheKeys.lastUser, currentSession.user);
+                  await setCache(CacheKeys.lastUserId, currentSession.user.id);
+                  if (profileData) {
+                    await setCache(CacheKeys.lastProfile, profileData);
+                  }
                 }
               } catch (error) {
                 console.error('Error fetching profile on sign in:', error);
               }
             } else if (event === 'SIGNED_OUT') {
               setProfile(null);
+              // Clear cached user data on sign out
+              await setCache(CacheKeys.lastUser, null);
+              await setCache(CacheKeys.lastUserId, null);
+              await setCache(CacheKeys.lastProfile, null);
             }
             // For TOKEN_REFRESHED, we keep the existing profile - no need to refetch
           }
@@ -219,6 +255,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const profileData = await fetchProfile(data.session.user.id);
             if (isMounted) {
               setProfile(profileData);
+              // Cache user and profile for offline cold start
+              await setCache(CacheKeys.lastUser, data.session.user);
+              await setCache(CacheKeys.lastUserId, data.session.user.id);
+              if (profileData) {
+                await setCache(CacheKeys.lastProfile, profileData);
+              }
             }
           }
 
@@ -323,6 +365,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Always clear the storage and local state
     try {
       await AsyncStorage.removeItem('eng_supabase_auth');
+      // Clear cached user data
+      await setCache(CacheKeys.lastUser, null);
+      await setCache(CacheKeys.lastUserId, null);
+      await setCache(CacheKeys.lastProfile, null);
     } catch (storageErr) {
       console.error('Failed to clear auth storage:', storageErr);
     }

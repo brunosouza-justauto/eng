@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, RefreshControl, Pressable } from 'react-native';
 import { useFocusEffect, Link } from 'expo-router';
-import { Dumbbell, Utensils, Pill, Footprints, Droplets, ClipboardCheck, Zap, AlertTriangle } from 'lucide-react-native';
+import { Dumbbell, Utensils, Pill, Footprints, Droplets, ClipboardCheck, Zap, AlertTriangle, WifiOff } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
+import { useOffline } from '../../contexts/OfflineContext';
 import { supabase } from '../../lib/supabase';
+import { getCache, setCache, CacheKeys, getLastUserId } from '../../lib/storage';
 import { getLocalDateString, getCurrentDayOfWeek } from '../../utils/date';
 import { getGreeting, getMotivationalMessage, getStreakMessage } from '../../utils/motivationalMessages';
 import { getTodaysSupplements } from '../../services/supplementService';
@@ -18,10 +20,22 @@ import StreakCounter from '../../components/home/StreakCounter';
 import CelebrationOverlay from '../../components/home/CelebrationOverlay';
 import SkeletonCard from '../../components/home/SkeletonCard';
 
+/**
+ * Check if an error is a network error (expected when offline)
+ */
+const isNetworkError = (error: any): boolean => {
+  const message = error?.message || String(error);
+  return message.includes('Network request failed') || message.includes('network');
+};
+
 export default function HomeScreen() {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { refreshReminders } = useNotifications();
+  const { isOnline } = useOffline();
+
+  // Offline state
+  const [isFromCache, setIsFromCache] = useState(false);
 
   // Today's overview stats
   const [workoutsCompleted, setWorkoutsCompleted] = useState(0);
@@ -114,24 +128,88 @@ export default function HomeScreen() {
 
   const trainingTime = useMemo(() => getTrainingTime(profile), [profile]);
 
-  // Show celebration when all goals are met for the first time
+  // Show celebration when all goals are met for the first time (only after data is loaded)
   useEffect(() => {
+    // Don't trigger celebration while still loading data
+    if (isLoading) return;
+
     if (allGoalsMet && !prevAllGoalsMet.current) {
       setShowCelebration(true);
     }
     prevAllGoalsMet.current = allGoalsMet;
-  }, [allGoalsMet]);
+  }, [allGoalsMet, isLoading]);
 
   // Fetch today's stats on focus
   useFocusEffect(
     useCallback(() => {
       if (user?.id && profile?.id) {
         fetchTodaysStats();
-        fetchStreak();
+        if (isOnline) {
+          fetchStreak();
+        }
         refreshReminders();
       }
-    }, [user?.id, profile?.id, refreshReminders])
+    }, [user?.id, profile?.id, refreshReminders, isOnline])
   );
+
+  // Handle offline cold start - load cached data when offline
+  useEffect(() => {
+    if (!isOnline && isLoading) {
+      const loadCachedDataOffline = async () => {
+        try {
+          // Use current user ID if available, otherwise get from cache
+          const userId = user?.id || await getLastUserId();
+          if (userId) {
+            const cached = await getCache<{
+              workoutsCompleted: number;
+              hasWorkoutProgram: boolean;
+              hasWorkoutToday: boolean;
+              mealsLogged: number;
+              mealsPlanned: number;
+              stepsCount: number;
+              stepsGoal: number;
+              waterIntake: number;
+              waterGoal: number;
+              supplementsTaken: number;
+              supplementsTotal: number;
+              checkInStatus: 'complete' | 'todo' | 'overdue';
+              daysSinceCheckIn: number | null;
+              date: string;
+            }>(CacheKeys.homeStats(userId));
+
+            if (cached) {
+              setWorkoutsCompleted(cached.workoutsCompleted);
+              setHasWorkoutProgram(cached.hasWorkoutProgram);
+              setHasWorkoutToday(cached.hasWorkoutToday);
+              setMealsLogged(cached.mealsLogged);
+              setMealsPlanned(cached.mealsPlanned);
+              setStepsCount(cached.stepsCount);
+              setStepsGoal(cached.stepsGoal);
+              setWaterIntake(cached.waterIntake);
+              setWaterGoal(cached.waterGoal);
+              setSupplementsTaken(cached.supplementsTaken);
+              setSupplementsTotal(cached.supplementsTotal);
+              setCheckInStatus(cached.checkInStatus);
+              setDaysSinceCheckIn(cached.daysSinceCheckIn);
+              setIsFromCache(true);
+            }
+          }
+        } catch (err) {
+          console.error('Error loading offline cache:', err);
+        } finally {
+          if (!hasLoadedOnce.current) {
+            hasLoadedOnce.current = true;
+            setIsLoading(false);
+          }
+        }
+      };
+
+      // Small delay to allow normal flow first, but shorter if we have user
+      const delay = user?.id ? 100 : 500;
+      const timer = setTimeout(loadCachedDataOffline, delay);
+      return () => clearTimeout(timer);
+    }
+  }, [isOnline, isLoading, user?.id]);
 
   const fetchStreak = async () => {
     if (!user?.id) return;
@@ -181,7 +259,10 @@ export default function HomeScreen() {
 
       setStreak(currentStreak);
     } catch (err) {
-      console.error('Error fetching streak:', err);
+      // Don't log network errors as they're expected when offline
+      if (!isNetworkError(err)) {
+        console.error('Error fetching streak:', err);
+      }
     }
   };
 
@@ -193,7 +274,57 @@ export default function HomeScreen() {
     }
 
     const today = getLocalDateString();
+    const cacheKey = CacheKeys.homeStats(user.id);
 
+    // If offline, try to load from cache
+    if (!isOnline) {
+      try {
+        const cached = await getCache<{
+          workoutsCompleted: number;
+          hasWorkoutProgram: boolean;
+          hasWorkoutToday: boolean;
+          mealsLogged: number;
+          mealsPlanned: number;
+          stepsCount: number;
+          stepsGoal: number;
+          waterIntake: number;
+          waterGoal: number;
+          supplementsTaken: number;
+          supplementsTotal: number;
+          checkInStatus: 'complete' | 'todo' | 'overdue';
+          daysSinceCheckIn: number | null;
+          date: string;
+        }>(cacheKey);
+
+        if (cached && cached.date === today) {
+          setWorkoutsCompleted(cached.workoutsCompleted);
+          setHasWorkoutProgram(cached.hasWorkoutProgram);
+          setHasWorkoutToday(cached.hasWorkoutToday);
+          setMealsLogged(cached.mealsLogged);
+          setMealsPlanned(cached.mealsPlanned);
+          setStepsCount(cached.stepsCount);
+          setStepsGoal(cached.stepsGoal);
+          setWaterIntake(cached.waterIntake);
+          setWaterGoal(cached.waterGoal);
+          setSupplementsTaken(cached.supplementsTaken);
+          setSupplementsTotal(cached.supplementsTotal);
+          setCheckInStatus(cached.checkInStatus);
+          setDaysSinceCheckIn(cached.daysSinceCheckIn);
+          setIsFromCache(true);
+        }
+      } catch (err) {
+        console.error('Error loading cached home stats:', err);
+      } finally {
+        setIsRefreshing(false);
+        if (!hasLoadedOnce.current) {
+          hasLoadedOnce.current = true;
+          setIsLoading(false);
+        }
+      }
+      return;
+    }
+
+    // Online - fetch from API
     try {
       // Fetch completed workouts today
       const { data: workouts, error: workoutsError } = await supabase
@@ -218,7 +349,11 @@ export default function HomeScreen() {
         .limit(1)
         .maybeSingle();
 
+      let hasWorkoutProgramValue = false;
+      let hasWorkoutTodayValue = false;
+
       if (workoutAssignment?.program_template_id) {
+        hasWorkoutProgramValue = true;
         setHasWorkoutProgram(true);
         const currentDayOfWeek = getCurrentDayOfWeek();
         const { data: todaysWorkout } = await supabase
@@ -235,6 +370,7 @@ export default function HomeScreen() {
           !todaysWorkout.exercise_instances ||
           todaysWorkout.exercise_instances.length === 0;
 
+        hasWorkoutTodayValue = !isEffectiveRest;
         setHasWorkoutToday(!isEffectiveRest);
       } else {
         setHasWorkoutProgram(false);
@@ -263,8 +399,9 @@ export default function HomeScreen() {
         .limit(1)
         .maybeSingle();
 
+      let mealsPlannedValue = 0;
       if (assignedPlan?.nutrition_plan_id) {
-        let isTrainingDay = hasWorkoutToday;
+        let isTrainingDay = hasWorkoutTodayValue;
 
         const { data: planMeals } = await supabase
           .from('meals')
@@ -282,6 +419,7 @@ export default function HomeScreen() {
               return dayType.includes('rest') || dayType.includes('light') || dayType === 'all';
             }
           });
+          mealsPlannedValue = filteredMeals.length;
           setMealsPlanned(filteredMeals.length);
 
           // Check for overdue meals (time has passed but not logged)
@@ -376,18 +514,81 @@ export default function HomeScreen() {
       // Fetch check-in status
       const { days } = await getDaysSinceLastCheckIn(user.id);
       setDaysSinceCheckIn(days);
+      let checkInStatusValue: 'complete' | 'todo' | 'overdue' = 'todo';
       if (days === null) {
         // Never done a check-in
         setCheckInStatus('todo');
+        checkInStatusValue = 'todo';
       } else if (days <= 7) {
         // Check-in within last 7 days
         setCheckInStatus('complete');
+        checkInStatusValue = 'complete';
       } else {
         // More than 7 days since last check-in
         setCheckInStatus('overdue');
+        checkInStatusValue = 'overdue';
       }
+
+      // Cache the data for offline use
+      await setCache(cacheKey, {
+        workoutsCompleted: workouts?.length || 0,
+        hasWorkoutProgram: hasWorkoutProgramValue,
+        hasWorkoutToday: hasWorkoutTodayValue,
+        mealsLogged: mealLogs?.length || 0,
+        mealsPlanned: mealsPlannedValue,
+        stepsCount: stepEntry?.step_count || 0,
+        stepsGoal: stepGoalData?.daily_steps || 0,
+        waterIntake: waterEntry?.amount_ml || 0,
+        waterGoal: waterGoalData?.water_goal_ml || 0,
+        supplementsTaken: todaysSupplements?.filter(s => s.isLogged).length || 0,
+        supplementsTotal: todaysSupplements?.length || 0,
+        checkInStatus: checkInStatusValue,
+        daysSinceCheckIn: days,
+        date: today,
+      });
+      setIsFromCache(false);
     } catch (err) {
-      console.error('Error fetching today stats:', err);
+      // Don't log network errors as they're expected when offline
+      if (!isNetworkError(err)) {
+        console.error('Error fetching today stats:', err);
+      }
+      // Try to fall back to cache
+      try {
+        const cached = await getCache<{
+          workoutsCompleted: number;
+          hasWorkoutProgram: boolean;
+          hasWorkoutToday: boolean;
+          mealsLogged: number;
+          mealsPlanned: number;
+          stepsCount: number;
+          stepsGoal: number;
+          waterIntake: number;
+          waterGoal: number;
+          supplementsTaken: number;
+          supplementsTotal: number;
+          checkInStatus: 'complete' | 'todo' | 'overdue';
+          daysSinceCheckIn: number | null;
+        }>(cacheKey);
+
+        if (cached) {
+          setWorkoutsCompleted(cached.workoutsCompleted);
+          setHasWorkoutProgram(cached.hasWorkoutProgram);
+          setHasWorkoutToday(cached.hasWorkoutToday);
+          setMealsLogged(cached.mealsLogged);
+          setMealsPlanned(cached.mealsPlanned);
+          setStepsCount(cached.stepsCount);
+          setStepsGoal(cached.stepsGoal);
+          setWaterIntake(cached.waterIntake);
+          setWaterGoal(cached.waterGoal);
+          setSupplementsTaken(cached.supplementsTaken);
+          setSupplementsTotal(cached.supplementsTotal);
+          setCheckInStatus(cached.checkInStatus);
+          setDaysSinceCheckIn(cached.daysSinceCheckIn);
+          setIsFromCache(true);
+        }
+      } catch (cacheErr) {
+        console.error('Error loading cached home stats:', cacheErr);
+      }
     } finally {
       setIsRefreshing(false);
       // Only set loading false on first load
@@ -487,6 +688,33 @@ export default function HomeScreen() {
           />
         }
       >
+        {/* Offline Banner */}
+        {!isOnline && isFromCache && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: isDark ? '#78350F' : '#FEF3C7',
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              borderRadius: 10,
+              marginBottom: 16,
+            }}
+          >
+            <WifiOff size={16} color={isDark ? '#FDBA74' : '#92400E'} />
+            <Text
+              style={{
+                marginLeft: 8,
+                fontSize: 13,
+                color: isDark ? '#FDBA74' : '#92400E',
+                flex: 1,
+              }}
+            >
+              You're offline. Showing cached data.
+            </Text>
+          </View>
+        )}
+
         {/* Workout Overdue Reminder Banner */}
         {workoutReminderStatus === 'overdue' && (
           <Link href="/(tabs)/workout" asChild>
