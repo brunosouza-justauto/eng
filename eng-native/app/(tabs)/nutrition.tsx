@@ -729,16 +729,22 @@ export default function NutritionScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: isDark ? '#7C2D12' : '#FEF3C7',
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            borderRadius: 8,
-            marginBottom: 12,
-            gap: 8,
+            backgroundColor: isDark ? '#78350F' : '#FEF3C7',
+            paddingVertical: 10,
+            paddingHorizontal: 14,
+            borderRadius: 10,
+            marginBottom: 16,
           }}
         >
           <WifiOff size={16} color={isDark ? '#FDBA74' : '#92400E'} />
-          <Text style={{ color: isDark ? '#FDBA74' : '#92400E', fontSize: 13, flex: 1 }}>
+          <Text
+            style={{
+              marginLeft: 8,
+              fontSize: 13,
+              color: isDark ? '#FDBA74' : '#92400E',
+              flex: 1,
+            }}
+          >
             You're offline. Showing cached data.
           </Text>
         </View>

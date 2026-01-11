@@ -3,6 +3,7 @@ import {
   getQueueAsync,
   removeFromQueue,
   incrementRetry,
+  addFailedOperation,
   QueuedOperation,
 } from './syncQueue';
 import { CacheKeys, setCache } from './storage';
@@ -57,14 +58,17 @@ export async function processQueue(): Promise<SyncResult> {
   for (const operation of sortedQueue) {
     // Skip operations that have exceeded max retries
     if (operation.retryCount >= MAX_RETRIES) {
+      const errorMsg = `Exceeded max retries (${MAX_RETRIES})`;
       console.warn(
-        `[SyncManager] Operation ${operation.id} exceeded max retries, removing`
+        `[SyncManager] Operation ${operation.id} exceeded max retries, moving to failed queue`
       );
+      // Move to failed operations queue for user visibility
+      await addFailedOperation(operation, errorMsg);
       await removeFromQueue(operation.id);
       failed++;
       errors.push({
         operationId: operation.id,
-        error: `Exceeded max retries (${MAX_RETRIES})`,
+        error: errorMsg,
       });
       continue;
     }
@@ -83,7 +87,15 @@ export async function processQueue(): Promise<SyncResult> {
         `[SyncManager] Failed to process operation ${operation.id}:`,
         errorMessage
       );
-      await incrementRetry(operation.id);
+
+      // If this was the last retry, move to failed queue
+      if (operation.retryCount >= MAX_RETRIES - 1) {
+        await addFailedOperation(operation, errorMessage);
+        await removeFromQueue(operation.id);
+      } else {
+        await incrementRetry(operation.id);
+      }
+
       failed++;
       errors.push({ operationId: operation.id, error: errorMessage });
     }

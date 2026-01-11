@@ -26,10 +26,12 @@ import {
   X,
   Camera,
   Pencil,
+  WifiOff,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOffline } from '../../contexts/OfflineContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
   getCheckIns,
@@ -43,6 +45,7 @@ import { CheckInWithMetrics } from '../../types/checkin';
 export default function CheckinScreen() {
   const { isDark } = useTheme();
   const { user } = useAuth();
+  const { isOnline } = useOffline();
   const insets = useSafeAreaInsets();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -218,6 +221,33 @@ export default function CheckinScreen() {
         />
       }
     >
+      {/* Offline Banner */}
+      {!isOnline && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: isDark ? '#78350F' : '#FEF3C7',
+            paddingVertical: 10,
+            paddingHorizontal: 14,
+            borderRadius: 10,
+            marginBottom: 16,
+          }}
+        >
+          <WifiOff size={16} color={isDark ? '#FDBA74' : '#92400E'} />
+          <View style={{ marginLeft: 8, flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 13,
+                color: isDark ? '#FDBA74' : '#92400E',
+              }}
+            >
+              You're offline. Check-ins require internet.
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Check-in Status Card */}
       <View
         style={{
@@ -280,14 +310,18 @@ export default function CheckinScreen() {
 
         <Pressable
           onPress={() => router.push('/checkin-form')}
+          disabled={!isOnline}
           style={{
-            backgroundColor: '#6366F1',
+            backgroundColor: isOnline ? '#6366F1' : isDark ? '#4B5563' : '#9CA3AF',
             padding: 16,
             borderRadius: 12,
             alignItems: 'center',
+            opacity: isOnline ? 1 : 0.7,
           }}
         >
-          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Start Check-in</Text>
+          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
+            {isOnline ? 'Start Check-in' : 'Offline - Check-in Unavailable'}
+          </Text>
         </Pressable>
       </View>
 

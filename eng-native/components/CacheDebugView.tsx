@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, Modal } from 'react-native';
-import { Database, Trash2, RefreshCw, X, WifiOff, Wifi, Clock, Download } from 'lucide-react-native';
+import { Database, Trash2, RefreshCw, X, WifiOff, Wifi, Clock, Download, AlertTriangle, XCircle } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useOffline } from '../contexts/OfflineContext';
 import { clearAllCache, getAllCacheKeys } from '../lib/storage';
 import { precacheAllUserData } from '../lib/precacheService';
+import { getOperationDescription, getQueueAsync, QueuedOperation, clearQueue } from '../lib/syncQueue';
 
 interface CacheEntry {
   key: string;
@@ -23,17 +24,31 @@ export default function CacheDebugView({
 }) {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
-  const { isOnline, isInitialized, pendingOperations, isSyncing, lastSyncTime, syncNow } = useOffline();
+  const {
+    isOnline,
+    isInitialized,
+    pendingOperations,
+    failedOperations,
+    isSyncing,
+    lastSyncTime,
+    lastSyncError,
+    lastSyncResult,
+    syncNow,
+    clearFailedOps,
+  } = useOffline();
 
   const [entries, setEntries] = useState<CacheEntry[]>([]);
+  const [pendingQueue, setPendingQueue] = useState<QueuedOperation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
   const [isPrecaching, setIsPrecaching] = useState(false);
   const [precacheStatus, setPrecacheStatus] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'cache' | 'pending'>('cache');
 
   const loadCacheData = async () => {
     setIsLoading(true);
     try {
+      // Load cache entries
       const keys = await getAllCacheKeys();
       const cacheEntries: CacheEntry[] = [];
 
@@ -51,6 +66,10 @@ export default function CacheDebugView({
       // Sort by key
       cacheEntries.sort((a, b) => a.key.localeCompare(b.key));
       setEntries(cacheEntries);
+
+      // Load pending queue
+      const queue = await getQueueAsync();
+      setPendingQueue(queue);
     } catch (error) {
       console.error('Error loading cache data:', error);
     } finally {
@@ -73,6 +92,15 @@ export default function CacheDebugView({
       console.error('Error clearing cache:', error);
     } finally {
       setIsClearing(false);
+    }
+  };
+
+  const handleClearQueue = async () => {
+    try {
+      await clearQueue();
+      await loadCacheData();
+    } catch (error) {
+      console.error('Error clearing queue:', error);
     }
   };
 
@@ -206,6 +234,119 @@ export default function CacheDebugView({
           </View>
         </View>
 
+        {/* Sync Error Banner */}
+        {lastSyncError && (
+          <View
+            style={{
+              backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2',
+              padding: 12,
+              marginHorizontal: 16,
+              marginBottom: 8,
+              borderRadius: 10,
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+            }}
+          >
+            <AlertTriangle size={18} color={isDark ? '#F87171' : '#DC2626'} style={{ marginTop: 2 }} />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? '#FCA5A5' : '#991B1B' }}>
+                Sync Error
+              </Text>
+              <Text style={{ fontSize: 12, color: isDark ? '#FECACA' : '#B91C1C', marginTop: 2 }}>
+                {lastSyncError}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Failed Operations Section */}
+        {failedOperations.length > 0 && (
+          <View
+            style={{
+              backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+              marginHorizontal: 16,
+              marginBottom: 8,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: isDark ? '#7F1D1D' : '#FCA5A5',
+              overflow: 'hidden',
+            }}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 12,
+                backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <XCircle size={18} color={isDark ? '#F87171' : '#DC2626'} />
+                <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: '600', color: isDark ? '#FCA5A5' : '#991B1B' }}>
+                  {failedOperations.length} Failed Operation{failedOperations.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
+              <Pressable
+                onPress={clearFailedOps}
+                style={{
+                  backgroundColor: isDark ? '#991B1B' : '#DC2626',
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 6,
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#FFFFFF' }}>Clear</Text>
+              </Pressable>
+            </View>
+            <View style={{ padding: 12 }}>
+              {failedOperations.slice(0, 5).map((failed, index) => (
+                <View
+                  key={failed.operation.id}
+                  style={{
+                    paddingVertical: 8,
+                    borderTopWidth: index > 0 ? 1 : 0,
+                    borderTopColor: isDark ? '#374151' : '#E5E7EB',
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '500', color: isDark ? '#F3F4F6' : '#1F2937' }}>
+                    {getOperationDescription(failed.operation)}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: isDark ? '#F87171' : '#DC2626', marginTop: 2 }}>
+                    {failed.error}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: isDark ? '#6B7280' : '#9CA3AF', marginTop: 2 }}>
+                    Failed at: {new Date(failed.failedAt).toLocaleString()}
+                  </Text>
+                </View>
+              ))}
+              {failedOperations.length > 5 && (
+                <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 8, textAlign: 'center' }}>
+                  +{failedOperations.length - 5} more failed operations
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Last Sync Result */}
+        {lastSyncResult && (
+          <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                color: lastSyncResult.failed > 0
+                  ? isDark ? '#F87171' : '#DC2626'
+                  : isDark ? '#22C55E' : '#16A34A',
+                textAlign: 'center',
+              }}
+            >
+              Last sync: {lastSyncResult.processed} synced
+              {lastSyncResult.failed > 0 && `, ${lastSyncResult.failed} failed`}
+            </Text>
+          </View>
+        )}
+
         {/* Actions Row 1 */}
         <View
           style={{
@@ -321,90 +462,280 @@ export default function CacheDebugView({
           </Pressable>
         </View>
 
-        {/* Summary */}
+        {/* Tab Switcher */}
+        <View
+          style={{
+            flexDirection: 'row',
+            marginHorizontal: 16,
+            marginBottom: 12,
+            backgroundColor: isDark ? '#374151' : '#E5E7EB',
+            borderRadius: 10,
+            padding: 4,
+          }}
+        >
+          <Pressable
+            onPress={() => setActiveTab('cache')}
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: 8,
+              backgroundColor: activeTab === 'cache' ? (isDark ? '#1F2937' : '#FFFFFF') : 'transparent',
+            }}
+          >
+            <Text
+              style={{
+                textAlign: 'center',
+                fontSize: 14,
+                fontWeight: '600',
+                color: activeTab === 'cache'
+                  ? (isDark ? '#F3F4F6' : '#1F2937')
+                  : (isDark ? '#9CA3AF' : '#6B7280'),
+              }}
+            >
+              Cache ({entries.length})
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveTab('pending')}
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: 8,
+              backgroundColor: activeTab === 'pending' ? (isDark ? '#1F2937' : '#FFFFFF') : 'transparent',
+            }}
+          >
+            <Text
+              style={{
+                textAlign: 'center',
+                fontSize: 14,
+                fontWeight: '600',
+                color: activeTab === 'pending'
+                  ? (pendingQueue.length > 0 ? '#F59E0B' : isDark ? '#F3F4F6' : '#1F2937')
+                  : (isDark ? '#9CA3AF' : '#6B7280'),
+              }}
+            >
+              Pending ({pendingQueue.length})
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Summary for active tab */}
         <View
           style={{
             flexDirection: 'row',
             justifyContent: 'space-between',
+            alignItems: 'center',
             paddingHorizontal: 16,
             paddingBottom: 12,
           }}
         >
-          <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-            {entries.length} cached items
-          </Text>
-          <Text style={{ fontSize: 14, fontWeight: '500', color: isDark ? '#D1D5DB' : '#4B5563' }}>
-            Total: {formatBytes(totalSize)}
-          </Text>
+          {activeTab === 'cache' ? (
+            <>
+              <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#6B7280' }}>
+                {entries.length} cached items
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: isDark ? '#D1D5DB' : '#4B5563' }}>
+                Total: {formatBytes(totalSize)}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#6B7280' }}>
+                {pendingQueue.length} operations pending sync
+              </Text>
+              {pendingQueue.length > 0 && (
+                <Pressable
+                  onPress={handleClearQueue}
+                  style={{
+                    backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2',
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 6,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#FCA5A5' : '#991B1B' }}>
+                    Clear Queue
+                  </Text>
+                </Pressable>
+              )}
+            </>
+          )}
         </View>
 
-        {/* Cache Entries */}
+        {/* Content Area */}
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 0 }}>
           {isLoading ? (
             <View style={{ alignItems: 'center', paddingVertical: 40 }}>
               <ActivityIndicator size="large" color="#6366F1" />
               <Text style={{ marginTop: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-                Loading cache data...
+                Loading data...
               </Text>
             </View>
-          ) : entries.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-              <Database size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />
-              <Text
-                style={{
-                  marginTop: 12,
-                  fontSize: 16,
-                  fontWeight: '500',
-                  color: isDark ? '#9CA3AF' : '#6B7280',
-                }}
-              >
-                No cached data
-              </Text>
-              <Text style={{ marginTop: 4, fontSize: 13, color: isDark ? '#6B7280' : '#9CA3AF' }}>
-                Use the app online to build cache
-              </Text>
-            </View>
-          ) : (
-            entries.map((entry) => (
-              <View
-                key={entry.key}
-                style={{
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  borderRadius: 12,
-                  padding: 14,
-                  marginBottom: 10,
-                  borderWidth: 1,
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
-                }}
-              >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: '600',
-                      color: '#6366F1',
-                      flex: 1,
-                    }}
-                    numberOfLines={1}
-                  >
-                    {entry.key}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280', marginLeft: 8 }}>
-                    {formatBytes(entry.size)}
-                  </Text>
-                </View>
+          ) : activeTab === 'cache' ? (
+            // Cache Entries View
+            entries.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Database size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />
                 <Text
                   style={{
-                    fontSize: 11,
-                    color: isDark ? '#6B7280' : '#9CA3AF',
-                    fontFamily: 'monospace',
+                    marginTop: 12,
+                    fontSize: 16,
+                    fontWeight: '500',
+                    color: isDark ? '#9CA3AF' : '#6B7280',
                   }}
-                  numberOfLines={3}
                 >
-                  {entry.preview}
+                  No cached data
+                </Text>
+                <Text style={{ marginTop: 4, fontSize: 13, color: isDark ? '#6B7280' : '#9CA3AF' }}>
+                  Use the app online to build cache
                 </Text>
               </View>
-            ))
+            ) : (
+              entries.map((entry) => (
+                <View
+                  key={entry.key}
+                  style={{
+                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                    borderRadius: 12,
+                    padding: 14,
+                    marginBottom: 10,
+                    borderWidth: 1,
+                    borderColor: isDark ? '#374151' : '#E5E7EB',
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '600',
+                        color: '#6366F1',
+                        flex: 1,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {entry.key}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280', marginLeft: 8 }}>
+                      {formatBytes(entry.size)}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: isDark ? '#6B7280' : '#9CA3AF',
+                      fontFamily: 'monospace',
+                    }}
+                    numberOfLines={3}
+                  >
+                    {entry.preview}
+                  </Text>
+                </View>
+              ))
+            )
+          ) : (
+            // Pending Queue View
+            pendingQueue.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Clock size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                <Text
+                  style={{
+                    marginTop: 12,
+                    fontSize: 16,
+                    fontWeight: '500',
+                    color: isDark ? '#9CA3AF' : '#6B7280',
+                  }}
+                >
+                  No pending operations
+                </Text>
+                <Text style={{ marginTop: 4, fontSize: 13, color: isDark ? '#6B7280' : '#9CA3AF' }}>
+                  All data is synced with the server
+                </Text>
+              </View>
+            ) : (
+              pendingQueue.map((op) => (
+                <View
+                  key={op.id}
+                  style={{
+                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                    borderRadius: 12,
+                    padding: 14,
+                    marginBottom: 10,
+                    borderWidth: 1,
+                    borderColor: isDark ? '#78350F' : '#FDE68A',
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View
+                        style={{
+                          backgroundColor: isDark ? '#78350F' : '#FEF3C7',
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#FCD34D' : '#92400E' }}>
+                          {op.action.toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text
+                        style={{
+                          marginLeft: 8,
+                          fontSize: 14,
+                          fontWeight: '600',
+                          color: isDark ? '#F3F4F6' : '#1F2937',
+                        }}
+                      >
+                        {getOperationDescription(op)}
+                      </Text>
+                    </View>
+                    {op.retryCount > 0 && (
+                      <View
+                        style={{
+                          backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2',
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: '500', color: isDark ? '#FCA5A5' : '#991B1B' }}>
+                          Retry {op.retryCount}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ marginBottom: 6 }}>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
+                      Type: <Text style={{ fontWeight: '500', color: isDark ? '#D1D5DB' : '#4B5563' }}>{op.type}</Text>
+                    </Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
+                      Queued: <Text style={{ fontWeight: '500', color: isDark ? '#D1D5DB' : '#4B5563' }}>{new Date(op.createdAt).toLocaleString()}</Text>
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      backgroundColor: isDark ? '#111827' : '#F3F4F6',
+                      borderRadius: 6,
+                      padding: 8,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: '500', color: isDark ? '#6B7280' : '#9CA3AF', marginBottom: 4 }}>
+                      PAYLOAD
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: isDark ? '#9CA3AF' : '#6B7280',
+                        fontFamily: 'monospace',
+                      }}
+                      numberOfLines={4}
+                    >
+                      {JSON.stringify(op.payload, null, 2)}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )
           )}
         </ScrollView>
       </View>

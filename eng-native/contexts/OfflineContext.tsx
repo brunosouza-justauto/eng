@@ -6,9 +6,10 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
+import { Alert } from 'react-native';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { processQueue, SyncResult } from '../lib/syncManager';
-import { loadQueue, getQueueLength } from '../lib/syncQueue';
+import { loadQueue, getQueueLength, getFailedOperations, clearFailedOperations, FailedOperation } from '../lib/syncQueue';
 import { getCache, CacheKeys } from '../lib/storage';
 
 interface OfflineContextType {
@@ -18,13 +19,17 @@ interface OfflineContextType {
 
   // Sync state
   pendingOperations: number;
+  failedOperations: FailedOperation[];
   isSyncing: boolean;
   lastSyncTime: Date | null;
   lastSyncResult: SyncResult | null;
+  lastSyncError: string | null;
 
   // Actions
   syncNow: () => Promise<SyncResult | null>;
   refreshPendingCount: () => void;
+  clearFailedOps: () => Promise<void>;
+  dismissSyncError: () => void;
 }
 
 const OfflineContext = createContext<OfflineContextType | null>(null);
@@ -35,14 +40,28 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingOperations, setPendingOperations] = useState(0);
+  const [failedOperations, setFailedOperations] = useState<FailedOperation[]>([]);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
+  const [lastSyncError, setLastSyncError] = useState<string | null>(null);
 
   const syncInProgress = useRef(false);
 
-  // Refresh pending operations count
+  // Refresh pending operations count and failed operations
   const refreshPendingCount = useCallback(() => {
     setPendingOperations(getQueueLength());
+    setFailedOperations(getFailedOperations());
+  }, []);
+
+  // Clear failed operations
+  const clearFailedOps = useCallback(async () => {
+    await clearFailedOperations();
+    setFailedOperations([]);
+  }, []);
+
+  // Dismiss sync error message
+  const dismissSyncError = useCallback(() => {
+    setLastSyncError(null);
   }, []);
 
   // Sync queued operations
@@ -54,6 +73,7 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
 
     syncInProgress.current = true;
     setIsSyncing(true);
+    setLastSyncError(null);
 
     try {
       console.log('[OfflineContext] Starting sync...');
@@ -62,14 +82,25 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       setLastSyncTime(new Date());
       setLastSyncResult(result);
       setPendingOperations(getQueueLength());
+      setFailedOperations(getFailedOperations());
 
       console.log(
         `[OfflineContext] Sync complete: ${result.processed} processed, ${result.failed} failed`
       );
 
+      // If there were failures, set error message
+      if (result.failed > 0) {
+        const errorMessages = result.errors.map(e => e.error).slice(0, 3);
+        const errorSummary = errorMessages.join('; ');
+        const moreErrors = result.errors.length > 3 ? ` (+${result.errors.length - 3} more)` : '';
+        setLastSyncError(`${result.failed} item(s) failed to sync: ${errorSummary}${moreErrors}`);
+      }
+
       return result;
     } catch (error) {
       console.error('[OfflineContext] Error during sync:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown sync error';
+      setLastSyncError(`Sync failed: ${errorMessage}`);
       return null;
     } finally {
       setIsSyncing(false);
@@ -140,11 +171,15 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
         isOnline: isOnline === true,
         isInitialized,
         pendingOperations,
+        failedOperations,
         isSyncing,
         lastSyncTime,
         lastSyncResult,
+        lastSyncError,
         syncNow,
         refreshPendingCount,
+        clearFailedOps,
+        dismissSyncError,
       }}
     >
       {children}

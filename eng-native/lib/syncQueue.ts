@@ -23,9 +23,20 @@ export interface QueuedOperation {
   userId: string;
 }
 
+// Failed operation with error details
+export interface FailedOperation {
+  operation: QueuedOperation;
+  error: string;
+  failedAt: string;
+}
+
 // In-memory queue for sync operations
 let inMemoryQueue: QueuedOperation[] = [];
+let failedOperationsQueue: FailedOperation[] = [];
 let queueLoaded = false;
+
+// Cache key for failed operations
+const FAILED_OPS_KEY = '@sync/failed-operations';
 
 /**
  * Load queue from storage into memory
@@ -34,6 +45,11 @@ export async function loadQueue(): Promise<void> {
   if (queueLoaded) return;
   const stored = await getCache<QueuedOperation[]>(CacheKeys.syncQueue);
   inMemoryQueue = stored || [];
+
+  // Also load failed operations
+  const storedFailed = await getCache<FailedOperation[]>(FAILED_OPS_KEY);
+  failedOperationsQueue = storedFailed || [];
+
   queueLoaded = true;
 }
 
@@ -163,4 +179,97 @@ export function findExistingOperation(
   return inMemoryQueue.find(
     (op) => op.type === type && op.payload.id === entityId
   );
+}
+
+// ============================================
+// FAILED OPERATIONS MANAGEMENT
+// ============================================
+
+/**
+ * Save failed operations to storage
+ */
+async function saveFailedOperations(): Promise<void> {
+  await setCache(FAILED_OPS_KEY, failedOperationsQueue);
+}
+
+/**
+ * Get all failed operations
+ */
+export function getFailedOperations(): FailedOperation[] {
+  return [...failedOperationsQueue];
+}
+
+/**
+ * Get count of failed operations
+ */
+export function getFailedOperationsCount(): number {
+  return failedOperationsQueue.length;
+}
+
+/**
+ * Add a failed operation
+ */
+export async function addFailedOperation(
+  operation: QueuedOperation,
+  error: string
+): Promise<void> {
+  failedOperationsQueue.push({
+    operation,
+    error,
+    failedAt: new Date().toISOString(),
+  });
+  await saveFailedOperations();
+  console.log(`[SyncQueue] Operation ${operation.id} marked as failed: ${error}`);
+}
+
+/**
+ * Clear all failed operations
+ */
+export async function clearFailedOperations(): Promise<void> {
+  failedOperationsQueue = [];
+  await saveFailedOperations();
+  console.log('[SyncQueue] Failed operations cleared');
+}
+
+/**
+ * Retry a failed operation (move back to main queue)
+ */
+export async function retryFailedOperation(failedOpIndex: number): Promise<void> {
+  if (failedOpIndex < 0 || failedOpIndex >= failedOperationsQueue.length) return;
+
+  const failedOp = failedOperationsQueue[failedOpIndex];
+  // Reset retry count and add back to main queue
+  inMemoryQueue.push({
+    ...failedOp.operation,
+    retryCount: 0,
+  });
+
+  // Remove from failed queue
+  failedOperationsQueue.splice(failedOpIndex, 1);
+
+  await saveQueue();
+  await saveFailedOperations();
+  console.log(`[SyncQueue] Retrying failed operation ${failedOp.operation.id}`);
+}
+
+/**
+ * Get a human-readable description of an operation
+ */
+export function getOperationDescription(op: QueuedOperation): string {
+  const typeLabels: Record<OperationType, string> = {
+    meal_log: 'Meal',
+    water_log: 'Water',
+    step_log: 'Steps',
+    supplement_log: 'Supplement',
+    workout_session: 'Workout',
+    workout_set: 'Exercise Set',
+  };
+
+  const actionLabels: Record<OperationAction, string> = {
+    create: 'Log',
+    update: 'Update',
+    delete: 'Remove',
+  };
+
+  return `${actionLabels[op.action]} ${typeLabels[op.type]}`;
 }

@@ -36,6 +36,7 @@ export default function HomeScreen() {
 
   // Offline state
   const [isFromCache, setIsFromCache] = useState(false);
+  const [cacheDate, setCacheDate] = useState<string | null>(null);
 
   // Today's overview stats
   const [workoutsCompleted, setWorkoutsCompleted] = useState(0);
@@ -178,20 +179,39 @@ export default function HomeScreen() {
             }>(CacheKeys.homeStats(userId));
 
             if (cached) {
-              setWorkoutsCompleted(cached.workoutsCompleted);
+              const today = getLocalDateString();
+              const isToday = cached.date === today;
+
+              // Always show goals (they don't change day to day)
+              setStepsGoal(cached.stepsGoal);
+              setWaterGoal(cached.waterGoal);
+              setMealsPlanned(cached.mealsPlanned);
               setHasWorkoutProgram(cached.hasWorkoutProgram);
               setHasWorkoutToday(cached.hasWorkoutToday);
-              setMealsLogged(cached.mealsLogged);
-              setMealsPlanned(cached.mealsPlanned);
-              setStepsCount(cached.stepsCount);
-              setStepsGoal(cached.stepsGoal);
-              setWaterIntake(cached.waterIntake);
-              setWaterGoal(cached.waterGoal);
-              setSupplementsTaken(cached.supplementsTaken);
               setSupplementsTotal(cached.supplementsTotal);
-              setCheckInStatus(cached.checkInStatus);
-              setDaysSinceCheckIn(cached.daysSinceCheckIn);
+
+              if (isToday) {
+                // Show today's progress data
+                setWorkoutsCompleted(cached.workoutsCompleted);
+                setMealsLogged(cached.mealsLogged);
+                setStepsCount(cached.stepsCount);
+                setWaterIntake(cached.waterIntake);
+                setSupplementsTaken(cached.supplementsTaken);
+                setCheckInStatus(cached.checkInStatus);
+                setDaysSinceCheckIn(cached.daysSinceCheckIn);
+              } else {
+                // Different date - reset progress to 0 but keep goals
+                setWorkoutsCompleted(0);
+                setMealsLogged(0);
+                setStepsCount(0);
+                setWaterIntake(0);
+                setSupplementsTaken(0);
+                setCheckInStatus(cached.checkInStatus);
+                setDaysSinceCheckIn(cached.daysSinceCheckIn !== null ? cached.daysSinceCheckIn + 1 : null);
+              }
+
               setIsFromCache(true);
+              setCacheDate(cached.date);
             }
           }
         } catch (err) {
@@ -296,21 +316,42 @@ export default function HomeScreen() {
           date: string;
         }>(cacheKey);
 
-        if (cached && cached.date === today) {
-          setWorkoutsCompleted(cached.workoutsCompleted);
+        if (cached) {
+          // When offline, show cached data even if date doesn't match
+          // But only show progress for today's data, show goals regardless
+          const isToday = cached.date === today;
+
+          // Always show goals (they don't change day to day)
+          setStepsGoal(cached.stepsGoal);
+          setWaterGoal(cached.waterGoal);
+          setMealsPlanned(cached.mealsPlanned);
           setHasWorkoutProgram(cached.hasWorkoutProgram);
           setHasWorkoutToday(cached.hasWorkoutToday);
-          setMealsLogged(cached.mealsLogged);
-          setMealsPlanned(cached.mealsPlanned);
-          setStepsCount(cached.stepsCount);
-          setStepsGoal(cached.stepsGoal);
-          setWaterIntake(cached.waterIntake);
-          setWaterGoal(cached.waterGoal);
-          setSupplementsTaken(cached.supplementsTaken);
           setSupplementsTotal(cached.supplementsTotal);
-          setCheckInStatus(cached.checkInStatus);
-          setDaysSinceCheckIn(cached.daysSinceCheckIn);
+
+          if (isToday) {
+            // Show today's progress data
+            setWorkoutsCompleted(cached.workoutsCompleted);
+            setMealsLogged(cached.mealsLogged);
+            setStepsCount(cached.stepsCount);
+            setWaterIntake(cached.waterIntake);
+            setSupplementsTaken(cached.supplementsTaken);
+            setCheckInStatus(cached.checkInStatus);
+            setDaysSinceCheckIn(cached.daysSinceCheckIn);
+          } else {
+            // Different date - reset progress to 0 but keep goals
+            setWorkoutsCompleted(0);
+            setMealsLogged(0);
+            setStepsCount(0);
+            setWaterIntake(0);
+            setSupplementsTaken(0);
+            // Keep check-in status as it's weekly based
+            setCheckInStatus(cached.checkInStatus);
+            setDaysSinceCheckIn(cached.daysSinceCheckIn !== null ? cached.daysSinceCheckIn + 1 : null);
+          }
+
           setIsFromCache(true);
+          setCacheDate(cached.date);
         }
       } catch (err) {
         console.error('Error loading cached home stats:', err);
@@ -547,6 +588,7 @@ export default function HomeScreen() {
         date: today,
       });
       setIsFromCache(false);
+      setCacheDate(null);
     } catch (err) {
       // Don't log network errors as they're expected when offline
       if (!isNetworkError(err)) {
@@ -702,16 +744,27 @@ export default function HomeScreen() {
             }}
           >
             <WifiOff size={16} color={isDark ? '#FDBA74' : '#92400E'} />
-            <Text
-              style={{
-                marginLeft: 8,
-                fontSize: 13,
-                color: isDark ? '#FDBA74' : '#92400E',
-                flex: 1,
-              }}
-            >
-              You're offline. Showing cached data.
-            </Text>
+            <View style={{ marginLeft: 8, flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: isDark ? '#FDBA74' : '#92400E',
+                }}
+              >
+                You're offline. Showing cached goals.
+              </Text>
+              {cacheDate && cacheDate !== getLocalDateString() && (
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: isDark ? '#FCD34D' : '#B45309',
+                    marginTop: 2,
+                  }}
+                >
+                  Progress reset - cached data was from {cacheDate}
+                </Text>
+              )}
+            </View>
           </View>
         )}
 

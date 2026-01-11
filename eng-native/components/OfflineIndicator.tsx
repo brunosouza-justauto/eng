@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
-import { WifiOff, RefreshCw, Cloud, CloudOff } from 'lucide-react-native';
+import { WifiOff, RefreshCw, Cloud, CloudOff, AlertTriangle, X } from 'lucide-react-native';
 import { useOffline } from '../contexts/OfflineContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { getOperationDescription } from '../lib/syncQueue';
 
 interface OfflineIndicatorProps {
   // Optional: where to display (default: banner at top)
@@ -15,10 +16,19 @@ export function OfflineIndicator({
   variant = 'banner',
   showPendingWhenOnline = true,
 }: OfflineIndicatorProps) {
-  const { isOnline, pendingOperations, isSyncing, syncNow, isInitialized } =
-    useOffline();
+  const {
+    isOnline,
+    pendingOperations,
+    failedOperations,
+    isSyncing,
+    syncNow,
+    isInitialized,
+    lastSyncError,
+    dismissSyncError,
+  } = useOffline();
   const { isDark } = useTheme();
   const spinAnim = useRef(new Animated.Value(0)).current;
+  const hasFailures = failedOperations.length > 0;
 
   // Spinning animation for sync icon
   useEffect(() => {
@@ -40,13 +50,21 @@ export function OfflineIndicator({
     outputRange: ['0deg', '360deg'],
   });
 
-  // Don't show anything if initialized, online, and no pending operations
+  // Don't show anything if initialized, online, no pending operations, and no errors
   if (!isInitialized) return null;
-  if (isOnline && pendingOperations === 0) return null;
-  if (isOnline && !showPendingWhenOnline) return null;
+  if (isOnline && pendingOperations === 0 && !hasFailures && !lastSyncError) return null;
+  if (isOnline && !showPendingWhenOnline && !hasFailures && !lastSyncError) return null;
 
   // Colors based on state
   const getColors = () => {
+    // Error state - show red colors
+    if (hasFailures || lastSyncError) {
+      return {
+        bg: isDark ? '#7F1D1D' : '#FEE2E2',
+        text: isDark ? '#FCA5A5' : '#991B1B',
+        icon: isDark ? '#F87171' : '#DC2626',
+      };
+    }
     if (!isOnline) {
       return {
         bg: isDark ? '#7C2D12' : '#FEF3C7',
@@ -81,6 +99,21 @@ export function OfflineIndicator({
   }
 
   if (variant === 'chip') {
+    // Show error chip if there are failures
+    if (hasFailures || lastSyncError) {
+      return (
+        <Pressable
+          onPress={dismissSyncError}
+          style={[styles.chip, { backgroundColor: colors.bg }]}
+        >
+          <AlertTriangle size={14} color={colors.icon} />
+          <Text style={[styles.chipText, { color: colors.text }]}>
+            {hasFailures ? `${failedOperations.length} failed` : 'Sync error'}
+          </Text>
+        </Pressable>
+      );
+    }
+
     return (
       <Pressable
         onPress={isOnline ? syncNow : undefined}
@@ -106,6 +139,41 @@ export function OfflineIndicator({
   }
 
   // Default: banner variant
+  // Show error banner if there are failures or sync errors
+  if (hasFailures || lastSyncError) {
+    return (
+      <View style={[styles.banner, { backgroundColor: colors.bg }]}>
+        <View style={styles.bannerContent}>
+          <AlertTriangle size={18} color={colors.icon} />
+          <View style={styles.bannerTextContainer}>
+            <Text style={[styles.bannerTitle, { color: colors.text }]}>
+              {hasFailures
+                ? `${failedOperations.length} Sync Error${failedOperations.length > 1 ? 's' : ''}`
+                : 'Sync Failed'}
+            </Text>
+            <Text
+              style={[styles.bannerSubtitle, { color: colors.text }]}
+              numberOfLines={2}
+            >
+              {lastSyncError ||
+                failedOperations
+                  .slice(0, 2)
+                  .map((f) => getOperationDescription(f.operation))
+                  .join(', ')}
+            </Text>
+          </View>
+          <Pressable
+            onPress={dismissSyncError}
+            style={styles.dismissButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <X size={18} color={colors.icon} />
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <Pressable
       onPress={isOnline ? syncNow : undefined}
@@ -152,37 +220,53 @@ export function OfflineIndicator({
  * Use this in headers or tab bars
  */
 export function OfflineBadge() {
-  const { isOnline, pendingOperations, isInitialized } = useOffline();
+  const { isOnline, pendingOperations, failedOperations, isInitialized } = useOffline();
   const { isDark } = useTheme();
+  const hasFailures = failedOperations.length > 0;
 
   if (!isInitialized) return null;
-  if (isOnline && pendingOperations === 0) return null;
+  if (isOnline && pendingOperations === 0 && !hasFailures) return null;
+
+  // Determine badge color based on state
+  const getBadgeColor = () => {
+    if (hasFailures) {
+      // Red for errors
+      return isDark ? '#7F1D1D' : '#FEE2E2';
+    }
+    if (!isOnline) {
+      // Red/orange for offline
+      return isDark ? '#DC2626' : '#FEE2E2';
+    }
+    // Green for pending sync
+    return isDark ? '#059669' : '#D1FAE5';
+  };
+
+  const getIconColor = () => {
+    if (hasFailures) {
+      return isDark ? '#F87171' : '#DC2626';
+    }
+    if (!isOnline) {
+      return isDark ? '#FCA5A5' : '#DC2626';
+    }
+    return isDark ? '#A7F3D0' : '#047857';
+  };
 
   return (
     <View
       style={[
         styles.badge,
-        {
-          backgroundColor: !isOnline
-            ? isDark
-              ? '#DC2626'
-              : '#FEE2E2'
-            : isDark
-              ? '#059669'
-              : '#D1FAE5',
-        },
+        { backgroundColor: getBadgeColor() },
       ]}
     >
-      {!isOnline ? (
-        <WifiOff
-          size={12}
-          color={isDark ? '#FCA5A5' : '#DC2626'}
-        />
+      {hasFailures ? (
+        <AlertTriangle size={12} color={getIconColor()} />
+      ) : !isOnline ? (
+        <WifiOff size={12} color={getIconColor()} />
       ) : (
         <Text
           style={[
             styles.badgeText,
-            { color: isDark ? '#A7F3D0' : '#047857' },
+            { color: getIconColor() },
           ]}
         >
           {pendingOperations}
@@ -250,5 +334,11 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+
+  // Dismiss button
+  dismissButton: {
+    padding: 4,
+    marginLeft: 8,
   },
 });
