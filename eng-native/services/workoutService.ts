@@ -267,6 +267,109 @@ export const getFullProgram = async (
 };
 
 // =============================================================================
+// PUBLIC PROGRAM BROWSING FUNCTIONS
+// =============================================================================
+
+export interface PublicWorkoutProgram {
+  id: string;
+  name: string;
+  description: string | null;
+  phase: string | null;
+  weeks: number;
+  fitness_level: string | null;
+  coach_name: string | null;
+}
+
+/**
+ * Get all public workout programs for browsing
+ * @returns Array of public programs with coach names
+ */
+export const getPublicWorkoutPrograms = async (): Promise<{
+  programs: PublicWorkoutProgram[];
+  error?: string;
+}> => {
+  try {
+    const { data, error } = await supabase
+      .from('program_templates')
+      .select(`
+        id,
+        name,
+        description,
+        phase,
+        weeks,
+        fitness_level,
+        profiles:coach_id (
+          first_name,
+          last_name
+        )
+      `)
+      .eq('is_public', true)
+      .eq('is_latest_version', true)
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching public programs:', error);
+      return { programs: [], error: error.message };
+    }
+
+    const programs: PublicWorkoutProgram[] = (data || []).map((p: any) => {
+      const profile = p.profiles;
+      let coachName: string | null = null;
+      if (profile?.first_name && profile?.last_name) {
+        coachName = `${profile.first_name} ${profile.last_name}`;
+      } else if (profile?.first_name) {
+        coachName = profile.first_name;
+      }
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        phase: p.phase,
+        weeks: p.weeks,
+        fitness_level: p.fitness_level,
+        coach_name: coachName,
+      };
+    });
+
+    return { programs };
+  } catch (err: any) {
+    console.error('Error in getPublicWorkoutPrograms:', err);
+    return { programs: [], error: err.message };
+  }
+};
+
+/**
+ * Self-assign a workout program to the current user
+ * @param profileId The athlete's profile ID
+ * @param programId The program template ID to assign
+ * @returns Success status
+ */
+export const assignWorkoutProgramToSelf = async (
+  profileId: string,
+  programId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase.from('assigned_plans').insert({
+      athlete_id: profileId,
+      program_template_id: programId,
+      assigned_by: profileId,
+      assigned_at: new Date().toISOString(),
+      start_date: new Date().toISOString().split('T')[0],
+    });
+
+    if (error) {
+      console.error('Error assigning program:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error in assignWorkoutProgramToSelf:', err);
+    return { success: false, error: err.message };
+  }
+};
+
+// =============================================================================
 // WORKOUT SESSION FUNCTIONS
 // =============================================================================
 

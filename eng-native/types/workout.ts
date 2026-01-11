@@ -122,3 +122,19 @@ export const cleanExerciseName = (name: string): string => {
     .replace(/\s+/g, ' ') // Replace multiple spaces with a single space
     .trim();
 };
+
+/**
+ * Check if a workout is effectively a rest day.
+ * This handles cases where:
+ * 1. The workout is null (no workout scheduled)
+ * 2. The workout name contains "rest" (case-insensitive)
+ * 3. The workout has no exercises
+ */
+export const isEffectiveRestDay = (workout: WorkoutData | null): boolean => {
+  if (!workout) return true;
+  // Check if name contains "rest" (case insensitive)
+  if (workout.name.toLowerCase().includes('rest')) return true;
+  // Check if workout has no exercises
+  if (!workout.exercise_instances || workout.exercise_instances.length === 0) return true;
+  return false;
+};

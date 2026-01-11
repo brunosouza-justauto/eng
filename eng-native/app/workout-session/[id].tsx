@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
-import { WorkoutData, ExerciseInstanceData } from '../../types/workout';
+import { WorkoutData, ExerciseInstanceData, isEffectiveRestDay } from '../../types/workout';
+import { Moon } from 'lucide-react-native';
 import { CompletedSetData, SetInputState } from '../../types/workoutSession';
 import { formatTime } from '../../utils/formatters';
 import { groupExercises } from '../../utils/exerciseGrouping';
@@ -698,6 +699,58 @@ export default function WorkoutSessionScreen() {
             marginTop: 16,
             paddingHorizontal: 20,
             paddingVertical: 10,
+            backgroundColor: '#6366F1',
+            borderRadius: 8,
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Go Back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // Rest day / empty workout state
+  if (isEffectiveRestDay(workout)) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+          backgroundColor: isDark ? '#111827' : '#F9FAFB',
+        }}
+      >
+        <Moon size={64} color={isDark ? '#60A5FA' : '#3B82F6'} />
+        <Text
+          style={{
+            marginTop: 20,
+            fontSize: 20,
+            fontWeight: '700',
+            color: isDark ? '#F3F4F6' : '#1F2937',
+          }}
+        >
+          Rest Day
+        </Text>
+        <Text
+          style={{
+            marginTop: 8,
+            fontSize: 14,
+            color: isDark ? '#9CA3AF' : '#6B7280',
+            textAlign: 'center',
+            maxWidth: 280,
+          }}
+        >
+          {workout.name.toLowerCase().includes('rest')
+            ? 'Take it easy today and let your muscles recover.'
+            : 'This workout has no exercises. Time to rest and recover!'}
+        </Text>
+        <Pressable
+          onPress={() => router.back()}
+          style={{
+            marginTop: 24,
+            paddingHorizontal: 24,
+            paddingVertical: 12,
             backgroundColor: '#6366F1',
             borderRadius: 8,
           }}

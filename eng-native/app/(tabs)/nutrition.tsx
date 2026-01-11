@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, RefreshControl, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
-import { Utensils, AlertCircle, ExternalLink } from 'lucide-react-native';
+import { Utensils, AlertCircle, ExternalLink, Search } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
@@ -26,7 +26,11 @@ import {
   getMealsForDayType,
   getMissedMeals,
   getDayTypeTargets,
+  getPublicNutritionPlans,
+  assignNutritionPlanToSelf,
+  PublicNutritionPlan,
 } from '../../services/nutritionService';
+import BrowseNutritionPlansModal from '../../components/nutrition/BrowseNutritionPlansModal';
 import {
   getAssignedProgram,
   getProgramWorkouts,
@@ -59,6 +63,12 @@ export default function NutritionScreen() {
   const [showUnlogModal, setShowUnlogModal] = useState(false);
   const [mealToUnlog, setMealToUnlog] = useState<string | null>(null);
   const [isUnlogging, setIsUnlogging] = useState(false);
+
+  // Browse plans state
+  const [showBrowseModal, setShowBrowseModal] = useState(false);
+  const [showAssignConfirmModal, setShowAssignConfirmModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PublicNutritionPlan | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   // Get today's date in YYYY-MM-DD format (local timezone)
   const today = useMemo(() => getLocalDateString(), []);
@@ -110,6 +120,31 @@ export default function NutritionScreen() {
     setIsRefreshing(true);
     loadNutritionData();
   }, [loadNutritionData]);
+
+  const handlePlanSelect = (plan: PublicNutritionPlan) => {
+    setSelectedPlan(plan);
+    setShowBrowseModal(false);
+    setShowAssignConfirmModal(true);
+  };
+
+  const handleConfirmAssign = async () => {
+    if (!selectedPlan || !profile?.id) return;
+
+    setIsAssigning(true);
+    const { success, error: assignError } = await assignNutritionPlanToSelf(
+      profile.id,
+      selectedPlan.id
+    );
+
+    if (success) {
+      setShowAssignConfirmModal(false);
+      setSelectedPlan(null);
+      loadNutritionData();
+    } else {
+      console.error('Error assigning nutrition plan:', assignError);
+    }
+    setIsAssigning(false);
+  };
 
   // Get meals for selected day type
   const mealsForDayType = useMemo(() => {
@@ -361,24 +396,49 @@ export default function NutritionScreen() {
   // No nutrition plan assigned
   if (!nutritionPlan) {
     return (
-      <ScrollView
-        style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}
-        contentContainerStyle={{ flex: 1 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+      <View style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flex: 1 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+            />
+          }
+        >
+          <EmptyState
+            icon={Utensils}
+            iconColor="#22C55E"
+            title="No Nutrition Plan"
+            subtitle="Your coach hasn't assigned a nutrition plan yet, or browse public plans."
+            buttonText="Browse Public Plans"
+            buttonIcon={Search}
+            onButtonPress={() => setShowBrowseModal(true)}
           />
-        }
-      >
-        <EmptyState
-          icon={Utensils}
-          iconColor="#22C55E"
-          title="No Nutrition Plan"
-          subtitle="Your coach hasn't assigned a nutrition plan yet. Pull down to refresh!"
+        </ScrollView>
+
+        <BrowseNutritionPlansModal
+          visible={showBrowseModal}
+          onClose={() => setShowBrowseModal(false)}
+          onSelect={handlePlanSelect}
         />
-      </ScrollView>
+
+        <ConfirmationModal
+          visible={showAssignConfirmModal}
+          title="Assign this plan?"
+          message={`You're about to assign "${selectedPlan?.name}" to yourself. You can always switch to a different plan later.`}
+          confirmText="Assign Plan"
+          confirmColor="green"
+          onConfirm={handleConfirmAssign}
+          onCancel={() => {
+            setShowAssignConfirmModal(false);
+            setSelectedPlan(null);
+          }}
+          isLoading={isAssigning}
+        />
+      </View>
     );
   }
 
@@ -418,24 +478,45 @@ export default function NutritionScreen() {
         </View>
 
         {nutritionPlan && (
-          <Pressable
-            onPress={() => router.push(`/nutrition-plan/${nutritionPlan.id}`)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <Text
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <Pressable
+              onPress={() => setShowBrowseModal(true)}
               style={{
-                fontSize: 14,
-                color: '#6366F1',
-                fontWeight: '500',
+                flexDirection: 'row',
+                alignItems: 'center',
               }}
             >
-              View Plan
-            </Text>
-            <ExternalLink size={14} color="#6366F1" style={{ marginLeft: 4 }} />
-          </Pressable>
+              <Search size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <Text
+                style={{
+                  marginLeft: 4,
+                  fontSize: 14,
+                  color: isDark ? '#9CA3AF' : '#6B7280',
+                  fontWeight: '500',
+                }}
+              >
+                Switch
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push(`/nutrition-plan/${nutritionPlan.id}`)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: '#6366F1',
+                  fontWeight: '500',
+                }}
+              >
+                View Plan
+              </Text>
+              <ExternalLink size={14} color="#6366F1" style={{ marginLeft: 4 }} />
+            </Pressable>
+          </View>
         )}
       </View>
 
@@ -608,6 +689,28 @@ export default function NutritionScreen() {
           setShowUnlogModal(false);
           setMealToUnlog(null);
         }}
+      />
+
+      {/* Browse Plans Modal */}
+      <BrowseNutritionPlansModal
+        visible={showBrowseModal}
+        onClose={() => setShowBrowseModal(false)}
+        onSelect={handlePlanSelect}
+      />
+
+      {/* Confirm Plan Switch Modal */}
+      <ConfirmationModal
+        visible={showAssignConfirmModal}
+        title="Switch to this plan?"
+        message={`You're about to switch to "${selectedPlan?.name}". This will replace your current nutrition plan.`}
+        confirmText="Switch Plan"
+        confirmColor="green"
+        onConfirm={handleConfirmAssign}
+        onCancel={() => {
+          setShowAssignConfirmModal(false);
+          setSelectedPlan(null);
+        }}
+        isLoading={isAssigning}
       />
     </ScrollView>
   );

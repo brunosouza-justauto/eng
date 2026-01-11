@@ -224,14 +224,7 @@ export function useLocalReminders() {
       }
 
       // ==================== WATER REMINDER ====================
-      const { data: waterEntry } = await supabase
-        .from('water_tracking')
-        .select('amount_ml')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .maybeSingle();
-
-      let waterGoal = 2500;
+      // Only show water reminders if user has set a water goal
       const { data: waterGoalData } = await supabase
         .from('water_goals')
         .select('water_goal_ml')
@@ -239,31 +232,38 @@ export function useLocalReminders() {
         .maybeSingle();
 
       if (waterGoalData?.water_goal_ml) {
-        waterGoal = waterGoalData.water_goal_ml;
-      }
+        const waterGoal = waterGoalData.water_goal_ml;
 
-      const waterIntake = waterEntry?.amount_ml || 0;
-      const hour = now.getHours();
+        const { data: waterEntry } = await supabase
+          .from('water_tracking')
+          .select('amount_ml')
+          .eq('user_id', user.id)
+          .eq('date', today)
+          .maybeSingle();
 
-      // Calculate expected water by time of day (linear distribution)
-      const wakeHour = parseInt(profile.nutrition_wakeup_time_of_day?.split(':')[0] || '6');
-      const bedHour = parseInt(profile.nutrition_bed_time_of_day?.split(':')[0] || '22');
-      const awakeHours = bedHour - wakeHour;
-      const hoursSinceWake = Math.max(0, hour - wakeHour);
-      const expectedWater = Math.floor((hoursSinceWake / awakeHours) * waterGoal);
+        const waterIntake = waterEntry?.amount_ml || 0;
+        const hour = now.getHours();
 
-      // Show reminder if significantly behind (more than 500ml behind expected)
-      if (hour >= 12 && waterIntake < expectedWater - 500) {
-        newReminders.push({
-          id: 'reminder-water-behind',
-          type: 'water_behind',
-          title: 'Stay Hydrated',
-          message: `You're at ${waterIntake}ml of ${waterGoal}ml. Drink some water!`,
-          priority: 'low',
-          iconColor: '#06B6D4',
-          href: '/(tabs)/water',
-          createdAt: now,
-        });
+        // Calculate expected water by time of day (linear distribution)
+        const wakeHour = parseInt(profile.nutrition_wakeup_time_of_day?.split(':')[0] || '6');
+        const bedHour = parseInt(profile.nutrition_bed_time_of_day?.split(':')[0] || '22');
+        const awakeHours = bedHour - wakeHour;
+        const hoursSinceWake = Math.max(0, hour - wakeHour);
+        const expectedWater = Math.floor((hoursSinceWake / awakeHours) * waterGoal);
+
+        // Show reminder if significantly behind (more than 500ml behind expected)
+        if (hour >= 12 && waterIntake < expectedWater - 500) {
+          newReminders.push({
+            id: 'reminder-water-behind',
+            type: 'water_behind',
+            title: 'Stay Hydrated',
+            message: `You're at ${waterIntake}ml of ${waterGoal}ml. Drink some water!`,
+            priority: 'low',
+            iconColor: '#06B6D4',
+            href: '/(tabs)/water',
+            createdAt: now,
+          });
+        }
       }
 
       // ==================== STEPS REMINDER ====================

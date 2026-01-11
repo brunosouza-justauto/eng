@@ -13,6 +13,7 @@ import {
   ExternalLink,
   CheckCircle,
   Moon,
+  Search,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -24,7 +25,11 @@ import {
   getTodaysWorkout,
   checkWorkoutCompletion,
   getCompletedWorkoutDates,
+  assignWorkoutProgramToSelf,
+  PublicWorkoutProgram,
 } from '../../services/workoutService';
+import BrowseWorkoutProgramsModal from '../../components/workout/BrowseWorkoutProgramsModal';
+import { ConfirmationModal } from '../../components/ConfirmationModal';
 import {
   WorkoutData,
   ProgramAssignment,
@@ -33,6 +38,7 @@ import {
   cleanExerciseName,
   ExerciseInstanceData,
   ExerciseGroupType,
+  isEffectiveRestDay,
 } from '../../types/workout';
 import EmptyState from '../../components/EmptyState';
 
@@ -58,6 +64,12 @@ export default function WorkoutScreen() {
   const [completedDates, setCompletedDates] = useState<CompletedWorkoutDate[]>([]);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Browse programs state
+  const [showBrowseModal, setShowBrowseModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedProgram, setSelectedProgram] = useState<PublicWorkoutProgram | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   // Pulse animation for "Click to start workout" badge
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -142,10 +154,11 @@ export default function WorkoutScreen() {
       // Get today's workout
       const workout = getTodaysWorkout(workouts);
       setTodaysWorkout(workout);
-      setIsRestDay(!workout);
+      // Check if today is an effective rest day (no workout, name contains "rest", or no exercises)
+      setIsRestDay(isEffectiveRestDay(workout));
 
-      // Check completion status if there's a workout
-      if (workout) {
+      // Check completion status if there's a workout (and it's not an effective rest day)
+      if (workout && !isEffectiveRestDay(workout)) {
         const { isCompleted: completed, completionTime: time } = await checkWorkoutCompletion(
           workout.id,
           user.id
@@ -167,6 +180,31 @@ export default function WorkoutScreen() {
     fetchWorkoutData();
     fetchCalendarData();
   }, []);
+
+  const handleProgramSelect = (program: PublicWorkoutProgram) => {
+    setSelectedProgram(program);
+    setShowBrowseModal(false);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmAssign = async () => {
+    if (!selectedProgram || !profile?.id) return;
+
+    setIsAssigning(true);
+    const { success, error: assignError } = await assignWorkoutProgramToSelf(
+      profile.id,
+      selectedProgram.id
+    );
+
+    if (success) {
+      setShowConfirmModal(false);
+      setSelectedProgram(null);
+      fetchWorkoutData(true);
+    } else {
+      console.error('Error assigning program:', assignError);
+    }
+    setIsAssigning(false);
+  };
 
   const fetchCalendarData = async () => {
     if (!user?.id) return;
@@ -549,24 +587,49 @@ export default function WorkoutScreen() {
   // No program assigned - full screen EmptyState
   if (!assignment?.program_template_id) {
     return (
-      <ScrollView
-        style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}
-        contentContainerStyle={{ flex: 1 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+      <View style={{ flex: 1, backgroundColor: isDark ? '#111827' : '#F9FAFB' }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flex: 1 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={isDark ? '#9CA3AF' : '#6B7280'}
+            />
+          }
+        >
+          <EmptyState
+            icon={Dumbbell}
+            iconColor="#6366F1"
+            title="No Active Program"
+            subtitle="Your coach hasn't assigned a training program yet, or browse public programs."
+            buttonText="Browse Public Programs"
+            buttonIcon={Search}
+            onButtonPress={() => setShowBrowseModal(true)}
           />
-        }
-      >
-        <EmptyState
-          icon={Dumbbell}
-          iconColor="#6366F1"
-          title="No Active Program"
-          subtitle="Your coach hasn't assigned a training program yet. Pull down to refresh!"
+        </ScrollView>
+
+        <BrowseWorkoutProgramsModal
+          visible={showBrowseModal}
+          onClose={() => setShowBrowseModal(false)}
+          onSelect={handleProgramSelect}
         />
-      </ScrollView>
+
+        <ConfirmationModal
+          visible={showConfirmModal}
+          title="Assign this program?"
+          message={`You're about to assign "${selectedProgram?.name}" to yourself. You can always switch to a different program later.`}
+          confirmText="Assign Program"
+          confirmColor="indigo"
+          onConfirm={handleConfirmAssign}
+          onCancel={() => {
+            setShowConfirmModal(false);
+            setSelectedProgram(null);
+          }}
+          isLoading={isAssigning}
+        />
+      </View>
     );
   }
 
@@ -606,24 +669,45 @@ export default function WorkoutScreen() {
         </View>
 
         {assignment?.program_template_id && (
-          <Pressable
-            onPress={() => router.push(`/workout-plan/${assignment.program_template_id}`)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <Text
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <Pressable
+              onPress={() => setShowBrowseModal(true)}
               style={{
-                fontSize: 14,
-                color: '#6366F1',
-                fontWeight: '500',
+                flexDirection: 'row',
+                alignItems: 'center',
               }}
             >
-              View Plan
-            </Text>
-            <ExternalLink size={14} color="#6366F1" style={{ marginLeft: 4 }} />
-          </Pressable>
+              <Search size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <Text
+                style={{
+                  marginLeft: 4,
+                  fontSize: 14,
+                  color: isDark ? '#9CA3AF' : '#6B7280',
+                  fontWeight: '500',
+                }}
+              >
+                Switch
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push(`/workout-plan/${assignment.program_template_id}`)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: '#6366F1',
+                  fontWeight: '500',
+                }}
+              >
+                View Plan
+              </Text>
+              <ExternalLink size={14} color="#6366F1" style={{ marginLeft: 4 }} />
+            </Pressable>
+          </View>
         )}
       </View>
 
@@ -788,6 +872,28 @@ export default function WorkoutScreen() {
 
       {/* Calendar - only show if program is assigned */}
       {assignment?.program_template_id && renderCalendar()}
+
+      {/* Browse Programs Modal */}
+      <BrowseWorkoutProgramsModal
+        visible={showBrowseModal}
+        onClose={() => setShowBrowseModal(false)}
+        onSelect={handleProgramSelect}
+      />
+
+      {/* Confirm Program Switch Modal */}
+      <ConfirmationModal
+        visible={showConfirmModal}
+        title="Switch to this program?"
+        message={`You're about to switch to "${selectedProgram?.name}". This will replace your current program.`}
+        confirmText="Switch Program"
+        confirmColor="indigo"
+        onConfirm={handleConfirmAssign}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setSelectedProgram(null);
+        }}
+        isLoading={isAssigning}
+      />
     </ScrollView>
   );
 }

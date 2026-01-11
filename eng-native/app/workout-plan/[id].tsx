@@ -9,8 +9,10 @@ import {
   ExerciseInstanceData,
   ExerciseGroupType,
   getDayName,
-  cleanExerciseName
+  cleanExerciseName,
+  isEffectiveRestDay
 } from '../../types/workout';
+import { Moon } from 'lucide-react-native';
 
 interface ProgramData {
   id: string;
@@ -321,18 +323,33 @@ export default function WorkoutPlanScreen() {
             ))}
           </View>
 
-          {/* Start Workout Button */}
-          <Pressable
-            onPress={() => router.push(`/workout-session/${workout.id}`)}
-            className="mt-4 rounded-lg py-3 items-center bg-indigo-500"
-            style={({ pressed }) => ({
-              opacity: pressed ? 0.8 : 1
-            })}
-          >
-            <Text className="text-white font-semibold" style={{ fontSize: 14 }}>
-              Start Workout
-            </Text>
-          </Pressable>
+          {/* Start Workout Button or Rest Day indicator */}
+          {isEffectiveRestDay(workout) ? (
+            <View
+              className="mt-4 rounded-lg py-3 items-center flex-row justify-center"
+              style={{ backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)' }}
+            >
+              <Moon size={16} color={isDark ? '#60A5FA' : '#3B82F6'} />
+              <Text
+                className="ml-2 font-semibold"
+                style={{ fontSize: 14, color: isDark ? '#60A5FA' : '#3B82F6' }}
+              >
+                Rest Day
+              </Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => router.push(`/workout-session/${workout.id}`)}
+              className="mt-4 rounded-lg py-3 items-center bg-indigo-500"
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.8 : 1
+              })}
+            >
+              <Text className="text-white font-semibold" style={{ fontSize: 14 }}>
+                Start Workout
+              </Text>
+            </Pressable>
+          )}
         </View>
       </View>
     );

@@ -23,8 +23,10 @@ export interface BodyMetrics {
   waist_cm?: number;
   hip_cm?: number;
   chest_cm?: number;
-  arm_cm?: number;
-  thigh_cm?: number;
+  left_arm_cm?: number;
+  right_arm_cm?: number;
+  left_thigh_cm?: number;
+  right_thigh_cm?: number;
   created_at: string;
   updated_at: string;
 }
@@ -59,8 +61,10 @@ export interface CheckInFormData {
   waist_cm?: number;
   hip_cm?: number;
   chest_cm?: number;
-  arm_cm?: number;
-  thigh_cm?: number;
+  left_arm_cm?: number;
+  right_arm_cm?: number;
+  left_thigh_cm?: number;
+  right_thigh_cm?: number;
   // Wellness
   sleep_hours: number;
   sleep_quality: number;

@@ -4,6 +4,7 @@ import { useFocusEffect, Link } from 'expo-router';
 import { Dumbbell, Utensils, Pill, Footprints, Droplets, ClipboardCheck, Zap, AlertTriangle } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { supabase } from '../../lib/supabase';
 import { getLocalDateString, getCurrentDayOfWeek } from '../../utils/date';
 import { getGreeting, getMotivationalMessage, getStreakMessage } from '../../utils/motivationalMessages';
@@ -20,6 +21,7 @@ import SkeletonCard from '../../components/home/SkeletonCard';
 export default function HomeScreen() {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
+  const { refreshReminders } = useNotifications();
 
   // Today's overview stats
   const [workoutsCompleted, setWorkoutsCompleted] = useState(0);
@@ -126,8 +128,9 @@ export default function HomeScreen() {
       if (user?.id && profile?.id) {
         fetchTodaysStats();
         fetchStreak();
+        refreshReminders();
       }
-    }, [user?.id, profile?.id])
+    }, [user?.id, profile?.id, refreshReminders])
   );
 
   const fetchStreak = async () => {
@@ -220,13 +223,19 @@ export default function HomeScreen() {
         const currentDayOfWeek = getCurrentDayOfWeek();
         const { data: todaysWorkout } = await supabase
           .from('workouts')
-          .select('id')
+          .select('id, name, exercise_instances(id)')
           .eq('program_template_id', workoutAssignment.program_template_id)
           .eq('day_of_week', currentDayOfWeek)
           .limit(1)
           .maybeSingle();
 
-        setHasWorkoutToday(!!todaysWorkout);
+        // Check if today is an effective rest day (no workout, name contains "rest", or no exercises)
+        const isEffectiveRest = !todaysWorkout ||
+          todaysWorkout.name.toLowerCase().includes('rest') ||
+          !todaysWorkout.exercise_instances ||
+          todaysWorkout.exercise_instances.length === 0;
+
+        setHasWorkoutToday(!isEffectiveRest);
       } else {
         setHasWorkoutProgram(false);
         setHasWorkoutToday(false);

@@ -72,6 +72,9 @@ export default function CheckinFormScreen() {
     motivation_level: 3,
   });
 
+  // Text state for numeric inputs (preserves decimal point while typing)
+  const [numericText, setNumericText] = useState<Record<string, string>>({});
+
   // Photos
   const [photos, setPhotos] = useState<Record<PhotoPosition, PhotoCapture>>({
     front: { position: 'front', uri: null },
@@ -99,8 +102,10 @@ export default function CheckinFormScreen() {
         waist_cm: checkIn.body_metrics?.waist_cm,
         hip_cm: checkIn.body_metrics?.hip_cm,
         chest_cm: checkIn.body_metrics?.chest_cm,
-        arm_cm: checkIn.body_metrics?.arm_cm,
-        thigh_cm: checkIn.body_metrics?.thigh_cm,
+        left_arm_cm: checkIn.body_metrics?.left_arm_cm,
+        right_arm_cm: checkIn.body_metrics?.right_arm_cm,
+        left_thigh_cm: checkIn.body_metrics?.left_thigh_cm,
+        right_thigh_cm: checkIn.body_metrics?.right_thigh_cm,
         sleep_hours: checkIn.wellness_metrics?.sleep_hours,
         sleep_quality: checkIn.wellness_metrics?.sleep_quality || 3,
         stress_level: checkIn.wellness_metrics?.stress_level || 3,
@@ -205,6 +210,26 @@ export default function CheckinFormScreen() {
         return newErrors;
       });
     }
+  };
+
+  // Update numeric text field (preserves decimal point while typing)
+  const updateNumericText = (field: string, text: string) => {
+    // Allow empty, digits, and one decimal point
+    const sanitized = text.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+    setNumericText((prev) => ({ ...prev, [field]: sanitized }));
+    // Parse and update form data
+    const parsed = parseFloat(sanitized);
+    updateField(field as keyof CheckInFormData, isNaN(parsed) ? undefined : parsed);
+  };
+
+  // Get display value for numeric text fields
+  const getNumericTextValue = (field: string, formValue: number | undefined): string => {
+    // If we have a text value being edited, use that
+    if (numericText[field] !== undefined) {
+      return numericText[field];
+    }
+    // Otherwise use the form value
+    return formValue?.toString() || '';
   };
 
   // Validate current step
@@ -371,47 +396,141 @@ export default function CheckinFormScreen() {
         {/* Body Metrics Step */}
         {currentStep === 'body' && (
           <View style={{ flex: 1 }}>
-            <View style={{ marginBottom: 16 }}>
-              <Text style={labelStyle}>Weight (kg) *</Text>
-              <View style={[inputContainerStyle, errors.weight_kg && { borderColor: '#EF4444' }]}>
-                <Scale color={errors.weight_kg ? '#EF4444' : isDark ? '#9CA3AF' : '#6B7280'} size={20} />
-                <TextInput
-                  style={inputStyle}
-                  placeholder="e.g., 75.0"
-                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-                  keyboardType="decimal-pad"
-                  value={formData.weight_kg?.toString() || ''}
-                  onChangeText={(text) => updateField('weight_kg', parseFloat(text) || undefined)}
-                />
+            {/* Weight and Body Fat */}
+            <View style={{ flexDirection: 'row', marginHorizontal: -8, marginBottom: 16 }}>
+              <View style={{ width: '50%', paddingHorizontal: 8 }}>
+                <Text style={labelStyle}>Weight (kg) *</Text>
+                <View style={[inputContainerStyle, errors.weight_kg && { borderColor: '#EF4444' }]}>
+                  <Scale color={errors.weight_kg ? '#EF4444' : isDark ? '#9CA3AF' : '#6B7280'} size={20} />
+                  <TextInput
+                    style={inputStyle}
+                    placeholder="e.g., 75.0"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    keyboardType="decimal-pad"
+                    value={getNumericTextValue('weight_kg', formData.weight_kg)}
+                    onChangeText={(text) => updateNumericText('weight_kg', text)}
+                  />
+                </View>
+                {renderFieldError('weight_kg')}
               </View>
-              {renderFieldError('weight_kg')}
+              <View style={{ width: '50%', paddingHorizontal: 8 }}>
+                <Text style={labelStyle}>Body Fat (%)</Text>
+                <View style={inputContainerStyle}>
+                  <TextInput
+                    style={inputStyle}
+                    placeholder="Optional"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    keyboardType="decimal-pad"
+                    value={getNumericTextValue('body_fat_percentage', formData.body_fat_percentage)}
+                    onChangeText={(text) => updateNumericText('body_fat_percentage', text)}
+                  />
+                </View>
+              </View>
             </View>
 
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -8 }}>
-              {[
-                { key: 'waist_cm', label: 'Waist (cm)' },
-                { key: 'hip_cm', label: 'Hips (cm)' },
-                { key: 'chest_cm', label: 'Chest (cm)' },
-                { key: 'arm_cm', label: 'Arm (cm)' },
-                { key: 'thigh_cm', label: 'Thigh (cm)' },
-                { key: 'body_fat_percentage', label: 'Body Fat (%)' },
-              ].map((field) => (
-                <View key={field.key} style={{ width: '50%', paddingHorizontal: 8, marginBottom: 16 }}>
-                  <Text style={labelStyle}>{field.label}</Text>
-                  <View style={inputContainerStyle}>
-                    <TextInput
-                      style={inputStyle}
-                      placeholder="Optional"
-                      placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-                      keyboardType="decimal-pad"
-                      value={(formData as any)[field.key]?.toString() || ''}
-                      onChangeText={(text) =>
-                        updateField(field.key as keyof CheckInFormData, parseFloat(text) || undefined)
-                      }
-                    />
-                  </View>
+            {/* Waist and Hips */}
+            <View style={{ flexDirection: 'row', marginHorizontal: -8, marginBottom: 16 }}>
+              <View style={{ width: '50%', paddingHorizontal: 8 }}>
+                <Text style={labelStyle}>Waist (cm)</Text>
+                <View style={inputContainerStyle}>
+                  <TextInput
+                    style={inputStyle}
+                    placeholder="Optional"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    keyboardType="decimal-pad"
+                    value={getNumericTextValue('waist_cm', formData.waist_cm)}
+                    onChangeText={(text) => updateNumericText('waist_cm', text)}
+                  />
                 </View>
-              ))}
+              </View>
+              <View style={{ width: '50%', paddingHorizontal: 8 }}>
+                <Text style={labelStyle}>Hips (cm)</Text>
+                <View style={inputContainerStyle}>
+                  <TextInput
+                    style={inputStyle}
+                    placeholder="Optional"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    keyboardType="decimal-pad"
+                    value={getNumericTextValue('hip_cm', formData.hip_cm)}
+                    onChangeText={(text) => updateNumericText('hip_cm', text)}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Left Arm and Right Arm */}
+            <View style={{ flexDirection: 'row', marginHorizontal: -8, marginBottom: 16 }}>
+              <View style={{ width: '50%', paddingHorizontal: 8 }}>
+                <Text style={labelStyle}>Left Arm (cm)</Text>
+                <View style={inputContainerStyle}>
+                  <TextInput
+                    style={inputStyle}
+                    placeholder="Optional"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    keyboardType="decimal-pad"
+                    value={getNumericTextValue('left_arm_cm', formData.left_arm_cm)}
+                    onChangeText={(text) => updateNumericText('left_arm_cm', text)}
+                  />
+                </View>
+              </View>
+              <View style={{ width: '50%', paddingHorizontal: 8 }}>
+                <Text style={labelStyle}>Right Arm (cm)</Text>
+                <View style={inputContainerStyle}>
+                  <TextInput
+                    style={inputStyle}
+                    placeholder="Optional"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    keyboardType="decimal-pad"
+                    value={getNumericTextValue('right_arm_cm', formData.right_arm_cm)}
+                    onChangeText={(text) => updateNumericText('right_arm_cm', text)}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Left Thigh and Right Thigh */}
+            <View style={{ flexDirection: 'row', marginHorizontal: -8, marginBottom: 16 }}>
+              <View style={{ width: '50%', paddingHorizontal: 8 }}>
+                <Text style={labelStyle}>Left Thigh (cm)</Text>
+                <View style={inputContainerStyle}>
+                  <TextInput
+                    style={inputStyle}
+                    placeholder="Optional"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    keyboardType="decimal-pad"
+                    value={getNumericTextValue('left_thigh_cm', formData.left_thigh_cm)}
+                    onChangeText={(text) => updateNumericText('left_thigh_cm', text)}
+                  />
+                </View>
+              </View>
+              <View style={{ width: '50%', paddingHorizontal: 8 }}>
+                <Text style={labelStyle}>Right Thigh (cm)</Text>
+                <View style={inputContainerStyle}>
+                  <TextInput
+                    style={inputStyle}
+                    placeholder="Optional"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    keyboardType="decimal-pad"
+                    value={getNumericTextValue('right_thigh_cm', formData.right_thigh_cm)}
+                    onChangeText={(text) => updateNumericText('right_thigh_cm', text)}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Chest */}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={labelStyle}>Chest (cm)</Text>
+              <View style={inputContainerStyle}>
+                <TextInput
+                  style={inputStyle}
+                  placeholder="Optional"
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                  keyboardType="decimal-pad"
+                  value={getNumericTextValue('chest_cm', formData.chest_cm)}
+                  onChangeText={(text) => updateNumericText('chest_cm', text)}
+                />
+              </View>
             </View>
           </View>
         )}
@@ -428,8 +547,8 @@ export default function CheckinFormScreen() {
                   placeholder="e.g., 7.5"
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   keyboardType="decimal-pad"
-                  value={formData.sleep_hours?.toString() || ''}
-                  onChangeText={(text) => updateField('sleep_hours', parseFloat(text) || undefined)}
+                  value={getNumericTextValue('sleep_hours', formData.sleep_hours)}
+                  onChangeText={(text) => updateNumericText('sleep_hours', text)}
                 />
               </View>
               {renderFieldError('sleep_hours')}

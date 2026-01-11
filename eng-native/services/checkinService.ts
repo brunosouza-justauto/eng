@@ -6,7 +6,7 @@ import {
   BodyMetrics,
   WellnessMetrics,
 } from '../types/checkin';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { getLocalDateString } from '../utils/date';
 
@@ -139,7 +139,7 @@ export const uploadPhoto = async (
   try {
     // Read the file as base64
     const base64 = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
+      encoding: 'base64',
     });
 
     // Generate unique filename
@@ -205,8 +205,10 @@ export const submitCheckIn = async (
       waist_cm: formData.waist_cm || null,
       hip_cm: formData.hip_cm || null,
       chest_cm: formData.chest_cm || null,
-      arm_cm: formData.arm_cm || null,
-      thigh_cm: formData.thigh_cm || null,
+      left_arm_cm: formData.left_arm_cm || null,
+      right_arm_cm: formData.right_arm_cm || null,
+      left_thigh_cm: formData.left_thigh_cm || null,
+      right_thigh_cm: formData.right_thigh_cm || null,
     };
 
     const { error: bodyError } = await supabase

@@ -915,3 +915,108 @@ export const getDayTypeTargets = (
     fat: meals.reduce((sum, m) => sum + m.total_fat, 0),
   };
 };
+
+// =============================================================================
+// PUBLIC NUTRITION PLAN BROWSING FUNCTIONS
+// =============================================================================
+
+export interface PublicNutritionPlan {
+  id: string;
+  name: string;
+  description: string | null;
+  total_calories: number | null;
+  protein_grams: number | null;
+  carbohydrate_grams: number | null;
+  fat_grams: number | null;
+  coach_name: string | null;
+}
+
+/**
+ * Get all public nutrition plans for browsing
+ * @returns Array of public plans with coach names
+ */
+export const getPublicNutritionPlans = async (): Promise<{
+  plans: PublicNutritionPlan[];
+  error?: string;
+}> => {
+  try {
+    const { data, error } = await supabase
+      .from('nutrition_plans')
+      .select(`
+        id,
+        name,
+        description,
+        total_calories,
+        protein_grams,
+        carbohydrate_grams,
+        fat_grams,
+        profiles:coach_id (
+          first_name,
+          last_name
+        )
+      `)
+      .eq('is_public', true)
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching public nutrition plans:', error);
+      return { plans: [], error: error.message };
+    }
+
+    const plans: PublicNutritionPlan[] = (data || []).map((p: any) => {
+      const profile = p.profiles;
+      let coachName: string | null = null;
+      if (profile?.first_name && profile?.last_name) {
+        coachName = `${profile.first_name} ${profile.last_name}`;
+      } else if (profile?.first_name) {
+        coachName = profile.first_name;
+      }
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        total_calories: p.total_calories,
+        protein_grams: p.protein_grams,
+        carbohydrate_grams: p.carbohydrate_grams,
+        fat_grams: p.fat_grams,
+        coach_name: coachName,
+      };
+    });
+
+    return { plans };
+  } catch (err: any) {
+    console.error('Error in getPublicNutritionPlans:', err);
+    return { plans: [], error: err.message };
+  }
+};
+
+/**
+ * Self-assign a nutrition plan to the current user
+ * @param profileId The athlete's profile ID
+ * @param planId The nutrition plan ID to assign
+ * @returns Success status
+ */
+export const assignNutritionPlanToSelf = async (
+  profileId: string,
+  planId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase.from('assigned_plans').insert({
+      athlete_id: profileId,
+      nutrition_plan_id: planId,
+      assigned_by: profileId,
+      assigned_at: new Date().toISOString(),
+      start_date: new Date().toISOString().split('T')[0],
+    });
+
+    if (error) {
+      console.error('Error assigning nutrition plan:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error in assignNutritionPlanToSelf:', err);
+    return { success: false, error: err.message };
+  }
+};
