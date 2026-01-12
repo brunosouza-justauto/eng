@@ -411,7 +411,13 @@ export const ExerciseCard = ({
                     value={input.weight}
                     onChangeText={(v) => onInputChange(setIndex, 'weight', v)}
                     keyboardType="decimal-pad"
-                    editable={isWorkoutStarted && !completed}
+                    editable={!completed}
+                    onFocus={() => {
+                      // This will trigger the start prompt if workout hasn't started
+                      if (!isWorkoutStarted) {
+                        onInputChange(setIndex, 'weight', input.weight);
+                      }
+                    }}
                     style={{
                       width: 58,
                       height: 36,
@@ -434,12 +440,12 @@ export const ExerciseCard = ({
               <View style={{ width: 55, alignItems: 'center' }}>
                 <Pressable
                   onPress={() => {
-                    if (isWorkoutStarted && !completed && onRepsPress) {
+                    if (onRepsPress) {
                       const currentReps = parseInt(input.reps, 10) || 10;
                       onRepsPress(exercise.id, setIndex, currentReps);
                     }
                   }}
-                  disabled={!isWorkoutStarted || completed}
+                  disabled={completed}
                   style={{
                     width: 48,
                     height: 36,
@@ -480,11 +486,11 @@ export const ExerciseCard = ({
               {/* Done Checkbox */}
               <Pressable
                 onPress={() => onSetComplete(setIndex, restSeconds)}
-                disabled={!isWorkoutStarted || (!completed && !canComplete)}
+                disabled={!isWorkoutStarted ? false : (!completed && !canComplete)}
                 style={{
                   flex: 1,
                   alignItems: 'center',
-                  opacity: isWorkoutStarted && (completed || canComplete) ? 1 : 0.4,
+                  opacity: !isWorkoutStarted ? 0.6 : (completed || canComplete) ? 1 : 0.4,
                 }}
               >
                 <View
