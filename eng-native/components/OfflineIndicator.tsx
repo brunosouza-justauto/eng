@@ -31,18 +31,33 @@ export function OfflineIndicator({
   const hasFailures = failedOperations.length > 0;
 
   // Spinning animation for sync icon
+  const spinAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+
   useEffect(() => {
     if (isSyncing) {
-      Animated.loop(
+      // Start spinning animation
+      spinAnimRef.current = Animated.loop(
         Animated.timing(spinAnim, {
           toValue: 1,
           duration: 1000,
           useNativeDriver: true,
         })
-      ).start();
+      );
+      spinAnimRef.current.start();
     } else {
+      // Stop the animation loop and reset
+      if (spinAnimRef.current) {
+        spinAnimRef.current.stop();
+        spinAnimRef.current = null;
+      }
       spinAnim.setValue(0);
     }
+
+    return () => {
+      if (spinAnimRef.current) {
+        spinAnimRef.current.stop();
+      }
+    };
   }, [isSyncing, spinAnim]);
 
   const spin = spinAnim.interpolate({

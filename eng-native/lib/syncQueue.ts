@@ -253,6 +253,37 @@ export async function retryFailedOperation(failedOpIndex: number): Promise<void>
 }
 
 /**
+ * Remove all operations associated with a local session ID
+ * (used when canceling an offline workout)
+ */
+export async function removeOperationsByLocalSessionId(localSessionId: string): Promise<number> {
+  await loadQueue();
+
+  const originalLength = inMemoryQueue.length;
+
+  // Remove workout_session operations with this local_session_id
+  // Remove workout_set operations with this local_session_id
+  inMemoryQueue = inMemoryQueue.filter((op) => {
+    if (op.type === 'workout_session' && op.payload.local_session_id === localSessionId) {
+      return false;
+    }
+    if (op.type === 'workout_set' && op.payload.local_session_id === localSessionId) {
+      return false;
+    }
+    return true;
+  });
+
+  const removedCount = originalLength - inMemoryQueue.length;
+
+  if (removedCount > 0) {
+    await saveQueue();
+    console.log(`[SyncQueue] Removed ${removedCount} operations for session ${localSessionId}`);
+  }
+
+  return removedCount;
+}
+
+/**
  * Get a human-readable description of an operation
  */
 export function getOperationDescription(op: QueuedOperation): string {

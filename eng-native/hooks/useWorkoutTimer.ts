@@ -24,7 +24,7 @@ export const useWorkoutTimer = (options?: UseWorkoutTimerOptions): UseWorkoutTim
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<Date | null>(null);
   const pausedTimeRef = useRef<number>(0);
 

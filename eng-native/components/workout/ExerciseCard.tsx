@@ -380,9 +380,9 @@ export const ExerciseCard = ({
                   style={{
                     fontSize: 12,
                     color:
-                      setType === SetType.WARMUP || setType === 'WARMUP'
+                      setType === SetType.WARMUP
                         ? '#F59E0B'
-                        : setType === SetType.FAILURE || setType === 'FAILURE'
+                        : setType === SetType.FAILURE
                           ? '#EF4444'
                           : isDark
                             ? '#D1D5DB'

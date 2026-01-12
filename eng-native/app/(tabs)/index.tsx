@@ -8,7 +8,7 @@ import { useNotifications } from '../../contexts/NotificationsContext';
 import { useOffline } from '../../contexts/OfflineContext';
 import { supabase } from '../../lib/supabase';
 import { getCache, setCache, CacheKeys, getLastUserId } from '../../lib/storage';
-import { getLocalDateString, getCurrentDayOfWeek } from '../../utils/date';
+import { getLocalDateString, getCurrentDayOfWeek, getLocalDateRangeInUTC } from '../../utils/date';
 import { getGreeting, getMotivationalMessage, getStreakMessage } from '../../utils/motivationalMessages';
 import { getTodaysSupplements } from '../../services/supplementService';
 import { SupplementSchedule } from '../../types/supplements';
@@ -32,7 +32,7 @@ export default function HomeScreen() {
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { refreshReminders } = useNotifications();
-  const { isOnline } = useOffline();
+  const { isOnline, isSyncing, lastSyncTime } = useOffline();
 
   // Offline state
   const [isFromCache, setIsFromCache] = useState(false);
@@ -152,6 +152,28 @@ export default function HomeScreen() {
       }
     }, [user?.id, profile?.id, refreshReminders, isOnline])
   );
+
+  // Refetch data after sync completes to pick up synced offline changes
+  const prevSyncTimeRef = useRef<Date | null>(null);
+  useEffect(() => {
+    // Only refetch if:
+    // 1. We have a new sync time (sync just completed)
+    // 2. We're online
+    // 3. Not currently syncing
+    // 4. Not already loading
+    if (
+      lastSyncTime &&
+      isOnline &&
+      !isSyncing &&
+      !isLoading &&
+      prevSyncTimeRef.current !== lastSyncTime
+    ) {
+      prevSyncTimeRef.current = lastSyncTime;
+      console.log('[Home] Sync completed, refetching data');
+      fetchTodaysStats();
+      fetchStreak();
+    }
+  }, [lastSyncTime, isOnline, isSyncing, isLoading]);
 
   // Handle offline cold start - load cached data when offline
   useEffect(() => {
@@ -368,13 +390,15 @@ export default function HomeScreen() {
     // Online - fetch from API
     try {
       // Fetch completed workouts today
+      // Use UTC timestamps for proper timezone handling
+      const { startUTC, endUTC } = getLocalDateRangeInUTC();
       const { data: workouts, error: workoutsError } = await supabase
         .from('workout_sessions')
         .select('id')
         .eq('user_id', user.id)
         .not('end_time', 'is', null)
-        .gte('start_time', `${today}T00:00:00`)
-        .lte('start_time', `${today}T23:59:59`);
+        .gte('start_time', startUTC)
+        .lte('start_time', endUTC);
 
       if (!workoutsError && workouts) {
         setWorkoutsCompleted(workouts.length);
@@ -687,6 +711,19 @@ export default function HomeScreen() {
       show: mealsPlanned > 0,
     },
     {
+      title: 'Supplements',
+      subtitle: 'Track your daily supplements',
+      icon: Pill,
+      color: '#8B5CF6',
+      progress: supplementsTotal > 0 ? Math.round((supplementsTaken / supplementsTotal) * 100) : 0,
+      current: supplementsTaken.toString(),
+      goal: supplementsTotal.toString(),
+      isComplete: supplementsTaken === supplementsTotal && supplementsTotal > 0,
+      isOverdue: hasSupplementsOverdue,
+      href: '/(tabs)/sups',
+      show: supplementsTotal > 0,
+    },
+    {
       title: 'Steps',
       subtitle: 'Keep moving throughout the day',
       icon: Footprints,
@@ -942,28 +979,9 @@ export default function HomeScreen() {
         </Text>
 
         {isLoading ? (
-          <>
-            <SkeletonCard variant="task" />
-            <SkeletonCard variant="task" />
-          </>
+          <SkeletonCard variant="task" />
         ) : (
-          <>
-            {supplementsTotal > 0 && (
-              <DailyTaskCard
-                title="Supplements"
-                subtitle="Track your daily supplements"
-                icon={Pill}
-                color="#8B5CF6"
-                progress={Math.round((supplementsTaken / supplementsTotal) * 100)}
-                current={supplementsTaken.toString()}
-                goal={supplementsTotal.toString()}
-                isComplete={supplementsTaken === supplementsTotal}
-                isOverdue={hasSupplementsOverdue}
-                href="/(tabs)/sups"
-              />
-            )}
-
-            <DailyTaskCard
+          <DailyTaskCard
               title="Weekly Check-in"
               subtitle={
                 checkInStatus === 'complete'
@@ -987,8 +1005,7 @@ export default function HomeScreen() {
               isOverdue={checkInStatus === 'overdue'}
               isWarning={checkInStatus === 'todo'}
               href="/(tabs)/checkin"
-            />
-          </>
+          />
         )}
       </ScrollView>
 

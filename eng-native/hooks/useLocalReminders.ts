@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { LocalReminder } from '../types/notifications';
-import { getLocalDateString, getCurrentDayOfWeek } from '../utils/date';
+import { getLocalDateString, getCurrentDayOfWeek, getLocalDateRangeInUTC } from '../utils/date';
 import { getTodaysSupplements } from '../services/supplementService';
 import { getDaysSinceLastCheckIn } from '../services/checkinService';
 import {
@@ -61,13 +61,15 @@ export function useLocalReminders() {
 
       if (hasWorkoutToday) {
         // Check if workout completed today
+        // Use UTC timestamps for proper timezone handling
+        const { startUTC, endUTC } = getLocalDateRangeInUTC();
         const { data: completedWorkouts } = await supabase
           .from('workout_sessions')
           .select('id')
           .eq('user_id', user.id)
           .not('end_time', 'is', null)
-          .gte('start_time', `${today}T00:00:00`)
-          .lte('start_time', `${today}T23:59:59`);
+          .gte('start_time', startUTC)
+          .lte('start_time', endUTC);
 
         const workoutCompleted = (completedWorkouts?.length || 0) > 0;
         const workoutStatus = getWorkoutReminderStatus(hasWorkoutToday, workoutCompleted, profile);

@@ -37,14 +37,7 @@ export default function HeaderRight() {
           overflow: 'hidden',
         }}
       >
-        {profile?.avatar_url ? (
-          <Image
-            source={{ uri: profile.avatar_url }}
-            style={{ width: 32, height: 32, borderRadius: 16 }}
-          />
-        ) : (
-          <User size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
-        )}
+      <User size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
       </TouchableOpacity>
     </View>
   );

@@ -8,7 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useOffline } from '../../contexts/OfflineContext';
 import { getCache, setCache, CacheKeys, getLastUserId } from '../../lib/storage';
-import { addToQueue } from '../../lib/syncQueue';
+import { addToQueue, removeOperationsByLocalSessionId } from '../../lib/syncQueue';
 import { WorkoutData, ExerciseInstanceData, isEffectiveRestDay, ProgramAssignment } from '../../types/workout';
 import { Moon, WifiOff } from 'lucide-react-native';
 import { CompletedSetData, SetInputState } from '../../types/workoutSession';
@@ -99,6 +99,9 @@ export default function WorkoutSessionScreen() {
 
   // Countdown picker
   const [showCountdownPicker, setShowCountdownPicker] = useState(false);
+
+  // Start prompt modal (when user tries to interact before starting)
+  const [showStartPromptModal, setShowStartPromptModal] = useState(false);
 
   // Feedback
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -359,11 +362,10 @@ export default function WorkoutSessionScreen() {
 
   const handleCancelWorkout = async () => {
     if (workoutSessionId) {
-      // If offline session, just discard locally (no need to cancel on server)
+      // If offline session, remove all queued operations for this session
       if (isOfflineSession || !isOnline) {
-        // Remove any queued operations for this session
-        // For now, just navigate back - the queued operations will be orphaned
-        // but that's OK since we're canceling
+        await removeOperationsByLocalSessionId(workoutSessionId);
+        refreshPendingCount();
       } else {
         await cancelWorkoutSession(workoutSessionId);
       }
@@ -455,7 +457,13 @@ export default function WorkoutSessionScreen() {
     setIndex: number,
     restSeconds: number | null
   ) => {
-    if (!workoutSessionId || !workout) return;
+    if (!workout) return;
+
+    // Show prompt to start workout if not started yet
+    if (!isWorkoutStarted || !workoutSessionId) {
+      setShowStartPromptModal(true);
+      return;
+    }
 
     // Find the exercise and check if it's part of a group
     const exercise = workout.exercise_instances.find(e => e.id === exerciseId);
@@ -562,6 +570,12 @@ export default function WorkoutSessionScreen() {
     field: 'weight' | 'reps',
     value: string
   ) => {
+    // Show prompt to start workout if not started yet
+    if (!isWorkoutStarted) {
+      setShowStartPromptModal(true);
+      return;
+    }
+
     const exerciseInputs = setInputs.get(exerciseId) || [];
     const updatedInputs = [...exerciseInputs];
     if (updatedInputs[setIndex]) {
@@ -613,6 +627,12 @@ export default function WorkoutSessionScreen() {
   };
 
   const handleRepsPress = (exerciseId: string, setIndex: number, currentReps: number) => {
+    // Show prompt to start workout if not started yet
+    if (!isWorkoutStarted) {
+      setShowStartPromptModal(true);
+      return;
+    }
+
     setRepsPickerExerciseId(exerciseId);
     setRepsPickerSetIndex(setIndex);
     setRepsPickerCurrentValue(currentReps);
@@ -1140,6 +1160,21 @@ export default function WorkoutSessionScreen() {
           </Text>
         </View>
       </ConfirmationModal>
+
+      {/* Start Workout Prompt Modal */}
+      <ConfirmationModal
+        visible={showStartPromptModal}
+        title="Start Workout?"
+        message="You need to start the workout before you can log sets. Would you like to start now?"
+        confirmText="Start Workout"
+        cancelText="Not Yet"
+        confirmColor="indigo"
+        onConfirm={async () => {
+          setShowStartPromptModal(false);
+          await handleStartWorkout();
+        }}
+        onCancel={() => setShowStartPromptModal(false)}
+      />
 
       {/* Exercise Demo Modal */}
       <ExerciseDemoModal

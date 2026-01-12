@@ -160,20 +160,50 @@ async function processMealLog(
     if (!dateValue) {
       throw new Error('Missing date field in meal_log payload');
     }
+
+    // If we have meal_id, fetch meal details to get required fields
+    let mealDetails: Record<string, any> = {};
+    if (payload.meal_id) {
+      const { data: meal } = await supabase
+        .from('meals')
+        .select('name, nutrition_plan_id, day_type')
+        .eq('id', payload.meal_id)
+        .single();
+
+      if (meal) {
+        mealDetails = {
+          nutrition_plan_id: meal.nutrition_plan_id,
+          name: meal.name,
+          day_type: meal.day_type || 'Training Day',
+        };
+      }
+    }
+
+    const currentTime = new Date().toTimeString().split(' ')[0]; // HH:MM:SS
+
     const { error } = await supabase.from('meal_logs').insert({
       user_id: payload.user_id,
       meal_id: payload.meal_id,
       date: dateValue,
+      time: payload.time || currentTime,
       is_extra_meal: payload.is_extra_meal || false,
-      notes: payload.notes,
+      notes: payload.notes || null,
+      ...mealDetails, // Include nutrition_plan_id, name, day_type from meal
     });
-    if (error) throw error;
+
+    if (error) {
+      console.error('[SyncManager] meal_log insert error:', error);
+      throw new Error(error.message || 'Failed to insert meal log');
+    }
   } else if (action === 'delete') {
     const { error } = await supabase
       .from('meal_logs')
       .delete()
       .eq('id', payload.id);
-    if (error) throw error;
+    if (error) {
+      console.error('[SyncManager] meal_log delete error:', error);
+      throw new Error(error.message || 'Failed to delete meal log');
+    }
   }
 }
 

@@ -96,6 +96,13 @@ export default function CheckinScreen() {
   const loadCheckInData = useCallback(async () => {
     if (!user?.id) return;
 
+    // Skip fetch if offline - check-ins require internet
+    if (!isOnline) {
+      setIsLoading(false);
+      setIsRefreshing(false);
+      return;
+    }
+
     try {
       const [checkInsResult, latestResult, daysResult] = await Promise.all([
         getCheckIns(user.id),
@@ -112,16 +119,27 @@ export default function CheckinScreen() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [user?.id]);
+  }, [user?.id, isOnline]);
 
   useEffect(() => {
     loadCheckInData();
   }, [loadCheckInData]);
 
+  // Refetch when coming back online
+  useEffect(() => {
+    if (isOnline && !isLoading) {
+      loadCheckInData();
+    }
+  }, [isOnline]);
+
   const handleRefresh = useCallback(() => {
+    if (!isOnline) {
+      // Can't refresh when offline
+      return;
+    }
     setIsRefreshing(true);
     loadCheckInData();
-  }, [loadCheckInData]);
+  }, [loadCheckInData, isOnline]);
 
   // Check-in status badge
   const getStatusBadge = () => {
@@ -539,22 +557,45 @@ export default function CheckinScreen() {
             borderColor: isDark ? '#374151' : '#E5E7EB',
           }}
         >
-          <ClipboardCheck color={isDark ? '#4B5563' : '#9CA3AF'} size={40} />
-          <Text
-            style={{ marginTop: 12, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center' }}
-          >
-            No previous check-ins
-          </Text>
-          <Text
-            style={{
-              marginTop: 4,
-              fontSize: 12,
-              color: isDark ? '#6B7280' : '#9CA3AF',
-              textAlign: 'center',
-            }}
-          >
-            Your check-in history will appear here
-          </Text>
+          {!isOnline ? (
+            <>
+              <WifiOff color={isDark ? '#4B5563' : '#9CA3AF'} size={40} />
+              <Text
+                style={{ marginTop: 12, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center' }}
+              >
+                Offline - Can't load check-ins
+              </Text>
+              <Text
+                style={{
+                  marginTop: 4,
+                  fontSize: 12,
+                  color: isDark ? '#6B7280' : '#9CA3AF',
+                  textAlign: 'center',
+                }}
+              >
+                Connect to the internet to view your history
+              </Text>
+            </>
+          ) : (
+            <>
+              <ClipboardCheck color={isDark ? '#4B5563' : '#9CA3AF'} size={40} />
+              <Text
+                style={{ marginTop: 12, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center' }}
+              >
+                No previous check-ins
+              </Text>
+              <Text
+                style={{
+                  marginTop: 4,
+                  fontSize: 12,
+                  color: isDark ? '#6B7280' : '#9CA3AF',
+                  textAlign: 'center',
+                }}
+              >
+                Your check-in history will appear here
+              </Text>
+            </>
+          )}
         </View>
       ) : (
         previousCheckIns.map((checkIn) => (

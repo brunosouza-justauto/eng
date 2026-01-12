@@ -6,7 +6,7 @@ import {
   CompletedWorkoutDate,
   getCurrentDayOfWeek,
 } from '../types/workout';
-import { getLocalDateString } from '../utils/date';
+import { getLocalDateString, getLocalDateRangeInUTC } from '../utils/date';
 
 /**
  * Get the athlete's assigned workout program
@@ -126,7 +126,9 @@ export const checkWorkoutCompletion = async (
   userId: string
 ): Promise<{ isCompleted: boolean; completionTime: string | null; error?: string }> => {
   try {
-    const todayStr = getLocalDateString();
+    // Use UTC timestamps that correspond to local day boundaries
+    // This ensures proper matching regardless of user timezone
+    const { startUTC, endUTC } = getLocalDateRangeInUTC();
 
     const { data, error } = await supabase
       .from('workout_sessions')
@@ -134,8 +136,8 @@ export const checkWorkoutCompletion = async (
       .eq('workout_id', workoutId)
       .eq('user_id', userId)
       .not('end_time', 'is', null)
-      .gte('start_time', `${todayStr}T00:00:00`)
-      .lte('start_time', `${todayStr}T23:59:59`)
+      .gte('start_time', startUTC)
+      .lte('start_time', endUTC)
       .order('end_time', { ascending: false });
 
     if (error) {
@@ -170,16 +172,17 @@ export const getCompletedWorkoutDates = async (
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
 
-    const startDate = getLocalDateString(firstDay);
-    const endDate = getLocalDateString(lastDay);
+    // Use UTC timestamps that correspond to local day boundaries
+    const { startUTC } = getLocalDateRangeInUTC(firstDay);
+    const { endUTC } = getLocalDateRangeInUTC(lastDay);
 
     const { data, error } = await supabase
       .from('workout_sessions')
       .select('id, workout_id, start_time, end_time')
       .eq('user_id', userId)
       .not('end_time', 'is', null)
-      .gte('start_time', `${startDate}T00:00:00`)
-      .lte('start_time', `${endDate}T23:59:59`);
+      .gte('start_time', startUTC)
+      .lte('start_time', endUTC);
 
     if (error) {
       console.error('Error fetching completed workout dates:', error);
@@ -187,15 +190,19 @@ export const getCompletedWorkoutDates = async (
     }
 
     // Process the data to get unique dates with completed workouts
+    // Convert UTC start_time to local date for proper grouping
     const dateMap = new Map<string, string>();
     const uniqueDates: CompletedWorkoutDate[] = [];
 
     data?.forEach((session) => {
-      const date = session.start_time.split('T')[0];
-      if (!dateMap.has(date)) {
-        dateMap.set(date, session.workout_id);
+      // Parse the UTC timestamp and convert to local date string
+      const sessionDate = new Date(session.start_time);
+      const localDate = getLocalDateString(sessionDate);
+
+      if (!dateMap.has(localDate)) {
+        dateMap.set(localDate, session.workout_id);
         uniqueDates.push({
-          date,
+          date: localDate,
           workoutId: session.workout_id,
         });
       }

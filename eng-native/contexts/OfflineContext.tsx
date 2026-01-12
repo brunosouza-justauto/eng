@@ -108,6 +108,9 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isOnline]);
 
+  // Track previous online state for auto-sync detection
+  const prevIsOnlineRef = useRef<boolean | null>(null);
+
   // Initialize and listen for network changes
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
@@ -130,23 +133,11 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
         const online = state.isConnected && state.isInternetReachable !== false;
 
-        setIsOnline((prevIsOnline) => {
-          // Previous was offline (false) or unknown (null)
-          const wasOffline = prevIsOnline !== true;
+        console.log(
+          `[OfflineContext] Network state changed: ${online ? 'online' : 'offline'} (was: ${prevIsOnlineRef.current})`
+        );
 
-          console.log(
-            `[OfflineContext] Network state changed: ${online ? 'online' : 'offline'} (was: ${prevIsOnline})`
-          );
-
-          // Auto-sync when coming back online (from offline state, not from unknown)
-          if (online && prevIsOnline === false && !syncInProgress.current) {
-            console.log('[OfflineContext] Back online - triggering auto-sync');
-            syncNow();
-          }
-
-          return online ?? false;
-        });
-
+        setIsOnline(online ?? false);
         setIsInitialized(true);
       });
 
@@ -162,7 +153,19 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       if (unsubscribe) unsubscribe();
       if (interval) clearInterval(interval);
     };
-  }, [syncNow]);
+  }, []);
+
+  // Auto-sync when coming back online
+  useEffect(() => {
+    // Check if we just came back online (from offline, not from unknown/null)
+    if (isOnline && prevIsOnlineRef.current === false && !syncInProgress.current) {
+      console.log('[OfflineContext] Back online - triggering auto-sync');
+      syncNow();
+    }
+
+    // Update the ref after the check
+    prevIsOnlineRef.current = isOnline;
+  }, [isOnline, syncNow]);
 
   return (
     <OfflineContext.Provider

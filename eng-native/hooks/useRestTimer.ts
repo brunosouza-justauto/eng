@@ -27,7 +27,7 @@ export const useRestTimer = (options?: UseRestTimerOptions): UseRestTimerReturn 
   const [currentExercise, setCurrentExercise] = useState<string | null>(null);
   const [timerKey, setTimerKey] = useState(0); // Used to force effect re-run
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const endTimeRef = useRef<number | null>(null);
 
   const clearTimer = useCallback(() => {

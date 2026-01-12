@@ -9,10 +9,77 @@ import { clearAllCache, getAllCacheKeys } from '../lib/storage';
 import { precacheAllUserData } from '../lib/precacheService';
 import { getOperationDescription, getQueueAsync, QueuedOperation, clearQueue } from '../lib/syncQueue';
 
+/**
+ * Sensitive field patterns to mask in debug view
+ */
+const SENSITIVE_FIELDS = [
+  'user_id', 'userId', 'profile_id', 'profileId', 'athlete_id', 'coach_id',
+  'meal_id', 'nutrition_plan_id', 'program_template_id', 'workout_id', 'session_id',
+  'id', 'created_by', 'assigned_by', 'local_session_id', 'exercise_instance_id',
+  'email', 'phone', 'avatar_url', 'name', 'full_name', 'first_name', 'last_name',
+];
+
+/**
+ * Mask sensitive data in an object for display
+ */
+function maskSensitiveData(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+
+  if (typeof obj === 'string') {
+    // Check if it looks like a UUID
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(obj)) {
+      return obj.substring(0, 8) + '-****-****-****-************';
+    }
+    // Check if it looks like an email
+    if (obj.includes('@')) {
+      const [local, domain] = obj.split('@');
+      return local.substring(0, 2) + '***@' + domain;
+    }
+    // For other strings longer than 20 chars, partially mask
+    if (obj.length > 20) {
+      return obj.substring(0, 10) + '...[masked]...' + obj.substring(obj.length - 5);
+    }
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => maskSensitiveData(item));
+  }
+
+  if (typeof obj === 'object') {
+    const masked: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (SENSITIVE_FIELDS.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
+        // Mask the value based on its type
+        if (typeof value === 'string') {
+          if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+            masked[key] = value.substring(0, 8) + '-****-****-****-************';
+          } else if (value.includes('@')) {
+            const [local, domain] = value.split('@');
+            masked[key] = local.substring(0, 2) + '***@' + domain;
+          } else if (value.length > 8) {
+            masked[key] = value.substring(0, 4) + '****' + value.substring(value.length - 4);
+          } else {
+            masked[key] = '****';
+          }
+        } else {
+          masked[key] = '[masked]';
+        }
+      } else {
+        masked[key] = maskSensitiveData(value);
+      }
+    }
+    return masked;
+  }
+
+  return obj;
+}
+
 interface CacheEntry {
   key: string;
   size: number;
   preview: string;
+  fullContent: string;
 }
 
 export default function CacheDebugView({
@@ -44,6 +111,32 @@ export default function CacheDebugView({
   const [isPrecaching, setIsPrecaching] = useState(false);
   const [precacheStatus, setPrecacheStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'cache' | 'pending'>('cache');
+  const [expandedCacheKeys, setExpandedCacheKeys] = useState<Set<string>>(new Set());
+  const [expandedPendingIds, setExpandedPendingIds] = useState<Set<string>>(new Set());
+
+  const toggleCacheExpanded = (key: string) => {
+    setExpandedCacheKeys(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+
+  const togglePendingExpanded = (id: string) => {
+    setExpandedPendingIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
 
   const loadCacheData = async () => {
     setIsLoading(true);
@@ -55,10 +148,19 @@ export default function CacheDebugView({
       for (const key of keys) {
         const value = await AsyncStorage.getItem(key);
         if (value) {
+          // Try to pretty-print JSON for better readability
+          let formattedContent = value;
+          try {
+            formattedContent = JSON.stringify(JSON.parse(value), null, 2);
+          } catch {
+            // Not JSON, keep as is
+          }
+
           cacheEntries.push({
             key,
             size: value.length,
             preview: value.length > 100 ? value.substring(0, 100) + '...' : value,
+            fullContent: formattedContent,
           });
         }
       }
@@ -591,16 +693,19 @@ export default function CacheDebugView({
                 </Text>
               </View>
             ) : (
-              entries.map((entry) => (
-                <View
+              entries.map((entry) => {
+              const isExpanded = expandedCacheKeys.has(entry.key);
+              return (
+                <Pressable
                   key={entry.key}
+                  onPress={() => toggleCacheExpanded(entry.key)}
                   style={{
                     backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
                     borderRadius: 12,
                     padding: 14,
                     marginBottom: 10,
                     borderWidth: 1,
-                    borderColor: isDark ? '#374151' : '#E5E7EB',
+                    borderColor: isExpanded ? '#6366F1' : (isDark ? '#374151' : '#E5E7EB'),
                   }}
                 >
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -611,7 +716,7 @@ export default function CacheDebugView({
                         color: '#6366F1',
                         flex: 1,
                       }}
-                      numberOfLines={1}
+                      numberOfLines={isExpanded ? undefined : 1}
                     >
                       {entry.key}
                     </Text>
@@ -619,18 +724,37 @@ export default function CacheDebugView({
                       {formatBytes(entry.size)}
                     </Text>
                   </View>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      color: isDark ? '#6B7280' : '#9CA3AF',
-                      fontFamily: 'monospace',
-                    }}
-                    numberOfLines={3}
-                  >
-                    {entry.preview}
+                  <Text style={{ fontSize: 10, color: isDark ? '#6B7280' : '#9CA3AF', marginBottom: 4 }}>
+                    {isExpanded ? 'Tap to collapse' : 'Tap to expand'}
                   </Text>
-                </View>
-              ))
+                  <ScrollView
+                    horizontal={!isExpanded}
+                    style={{ maxHeight: isExpanded ? 400 : 60 }}
+                    nestedScrollEnabled
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: isDark ? '#9CA3AF' : '#6B7280',
+                        fontFamily: 'monospace',
+                      }}
+                      numberOfLines={isExpanded ? undefined : 3}
+                    >
+                      {isExpanded
+                        ? (() => {
+                            try {
+                              const parsed = JSON.parse(entry.fullContent);
+                              return JSON.stringify(maskSensitiveData(parsed), null, 2);
+                            } catch {
+                              return entry.fullContent;
+                            }
+                          })()
+                        : entry.preview}
+                    </Text>
+                  </ScrollView>
+                </Pressable>
+              );
+            })
             )
           ) : (
             // Pending Queue View
@@ -652,89 +776,98 @@ export default function CacheDebugView({
                 </Text>
               </View>
             ) : (
-              pendingQueue.map((op) => (
-                <View
-                  key={op.id}
-                  style={{
-                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                    borderRadius: 12,
-                    padding: 14,
-                    marginBottom: 10,
-                    borderWidth: 1,
-                    borderColor: isDark ? '#78350F' : '#FDE68A',
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View
-                        style={{
-                          backgroundColor: isDark ? '#78350F' : '#FEF3C7',
-                          paddingHorizontal: 8,
-                          paddingVertical: 4,
-                          borderRadius: 6,
-                        }}
-                      >
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#FCD34D' : '#92400E' }}>
-                          {op.action.toUpperCase()}
-                        </Text>
-                      </View>
-                      <Text
-                        style={{
-                          marginLeft: 8,
-                          fontSize: 14,
-                          fontWeight: '600',
-                          color: isDark ? '#F3F4F6' : '#1F2937',
-                        }}
-                      >
-                        {getOperationDescription(op)}
-                      </Text>
-                    </View>
-                    {op.retryCount > 0 && (
-                      <View
-                        style={{
-                          backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2',
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 4,
-                        }}
-                      >
-                        <Text style={{ fontSize: 10, fontWeight: '500', color: isDark ? '#FCA5A5' : '#991B1B' }}>
-                          Retry {op.retryCount}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={{ marginBottom: 6 }}>
-                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-                      Type: <Text style={{ fontWeight: '500', color: isDark ? '#D1D5DB' : '#4B5563' }}>{op.type}</Text>
-                    </Text>
-                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
-                      Queued: <Text style={{ fontWeight: '500', color: isDark ? '#D1D5DB' : '#4B5563' }}>{new Date(op.createdAt).toLocaleString()}</Text>
-                    </Text>
-                  </View>
-                  <View
+              pendingQueue.map((op) => {
+                const isExpanded = expandedPendingIds.has(op.id);
+                return (
+                  <Pressable
+                    key={op.id}
+                    onPress={() => togglePendingExpanded(op.id)}
                     style={{
-                      backgroundColor: isDark ? '#111827' : '#F3F4F6',
-                      borderRadius: 6,
-                      padding: 8,
+                      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                      borderRadius: 12,
+                      padding: 14,
+                      marginBottom: 10,
+                      borderWidth: 1,
+                      borderColor: isExpanded ? '#F59E0B' : (isDark ? '#78350F' : '#FDE68A'),
                     }}
                   >
-                    <Text style={{ fontSize: 10, fontWeight: '500', color: isDark ? '#6B7280' : '#9CA3AF', marginBottom: 4 }}>
-                      PAYLOAD
-                    </Text>
-                    <Text
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View
+                          style={{
+                            backgroundColor: isDark ? '#78350F' : '#FEF3C7',
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#FCD34D' : '#92400E' }}>
+                            {op.action.toUpperCase()}
+                          </Text>
+                        </View>
+                        <Text
+                          style={{
+                            marginLeft: 8,
+                            fontSize: 14,
+                            fontWeight: '600',
+                            color: isDark ? '#F3F4F6' : '#1F2937',
+                          }}
+                        >
+                          {getOperationDescription(op)}
+                        </Text>
+                      </View>
+                      {op.retryCount > 0 && (
+                        <View
+                          style={{
+                            backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2',
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 4,
+                          }}
+                        >
+                          <Text style={{ fontSize: 10, fontWeight: '500', color: isDark ? '#FCA5A5' : '#991B1B' }}>
+                            Retry {op.retryCount}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={{ marginBottom: 6 }}>
+                      <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
+                        Type: <Text style={{ fontWeight: '500', color: isDark ? '#D1D5DB' : '#4B5563' }}>{op.type}</Text>
+                      </Text>
+                      <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
+                        Queued: <Text style={{ fontWeight: '500', color: isDark ? '#D1D5DB' : '#4B5563' }}>{new Date(op.createdAt).toLocaleString()}</Text>
+                      </Text>
+                    </View>
+                    <View
                       style={{
-                        fontSize: 11,
-                        color: isDark ? '#9CA3AF' : '#6B7280',
-                        fontFamily: 'monospace',
+                        backgroundColor: isDark ? '#111827' : '#F3F4F6',
+                        borderRadius: 6,
+                        padding: 8,
                       }}
-                      numberOfLines={4}
                     >
-                      {JSON.stringify(op.payload, null, 2)}
-                    </Text>
-                  </View>
-                </View>
-              ))
+                      <Text style={{ fontSize: 10, fontWeight: '500', color: isDark ? '#6B7280' : '#9CA3AF', marginBottom: 4 }}>
+                        PAYLOAD {isExpanded ? '(tap to collapse)' : '(tap to expand)'}
+                      </Text>
+                      <ScrollView
+                        style={{ maxHeight: isExpanded ? 300 : 80 }}
+                        nestedScrollEnabled
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: isDark ? '#9CA3AF' : '#6B7280',
+                            fontFamily: 'monospace',
+                          }}
+                          numberOfLines={isExpanded ? undefined : 4}
+                        >
+                          {JSON.stringify(maskSensitiveData(op.payload), null, 2)}
+                        </Text>
+                      </ScrollView>
+                    </View>
+                  </Pressable>
+                );
+              })
             )
           )}
         </ScrollView>

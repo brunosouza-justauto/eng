@@ -32,7 +32,7 @@ export const useCountdownTimer = (options?: UseCountdownTimerOptions): UseCountd
   const [isPaused, setIsPaused] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const endTimeRef = useRef<number | null>(null);
   const pausedTimeRef = useRef<number>(0);
 

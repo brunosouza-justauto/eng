@@ -148,7 +148,7 @@ export const WorkoutSessionHeader = ({
                   color: '#F59E0B',
                 }}
               >
-                {customRestTime !== null ? formatRestTime(customRestTime) : 'Rest'}
+                {typeof customRestTime === 'number' ? formatRestTime(customRestTime) : 'Rest'}
               </Text>
             </Pressable>
           )}

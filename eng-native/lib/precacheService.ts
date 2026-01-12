@@ -6,7 +6,7 @@
 
 import { supabase } from './supabase';
 import { setCache, CacheKeys } from './storage';
-import { getLocalDateString, getCurrentDayOfWeek } from '../utils/date';
+import { getLocalDateString, getCurrentDayOfWeek, getLocalDateRangeInUTC } from '../utils/date';
 import { getTodaysSupplements } from '../services/supplementService';
 import { getDaysSinceLastCheckIn } from '../services/checkinService';
 import {
@@ -269,13 +269,15 @@ async function cacheHomeStats(
   today: string
 ): Promise<void> {
   // Fetch completed workouts today
+  // Use UTC timestamps for proper timezone handling
+  const { startUTC, endUTC } = getLocalDateRangeInUTC();
   const { data: workouts } = await supabase
     .from('workout_sessions')
     .select('id')
     .eq('user_id', userId)
     .not('end_time', 'is', null)
-    .gte('start_time', `${today}T00:00:00`)
-    .lte('start_time', `${today}T23:59:59`);
+    .gte('start_time', startUTC)
+    .lte('start_time', endUTC);
 
   const workoutsCompleted = workouts?.length || 0;
 
