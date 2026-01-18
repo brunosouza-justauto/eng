@@ -10,6 +10,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft, Check, User, Target, Dumbbell, Utensils, Heart, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -25,6 +26,7 @@ export default function EditProfileScreen() {
   const { isDark } = useTheme();
   const { profile, refreshProfile } = useAuth();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -122,12 +124,12 @@ export default function EditProfileScreen() {
     const newErrors: Record<string, string> = {};
 
     // Demographics validation
-    if (!firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!lastName.trim()) newErrors.lastName = 'Last name is required';
-    if (!gender) newErrors.gender = 'Please select your gender';
-    if (!age || parseInt(age) <= 0) newErrors.age = 'Please enter a valid age';
-    if (!weight || parseFloat(weight) <= 0) newErrors.weight = 'Please enter a valid weight';
-    if (!height || parseFloat(height) <= 0) newErrors.height = 'Please enter a valid height';
+    if (!firstName.trim()) newErrors.firstName = t('editProfile.validation.firstNameRequired');
+    if (!lastName.trim()) newErrors.lastName = t('editProfile.validation.lastNameRequired');
+    if (!gender) newErrors.gender = t('editProfile.validation.selectGender');
+    if (!age || parseInt(age) <= 0) newErrors.age = t('editProfile.validation.validAge');
+    if (!weight || parseFloat(weight) <= 0) newErrors.weight = t('editProfile.validation.validWeight');
+    if (!height || parseFloat(height) <= 0) newErrors.height = t('editProfile.validation.validHeight');
 
     setErrors(newErrors);
 
@@ -202,14 +204,14 @@ export default function EditProfileScreen() {
       if (updateError) throw updateError;
 
       await refreshProfile();
-      setSuccessMessage('Profile updated successfully!');
+      setSuccessMessage(t('editProfile.successMessage'));
 
       setTimeout(() => {
         router.back();
       }, 1500);
     } catch (err: any) {
       console.error('Error updating profile:', err);
-      setErrors({ general: err.message || 'Failed to update profile' });
+      setErrors({ general: err.message || t('editProfile.errorMessage') });
     } finally {
       setLoading(false);
     }
@@ -251,10 +253,10 @@ export default function EditProfileScreen() {
       <View className="flex-row items-center justify-between px-5 py-4">
         <HapticPressable onPress={() => router.back()} className="flex-row items-center">
           <ChevronLeft color={isDark ? '#FFFFFF' : '#111827'} size={24} />
-          <Text className={`text-base ml-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>Back</Text>
+          <Text className={`text-base ml-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('common.back')}</Text>
         </HapticPressable>
         <Text className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Edit Profile
+          {t('profile.editProfile')}
         </Text>
         <View style={{ width: 60 }} />
       </View>
@@ -282,31 +284,31 @@ export default function EditProfileScreen() {
         ) : null}
 
         {/* Demographics Section */}
-        {renderSectionHeader('Demographics', User, 'demographics')}
+        {renderSectionHeader(t('editProfile.sections.demographics'), User, 'demographics')}
         {expandedSections.demographics && (
           <View className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <View className="mb-4">
-              <Text className={labelStyle}>First Name *</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.firstName')} *</Text>
               <View className={`${inputContainerStyle} ${errors.firstName ? 'border-red-500' : ''}`}>
-                <TextInput className={inputStyle} placeholder="Your first name" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={firstName} onChangeText={(v) => { setFirstName(v); clearFieldError('firstName'); }} autoCapitalize="words" />
+                <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.firstName')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={firstName} onChangeText={(v) => { setFirstName(v); clearFieldError('firstName'); }} autoCapitalize="words" />
               </View>
               {errors.firstName && <Text className="text-red-500 text-xs mt-1">{errors.firstName}</Text>}
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Last Name *</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.lastName')} *</Text>
               <View className={`${inputContainerStyle} ${errors.lastName ? 'border-red-500' : ''}`}>
-                <TextInput className={inputStyle} placeholder="Your last name" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={lastName} onChangeText={(v) => { setLastName(v); clearFieldError('lastName'); }} autoCapitalize="words" />
+                <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.lastName')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={lastName} onChangeText={(v) => { setLastName(v); clearFieldError('lastName'); }} autoCapitalize="words" />
               </View>
               {errors.lastName && <Text className="text-red-500 text-xs mt-1">{errors.lastName}</Text>}
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Sex *</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.sex')} *</Text>
               <View className="flex-row gap-3">
                 {(['male', 'female'] as const).map((g) => (
                   <HapticPressable key={g} onPress={() => { setGender(g); clearFieldError('gender'); }} className={`flex-1 py-3 rounded-xl items-center border ${gender === g ? 'bg-indigo-500 border-indigo-500' : errors.gender ? 'border-red-500' : isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                    <Text className={`font-medium capitalize ${gender === g ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'}`}>{g}</Text>
+                    <Text className={`font-medium ${gender === g ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'}`}>{t(`editProfile.fields.${g}`)}</Text>
                   </HapticPressable>
                 ))}
               </View>
@@ -314,178 +316,178 @@ export default function EditProfileScreen() {
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Age *</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.age')} *</Text>
               <View className={`${inputContainerStyle} ${errors.age ? 'border-red-500' : ''}`}>
-                <TextInput className={inputStyle} placeholder="e.g., 30" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={age} onChangeText={(v) => { setAge(v); clearFieldError('age'); }} keyboardType="numeric" />
+                <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.age')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={age} onChangeText={(v) => { setAge(v); clearFieldError('age'); }} keyboardType="numeric" />
               </View>
               {errors.age && <Text className="text-red-500 text-xs mt-1">{errors.age}</Text>}
             </View>
 
             <View className="flex-row gap-3 mb-4">
               <View className="flex-1">
-                <Text className={labelStyle}>Weight (kg) *</Text>
+                <Text className={labelStyle}>{t('editProfile.fields.weightKg')} *</Text>
                 <View className={`${inputContainerStyle} ${errors.weight ? 'border-red-500' : ''}`}>
-                  <TextInput className={inputStyle} placeholder="e.g., 75.5" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={weight} onChangeText={(v) => { setWeight(v); clearFieldError('weight'); }} keyboardType="decimal-pad" />
+                  <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.weight')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={weight} onChangeText={(v) => { setWeight(v); clearFieldError('weight'); }} keyboardType="decimal-pad" />
                 </View>
                 {errors.weight && <Text className="text-red-500 text-xs mt-1">{errors.weight}</Text>}
               </View>
               <View className="flex-1">
-                <Text className={labelStyle}>Height (cm) *</Text>
+                <Text className={labelStyle}>{t('editProfile.fields.heightCm')} *</Text>
                 <View className={`${inputContainerStyle} ${errors.height ? 'border-red-500' : ''}`}>
-                  <TextInput className={inputStyle} placeholder="e.g., 180" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={height} onChangeText={(v) => { setHeight(v); clearFieldError('height'); }} keyboardType="decimal-pad" />
+                  <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.height')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={height} onChangeText={(v) => { setHeight(v); clearFieldError('height'); }} keyboardType="decimal-pad" />
                 </View>
                 {errors.height && <Text className="text-red-500 text-xs mt-1">{errors.height}</Text>}
               </View>
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Body Fat (%)</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.bodyFatPercent')}</Text>
               <View className={inputContainerStyle}>
-                <TextInput className={inputStyle} placeholder="e.g., 15" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" />
+                <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.bodyFat')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" />
               </View>
             </View>
           </View>
         )}
 
         {/* Goals Section */}
-        {renderSectionHeader('Goals', Target, 'goals')}
+        {renderSectionHeader(t('editProfile.sections.goals'), Target, 'goals')}
         {expandedSections.goals && (
           <View className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <View className="mb-4">
-              <Text className={labelStyle}>Primary Goal</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.primaryGoal')}</Text>
               <CustomPicker
                 selectedValue={goalType}
                 onValueChange={setGoalType}
-                placeholder="Select Your Primary Goal"
+                placeholder={t('editProfile.fields.selectPrimaryGoal')}
                 options={[
-                  { label: 'Select Your Primary Goal', value: null },
-                  { label: 'Fat Loss', value: 'fat_loss' },
-                  { label: 'Muscle Gain', value: 'muscle_gain' },
-                  { label: 'Both (Recomposition)', value: 'both' },
-                  { label: 'Maintenance', value: 'maintenance' },
+                  { label: t('editProfile.fields.selectPrimaryGoal'), value: null },
+                  { label: t('editProfile.goals.fatLoss'), value: 'fat_loss' },
+                  { label: t('editProfile.goals.muscleGain'), value: 'muscle_gain' },
+                  { label: t('editProfile.goals.both'), value: 'both' },
+                  { label: t('editProfile.goals.maintenance'), value: 'maintenance' },
                 ]}
               />
             </View>
 
             {(goalType === 'fat_loss' || goalType === 'both') && (
               <View className="mb-4">
-                <Text className={labelStyle}>Target Fat Loss (kg)</Text>
+                <Text className={labelStyle}>{t('editProfile.fields.targetFatLoss')}</Text>
                 <View className={inputContainerStyle}>
-                  <TextInput className={inputStyle} placeholder="e.g., 5" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={targetFatLoss} onChangeText={setTargetFatLoss} keyboardType="decimal-pad" />
+                  <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.fatLoss')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={targetFatLoss} onChangeText={setTargetFatLoss} keyboardType="decimal-pad" />
                 </View>
               </View>
             )}
 
             {(goalType === 'muscle_gain' || goalType === 'both') && (
               <View className="mb-4">
-                <Text className={labelStyle}>Target Muscle Gain (kg)</Text>
+                <Text className={labelStyle}>{t('editProfile.fields.targetMuscleGain')}</Text>
                 <View className={inputContainerStyle}>
-                  <TextInput className={inputStyle} placeholder="e.g., 3" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={targetMuscleGain} onChangeText={setTargetMuscleGain} keyboardType="decimal-pad" />
+                  <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.muscleGain')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={targetMuscleGain} onChangeText={setTargetMuscleGain} keyboardType="decimal-pad" />
                 </View>
               </View>
             )}
 
             <View className="mb-4">
-              <Text className={labelStyle}>Timeframe (weeks)</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.timeframeWeeks')}</Text>
               <View className={inputContainerStyle}>
-                <TextInput className={inputStyle} placeholder="e.g., 12" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={timeframeWeeks} onChangeText={setTimeframeWeeks} keyboardType="numeric" />
+                <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.timeframe')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={timeframeWeeks} onChangeText={setTimeframeWeeks} keyboardType="numeric" />
               </View>
             </View>
 
             {targetWeight && goalType && (
               <View className={`p-3 rounded-lg mb-4 ${isDark ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
                 <Text className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-                  Target Weight: <Text className="font-bold">{targetWeight} kg</Text> (calculated)
+                  {t('editProfile.fields.targetWeight')}: <Text className="font-bold">{targetWeight} kg</Text> ({t('editProfile.fields.calculated')})
                 </Text>
               </View>
             )}
 
             <View className="mb-4">
-              <Text className={labelStyle}>Specific Physique Goals</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.physiqueGoals')}</Text>
               <View className={`${inputContainerStyle} min-h-[80px] items-start py-2`}>
-                <TextInput className={`${inputStyle} min-h-[60px]`} placeholder="Describe your physique goals..." placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={physiqueDetails} onChangeText={setPhysiqueDetails} multiline textAlignVertical="top" />
+                <TextInput className={`${inputStyle} min-h-[60px]`} placeholder={t('editProfile.placeholders.physiqueGoals')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={physiqueDetails} onChangeText={setPhysiqueDetails} multiline textAlignVertical="top" />
               </View>
             </View>
           </View>
         )}
 
         {/* Training Section */}
-        {renderSectionHeader('Training', Dumbbell, 'training')}
+        {renderSectionHeader(t('editProfile.sections.training'), Dumbbell, 'training')}
         {expandedSections.training && (
           <View className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <View className="mb-4">
-              <Text className={labelStyle}>Experience Level</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.experienceLevel')}</Text>
               <View className="flex-row gap-2">
                 {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
                   <HapticPressable key={level} onPress={() => setExperienceLevel(level)} className={`flex-1 py-3 rounded-xl items-center border ${experienceLevel === level ? 'bg-indigo-500 border-indigo-500' : isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                    <Text className={`font-medium capitalize text-xs ${experienceLevel === level ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'}`}>{level}</Text>
+                    <Text className={`font-medium text-xs ${experienceLevel === level ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'}`}>{t(`editProfile.experience.${level}`)}</Text>
                   </HapticPressable>
                 ))}
               </View>
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Equipment Available</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.equipmentAvailable')}</Text>
               <CustomPicker
                 selectedValue={trainingEquipment}
                 onValueChange={setTrainingEquipment}
-                placeholder="Select your equipment"
+                placeholder={t('editProfile.fields.selectEquipment')}
                 options={[
-                  { label: 'Select your equipment', value: '' },
+                  { label: t('editProfile.fields.selectEquipment'), value: '' },
                   ...EQUIPMENT_OPTIONS.map((opt) => ({ label: opt, value: opt })),
                 ]}
               />
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Training Time of Day</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.trainingTime')}</Text>
               <CustomPicker
                 selectedValue={trainingTime}
                 onValueChange={setTrainingTime}
-                placeholder="Select time"
+                placeholder={t('editProfile.fields.selectTime')}
                 options={[
-                  { label: 'Select time', value: '' },
-                  ...TIME_OPTIONS.map((t) => ({ label: t, value: t })),
+                  { label: t('editProfile.fields.selectTime'), value: '' },
+                  ...TIME_OPTIONS.map((time) => ({ label: time, value: time })),
                 ]}
               />
             </View>
 
             <View className="flex-row gap-3 mb-4">
               <View className="flex-1">
-                <Text className={labelStyle}>Days/Week</Text>
+                <Text className={labelStyle}>{t('editProfile.fields.daysPerWeek')}</Text>
                 <View className={inputContainerStyle}>
-                  <TextInput className={inputStyle} placeholder="e.g., 5" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={trainingDays} onChangeText={setTrainingDays} keyboardType="numeric" />
+                  <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.trainingDays')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={trainingDays} onChangeText={setTrainingDays} keyboardType="numeric" />
                 </View>
               </View>
               <View className="flex-1">
-                <Text className={labelStyle}>Session (min)</Text>
+                <Text className={labelStyle}>{t('editProfile.fields.sessionMin')}</Text>
                 <View className={inputContainerStyle}>
-                  <TextInput className={inputStyle} placeholder="e.g., 60" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={sessionLength} onChangeText={setSessionLength} keyboardType="numeric" />
+                  <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.sessionLength')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={sessionLength} onChangeText={setSessionLength} keyboardType="numeric" />
                 </View>
               </View>
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Current Program</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.currentProgram')}</Text>
               <View className={`${inputContainerStyle} min-h-[60px] items-start py-2`}>
-                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder="e.g., PPL, Starting Strength..." placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={currentProgram} onChangeText={setCurrentProgram} multiline textAlignVertical="top" />
+                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder={t('editProfile.placeholders.currentProgram')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={currentProgram} onChangeText={setCurrentProgram} multiline textAlignVertical="top" />
               </View>
             </View>
           </View>
         )}
 
         {/* Nutrition Section */}
-        {renderSectionHeader('Nutrition', Utensils, 'nutrition')}
+        {renderSectionHeader(t('editProfile.sections.nutrition'), Utensils, 'nutrition')}
         {expandedSections.nutrition && (
           <View className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <View className="mb-4">
-              <Text className={labelStyle}>Tracking Method</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.trackingMethod')}</Text>
               <CustomPicker
                 selectedValue={trackingMethod}
                 onValueChange={setTrackingMethod}
-                placeholder="Select tracking method"
+                placeholder={t('editProfile.fields.selectTrackingMethod')}
                 options={[
-                  { label: 'Select tracking method', value: '' },
+                  { label: t('editProfile.fields.selectTrackingMethod'), value: '' },
                   ...TRACKING_METHOD_OPTIONS.map((opt) => ({ label: opt, value: opt })),
                 ]}
               />
@@ -493,98 +495,98 @@ export default function EditProfileScreen() {
 
             <View className="flex-row gap-3 mb-4">
               <View className="flex-1">
-                <Text className={labelStyle}>Wakeup Time</Text>
+                <Text className={labelStyle}>{t('editProfile.fields.wakeupTime')}</Text>
                 <CustomPicker
                   selectedValue={wakeupTime}
                   onValueChange={setWakeupTime}
-                  placeholder="Select"
+                  placeholder={t('editProfile.fields.select')}
                   options={[
-                    { label: 'Select', value: '' },
-                    ...TIME_OPTIONS.map((t) => ({ label: t, value: t })),
+                    { label: t('editProfile.fields.select'), value: '' },
+                    ...TIME_OPTIONS.map((time) => ({ label: time, value: time })),
                   ]}
                 />
               </View>
               <View className="flex-1">
-                <Text className={labelStyle}>Bed Time</Text>
+                <Text className={labelStyle}>{t('editProfile.fields.bedTime')}</Text>
                 <CustomPicker
                   selectedValue={bedTime}
                   onValueChange={setBedTime}
-                  placeholder="Select"
+                  placeholder={t('editProfile.fields.select')}
                   options={[
-                    { label: 'Select', value: '' },
-                    ...[...TIME_OPTIONS].reverse().map((t) => ({ label: t, value: t })),
+                    { label: t('editProfile.fields.select'), value: '' },
+                    ...[...TIME_OPTIONS].reverse().map((time) => ({ label: time, value: time })),
                   ]}
                 />
               </View>
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Meal Patterns</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.mealPatterns')}</Text>
               <View className={`${inputContainerStyle} min-h-[60px] items-start py-2`}>
-                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder="e.g., 3 meals + 2 snacks..." placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={mealPatterns} onChangeText={setMealPatterns} multiline textAlignVertical="top" />
+                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder={t('editProfile.placeholders.mealPatterns')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={mealPatterns} onChangeText={setMealPatterns} multiline textAlignVertical="top" />
               </View>
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Dietary Preferences</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.dietaryPreferences')}</Text>
               <View className={`${inputContainerStyle} min-h-[60px] items-start py-2`}>
-                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder="e.g., Vegetarian, High protein..." placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={dietaryPreferences} onChangeText={setDietaryPreferences} multiline textAlignVertical="top" />
+                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder={t('editProfile.placeholders.dietaryPreferences')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={dietaryPreferences} onChangeText={setDietaryPreferences} multiline textAlignVertical="top" />
               </View>
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Food Allergies / Intolerances</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.allergies')}</Text>
               <View className={`${inputContainerStyle} min-h-[60px] items-start py-2`}>
-                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder="e.g., Peanuts, Dairy..." placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={allergies} onChangeText={setAllergies} multiline textAlignVertical="top" />
+                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder={t('editProfile.placeholders.allergies')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={allergies} onChangeText={setAllergies} multiline textAlignVertical="top" />
               </View>
             </View>
           </View>
         )}
 
         {/* Lifestyle Section */}
-        {renderSectionHeader('Lifestyle', Heart, 'lifestyle')}
+        {renderSectionHeader(t('editProfile.sections.lifestyle'), Heart, 'lifestyle')}
         {expandedSections.lifestyle && (
           <View className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <View className="flex-row gap-3 mb-4">
               <View className="flex-1">
-                <Text className={labelStyle}>Sleep (hrs)</Text>
+                <Text className={labelStyle}>{t('editProfile.fields.sleepHours')}</Text>
                 <View className={inputContainerStyle}>
-                  <TextInput className={inputStyle} placeholder="e.g., 7.5" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={sleepHours} onChangeText={setSleepHours} keyboardType="decimal-pad" />
+                  <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.sleepHours')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={sleepHours} onChangeText={setSleepHours} keyboardType="decimal-pad" />
                 </View>
               </View>
               <View className="flex-1">
-                <Text className={labelStyle}>Stress (1-10)</Text>
+                <Text className={labelStyle}>{t('editProfile.fields.stressLevel')}</Text>
                 <View className={inputContainerStyle}>
-                  <TextInput className={inputStyle} placeholder="1-10" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={stressLevel} onChangeText={setStressLevel} keyboardType="numeric" />
+                  <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.stressLevel')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={stressLevel} onChangeText={setStressLevel} keyboardType="numeric" />
                 </View>
               </View>
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Water Intake (liters)</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.waterIntake')}</Text>
               <View className={inputContainerStyle}>
-                <TextInput className={inputStyle} placeholder="e.g., 3.5" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={waterIntake} onChangeText={setWaterIntake} keyboardType="decimal-pad" />
+                <TextInput className={inputStyle} placeholder={t('editProfile.placeholders.waterIntake')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={waterIntake} onChangeText={setWaterIntake} keyboardType="decimal-pad" />
               </View>
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Supplements & Medications</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.supplements')}</Text>
               <View className={`${inputContainerStyle} min-h-[60px] items-start py-2`}>
-                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder="List any supplements or medications..." placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={supplements} onChangeText={setSupplements} multiline textAlignVertical="top" />
+                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder={t('editProfile.placeholders.supplements')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={supplements} onChangeText={setSupplements} multiline textAlignVertical="top" />
               </View>
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Schedule Notes</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.scheduleNotes')}</Text>
               <View className={`${inputContainerStyle} min-h-[60px] items-start py-2`}>
-                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder="Weekday vs weekend differences..." placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={scheduleNotes} onChangeText={setScheduleNotes} multiline textAlignVertical="top" />
+                <TextInput className={`${inputStyle} min-h-[40px]`} placeholder={t('editProfile.placeholders.scheduleNotes')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={scheduleNotes} onChangeText={setScheduleNotes} multiline textAlignVertical="top" />
               </View>
             </View>
 
             <View className="mb-4">
-              <Text className={labelStyle}>Motivation & Readiness</Text>
+              <Text className={labelStyle}>{t('editProfile.fields.motivation')}</Text>
               <View className={`${inputContainerStyle} min-h-[80px] items-start py-2`}>
-                <TextInput className={`${inputStyle} min-h-[60px]`} placeholder="What motivates you?..." placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={motivation} onChangeText={setMotivation} multiline textAlignVertical="top" />
+                <TextInput className={`${inputStyle} min-h-[60px]`} placeholder={t('editProfile.placeholders.motivation')} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} value={motivation} onChangeText={setMotivation} multiline textAlignVertical="top" />
               </View>
             </View>
           </View>
@@ -604,7 +606,7 @@ export default function EditProfileScreen() {
           ) : (
             <>
               <Check color="#FFFFFF" size={20} />
-              <Text className="text-white font-semibold ml-2">Save Changes</Text>
+              <Text className="text-white font-semibold ml-2">{t('editProfile.saveChanges')}</Text>
             </>
           )}
         </HapticPressable>
