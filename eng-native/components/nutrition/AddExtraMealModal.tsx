@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
-  Pressable,
   TextInput,
   ScrollView,
   ActivityIndicator,
@@ -14,6 +13,7 @@ import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@g
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, QrCode, Plus, Search, Trash2, ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 import {
   FoodItem,
   ExtraMealFormData,
@@ -335,7 +335,7 @@ export const AddExtraMealModal = ({
         >
           {showCustomFoodForm ? (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Pressable
+              <HapticPressable
                 onPress={() => {
                   setShowCustomFoodForm(false);
                   resetCustomFoodForm();
@@ -343,7 +343,7 @@ export const AddExtraMealModal = ({
                 style={{ marginRight: 12 }}
               >
                 <ChevronLeft size={24} color={isDark ? '#F3F4F6' : '#1F2937'} />
-              </Pressable>
+              </HapticPressable>
               <Text
                 style={{
                   fontSize: 18,
@@ -365,7 +365,7 @@ export const AddExtraMealModal = ({
               Log Extra Meal
             </Text>
           )}
-          <Pressable
+          <HapticPressable
             onPress={handleClose}
             style={{
               width: 32,
@@ -377,7 +377,7 @@ export const AddExtraMealModal = ({
             }}
           >
             <X size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
-          </Pressable>
+          </HapticPressable>
         </View>
 
         {/* Custom Food Form */}
@@ -638,7 +638,7 @@ export const AddExtraMealModal = ({
                 borderTopColor: isDark ? '#374151' : '#E5E7EB',
               }}
             >
-              <Pressable
+              <HapticPressable
                 onPress={() => {
                   setShowCustomFoodForm(false);
                   resetCustomFoodForm();
@@ -660,9 +660,9 @@ export const AddExtraMealModal = ({
                 >
                   Cancel
                 </Text>
-              </Pressable>
+              </HapticPressable>
 
-              <Pressable
+              <HapticPressable
                 onPress={handleSubmitCustomFood}
                 style={{
                   flex: 1,
@@ -685,7 +685,7 @@ export const AddExtraMealModal = ({
                 >
                   Add Food
                 </Text>
-              </Pressable>
+              </HapticPressable>
             </View>
           </KeyboardAvoidingView>
         ) : (
@@ -770,7 +770,7 @@ export const AddExtraMealModal = ({
 
           {/* Action buttons */}
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-            <Pressable
+            <HapticPressable
               onPress={handleScanBarcode}
               style={{
                 flexDirection: 'row',
@@ -792,9 +792,9 @@ export const AddExtraMealModal = ({
               >
                 Scan Barcode
               </Text>
-            </Pressable>
+            </HapticPressable>
 
-            <Pressable
+            <HapticPressable
               onPress={handleAddCustomItem}
               style={{
                 flexDirection: 'row',
@@ -810,7 +810,7 @@ export const AddExtraMealModal = ({
               <Text style={{ marginLeft: 8, fontSize: 13, color: '#6366F1' }}>
                 Add Custom Item
               </Text>
-            </Pressable>
+            </HapticPressable>
           </View>
 
           {/* Search input */}
@@ -840,9 +840,9 @@ export const AddExtraMealModal = ({
             />
             {isSearching && <ActivityIndicator size="small" color="#6366F1" />}
             {searchQuery.length > 0 && !isSearching && (
-              <Pressable onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
+              <HapticPressable onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
                 <X size={18} color={isDark ? '#6B7280' : '#9CA3AF'} />
-              </Pressable>
+              </HapticPressable>
             )}
           </View>
 
@@ -860,7 +860,7 @@ export const AddExtraMealModal = ({
             >
               <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
                 {searchResults.map((item, index) => (
-                  <Pressable
+                  <HapticPressable
                     key={item.id}
                     onPress={() => handleAddFoodItem(item)}
                     style={{
@@ -892,7 +892,7 @@ export const AddExtraMealModal = ({
                       </Text>
                     </View>
                     <Plus size={18} color="#6366F1" />
-                  </Pressable>
+                  </HapticPressable>
                 ))}
               </ScrollView>
             </View>
@@ -984,7 +984,7 @@ export const AddExtraMealModal = ({
                           {item.unit}
                         </Text>
 
-                        <Pressable
+                        <HapticPressable
                           onPress={() => handleRemoveFoodItem(index)}
                           style={{
                             marginLeft: 10,
@@ -992,7 +992,7 @@ export const AddExtraMealModal = ({
                           }}
                         >
                           <Trash2 size={18} color="#EF4444" />
-                        </Pressable>
+                        </HapticPressable>
                       </View>
                     </View>
                   </View>
@@ -1042,7 +1042,7 @@ export const AddExtraMealModal = ({
             borderTopColor: isDark ? '#374151' : '#E5E7EB',
           }}
         >
-          <Pressable
+          <HapticPressable
             onPress={handleClose}
             style={{
               flex: 1,
@@ -1061,9 +1061,9 @@ export const AddExtraMealModal = ({
             >
               Cancel
             </Text>
-          </Pressable>
+          </HapticPressable>
 
-          <Pressable
+          <HapticPressable
             onPress={handleSubmit}
             style={{
               flex: 1,
@@ -1086,7 +1086,7 @@ export const AddExtraMealModal = ({
             >
               Log Meal
             </Text>
-          </Pressable>
+          </HapticPressable>
         </View>
           </>
         )}

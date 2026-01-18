@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, BackHandler } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, BackHandler } from 'react-native';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { HapticPressable } from '../../components/HapticPressable';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -76,6 +77,8 @@ export default function WorkoutSessionScreen() {
   // Set tracking
   const [completedSets, setCompletedSets] = useState<Map<string, CompletedSetData[]>>(new Map());
   const [setInputs, setSetInputs] = useState<Map<string, SetInputState[]>>(new Map());
+  // Track sets that are currently being saved (for loading indicator)
+  const [savingSets, setSavingSets] = useState<Set<string>>(new Set());
 
   // Modals
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -486,31 +489,61 @@ export default function WorkoutSessionScreen() {
     // Check if we're in offline mode
     const isOffline = isOfflineSession || !isOnline;
 
+    // Generate unique keys for tracking saving state
+    const savingKeys = exercisesInGroup.map(e => `${e.id}-${setIndex}`);
+
     if (isCurrentlyCompleted) {
       // Uncomplete the set - also uncomplete for all exercises in the group
       const newCompletedSets = new Map(completedSets);
 
+      // OPTIMISTIC UPDATE: Update state immediately
       for (const groupExercise of exercisesInGroup) {
         const groupCompleted = newCompletedSets.get(groupExercise.id) || [];
         const updatedSets = groupCompleted.filter((s) => s.setOrder !== setIndex + 1);
         newCompletedSets.set(groupExercise.id, updatedSets);
-
-        // Only call API if online
-        if (!isOffline) {
-          await removeCompletedSet(workoutSessionId, groupExercise.id, setIndex + 1);
-        }
       }
-
       setCompletedSets(newCompletedSets);
 
       // Stop rest timer if it's running
       if (restTimer.isActive) {
         restTimer.stop();
       }
+
+      // API calls in background (non-blocking)
+      if (!isOffline) {
+        // Mark as saving
+        setSavingSets(prev => {
+          const newSet = new Set(prev);
+          savingKeys.forEach(key => newSet.add(key));
+          return newSet;
+        });
+
+        // Make API calls in parallel
+        try {
+          await Promise.all(
+            exercisesInGroup.map(groupExercise =>
+              removeCompletedSet(workoutSessionId, groupExercise.id, setIndex + 1)
+            )
+          );
+        } catch (error) {
+          console.error('[WorkoutSession] Error removing completed set:', error);
+          // On error, we could revert but usually the local state is what matters
+          // The user can retry if needed
+        } finally {
+          // Clear saving state
+          setSavingSets(prev => {
+            const newSet = new Set(prev);
+            savingKeys.forEach(key => newSet.delete(key));
+            return newSet;
+          });
+        }
+      }
     } else {
       // Complete the set - also complete for all exercises in the group
       const newCompletedSets = new Map(completedSets);
+      const setsToSave: { groupExercise: ExerciseInstanceData; groupInput: SetInputState }[] = [];
 
+      // OPTIMISTIC UPDATE: Update state immediately
       for (const groupExercise of exercisesInGroup) {
         const groupInputs = setInputs.get(groupExercise.id) || [];
         const groupInput = groupInputs[setIndex];
@@ -531,19 +564,11 @@ export default function WorkoutSessionScreen() {
         const updatedSets = [...groupCompleted.filter((s) => s.setOrder !== setIndex + 1), newSet];
         newCompletedSets.set(groupExercise.id, updatedSets);
 
-        // Only call API if online
-        if (!isOffline) {
-          const weightValue = groupInput.weight === 'BW' ? null : parseFloat(groupInput.weight) || null;
-          await saveCompletedSet(
-            workoutSessionId,
-            groupExercise.id,
-            setIndex + 1,
-            weightValue,
-            parseInt(groupInput.reps, 10) || 0
-          );
-        }
+        // Track for API call
+        setsToSave.push({ groupExercise, groupInput });
       }
 
+      // Update state immediately (optimistic)
       setCompletedSets(newCompletedSets);
 
       // Start rest timer - use custom time, or find rest time from the group
@@ -560,6 +585,43 @@ export default function WorkoutSessionScreen() {
 
       if (effectiveRestTime && effectiveRestTime > 0) {
         restTimer.start(effectiveRestTime, exerciseId);
+      }
+
+      // API calls in background (non-blocking)
+      if (!isOffline && setsToSave.length > 0) {
+        // Mark as saving
+        setSavingSets(prev => {
+          const newSet = new Set(prev);
+          savingKeys.forEach(key => newSet.add(key));
+          return newSet;
+        });
+
+        // Make API calls in parallel
+        try {
+          await Promise.all(
+            setsToSave.map(({ groupExercise, groupInput }) => {
+              const weightValue = groupInput.weight === 'BW' ? null : parseFloat(groupInput.weight) || null;
+              return saveCompletedSet(
+                workoutSessionId,
+                groupExercise.id,
+                setIndex + 1,
+                weightValue,
+                parseInt(groupInput.reps, 10) || 0
+              );
+            })
+          );
+        } catch (error) {
+          console.error('[WorkoutSession] Error saving completed set:', error);
+          // On error, we could revert but usually the local state is what matters
+          // The user can retry if needed
+        } finally {
+          // Clear saving state
+          setSavingSets(prev => {
+            const newSet = new Set(prev);
+            savingKeys.forEach(key => newSet.delete(key));
+            return newSet;
+          });
+        }
       }
     }
   };
@@ -587,6 +649,10 @@ export default function WorkoutSessionScreen() {
   const isSetCompleted = (exerciseId: string, setIndex: number): boolean => {
     const exerciseSets = completedSets.get(exerciseId) || [];
     return exerciseSets.some((s) => s.setOrder === setIndex + 1 && s.isCompleted);
+  };
+
+  const isSetSaving = (exerciseId: string, setIndex: number): boolean => {
+    return savingSets.has(`${exerciseId}-${setIndex}`);
   };
 
   const getCompletedSetsCount = (): number => {
@@ -884,7 +950,7 @@ export default function WorkoutSessionScreen() {
         <Text style={{ color: '#EF4444', fontSize: 16, fontWeight: '600' }}>
           {error || 'Workout not found'}
         </Text>
-        <Pressable
+        <HapticPressable
           onPress={() => router.back()}
           style={{
             marginTop: 16,
@@ -895,7 +961,7 @@ export default function WorkoutSessionScreen() {
           }}
         >
           <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Go Back</Text>
-        </Pressable>
+        </HapticPressable>
       </View>
     );
   }
@@ -936,7 +1002,7 @@ export default function WorkoutSessionScreen() {
             ? 'Take it easy today and let your muscles recover.'
             : 'This workout has no exercises. Time to rest and recover!'}
         </Text>
-        <Pressable
+        <HapticPressable
           onPress={() => router.back()}
           style={{
             marginTop: 24,
@@ -947,7 +1013,7 @@ export default function WorkoutSessionScreen() {
           }}
         >
           <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Go Back</Text>
-        </Pressable>
+        </HapticPressable>
       </View>
     );
   }
@@ -1015,7 +1081,7 @@ export default function WorkoutSessionScreen() {
 
         {/* Workout Notes/Description Preview */}
         {workout.description && (
-          <Pressable
+          <HapticPressable
             onPress={() => setShowNotesModal(true)}
             style={{
               marginBottom: 16,
@@ -1047,7 +1113,7 @@ export default function WorkoutSessionScreen() {
             >
               View notes →
             </Text>
-          </Pressable>
+          </HapticPressable>
         )}
 
         {exerciseGroups.map((group, groupIndex) => {
@@ -1066,6 +1132,7 @@ export default function WorkoutSessionScreen() {
                     exerciseInputs={setInputs.get(exercise.id) || []}
                     isWorkoutStarted={isWorkoutStarted}
                     isSetCompleted={(setIndex) => isSetCompleted(exercise.id, setIndex)}
+                    isSetSaving={(setIndex) => isSetSaving(exercise.id, setIndex)}
                     onSetComplete={(setIndex, restSeconds) =>
                       handleToggleSetComplete(exercise.id, setIndex, restSeconds)
                     }
@@ -1096,6 +1163,7 @@ export default function WorkoutSessionScreen() {
               exerciseInputs={setInputs.get(exercise.id) || []}
               isWorkoutStarted={isWorkoutStarted}
               isSetCompleted={(setIndex) => isSetCompleted(exercise.id, setIndex)}
+              isSetSaving={(setIndex) => isSetSaving(exercise.id, setIndex)}
               onSetComplete={(setIndex, restSeconds) =>
                 handleToggleSetComplete(exercise.id, setIndex, restSeconds)
               }
@@ -1271,7 +1339,7 @@ export default function WorkoutSessionScreen() {
           >
             Workout Notes
           </Text>
-          <Pressable
+          <HapticPressable
             onPress={() => setShowNotesModal(false)}
             style={{
               width: 36,
@@ -1283,7 +1351,7 @@ export default function WorkoutSessionScreen() {
             }}
           >
             <Text style={{ fontSize: 18, color: isDark ? '#9CA3AF' : '#6B7280' }}>✕</Text>
-          </Pressable>
+          </HapticPressable>
         </View>
 
         {/* Content */}

@@ -3,13 +3,13 @@ import {
   View,
   Text,
   ScrollView,
-  Pressable,
   RefreshControl,
   TextInput,
   KeyboardAvoidingView,
   Platform,
   Modal,
 } from 'react-native';
+import { HapticPressable } from '../../components/HapticPressable';
 import {
   Footprints,
   Target,
@@ -739,7 +739,7 @@ export default function StepsScreen() {
               </Text>
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <Pressable
+                <HapticPressable
                   onPress={() => setShowSetGoalModal(false)}
                   style={{
                     flex: 1,
@@ -752,8 +752,8 @@ export default function StepsScreen() {
                   <Text style={{ color: isDark ? '#D1D5DB' : '#4B5563', fontWeight: '600' }}>
                     Cancel
                   </Text>
-                </Pressable>
-                <Pressable
+                </HapticPressable>
+                <HapticPressable
                   onPress={handleSetGoal}
                   disabled={isSettingGoal}
                   style={{
@@ -768,7 +768,7 @@ export default function StepsScreen() {
                   <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
                     {isSettingGoal ? 'Saving...' : 'Save'}
                   </Text>
-                </Pressable>
+                </HapticPressable>
               </View>
             </View>
           </View>
@@ -871,7 +871,7 @@ export default function StepsScreen() {
               </Text>
 
               {/* Goal Info */}
-              <Pressable
+              <HapticPressable
                 onPress={() => {
                   setNewGoalValue(String(dailyGoal));
                   setShowSetGoalModal(true);
@@ -892,7 +892,7 @@ export default function StepsScreen() {
                   Daily Goal: {dailyGoal.toLocaleString()} steps
                 </Text>
                 <Text style={{ marginLeft: 4, fontSize: 11, color: '#6366F1' }}>Edit</Text>
-              </Pressable>
+              </HapticPressable>
 
               {/* Streak & Motivation */}
               {weeklyStats && weeklyStats.streak > 0 && (
@@ -954,7 +954,7 @@ export default function StepsScreen() {
                   marginBottom: 16,
                 }}
               >
-                <Pressable
+                <HapticPressable
                   onPress={() => handleQuickRemoveSteps()}
                   disabled={isAddingSteps || !todayEntry?.step_count}
                   style={{
@@ -968,7 +968,7 @@ export default function StepsScreen() {
                   }}
                 >
                   <Minus size={24} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                </Pressable>
+                </HapticPressable>
 
                 <View style={{ alignItems: 'center' }}>
                   <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
@@ -976,7 +976,7 @@ export default function StepsScreen() {
                   </Text>
                 </View>
 
-                <Pressable
+                <HapticPressable
                   onPress={() => handleQuickAddSteps()}
                   disabled={isAddingSteps}
                   style={{
@@ -990,7 +990,7 @@ export default function StepsScreen() {
                   }}
                 >
                   <Plus size={24} color="#FFFFFF" />
-                </Pressable>
+                </HapticPressable>
               </View>
 
               {/* Manual Entry Section */}
@@ -1014,7 +1014,7 @@ export default function StepsScreen() {
                           color: isDark ? '#F3F4F6' : '#1F2937',
                         }}
                       />
-                      <Pressable
+                      <HapticPressable
                         onPress={handleAddSteps}
                         disabled={isAddingSteps}
                         style={{
@@ -1029,8 +1029,8 @@ export default function StepsScreen() {
                         <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>
                           {isAddingSteps ? '...' : 'Add'}
                         </Text>
-                      </Pressable>
-                      <Pressable
+                      </HapticPressable>
+                      <HapticPressable
                         onPress={() => setShowManualEntry(false)}
                         style={{
                           backgroundColor: isDark ? '#374151' : '#E5E7EB',
@@ -1041,7 +1041,7 @@ export default function StepsScreen() {
                         }}
                       >
                         <X size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                      </Pressable>
+                      </HapticPressable>
                     </View>
                     <Text
                       style={{
@@ -1055,7 +1055,7 @@ export default function StepsScreen() {
                   </View>
                 ) : (
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <Pressable
+                    <HapticPressable
                       onPress={() => setShowManualEntry(true)}
                       style={{
                         flex: 1,
@@ -1073,8 +1073,8 @@ export default function StepsScreen() {
                       >
                         Add Steps
                       </Text>
-                    </Pressable>
-                    <Pressable
+                    </HapticPressable>
+                    <HapticPressable
                       style={{
                         flex: 1,
                         flexDirection: 'row',
@@ -1099,7 +1099,7 @@ export default function StepsScreen() {
                       >
                         Connect Device
                       </Text>
-                    </Pressable>
+                    </HapticPressable>
                   </View>
                 )}
                 <Text
@@ -1270,7 +1270,7 @@ export default function StepsScreen() {
               </Text>
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <Pressable
+                <HapticPressable
                   onPress={() => setShowSetGoalModal(false)}
                   style={{
                     flex: 1,
@@ -1283,8 +1283,8 @@ export default function StepsScreen() {
                   <Text style={{ color: isDark ? '#D1D5DB' : '#4B5563', fontWeight: '600' }}>
                     Cancel
                   </Text>
-                </Pressable>
-                <Pressable
+                </HapticPressable>
+                <HapticPressable
                   onPress={handleSetGoal}
                   disabled={isSettingGoal}
                   style={{
@@ -1299,7 +1299,7 @@ export default function StepsScreen() {
                   <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
                     {isSettingGoal ? 'Saving...' : 'Save'}
                   </Text>
-                </Pressable>
+                </HapticPressable>
               </View>
             </View>
           </View>

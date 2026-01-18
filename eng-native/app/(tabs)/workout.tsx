@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Animated, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, Animated, RefreshControl } from 'react-native';
+import { HapticPressable } from '../../components/HapticPressable';
 import { useFocusEffect } from 'expo-router';
 import {
   Dumbbell,
@@ -17,6 +18,7 @@ import {
   WifiOff,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOffline } from '../../contexts/OfflineContext';
@@ -49,6 +51,7 @@ import EmptyState from '../../components/EmptyState';
 const PREVIEW_COUNT = 3;
 
 export default function WorkoutScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { isOnline, isSyncing, lastSyncTime } = useOffline();
@@ -508,11 +511,11 @@ export default function WorkoutScreen() {
         ))}
 
         {totalCount > PREVIEW_COUNT && (
-          <Pressable onPress={() => setShowAllExercises(!showAllExercises)} className="py-2">
+          <HapticPressable onPress={() => setShowAllExercises(!showAllExercises)} className="py-2">
             <Text className="text-center text-sm text-indigo-500">
               {showAllExercises ? 'Show Less' : `Show All (${totalCount})`}
             </Text>
-          </Pressable>
+          </HapticPressable>
         )}
       </View>
     );
@@ -612,7 +615,7 @@ export default function WorkoutScreen() {
             </Text>
           </View>
           <View className="flex-row items-center">
-            <Pressable
+            <HapticPressable
               onPress={() => {
                 const newMonth = new Date(currentMonth);
                 newMonth.setMonth(newMonth.getMonth() - 1);
@@ -621,11 +624,11 @@ export default function WorkoutScreen() {
               className="p-2"
             >
               <ChevronLeft color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
-            </Pressable>
+            </HapticPressable>
             <Text className={`text-sm font-medium px-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               {formatMonth(currentMonth)}
             </Text>
-            <Pressable
+            <HapticPressable
               onPress={() => {
                 const newMonth = new Date(currentMonth);
                 newMonth.setMonth(newMonth.getMonth() + 1);
@@ -634,7 +637,7 @@ export default function WorkoutScreen() {
               className="p-2"
             >
               <ChevronRight color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
-            </Pressable>
+            </HapticPressable>
           </View>
         </View>
 
@@ -825,7 +828,7 @@ export default function WorkoutScreen() {
               flex: 1,
             }}
           >
-            You're offline. Showing cached data.
+            {t('common.youreOffline')}
           </Text>
         </View>
       )}
@@ -849,13 +852,13 @@ export default function WorkoutScreen() {
               color: isDark ? '#F3F4F6' : '#1F2937',
             }}
           >
-            Today's Workout
+            {t('home.todaysWorkout')}
           </Text>
         </View>
 
         {assignment?.program_template_id && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-            <Pressable
+            <HapticPressable
               onPress={() => setShowBrowseModal(true)}
               style={{
                 flexDirection: 'row',
@@ -873,8 +876,8 @@ export default function WorkoutScreen() {
               >
                 Switch
               </Text>
-            </Pressable>
-            <Pressable
+            </HapticPressable>
+            <HapticPressable
               onPress={() => router.push(`/workout-plan/${assignment.program_template_id}`)}
               style={{
                 flexDirection: 'row',
@@ -891,7 +894,7 @@ export default function WorkoutScreen() {
                 View Plan
               </Text>
               <ExternalLink size={14} color="#6366F1" style={{ marginLeft: 4 }} />
-            </Pressable>
+            </HapticPressable>
           </View>
         )}
       </View>
@@ -916,10 +919,10 @@ export default function WorkoutScreen() {
           <View className="items-center py-10">
             <Moon color={isDark ? '#60A5FA' : '#3B82F6'} size={48} />
             <Text className={`mt-4 text-lg font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              Rest Day
+              {t('home.restDay')}
             </Text>
             <Text className={`mt-2 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Take it easy today and recover for your next workout
+              {t('home.takeRestDay')}
             </Text>
           </View>
         ) : todaysWorkout ? (
@@ -968,10 +971,10 @@ export default function WorkoutScreen() {
                 <Text
                   className={`mt-3 text-xl font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}
                 >
-                  Workout Complete!
+                  {t('workout.workoutComplete')}
                 </Text>
                 <Text className={`mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  You've completed your workout for today.
+                  {t('workout.greatJob')}
                 </Text>
                 {completionTime && (
                   <Text className={`mt-1 text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -983,7 +986,7 @@ export default function WorkoutScreen() {
                   </Text>
                 )}
                 <View className="flex-row gap-3 mt-6">
-                  <Pressable
+                  <HapticPressable
                     onPress={() => router.push('/workout-history')}
                     className={`px-4 py-2 rounded-lg ${
                       isDark ? 'bg-indigo-900/30' : 'bg-indigo-100'
@@ -992,13 +995,13 @@ export default function WorkoutScreen() {
                     <Text className={isDark ? 'text-indigo-400' : 'text-indigo-700'}>
                       View History
                     </Text>
-                  </Pressable>
-                  <Pressable
+                  </HapticPressable>
+                  <HapticPressable
                     onPress={() => router.push(`/workout-session/${todaysWorkout.id}`)}
                     className={`px-4 py-2 rounded-lg ${isDark ? 'bg-green-900/30' : 'bg-green-100'}`}
                   >
                     <Text className={isDark ? 'text-green-400' : 'text-green-700'}>Start Again</Text>
-                  </Pressable>
+                  </HapticPressable>
                 </View>
               </View>
             ) : (
@@ -1032,22 +1035,22 @@ export default function WorkoutScreen() {
                       </View>
                     )}
 
-                  <Pressable
+                  <HapticPressable
                     onPress={() => router.push(`/workout-session/${todaysWorkout.id}`)}
                     className="bg-indigo-500 rounded-xl py-4 flex-row items-center justify-center"
                   >
                     <PlayCircle color="#FFFFFF" size={20} />
-                    <Text className="text-white font-semibold ml-2">Start Workout</Text>
-                  </Pressable>
+                    <Text className="text-white font-semibold ml-2">{t('workout.startWorkout')}</Text>
+                  </HapticPressable>
 
-                  <Pressable
+                  <HapticPressable
                     onPress={() => router.push('/workout-history')}
                     className="rounded-xl py-4 flex-row items-center justify-center mt-3"
                     style={{ backgroundColor: isDark ? '#374151' : '#1F2937' }}
                   >
                     <Calendar color="#FFFFFF" size={20} />
-                    <Text className="text-white font-medium ml-2">View History</Text>
-                  </Pressable>
+                    <Text className="text-white font-medium ml-2">{t('checkIn.viewHistory')}</Text>
+                  </HapticPressable>
                 </View>
               </View>
             )}

@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
 import { Bell } from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNotifications } from '../contexts/NotificationsContext';
+import { HapticPressable } from './HapticPressable';
 
 /**
  * Bell icon button that triggers the notifications modal
@@ -13,7 +14,7 @@ export default function NotificationBell() {
   const { openNotifications, totalCount } = useNotifications();
 
   return (
-    <TouchableOpacity
+    <HapticPressable
       onPress={openNotifications}
       style={{ padding: 8, marginRight: 8 }}
     >
@@ -43,6 +44,6 @@ export default function NotificationBell() {
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </HapticPressable>
   );
 }

@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, RefreshControl, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, Alert } from 'react-native';
+import { HapticPressable } from '../../components/HapticPressable';
 import { router } from 'expo-router';
 import { Utensils, AlertCircle, ExternalLink, Search, WifiOff } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
@@ -49,6 +51,7 @@ import {
 } from '../../types/nutrition';
 
 export default function NutritionScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { refreshReminders } = useNotifications();
@@ -745,7 +748,7 @@ export default function NutritionScreen() {
               flex: 1,
             }}
           >
-            You're offline. Showing cached data.
+            {t('common.youreOffline')}
           </Text>
         </View>
       )}
@@ -775,7 +778,7 @@ export default function NutritionScreen() {
 
         {nutritionPlan && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-            <Pressable
+            <HapticPressable
               onPress={() => setShowBrowseModal(true)}
               style={{
                 flexDirection: 'row',
@@ -793,8 +796,8 @@ export default function NutritionScreen() {
               >
                 Switch
               </Text>
-            </Pressable>
-            <Pressable
+            </HapticPressable>
+            <HapticPressable
               onPress={() => router.push(`/nutrition-plan/${nutritionPlan.id}`)}
               style={{
                 flexDirection: 'row',
@@ -811,7 +814,7 @@ export default function NutritionScreen() {
                 View Plan
               </Text>
               <ExternalLink size={14} color="#6366F1" style={{ marginLeft: 4 }} />
-            </Pressable>
+            </HapticPressable>
           </View>
         )}
       </View>

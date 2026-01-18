@@ -1,12 +1,28 @@
 import { Tabs } from 'expo-router';
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, Pressable } from 'react-native';
 import { Home, Dumbbell, Utensils, Pill, Footprints, Droplets, ClipboardCheck } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
 import HeaderRight from '../../components/HeaderRight';
 
+// Custom tab bar button with haptic feedback
+function HapticTabButton(props: any) {
+  return (
+    <Pressable
+      {...props}
+      onPress={(e) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        props.onPress?.(e);
+      }}
+    />
+  );
+}
+
 export default function TabLayout() {
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const activeColor = '#6366F1'; // Indigo-500 to match eng-app
@@ -34,6 +50,7 @@ export default function TabLayout() {
         tabBarIconStyle: {
           marginBottom: -2,
         },
+        tabBarButton: HapticTabButton,
         headerStyle: {
           backgroundColor: backgroundColor,
         },
@@ -48,7 +65,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('tabs.home'),
           tabBarIcon: ({ color }) => <Home color={color} size={20} />,
           headerTitle: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -66,56 +83,56 @@ export default function TabLayout() {
       <Tabs.Screen
         name="workout"
         options={{
-          title: 'Workout',
+          title: t('tabs.workout'),
           tabBarIcon: ({ color }) => <Dumbbell color={color} size={20} />,
-          headerTitle: 'Workout Program',
+          headerTitle: t('workout.program'),
         }}
       />
       <Tabs.Screen
         name="nutrition"
         options={{
-          title: 'Nutrition',
+          title: t('tabs.nutrition'),
           tabBarIcon: ({ color }) => <Utensils color={color} size={20} />,
-          headerTitle: 'Nutrition Plan',
+          headerTitle: t('nutrition.mealPlan'),
         }}
       />
       <Tabs.Screen
         name="sups"
         options={{
-          title: 'Sups',
+          title: t('tabs.supplements'),
           tabBarIcon: ({ color }) => <Pill color={color} size={20} />,
-          headerTitle: 'Supplements',
+          headerTitle: t('supplements.title'),
         }}
       />
       <Tabs.Screen
         name="steps"
         options={{
-          title: 'Steps',
+          title: t('steps.title'),
           tabBarIcon: ({ color }) => <Footprints color={color} size={20} />,
-          headerTitle: 'Step Tracking',
+          headerTitle: t('steps.stepsTracking'),
         }}
       />
       <Tabs.Screen
         name="water"
         options={{
-          title: 'Water',
+          title: t('water.title'),
           tabBarIcon: ({ color }) => <Droplets color={color} size={20} />,
-          headerTitle: 'Water Tracking',
+          headerTitle: t('water.waterTracking'),
         }}
       />
       <Tabs.Screen
         name="checkin"
         options={{
-          title: 'Check-in',
+          title: t('checkIn.checkIn'),
           tabBarIcon: ({ color }) => <ClipboardCheck color={color} size={20} />,
-          headerTitle: 'Weekly Check-in',
+          headerTitle: t('checkIn.title'),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          headerTitle: 'Profile',
+          title: t('tabs.profile'),
+          headerTitle: t('profile.title'),
           href: null, // Hide from tab bar, accessible via header
         }}
       />

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
+import { HapticPressable } from '../HapticPressable';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { X, Dumbbell, User, Calendar, Target, Filter } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -96,7 +97,7 @@ export default function BrowseWorkoutProgramsModal({
   );
 
   const renderProgramCard = (program: PublicWorkoutProgram) => (
-    <Pressable
+    <HapticPressable
       key={program.id}
       onPress={() => onSelect(program)}
       style={{
@@ -205,7 +206,7 @@ export default function BrowseWorkoutProgramsModal({
           </Text>
         </View>
       )}
-    </Pressable>
+    </HapticPressable>
   );
 
   return (
@@ -248,9 +249,9 @@ export default function BrowseWorkoutProgramsModal({
             Browse Workout Programs
           </Text>
         </View>
-        <Pressable onPress={handleClose} hitSlop={8}>
+        <HapticPressable onPress={handleClose} hitSlop={8}>
           <X size={24} color={isDark ? '#9CA3AF' : '#6B7280'} />
-        </Pressable>
+        </HapticPressable>
       </View>
 
       {/* Content */}
@@ -276,7 +277,7 @@ export default function BrowseWorkoutProgramsModal({
         ) : error ? (
           <View style={{ paddingVertical: 40, alignItems: 'center' }}>
             <Text style={{ color: '#EF4444', textAlign: 'center' }}>{error}</Text>
-            <Pressable
+            <HapticPressable
               onPress={fetchPrograms}
               style={{
                 marginTop: 12,
@@ -287,7 +288,7 @@ export default function BrowseWorkoutProgramsModal({
               }}
             >
               <Text style={{ color: '#FFFFFF', fontWeight: '500' }}>Retry</Text>
-            </Pressable>
+            </HapticPressable>
           </View>
         ) : programs.length === 0 ? (
           <View style={{ paddingVertical: 40, alignItems: 'center' }}>
@@ -338,7 +339,7 @@ export default function BrowseWorkoutProgramsModal({
                       nestedScrollEnabled={true}
                       contentContainerStyle={{ gap: 8, paddingRight: 20 }}
                     >
-                      <Pressable
+                      <HapticPressable
                         onPress={() => setSelectedPhase(null)}
                         style={{
                           paddingHorizontal: 12,
@@ -366,9 +367,9 @@ export default function BrowseWorkoutProgramsModal({
                         >
                           All
                         </Text>
-                      </Pressable>
+                      </HapticPressable>
                       {phases.map((phase) => (
-                        <Pressable
+                        <HapticPressable
                           key={phase}
                           onPress={() => setSelectedPhase(phase)}
                           style={{
@@ -397,7 +398,7 @@ export default function BrowseWorkoutProgramsModal({
                           >
                             {phase}
                           </Text>
-                        </Pressable>
+                        </HapticPressable>
                       ))}
                     </ScrollView>
                   </View>
@@ -422,7 +423,7 @@ export default function BrowseWorkoutProgramsModal({
                       nestedScrollEnabled={true}
                       contentContainerStyle={{ gap: 8, paddingRight: 20 }}
                     >
-                      <Pressable
+                      <HapticPressable
                         onPress={() => setSelectedLevel(null)}
                         style={{
                           paddingHorizontal: 12,
@@ -450,9 +451,9 @@ export default function BrowseWorkoutProgramsModal({
                         >
                           All
                         </Text>
-                      </Pressable>
+                      </HapticPressable>
                       {levels.map((level) => (
-                        <Pressable
+                        <HapticPressable
                           key={level}
                           onPress={() => setSelectedLevel(level)}
                           style={{
@@ -481,7 +482,7 @@ export default function BrowseWorkoutProgramsModal({
                           >
                             {level}
                           </Text>
-                        </Pressable>
+                        </HapticPressable>
                       ))}
                     </ScrollView>
                   </View>

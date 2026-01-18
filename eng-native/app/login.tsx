@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  Pressable,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -12,6 +11,7 @@ import { router } from 'expo-router';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { HapticPressable } from '../components/HapticPressable';
 
 export default function LoginScreen() {
   const { isDark } = useTheme();
@@ -197,19 +197,19 @@ export default function LoginScreen() {
                 autoCorrect={false}
                 editable={!loading}
               />
-              <Pressable onPress={() => setShowPassword(!showPassword)}>
+              <HapticPressable onPress={() => setShowPassword(!showPassword)}>
                 {showPassword ? (
                   <EyeOff color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
                 ) : (
                   <Eye color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
                 )}
-              </Pressable>
+              </HapticPressable>
             </View>
             {errors.password && <Text className="text-red-500 text-xs mt-1">{errors.password}</Text>}
           </View>
 
           {/* Submit Button */}
-          <Pressable
+          <HapticPressable
             onPress={handleSubmit}
             disabled={loading}
             className={`rounded-xl py-4 items-center ${loading ? 'opacity-50' : ''}`}
@@ -222,14 +222,14 @@ export default function LoginScreen() {
                 {isSignUp ? 'Create Account' : 'Sign In'}
               </Text>
             )}
-          </Pressable>
+          </HapticPressable>
 
           {/* Toggle Sign Up / Sign In */}
           <View className="mt-6 flex-row justify-center">
             <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
             </Text>
-            <Pressable onPress={() => {
+            <HapticPressable onPress={() => {
               setIsSignUp(!isSignUp);
               setErrors({});
               setMessage('');
@@ -237,7 +237,7 @@ export default function LoginScreen() {
               <Text className="text-sm font-semibold text-indigo-500">
                 {isSignUp ? 'Sign In' : 'Sign Up'}
               </Text>
-            </Pressable>
+            </HapticPressable>
           </View>
         </View>
 

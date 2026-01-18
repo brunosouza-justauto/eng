@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  Pressable,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -16,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { TIME_OPTIONS, EQUIPMENT_OPTIONS, TRACKING_METHOD_OPTIONS } from '../types/profile';
 import CustomPicker from '../components/CustomPicker';
+import { HapticPressable } from '../components/HapticPressable';
 
 type Gender = 'male' | 'female' | null;
 type GoalType = 'fat_loss' | 'muscle_gain' | 'both' | 'maintenance' | null;
@@ -224,7 +224,7 @@ export default function EditProfileScreen() {
     const isExpanded = expandedSections[section];
 
     return (
-      <Pressable
+      <HapticPressable
         onPress={() => toggleSection(section)}
         className={`flex-row items-center justify-between p-4 rounded-xl mb-2 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
       >
@@ -241,7 +241,7 @@ export default function EditProfileScreen() {
         ) : (
           <ChevronDown color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
         )}
-      </Pressable>
+      </HapticPressable>
     );
   };
 
@@ -249,10 +249,10 @@ export default function EditProfileScreen() {
     <View className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 py-4">
-        <Pressable onPress={() => router.back()} className="flex-row items-center">
+        <HapticPressable onPress={() => router.back()} className="flex-row items-center">
           <ChevronLeft color={isDark ? '#FFFFFF' : '#111827'} size={24} />
           <Text className={`text-base ml-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>Back</Text>
-        </Pressable>
+        </HapticPressable>
         <Text className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
           Edit Profile
         </Text>
@@ -305,9 +305,9 @@ export default function EditProfileScreen() {
               <Text className={labelStyle}>Sex *</Text>
               <View className="flex-row gap-3">
                 {(['male', 'female'] as const).map((g) => (
-                  <Pressable key={g} onPress={() => { setGender(g); clearFieldError('gender'); }} className={`flex-1 py-3 rounded-xl items-center border ${gender === g ? 'bg-indigo-500 border-indigo-500' : errors.gender ? 'border-red-500' : isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+                  <HapticPressable key={g} onPress={() => { setGender(g); clearFieldError('gender'); }} className={`flex-1 py-3 rounded-xl items-center border ${gender === g ? 'bg-indigo-500 border-indigo-500' : errors.gender ? 'border-red-500' : isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
                     <Text className={`font-medium capitalize ${gender === g ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'}`}>{g}</Text>
-                  </Pressable>
+                  </HapticPressable>
                 ))}
               </View>
               {errors.gender && <Text className="text-red-500 text-xs mt-1">{errors.gender}</Text>}
@@ -417,9 +417,9 @@ export default function EditProfileScreen() {
               <Text className={labelStyle}>Experience Level</Text>
               <View className="flex-row gap-2">
                 {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
-                  <Pressable key={level} onPress={() => setExperienceLevel(level)} className={`flex-1 py-3 rounded-xl items-center border ${experienceLevel === level ? 'bg-indigo-500 border-indigo-500' : isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+                  <HapticPressable key={level} onPress={() => setExperienceLevel(level)} className={`flex-1 py-3 rounded-xl items-center border ${experienceLevel === level ? 'bg-indigo-500 border-indigo-500' : isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
                     <Text className={`font-medium capitalize text-xs ${experienceLevel === level ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'}`}>{level}</Text>
-                  </Pressable>
+                  </HapticPressable>
                 ))}
               </View>
             </View>
@@ -593,7 +593,7 @@ export default function EditProfileScreen() {
 
       {/* Save Button - Fixed at bottom */}
       <View className="px-5 pt-4" style={{ paddingBottom: insets.bottom + 10 }}>
-        <Pressable
+        <HapticPressable
           onPress={handleSave}
           disabled={loading}
           className={`rounded-xl py-4 items-center flex-row justify-center ${loading ? 'opacity-50' : ''}`}
@@ -607,7 +607,7 @@ export default function EditProfileScreen() {
               <Text className="text-white font-semibold ml-2">Save Changes</Text>
             </>
           )}
-        </Pressable>
+        </HapticPressable>
       </View>
     </View>
   );

@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
-  Pressable,
   TextInput,
   ActivityIndicator,
   Image,
@@ -28,6 +27,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { HapticPressable } from '../components/HapticPressable';
 import {
   submitCheckIn,
   updateCheckIn,
@@ -564,7 +564,7 @@ export default function CheckinFormScreen() {
                 <Text style={labelStyle}>{field.label} *</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {[1, 2, 3, 4, 5].map((value) => (
-                    <Pressable
+                    <HapticPressable
                       key={value}
                       onPress={() => updateField(field.key as keyof CheckInFormData, value)}
                       style={{
@@ -600,7 +600,7 @@ export default function CheckinFormScreen() {
                       >
                         {value}
                       </Text>
-                    </Pressable>
+                    </HapticPressable>
                   ))}
                 </View>
               </View>
@@ -633,7 +633,7 @@ export default function CheckinFormScreen() {
                   </Text>
                 </View>
                 {ADHERENCE_OPTIONS.map((option) => (
-                  <Pressable
+                  <HapticPressable
                     key={option.value}
                     onPress={() => updateField(field.key as keyof CheckInFormData, option.value)}
                     style={{
@@ -688,7 +688,7 @@ export default function CheckinFormScreen() {
                     <Text style={{ flex: 1, color: isDark ? '#F3F4F6' : '#1F2937' }}>
                       {option.label}
                     </Text>
-                  </Pressable>
+                  </HapticPressable>
                 ))}
                 {renderFieldError(field.key)}
               </View>
@@ -765,7 +765,7 @@ export default function CheckinFormScreen() {
                       style={{ width: '100%', height: 200, borderRadius: 8 }}
                       resizeMode="cover"
                     />
-                    <Pressable
+                    <HapticPressable
                       onPress={() => clearPhoto(position)}
                       style={{
                         position: 'absolute',
@@ -777,11 +777,11 @@ export default function CheckinFormScreen() {
                       }}
                     >
                       <X size={16} color="#FFFFFF" />
-                    </Pressable>
+                    </HapticPressable>
                   </View>
                 ) : (
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <Pressable
+                    <HapticPressable
                       onPress={() => pickPhoto(position)}
                       style={{
                         flex: 1,
@@ -796,8 +796,8 @@ export default function CheckinFormScreen() {
                       <Text style={{ color: isDark ? '#F3F4F6' : '#1F2937', fontWeight: '500' }}>
                         Gallery
                       </Text>
-                    </Pressable>
-                    <Pressable
+                    </HapticPressable>
+                    <HapticPressable
                       onPress={() => takePhoto(position)}
                       style={{
                         flex: 1,
@@ -811,7 +811,7 @@ export default function CheckinFormScreen() {
                     >
                       <Camera size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
                       <Text style={{ color: '#FFFFFF', fontWeight: '500' }}>Camera</Text>
-                    </Pressable>
+                    </HapticPressable>
                   </View>
                 )}
               </View>
@@ -830,7 +830,7 @@ export default function CheckinFormScreen() {
         }}
       >
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Pressable
+          <HapticPressable
             onPress={() => {
               if (currentStepIndex > 0) {
                 setErrors({});
@@ -854,10 +854,10 @@ export default function CheckinFormScreen() {
             <Text style={{ fontWeight: '600', marginLeft: 4, color: isDark ? '#FFFFFF' : '#111827' }}>
               {currentStepIndex > 0 ? 'Back' : 'Cancel'}
             </Text>
-          </Pressable>
+          </HapticPressable>
 
           {currentStepIndex < FORM_STEPS.length - 1 ? (
-            <Pressable
+            <HapticPressable
               onPress={() => {
                 if (validateStep(currentStep)) {
                   setCurrentStep(FORM_STEPS[currentStepIndex + 1]);
@@ -875,9 +875,9 @@ export default function CheckinFormScreen() {
             >
               <Text style={{ color: '#FFFFFF', fontWeight: '600', marginRight: 4 }}>Next</Text>
               <ChevronRight color="#FFFFFF" size={20} />
-            </Pressable>
+            </HapticPressable>
           ) : (
-            <Pressable
+            <HapticPressable
               onPress={handleSubmit}
               disabled={isSubmitting}
               style={{
@@ -899,7 +899,7 @@ export default function CheckinFormScreen() {
                   <Text style={{ color: '#FFFFFF', fontWeight: '600', marginLeft: 4 }}>Submit</Text>
                 </>
               )}
-            </Pressable>
+            </HapticPressable>
           )}
         </View>
       </View>

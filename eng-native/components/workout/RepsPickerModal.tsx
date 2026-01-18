@@ -1,8 +1,9 @@
 import { useRef, useEffect, useState } from 'react';
-import { Modal, View, Text, Pressable, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { Modal, View, Text, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Check } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 
 interface RepsPickerModalProps {
   visible: boolean;
@@ -113,7 +114,7 @@ export const RepsPickerModal = ({
             >
               Select Reps
             </Text>
-            <Pressable
+            <HapticPressable
               onPress={onClose}
               style={{
                 width: 36,
@@ -125,7 +126,7 @@ export const RepsPickerModal = ({
               }}
             >
               <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-            </Pressable>
+            </HapticPressable>
           </View>
 
           {/* Picker */}
@@ -159,7 +160,7 @@ export const RepsPickerModal = ({
               }}
             >
               {repsOptions.map((reps, index) => (
-                <Pressable
+                <HapticPressable
                   key={reps}
                   onPress={() => {
                     setSelectedIndex(index);
@@ -185,14 +186,14 @@ export const RepsPickerModal = ({
                   >
                     {reps}
                   </Text>
-                </Pressable>
+                </HapticPressable>
               ))}
             </ScrollView>
           </View>
 
           {/* Confirm Button */}
           <View style={{ paddingHorizontal: 20 }}>
-            <Pressable
+            <HapticPressable
               onPress={handleConfirm}
               style={{
                 flexDirection: 'row',
@@ -214,7 +215,7 @@ export const RepsPickerModal = ({
               >
                 Select {repsOptions[selectedIndex]} Reps
               </Text>
-            </Pressable>
+            </HapticPressable>
           </View>
         </View>
       </View>

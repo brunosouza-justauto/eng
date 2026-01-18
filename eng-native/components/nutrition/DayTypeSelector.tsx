@@ -1,5 +1,6 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 import { SimpleDayType } from '../../types/nutrition';
 
 interface DayTypeSelectorProps {
@@ -31,7 +32,7 @@ export const DayTypeSelector = ({
         const isSelected = selectedDayType === dayType;
 
         return (
-          <Pressable
+          <HapticPressable
             key={dayType}
             onPress={() => onSelectDayType(dayType)}
             style={{
@@ -57,7 +58,7 @@ export const DayTypeSelector = ({
             >
               {dayType}
             </Text>
-          </Pressable>
+          </HapticPressable>
         );
       })}
     </View>

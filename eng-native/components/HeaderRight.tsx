@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, TouchableOpacity, Image } from 'react-native';
+import { View } from 'react-native';
 import { User } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationBell from './NotificationBell';
 import { OfflineIndicator } from './OfflineIndicator';
+import { HapticPressable } from './HapticPressable';
 
 /**
  * Header right component with notifications and profile buttons
@@ -24,7 +25,7 @@ export default function HeaderRight() {
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <OfflineIndicator variant="minimal" />
       <NotificationBell />
-      <TouchableOpacity
+      <HapticPressable
         onPress={handleProfilePress}
         style={{
           marginRight: 16,
@@ -37,8 +38,8 @@ export default function HeaderRight() {
           overflow: 'hidden',
         }}
       >
-      <User size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
-      </TouchableOpacity>
+        <User size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
+      </HapticPressable>
     </View>
   );
 }

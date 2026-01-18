@@ -8,6 +8,8 @@ import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { NotificationsProvider } from '../contexts/NotificationsContext';
 import { OfflineProvider, useOffline } from '../contexts/OfflineContext';
+import { LocaleProvider } from '../contexts/LocaleContext';
+import '../lib/i18n'; // Initialize i18n
 import { precacheAllUserData } from '../lib/precacheService';
 import NotificationsModal from '../components/NotificationsModal';
 import UpdatePrompt from '../components/UpdatePrompt';
@@ -192,16 +194,18 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <BottomSheetModalProvider>
           <ThemeProvider>
-            <AuthProvider>
-              <OfflineProvider>
-                <NotificationsProvider>
-                  <AppContent />
-                  <NotificationsModal />
-                  <UpdatePrompt />
-                  <IncompleteProfilePrompt />
-                </NotificationsProvider>
-              </OfflineProvider>
-            </AuthProvider>
+            <LocaleProvider>
+              <AuthProvider>
+                <OfflineProvider>
+                  <NotificationsProvider>
+                    <AppContent />
+                    <NotificationsModal />
+                    <UpdatePrompt />
+                    <IncompleteProfilePrompt />
+                  </NotificationsProvider>
+                </OfflineProvider>
+              </AuthProvider>
+            </LocaleProvider>
           </ThemeProvider>
         </BottomSheetModalProvider>
       </SafeAreaProvider>

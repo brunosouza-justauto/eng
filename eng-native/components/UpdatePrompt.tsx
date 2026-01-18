@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
-import { View, Text, Pressable, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, ActivityIndicator } from 'react-native';
 import { RefreshCw, Download, X } from 'lucide-react-native';
+import { HapticPressable } from './HapticPressable';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppUpdates } from '../hooks/useAppUpdates';
 
@@ -65,7 +66,7 @@ export default function UpdatePrompt() {
         >
           {/* Close button */}
           {!isDownloading && !isUpdatePending && (
-            <Pressable
+            <HapticPressable
               onPress={handleLater}
               style={{
                 position: 'absolute',
@@ -80,7 +81,7 @@ export default function UpdatePrompt() {
               }}
             >
               <X size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
-            </Pressable>
+            </HapticPressable>
           )}
 
           {/* Icon */}
@@ -143,7 +144,7 @@ export default function UpdatePrompt() {
           {!isDownloading && (
             <View style={{ gap: 12 }}>
               {isUpdatePending ? (
-                <Pressable
+                <HapticPressable
                   onPress={handleRestart}
                   style={{
                     backgroundColor: '#22C55E',
@@ -155,10 +156,10 @@ export default function UpdatePrompt() {
                   <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>
                     Restart Now
                   </Text>
-                </Pressable>
+                </HapticPressable>
               ) : (
                 <>
-                  <Pressable
+                  <HapticPressable
                     onPress={handleDownload}
                     style={{
                       backgroundColor: '#6366F1',
@@ -170,9 +171,9 @@ export default function UpdatePrompt() {
                     <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>
                       Update Now
                     </Text>
-                  </Pressable>
+                  </HapticPressable>
 
-                  <Pressable
+                  <HapticPressable
                     onPress={handleLater}
                     style={{
                       backgroundColor: isDark ? '#374151' : '#F3F4F6',
@@ -190,12 +191,12 @@ export default function UpdatePrompt() {
                     >
                       Later
                     </Text>
-                  </Pressable>
+                  </HapticPressable>
                 </>
               )}
 
               {isUpdatePending && (
-                <Pressable
+                <HapticPressable
                   onPress={handleLater}
                   style={{
                     paddingVertical: 8,
@@ -205,7 +206,7 @@ export default function UpdatePrompt() {
                   <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280', fontSize: 14 }}>
                     Restart Later
                   </Text>
-                </Pressable>
+                </HapticPressable>
               )}
             </View>
           )}

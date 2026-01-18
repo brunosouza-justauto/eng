@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import { HapticPressable } from './HapticPressable';
 
 interface EmptyStateProps {
   icon: React.ComponentType<{ size: number; color: string }>;
@@ -79,7 +80,7 @@ export default function EmptyState({
 
       {/* Action button (optional) */}
       {buttonText && onButtonPress && (
-        <Pressable
+        <HapticPressable
           onPress={onButtonPress}
           style={{
             flexDirection: 'row',
@@ -103,7 +104,7 @@ export default function EmptyState({
           >
             {buttonText}
           </Text>
-        </Pressable>
+        </HapticPressable>
       )}
     </View>
   );

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Modal, View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { Modal, View, Text, StyleSheet, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { X, Camera, FlashlightOff, Flashlight } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 
 interface BarcodeScannerModalProps {
   visible: boolean;
@@ -68,9 +69,9 @@ export const BarcodeScannerModal = ({
         <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
           {/* Header */}
           <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-            <Pressable onPress={handleClose} style={styles.closeButton}>
+            <HapticPressable onPress={handleClose} style={styles.closeButton}>
               <X size={24} color={isDark ? '#FFFFFF' : '#1F2937'} />
-            </Pressable>
+            </HapticPressable>
           </View>
 
           <View style={styles.permissionContainer}>
@@ -97,7 +98,7 @@ export const BarcodeScannerModal = ({
             >
               We need access to your camera to scan barcodes on food products.
             </Text>
-            <Pressable
+            <HapticPressable
               onPress={requestPermission}
               style={{
                 marginTop: 24,
@@ -110,12 +111,12 @@ export const BarcodeScannerModal = ({
               <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 15 }}>
                 Grant Permission
               </Text>
-            </Pressable>
-            <Pressable onPress={handleClose} style={{ marginTop: 16 }}>
+            </HapticPressable>
+            <HapticPressable onPress={handleClose} style={{ marginTop: 16 }}>
               <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280', fontSize: 14 }}>
                 Cancel
               </Text>
-            </Pressable>
+            </HapticPressable>
           </View>
         </View>
       </Modal>
@@ -147,17 +148,17 @@ export const BarcodeScannerModal = ({
         <View style={styles.overlay}>
           {/* Header */}
           <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-            <Pressable onPress={handleClose} style={styles.closeButton}>
+            <HapticPressable onPress={handleClose} style={styles.closeButton}>
               <X size={24} color="#FFFFFF" />
-            </Pressable>
+            </HapticPressable>
             <Text style={styles.title}>Scan Barcode</Text>
-            <Pressable onPress={() => setTorch(!torch)} style={styles.torchButton}>
+            <HapticPressable onPress={() => setTorch(!torch)} style={styles.torchButton}>
               {torch ? (
                 <Flashlight size={24} color="#FBBF24" />
               ) : (
                 <FlashlightOff size={24} color="#FFFFFF" />
               )}
-            </Pressable>
+            </HapticPressable>
           </View>
 
           {/* Scan area */}
@@ -177,12 +178,12 @@ export const BarcodeScannerModal = ({
               {scanned ? 'Processing...' : 'Point at a barcode to scan'}
             </Text>
             {scanned && (
-              <Pressable
+              <HapticPressable
                 onPress={() => setScanned(false)}
                 style={styles.scanAgainButton}
               >
                 <Text style={styles.scanAgainText}>Tap to scan again</Text>
-              </Pressable>
+              </HapticPressable>
             )}
           </View>
         </View>

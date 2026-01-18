@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  Pressable,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -16,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { TIME_OPTIONS, EQUIPMENT_OPTIONS, TRACKING_METHOD_OPTIONS } from '../types/profile';
 import CustomPicker from '../components/CustomPicker';
+import { HapticPressable } from '../components/HapticPressable';
 
 type Gender = 'male' | 'female' | null;
 type GoalType = 'fat_loss' | 'muscle_gain' | 'both' | 'maintenance' | null;
@@ -282,9 +282,9 @@ export default function OnboardingScreen() {
         <Text className={labelStyle}>Sex *</Text>
         <View className="flex-row gap-3">
           {(['male', 'female'] as const).map((g) => (
-            <Pressable key={g} onPress={() => { setGender(g); clearFieldError('gender'); }} className={`flex-1 py-3 rounded-xl items-center border ${gender === g ? 'bg-indigo-500 border-indigo-500' : errors.gender ? 'border-red-500' : isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+            <HapticPressable key={g} onPress={() => { setGender(g); clearFieldError('gender'); }} className={`flex-1 py-3 rounded-xl items-center border ${gender === g ? 'bg-indigo-500 border-indigo-500' : errors.gender ? 'border-red-500' : isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
               <Text className={`font-medium capitalize ${gender === g ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'}`}>{g}</Text>
-            </Pressable>
+            </HapticPressable>
           ))}
         </View>
         {renderFieldError('gender')}
@@ -424,9 +424,9 @@ export default function OnboardingScreen() {
         <Text className={labelStyle}>Experience Level *</Text>
         <View className="flex-row gap-2">
           {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
-            <Pressable key={level} onPress={() => { setExperienceLevel(level); clearFieldError('experienceLevel'); }} className={`flex-1 py-3 rounded-xl items-center border ${experienceLevel === level ? 'bg-indigo-500 border-indigo-500' : errors.experienceLevel ? 'border-red-500' : isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+            <HapticPressable key={level} onPress={() => { setExperienceLevel(level); clearFieldError('experienceLevel'); }} className={`flex-1 py-3 rounded-xl items-center border ${experienceLevel === level ? 'bg-indigo-500 border-indigo-500' : errors.experienceLevel ? 'border-red-500' : isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
               <Text className={`font-medium capitalize text-xs ${experienceLevel === level ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'}`}>{level}</Text>
-            </Pressable>
+            </HapticPressable>
           ))}
         </View>
         {renderFieldError('experienceLevel')}
@@ -675,26 +675,26 @@ export default function OnboardingScreen() {
       <View className="px-5 pt-4" style={{ paddingBottom: insets.bottom + 10 }}>
         <View className="flex-row gap-3">
           {step > 1 && (
-            <Pressable onPress={handleBack} className={`flex-1 rounded-xl py-4 items-center flex-row justify-center border ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+            <HapticPressable onPress={handleBack} className={`flex-1 rounded-xl py-4 items-center flex-row justify-center border ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
               <ChevronLeft color={isDark ? '#FFFFFF' : '#111827'} size={20} />
               <Text className={`font-semibold ml-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>Back</Text>
-            </Pressable>
+            </HapticPressable>
           )}
 
           {step < totalSteps ? (
-            <Pressable onPress={handleNext} className="flex-1 rounded-xl py-4 items-center flex-row justify-center" style={{ backgroundColor: '#6366F1' }}>
+            <HapticPressable onPress={handleNext} className="flex-1 rounded-xl py-4 items-center flex-row justify-center" style={{ backgroundColor: '#6366F1' }}>
               <Text className="text-white font-semibold mr-1">Next</Text>
               <ChevronRight color="#FFFFFF" size={20} />
-            </Pressable>
+            </HapticPressable>
           ) : (
-            <Pressable onPress={handleComplete} disabled={loading} className={`flex-1 rounded-xl py-4 items-center flex-row justify-center ${loading ? 'opacity-50' : ''}`} style={{ backgroundColor: '#10B981' }}>
+            <HapticPressable onPress={handleComplete} disabled={loading} className={`flex-1 rounded-xl py-4 items-center flex-row justify-center ${loading ? 'opacity-50' : ''}`} style={{ backgroundColor: '#10B981' }}>
               {loading ? <ActivityIndicator color="#FFFFFF" /> : (
                 <>
                   <Check color="#FFFFFF" size={20} />
                   <Text className="text-white font-semibold ml-1">Complete</Text>
                 </>
               )}
-            </Pressable>
+            </HapticPressable>
           )}
         </View>
       </View>

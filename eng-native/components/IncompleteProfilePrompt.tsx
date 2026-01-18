@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, Pressable } from 'react-native';
+import { View, Text, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
+import { HapticPressable } from './HapticPressable';
 import { AlertTriangle, Clock, Sun, Moon } from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -197,7 +198,7 @@ export default function IncompleteProfilePrompt() {
 
           {/* Buttons */}
           <View style={{ gap: 10 }}>
-            <Pressable
+            <HapticPressable
               onPress={handleUpdateProfile}
               style={{
                 backgroundColor: '#6366F1',
@@ -215,9 +216,9 @@ export default function IncompleteProfilePrompt() {
               >
                 Update Profile
               </Text>
-            </Pressable>
+            </HapticPressable>
 
-            <Pressable
+            <HapticPressable
               onPress={handleLater}
               style={{
                 backgroundColor: isDark ? '#374151' : '#F3F4F6',
@@ -235,7 +236,7 @@ export default function IncompleteProfilePrompt() {
               >
                 Later
               </Text>
-            </Pressable>
+            </HapticPressable>
           </View>
         </View>
       </View>

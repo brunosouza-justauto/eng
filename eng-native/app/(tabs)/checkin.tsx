@@ -3,11 +3,11 @@ import {
   View,
   Text,
   ScrollView,
-  Pressable,
   RefreshControl,
   ActivityIndicator,
   Image,
 } from 'react-native';
+import { HapticPressable } from '../../components/HapticPressable';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { router } from 'expo-router';
 import {
@@ -326,7 +326,7 @@ export default function CheckinScreen() {
           Submit your weekly check-in to keep your coach updated on your progress.
         </Text>
 
-        <Pressable
+        <HapticPressable
           onPress={() => router.push('/checkin-form')}
           disabled={!isOnline}
           style={{
@@ -340,7 +340,7 @@ export default function CheckinScreen() {
           <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
             {isOnline ? 'Start Check-in' : 'Offline - Check-in Unavailable'}
           </Text>
-        </Pressable>
+        </HapticPressable>
       </View>
 
       {/* Latest Check-in Summary */}
@@ -599,7 +599,7 @@ export default function CheckinScreen() {
         </View>
       ) : (
         previousCheckIns.map((checkIn) => (
-          <Pressable
+          <HapticPressable
             key={checkIn.id}
             onPress={() => handleOpenCheckIn(checkIn)}
             style={{
@@ -626,7 +626,7 @@ export default function CheckinScreen() {
               </Text>
             </View>
             <ChevronRight size={20} color={isDark ? '#6B7280' : '#9CA3AF'} />
-          </Pressable>
+          </HapticPressable>
         ))
       )}
 
@@ -669,7 +669,7 @@ export default function CheckinScreen() {
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {selectedCheckIn && (
-            <Pressable
+            <HapticPressable
               onPress={() => handleEditCheckIn(selectedCheckIn)}
               style={{
                 width: 36,
@@ -681,9 +681,9 @@ export default function CheckinScreen() {
               }}
             >
               <Pencil size={18} color="#FFFFFF" />
-            </Pressable>
+            </HapticPressable>
           )}
-          <Pressable
+          <HapticPressable
             onPress={handleCloseCheckIn}
             style={{
               width: 36,
@@ -695,7 +695,7 @@ export default function CheckinScreen() {
             }}
           >
             <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-          </Pressable>
+          </HapticPressable>
         </View>
       </View>
 

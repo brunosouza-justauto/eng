@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Calendar, Dumbbell, WifiOff } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useOffline } from '../../contexts/OfflineContext';
 import { supabase } from '../../lib/supabase';
 import { getCache, CacheKeys, getLastUserId } from '../../lib/storage';
+import { HapticPressable } from '../../components/HapticPressable';
 import {
   WorkoutData,
   ExerciseInstanceData,
@@ -396,7 +397,7 @@ export default function WorkoutPlanScreen() {
               </Text>
             </View>
           ) : (
-            <Pressable
+            <HapticPressable
               onPress={() => router.push(`/workout-session/${workout.id}`)}
               className="mt-4 rounded-lg py-3 items-center bg-indigo-500"
               style={({ pressed }) => ({
@@ -406,7 +407,7 @@ export default function WorkoutPlanScreen() {
               <Text className="text-white font-semibold" style={{ fontSize: 14 }}>
                 Start Workout
               </Text>
-            </Pressable>
+            </HapticPressable>
           )}
         </View>
       </View>
@@ -439,12 +440,12 @@ export default function WorkoutPlanScreen() {
           <Text className={`${isDark ? 'text-red-400' : 'text-red-600'}`}>
             {error || 'Unable to load workout plan data'}
           </Text>
-          <Pressable
+          <HapticPressable
             onPress={() => router.back()}
             className="mt-4 bg-indigo-600 rounded-lg py-3 items-center"
           >
             <Text className="text-white font-semibold">Go Back</Text>
-          </Pressable>
+          </HapticPressable>
         </View>
       </View>
     );

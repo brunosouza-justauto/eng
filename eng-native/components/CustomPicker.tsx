@@ -2,11 +2,11 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  Pressable,
   Modal,
   FlatList,
 } from 'react-native';
 import { ChevronDown, Check } from 'lucide-react-native';
+import { HapticPressable } from './HapticPressable';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface PickerOption {
@@ -42,7 +42,7 @@ export default function CustomPicker({
 
   return (
     <>
-      <Pressable
+      <HapticPressable
         onPress={() => setModalVisible(true)}
         className={`flex-row items-center justify-between rounded-xl px-4 py-4 border ${
           hasError
@@ -66,7 +66,7 @@ export default function CustomPicker({
           {displayText}
         </Text>
         <ChevronDown color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
-      </Pressable>
+      </HapticPressable>
 
       <Modal
         visible={modalVisible}
@@ -74,7 +74,7 @@ export default function CustomPicker({
         animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
-        <Pressable
+        <HapticPressable
           className="flex-1 justify-center items-center bg-black/50"
           onPress={() => setModalVisible(false)}
         >
@@ -101,7 +101,7 @@ export default function CustomPicker({
               data={options}
               keyExtractor={(item, index) => `${item.value}-${index}`}
               renderItem={({ item }) => (
-                <Pressable
+                <HapticPressable
                   onPress={() => handleSelect(item.value)}
                   className={`flex-row items-center justify-between px-4 py-4 border-b ${
                     isDark ? 'border-gray-700' : 'border-gray-100'
@@ -127,11 +127,11 @@ export default function CustomPicker({
                   {selectedValue === item.value && (
                     <Check color="#6366F1" size={20} />
                   )}
-                </Pressable>
+                </HapticPressable>
               )}
             />
           </View>
-        </Pressable>
+        </HapticPressable>
       </Modal>
     </>
   );

@@ -1,5 +1,6 @@
-import { Modal, View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { Modal, View, Text, ActivityIndicator } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import { HapticPressable } from './HapticPressable';
 
 interface ConfirmationModalProps {
   visible: boolean;
@@ -91,7 +92,7 @@ export const ConfirmationModal = ({
           {children && <View style={{ marginBottom: 24 }}>{children}</View>}
 
           <View style={{ flexDirection: reverseButtons ? 'row-reverse' : 'row', gap: 12 }}>
-            <Pressable
+            <HapticPressable
               onPress={onCancel}
               disabled={isLoading}
               style={{
@@ -114,9 +115,9 @@ export const ConfirmationModal = ({
               >
                 {cancelText}
               </Text>
-            </Pressable>
+            </HapticPressable>
 
-            <Pressable
+            <HapticPressable
               onPress={onConfirm}
               disabled={isLoading}
               style={{
@@ -136,7 +137,7 @@ export const ConfirmationModal = ({
                   {confirmText}
                 </Text>
               )}
-            </Pressable>
+            </HapticPressable>
           </View>
         </View>
       </View>

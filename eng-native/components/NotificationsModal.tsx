@@ -4,9 +4,9 @@ import {
   Text,
   RefreshControl,
   ActivityIndicator,
-  Pressable,
 } from 'react-native';
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { HapticPressable } from './HapticPressable';
 import {
   Bell,
   X,
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNotifications } from '../contexts/NotificationsContext';
 import { Notification, LocalReminder, LocalReminderType } from '../types/notifications';
@@ -32,6 +33,7 @@ import { formatDistanceToNow } from 'date-fns';
  * Controlled by NotificationsContext
  */
 export default function NotificationsModal() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -193,11 +195,11 @@ export default function NotificationsModal() {
             color: isDark ? '#FFFFFF' : '#111827',
           }}
         >
-          Notifications
+          {t('notifications.title')}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           {unreadCount > 0 && (
-            <Pressable
+            <HapticPressable
               onPress={handleMarkAllAsRead}
               style={{
                 flexDirection: 'row',
@@ -210,11 +212,11 @@ export default function NotificationsModal() {
             >
               <CheckCheck size={16} color="#6366F1" />
               <Text style={{ marginLeft: 4, fontSize: 12, color: '#6366F1', fontWeight: '500' }}>
-                Mark all read
+                {t('notifications.markAllRead')}
               </Text>
-            </Pressable>
+            </HapticPressable>
           )}
-          <Pressable
+          <HapticPressable
             onPress={closeNotifications}
             style={{
               width: 36,
@@ -226,7 +228,7 @@ export default function NotificationsModal() {
             }}
           >
             <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-          </Pressable>
+          </HapticPressable>
         </View>
       </View>
 
@@ -260,7 +262,7 @@ export default function NotificationsModal() {
                 color: isDark ? '#9CA3AF' : '#6B7280',
               }}
             >
-              No notifications
+              {t('notifications.empty')}
             </Text>
             <Text
               style={{
@@ -269,7 +271,7 @@ export default function NotificationsModal() {
                 color: isDark ? '#6B7280' : '#9CA3AF',
               }}
             >
-              You're all caught up!
+              {t('notifications.noNotifications')}
             </Text>
           </View>
         ) : (
@@ -294,7 +296,7 @@ export default function NotificationsModal() {
                     const IconComponent = getReminderIcon(reminder.type);
                     const isHighPriority = reminder.priority === 'high';
                     return (
-                      <Pressable
+                      <HapticPressable
                         key={reminder.id}
                         onPress={() => handleReminderPress(reminder)}
                         style={{
@@ -360,7 +362,7 @@ export default function NotificationsModal() {
                             ? (isDark ? '#FCA5A5' : '#DC2626')
                             : (isDark ? '#6B7280' : '#9CA3AF')}
                         />
-                      </Pressable>
+                      </HapticPressable>
                     );
                   })}
                 </View>
@@ -386,7 +388,7 @@ export default function NotificationsModal() {
                 )}
                 <View style={{ gap: 8 }}>
                   {notifications.map((notification) => (
-                    <Pressable
+                    <HapticPressable
                       key={notification.id}
                       onPress={() => handleNotificationPress(notification)}
                       style={{
@@ -462,7 +464,7 @@ export default function NotificationsModal() {
                           }}
                         />
                       )}
-                    </Pressable>
+                    </HapticPressable>
                   ))}
                 </View>
               </View>

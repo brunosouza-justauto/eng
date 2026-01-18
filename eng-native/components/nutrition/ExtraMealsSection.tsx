@@ -1,6 +1,7 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { Plus, Trash2 } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 import { LoggedMealWithNutrition } from '../../types/nutrition';
 
 interface ExtraMealsSectionProps {
@@ -40,7 +41,7 @@ export const ExtraMealsSection = ({
           Extra Meals
         </Text>
 
-        <Pressable
+        <HapticPressable
           onPress={onAddExtraMeal}
           style={{
             flexDirection: 'row',
@@ -62,7 +63,7 @@ export const ExtraMealsSection = ({
           >
             Add Extra Meal
           </Text>
-        </Pressable>
+        </HapticPressable>
       </View>
 
       {/* Extra meals list */}
@@ -151,7 +152,7 @@ export const ExtraMealsSection = ({
             </View>
 
             {/* Delete button */}
-            <Pressable
+            <HapticPressable
               onPress={() => onDeleteExtraMeal(meal.id)}
               style={{
                 width: 36,
@@ -164,7 +165,7 @@ export const ExtraMealsSection = ({
               }}
             >
               <Trash2 size={16} color="#EF4444" />
-            </Pressable>
+            </HapticPressable>
           </View>
         ))
       )}

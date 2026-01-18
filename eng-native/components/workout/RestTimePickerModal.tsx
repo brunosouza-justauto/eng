@@ -1,9 +1,10 @@
 import { useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Timer, Check } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 
 interface RestTimePickerModalProps {
   visible: boolean;
@@ -115,7 +116,7 @@ export const RestTimePickerModal = ({
             Set Rest Timer
           </Text>
         </View>
-        <Pressable
+        <HapticPressable
           onPress={onClose}
           style={{
             width: 36,
@@ -127,7 +128,7 @@ export const RestTimePickerModal = ({
           }}
         >
           <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-        </Pressable>
+        </HapticPressable>
       </View>
 
       {/* Description */}
@@ -152,7 +153,7 @@ export const RestTimePickerModal = ({
           const isSelected = currentRestTime === option.value;
 
           return (
-            <Pressable
+            <HapticPressable
               key={option.label}
               onPress={() => handleSelect(option.value)}
               style={{
@@ -214,7 +215,7 @@ export const RestTimePickerModal = ({
                   <Check size={16} color="#FFFFFF" />
                 </View>
               )}
-            </Pressable>
+            </HapticPressable>
           );
         })}
       </BottomSheetScrollView>

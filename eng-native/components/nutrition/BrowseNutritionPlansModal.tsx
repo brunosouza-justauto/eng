@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { X, Utensils, User, Flame } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 import { getPublicNutritionPlans, PublicNutritionPlan } from '../../services/nutritionService';
 
 // Calorie range definitions for filtering
@@ -138,7 +139,7 @@ export default function BrowseNutritionPlansModal({
   };
 
   const renderPlanCard = (plan: PublicNutritionPlan) => (
-    <Pressable
+    <HapticPressable
       key={plan.id}
       onPress={() => onSelect(plan)}
       style={{
@@ -216,7 +217,7 @@ export default function BrowseNutritionPlansModal({
           </Text>
         </View>
       )}
-    </Pressable>
+    </HapticPressable>
   );
 
   return (
@@ -259,9 +260,9 @@ export default function BrowseNutritionPlansModal({
             Browse Nutrition Plans
           </Text>
         </View>
-        <Pressable onPress={handleClose} hitSlop={8}>
+        <HapticPressable onPress={handleClose} hitSlop={8}>
           <X size={24} color={isDark ? '#9CA3AF' : '#6B7280'} />
-        </Pressable>
+        </HapticPressable>
       </View>
 
       {/* Content */}
@@ -287,7 +288,7 @@ export default function BrowseNutritionPlansModal({
         ) : error ? (
           <View style={{ paddingVertical: 40, alignItems: 'center' }}>
             <Text style={{ color: '#EF4444', textAlign: 'center' }}>{error}</Text>
-            <Pressable
+            <HapticPressable
               onPress={fetchPlans}
               style={{
                 marginTop: 12,
@@ -298,7 +299,7 @@ export default function BrowseNutritionPlansModal({
               }}
             >
               <Text style={{ color: '#FFFFFF', fontWeight: '500' }}>Retry</Text>
-            </Pressable>
+            </HapticPressable>
           </View>
         ) : plans.length === 0 ? (
           <View style={{ paddingVertical: 40, alignItems: 'center' }}>
@@ -346,7 +347,7 @@ export default function BrowseNutritionPlansModal({
                   nestedScrollEnabled={true}
                   contentContainerStyle={{ gap: 8, paddingRight: 20 }}
                 >
-                  <Pressable
+                  <HapticPressable
                     onPress={() => setSelectedCalorieRange(null)}
                     style={{
                       paddingHorizontal: 12,
@@ -374,9 +375,9 @@ export default function BrowseNutritionPlansModal({
                     >
                       All
                     </Text>
-                  </Pressable>
+                  </HapticPressable>
                   {availableCalorieRanges.map((range) => (
-                    <Pressable
+                    <HapticPressable
                       key={range.label}
                       onPress={() => setSelectedCalorieRange(range.label)}
                       style={{
@@ -405,7 +406,7 @@ export default function BrowseNutritionPlansModal({
                       >
                         {range.label}
                       </Text>
-                    </Pressable>
+                    </HapticPressable>
                   ))}
                 </ScrollView>
               </View>

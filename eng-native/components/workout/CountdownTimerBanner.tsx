@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, Pressable, Animated } from 'react-native';
+import { View, Text, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Timer, X, Pause, Play } from 'lucide-react-native';
 import { formatTime } from '../../utils/formatters';
+import { HapticPressable } from '../HapticPressable';
 
 interface CountdownTimerBannerProps {
   timeRemaining: number;
@@ -130,7 +131,7 @@ export const CountdownTimerBanner = ({
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {/* Pause/Resume button */}
-          <Pressable
+          <HapticPressable
             onPress={isPaused ? onResume : onPause}
             style={{
               padding: 6,
@@ -143,10 +144,10 @@ export const CountdownTimerBanner = ({
             ) : (
               <Pause size={18} color="#FFFFFF" fill="#FFFFFF" />
             )}
-          </Pressable>
+          </HapticPressable>
 
           {/* Stop button */}
-          <Pressable
+          <HapticPressable
             onPress={onSkip}
             style={{
               padding: 6,
@@ -155,7 +156,7 @@ export const CountdownTimerBanner = ({
             }}
           >
             <X size={18} color="#FFFFFF" />
-          </Pressable>
+          </HapticPressable>
         </View>
       </View>
     </Animated.View>

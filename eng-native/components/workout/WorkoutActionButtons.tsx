@@ -1,6 +1,7 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { Play, Pause, Square, CheckCircle } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 
 interface WorkoutActionButtonsProps {
   isWorkoutStarted: boolean;
@@ -44,7 +45,7 @@ export const WorkoutActionButtons = ({
       }}
     >
       {!isWorkoutStarted ? (
-        <Pressable
+        <HapticPressable
           onPress={onStart}
           style={{
             flex: 1,
@@ -60,10 +61,10 @@ export const WorkoutActionButtons = ({
           <Text style={{ marginLeft: 8, color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>
             Start Workout
           </Text>
-        </Pressable>
+        </HapticPressable>
       ) : (
         <>
-          <Pressable
+          <HapticPressable
             onPress={onPause}
             style={{
               flex: 1,
@@ -83,9 +84,9 @@ export const WorkoutActionButtons = ({
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>
               {isPaused ? 'Resume' : 'Pause'}
             </Text>
-          </Pressable>
+          </HapticPressable>
 
-          <Pressable
+          <HapticPressable
             onPress={onCancel}
             style={{
               flex: 1,
@@ -101,9 +102,9 @@ export const WorkoutActionButtons = ({
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>
               Cancel
             </Text>
-          </Pressable>
+          </HapticPressable>
 
-          <Pressable
+          <HapticPressable
             onPress={onComplete}
             style={{
               flex: 1,
@@ -119,7 +120,7 @@ export const WorkoutActionButtons = ({
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>
               Finish
             </Text>
-          </Pressable>
+          </HapticPressable>
         </>
       )}
     </View>

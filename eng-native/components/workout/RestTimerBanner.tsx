@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, Pressable, Animated } from 'react-native';
+import { View, Text, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Timer, X } from 'lucide-react-native';
 import { formatTime } from '../../utils/formatters';
+import { HapticPressable } from '../HapticPressable';
 
 interface RestTimerBannerProps {
   timeRemaining: number;
@@ -99,9 +100,9 @@ export const RestTimerBanner = ({ timeRemaining, onSkip }: RestTimerBannerProps)
         {formatTime(timeRemaining)}
       </Text>
 
-      <Pressable onPress={onSkip} style={{ padding: 4 }}>
+      <HapticPressable onPress={onSkip} style={{ padding: 4 }}>
         <X size={20} color="#FFFFFF" />
-      </Pressable>
+      </HapticPressable>
     </Animated.View>
   );
 };

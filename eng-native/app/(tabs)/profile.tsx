@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Switch, Modal, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, Switch, Modal, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
+import { HapticPressable } from '../../components/HapticPressable';
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, Moon, Bell, LogOut, ChevronRight, Mail, AlertCircle, Lock, X, Eye, EyeOff, UserCog, RefreshCw, Info, Database } from 'lucide-react-native';
+import { User, Moon, Bell, LogOut, ChevronRight, Mail, AlertCircle, Lock, X, Eye, EyeOff, UserCog, RefreshCw, Info, Database, Globe } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -11,11 +12,14 @@ import { useNotifications } from '../../contexts/NotificationsContext';
 import { useAppUpdates } from '../../hooks/useAppUpdates';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import CacheDebugView from '../../components/CacheDebugView';
+import { LanguageSelector } from '../../components/LanguageSelector';
+import { useLocale } from '../../contexts/LocaleContext';
 
 export default function ProfileScreen() {
   const { isDark, toggleTheme } = useTheme();
   const { user, profile, signOut, refreshProfile } = useAuth();
   const { openNotifications } = useNotifications();
+  const { locale, setLocale, supportedLocales } = useLocale();
   const { isChecking, isDownloading, isUpdateAvailable, isUpdatePending, checkForUpdates, downloadAndApplyUpdate, reloadApp, resetDeclined } = useAppUpdates();
   const insets = useSafeAreaInsets();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -33,6 +37,11 @@ export default function ProfileScreen() {
 
   // Cache debug modal state
   const [showCacheDebug, setShowCacheDebug] = useState(false);
+
+  // Language bottom sheet
+  const languageBottomSheetRef = useRef<BottomSheetModal>(null);
+  const languageSnapPoints = useMemo(() => ['50%'], []);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -185,6 +194,21 @@ export default function ProfileScreen() {
     }
   }, [showPasswordModal]);
 
+  // Language bottom sheet control
+  useEffect(() => {
+    if (showLanguageModal) {
+      languageBottomSheetRef.current?.present();
+    } else {
+      languageBottomSheetRef.current?.dismiss();
+    }
+  }, [showLanguageModal]);
+
+  const handleLanguageSheetChanges = useCallback((index: number) => {
+    if (index === -1) {
+      setShowLanguageModal(false);
+    }
+  }, []);
+
   const handlePasswordSheetChanges = useCallback((index: number) => {
     if (index === -1) {
       setShowPasswordModal(false);
@@ -232,6 +256,13 @@ export default function ProfileScreen() {
       value: isDark,
       onToggle: toggleTheme,
     },
+    {
+      title: 'Language',
+      icon: Globe,
+      type: 'link' as const,
+      subtitle: supportedLocales.find(l => l.code === locale)?.nativeLabel,
+      onPress: () => setShowLanguageModal(true),
+    },
   ];
 
   if (!isSupabaseConfigured) {
@@ -262,7 +293,7 @@ export default function ProfileScreen() {
         }
       >
         {/* Profile Card */}
-        <Pressable
+        <HapticPressable
           onPress={() => router.push('/edit-profile')}
           className={`rounded-2xl p-5 mb-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
           style={{
@@ -310,7 +341,7 @@ export default function ProfileScreen() {
             </View>
             <ChevronRight color={isDark ? '#6B7280' : '#9CA3AF'} size={20} />
           </View>
-        </Pressable>
+        </HapticPressable>
 
         {/* Settings Menu */}
         <Text className={`text-lg font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -328,7 +359,7 @@ export default function ProfileScreen() {
           }}
         >
           {menuItems.map((item, index) => (
-            <Pressable
+            <HapticPressable
               key={index}
               onPress={item.onPress}
               className={`flex-row items-center px-4 py-4 ${
@@ -341,9 +372,16 @@ export default function ProfileScreen() {
               >
                 <item.icon color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
               </View>
-              <Text className={`flex-1 font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {item.title}
-              </Text>
+              <View className="flex-1">
+                <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {item.title}
+                </Text>
+                {'subtitle' in item && item.subtitle && (
+                  <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {item.subtitle}
+                  </Text>
+                )}
+              </View>
               {item.type === 'toggle' ? (
                 <Switch
                   value={item.value}
@@ -354,7 +392,7 @@ export default function ProfileScreen() {
               ) : (
                 <ChevronRight color={isDark ? '#6B7280' : '#9CA3AF'} size={20} />
               )}
-            </Pressable>
+            </HapticPressable>
           ))}
         </View>
 
@@ -390,7 +428,7 @@ export default function ProfileScreen() {
           </View>
 
           {/* Cache Debug (for development/debugging) */}
-          <Pressable
+          <HapticPressable
             onPress={() => setShowCacheDebug(true)}
             className={`flex-row items-center px-4 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}
           >
@@ -409,10 +447,10 @@ export default function ProfileScreen() {
               </Text>
             </View>
             <ChevronRight color={isDark ? '#6B7280' : '#9CA3AF'} size={20} />
-          </Pressable>
+          </HapticPressable>
 
           {/* Check for Updates */}
-          <Pressable
+          <HapticPressable
             onPress={handleCheckForUpdates}
             disabled={isChecking || isDownloading}
             className="flex-row items-center px-4 py-4"
@@ -436,12 +474,12 @@ export default function ProfileScreen() {
               </Text>
             </View>
             <ChevronRight color={isDark ? '#6B7280' : '#9CA3AF'} size={20} />
-          </Pressable>
+          </HapticPressable>
         </View>
 
         {/* Sign Out Button */}
         {user && (
-          <Pressable
+          <HapticPressable
             onPress={signOut}
             className={`rounded-xl p-4 mt-6 flex-row items-center justify-center ${
               isDark ? 'bg-red-900/30' : 'bg-red-50'
@@ -449,7 +487,7 @@ export default function ProfileScreen() {
           >
             <LogOut color="#EF4444" size={20} />
             <Text className="ml-2 font-semibold text-red-500">Sign Out</Text>
-          </Pressable>
+          </HapticPressable>
         )}
 
         {/* App Branding */}
@@ -501,7 +539,7 @@ export default function ProfileScreen() {
           >
             Change Password
           </Text>
-          <Pressable
+          <HapticPressable
             onPress={() => setShowPasswordModal(false)}
             style={{
               width: 36,
@@ -513,7 +551,7 @@ export default function ProfileScreen() {
             }}
           >
             <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-          </Pressable>
+          </HapticPressable>
         </View>
 
         {/* Content */}
@@ -590,13 +628,13 @@ export default function ProfileScreen() {
                 autoCapitalize="none"
                 editable={!isUpdating}
               />
-              <Pressable onPress={() => setShowCurrentPassword(!showCurrentPassword)}>
+              <HapticPressable onPress={() => setShowCurrentPassword(!showCurrentPassword)}>
                 {showCurrentPassword ? (
                   <EyeOff color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
                 ) : (
                   <Eye color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
                 )}
-              </Pressable>
+              </HapticPressable>
             </View>
           </View>
 
@@ -640,13 +678,13 @@ export default function ProfileScreen() {
                 autoCapitalize="none"
                 editable={!isUpdating}
               />
-              <Pressable onPress={() => setShowNewPassword(!showNewPassword)}>
+              <HapticPressable onPress={() => setShowNewPassword(!showNewPassword)}>
                 {showNewPassword ? (
                   <EyeOff color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
                 ) : (
                   <Eye color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
                 )}
-              </Pressable>
+              </HapticPressable>
             </View>
           </View>
 
@@ -694,7 +732,7 @@ export default function ProfileScreen() {
           </View>
 
           {/* Update Button */}
-          <Pressable
+          <HapticPressable
             onPress={handleChangePassword}
             disabled={isUpdating}
             style={{
@@ -712,7 +750,7 @@ export default function ProfileScreen() {
                 Update Password
               </Text>
             )}
-          </Pressable>
+          </HapticPressable>
         </BottomSheetScrollView>
       </BottomSheetModal>
 
@@ -777,52 +815,117 @@ export default function ProfileScreen() {
             {/* Buttons */}
             {updateModalType === 'available' && (
               <View className="flex-row space-x-3">
-                <Pressable
+                <HapticPressable
                   onPress={() => setShowUpdateModal(false)}
                   className={`flex-1 py-3 rounded-xl items-center mr-2 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}
                 >
                   <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>Later</Text>
-                </Pressable>
-                <Pressable
+                </HapticPressable>
+                <HapticPressable
                   onPress={handleDownloadUpdate}
                   className="flex-1 py-3 rounded-xl items-center ml-2"
                   style={{ backgroundColor: '#6366F1' }}
                 >
                   <Text className="text-white font-semibold">Download</Text>
-                </Pressable>
+                </HapticPressable>
               </View>
             )}
 
             {updateModalType === 'ready' && (
               <View className="flex-row space-x-3">
-                <Pressable
+                <HapticPressable
                   onPress={() => setShowUpdateModal(false)}
                   className={`flex-1 py-3 rounded-xl items-center mr-2 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}
                 >
                   <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>Later</Text>
-                </Pressable>
-                <Pressable
+                </HapticPressable>
+                <HapticPressable
                   onPress={handleRestartApp}
                   className="flex-1 py-3 rounded-xl items-center ml-2"
                   style={{ backgroundColor: '#22C55E' }}
                 >
                   <Text className="text-white font-semibold">Restart Now</Text>
-                </Pressable>
+                </HapticPressable>
               </View>
             )}
 
             {(updateModalType === 'upToDate' || updateModalType === 'devMode') && (
-              <Pressable
+              <HapticPressable
                 onPress={() => setShowUpdateModal(false)}
                 className="py-3 rounded-xl items-center"
                 style={{ backgroundColor: '#6366F1' }}
               >
                 <Text className="text-white font-semibold">OK</Text>
-              </Pressable>
+              </HapticPressable>
             )}
           </View>
         </View>
       </Modal>
+
+      {/* Language Bottom Sheet Modal */}
+      <BottomSheetModal
+        ref={languageBottomSheetRef}
+        snapPoints={languageSnapPoints}
+        onChange={handleLanguageSheetChanges}
+        enablePanDownToClose={true}
+        backdropComponent={renderPasswordBackdrop}
+        bottomInset={insets.bottom}
+        detached={false}
+        handleIndicatorStyle={{
+          backgroundColor: isDark ? '#6B7280' : '#9CA3AF',
+          width: 40,
+        }}
+        handleStyle={{
+          paddingBottom: 12,
+        }}
+        backgroundStyle={{
+          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+        }}
+      >
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 20,
+            paddingTop: 8,
+            borderBottomWidth: 1,
+            borderBottomColor: isDark ? '#374151' : '#E5E7EB',
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: '600',
+              color: isDark ? '#F3F4F6' : '#1F2937',
+            }}
+          >
+            Language
+          </Text>
+          <HapticPressable
+            onPress={() => setShowLanguageModal(false)}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: isDark ? '#374151' : '#F3F4F6',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          </HapticPressable>
+        </View>
+
+        {/* Content */}
+        <BottomSheetScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 20 }}
+        >
+          <LanguageSelector showHeader={false} />
+        </BottomSheetScrollView>
+      </BottomSheetModal>
 
       {/* Cache Debug View */}
       <CacheDebugView visible={showCacheDebug} onClose={() => setShowCacheDebug(false)} />

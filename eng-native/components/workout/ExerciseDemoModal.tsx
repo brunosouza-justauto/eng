@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  Pressable,
   ActivityIndicator,
   Image,
   Linking,
 } from 'react-native';
+import { HapticPressable } from '../HapticPressable';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Youtube, Dumbbell, Info, Lightbulb } from 'lucide-react-native';
@@ -162,7 +162,7 @@ export const ExerciseDemoModal = ({
         >
           {cleanExerciseName(exerciseName)}
         </Text>
-        <Pressable
+        <HapticPressable
           onPress={handleClose}
           style={{
             width: 36,
@@ -174,7 +174,7 @@ export const ExerciseDemoModal = ({
           }}
         >
           <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-        </Pressable>
+        </HapticPressable>
       </View>
 
       {/* Content */}
@@ -265,7 +265,7 @@ export const ExerciseDemoModal = ({
 
             {/* YouTube Button */}
             {exercise.youtubeLink && (
-              <Pressable
+              <HapticPressable
                 onPress={handleYoutubePress}
                 style={{
                   flexDirection: 'row',
@@ -288,7 +288,7 @@ export const ExerciseDemoModal = ({
                 >
                   Watch on YouTube
                 </Text>
-              </Pressable>
+              </HapticPressable>
             )}
 
             {/* Muscle & Equipment Tags */}

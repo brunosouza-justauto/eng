@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { WifiOff, RefreshCw, Cloud, CloudOff, AlertTriangle, X } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
+import { HapticPressable } from './HapticPressable';
 import { useOffline } from '../contexts/OfflineContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getOperationDescription } from '../lib/syncQueue';
@@ -16,6 +18,7 @@ export function OfflineIndicator({
   variant = 'banner',
   showPendingWhenOnline = true,
 }: OfflineIndicatorProps) {
+  const { t } = useTranslation();
   const {
     isOnline,
     pendingOperations,
@@ -103,11 +106,11 @@ export function OfflineIndicator({
         {!isOnline ? (
           <CloudOff size={16} color={colors.icon} />
         ) : (
-          <Pressable onPress={syncNow} disabled={isSyncing}>
+          <HapticPressable onPress={syncNow} disabled={isSyncing}>
             <Animated.View style={{ transform: [{ rotate: spin }] }}>
               <RefreshCw size={16} color={colors.icon} />
             </Animated.View>
-          </Pressable>
+          </HapticPressable>
         )}
       </View>
     );
@@ -117,20 +120,20 @@ export function OfflineIndicator({
     // Show error chip if there are failures
     if (hasFailures || lastSyncError) {
       return (
-        <Pressable
+        <HapticPressable
           onPress={dismissSyncError}
           style={[styles.chip, { backgroundColor: colors.bg }]}
         >
           <AlertTriangle size={14} color={colors.icon} />
           <Text style={[styles.chipText, { color: colors.text }]}>
-            {hasFailures ? `${failedOperations.length} failed` : 'Sync error'}
+            {hasFailures ? t('common.failed', { count: failedOperations.length }) : t('common.syncError')}
           </Text>
-        </Pressable>
+        </HapticPressable>
       );
     }
 
     return (
-      <Pressable
+      <HapticPressable
         onPress={isOnline ? syncNow : undefined}
         disabled={isSyncing || !isOnline}
         style={[styles.chip, { backgroundColor: colors.bg }]}
@@ -144,12 +147,12 @@ export function OfflineIndicator({
         )}
         <Text style={[styles.chipText, { color: colors.text }]}>
           {!isOnline
-            ? 'Offline'
+            ? t('common.offline')
             : isSyncing
-              ? 'Syncing...'
-              : `${pendingOperations} pending`}
+              ? t('common.syncing')
+              : t('common.pending', { count: pendingOperations })}
         </Text>
-      </Pressable>
+      </HapticPressable>
     );
   }
 
@@ -163,8 +166,10 @@ export function OfflineIndicator({
           <View style={styles.bannerTextContainer}>
             <Text style={[styles.bannerTitle, { color: colors.text }]}>
               {hasFailures
-                ? `${failedOperations.length} Sync Error${failedOperations.length > 1 ? 's' : ''}`
-                : 'Sync Failed'}
+                ? failedOperations.length > 1
+                  ? t('common.syncErrorsPlural', { count: failedOperations.length })
+                  : t('common.syncErrors', { count: failedOperations.length })
+                : t('common.syncFailed')}
             </Text>
             <Text
               style={[styles.bannerSubtitle, { color: colors.text }]}
@@ -177,20 +182,20 @@ export function OfflineIndicator({
                   .join(', ')}
             </Text>
           </View>
-          <Pressable
+          <HapticPressable
             onPress={dismissSyncError}
             style={styles.dismissButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <X size={18} color={colors.icon} />
-          </Pressable>
+          </HapticPressable>
         </View>
       </View>
     );
   }
 
   return (
-    <Pressable
+    <HapticPressable
       onPress={isOnline ? syncNow : undefined}
       disabled={isSyncing || !isOnline}
       style={[styles.banner, { backgroundColor: colors.bg }]}
@@ -201,10 +206,10 @@ export function OfflineIndicator({
             <WifiOff size={18} color={colors.icon} />
             <View style={styles.bannerTextContainer}>
               <Text style={[styles.bannerTitle, { color: colors.text }]}>
-                You're Offline
+                {t('common.youreOffline')}
               </Text>
               <Text style={[styles.bannerSubtitle, { color: colors.text }]}>
-                Changes will sync when you're back online
+                {t('common.changesWillSync')}
               </Text>
             </View>
           </>
@@ -215,18 +220,18 @@ export function OfflineIndicator({
             </Animated.View>
             <View style={styles.bannerTextContainer}>
               <Text style={[styles.bannerTitle, { color: colors.text }]}>
-                {isSyncing ? 'Syncing...' : `${pendingOperations} Changes Pending`}
+                {isSyncing ? t('common.syncing') : t('common.changesPending', { count: pendingOperations })}
               </Text>
               <Text style={[styles.bannerSubtitle, { color: colors.text }]}>
                 {isSyncing
-                  ? 'Uploading your changes'
-                  : 'Tap to sync now'}
+                  ? t('common.uploadingChanges')
+                  : t('common.tapToSync')}
               </Text>
             </View>
           </>
         )}
       </View>
-    </Pressable>
+    </HapticPressable>
   );
 }
 

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, Pressable, TextInput } from 'react-native';
+import { View, Text, TextInput } from 'react-native';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, AlertTriangle, Zap, Dumbbell } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ExerciseFeedback } from '../../types/workoutSession';
+import { HapticPressable } from '../HapticPressable';
 
 interface ExerciseFeedbackModalProps {
   visible: boolean;
@@ -60,7 +61,7 @@ const RatingRow = ({
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
         {RATING_OPTIONS.map((option) => (
-          <Pressable
+          <HapticPressable
             key={option}
             onPress={() => onChange(value === option ? null : option)}
             style={{
@@ -88,7 +89,7 @@ const RatingRow = ({
             >
               {option}
             </Text>
-          </Pressable>
+          </HapticPressable>
         ))}
       </View>
 
@@ -229,7 +230,7 @@ export const ExerciseFeedbackModal = ({
             {exerciseName}
           </Text>
         </View>
-        <Pressable
+        <HapticPressable
           onPress={onClose}
           style={{
             width: 36,
@@ -241,7 +242,7 @@ export const ExerciseFeedbackModal = ({
           }}
         >
           <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-        </Pressable>
+        </HapticPressable>
       </View>
 
       {/* Content */}
@@ -320,7 +321,7 @@ export const ExerciseFeedbackModal = ({
 
       {/* Submit Button */}
       <View style={{ padding: 20, paddingTop: 12 }}>
-        <Pressable
+        <HapticPressable
           onPress={handleSubmit}
           disabled={!hasAnyInput}
           style={{
@@ -339,7 +340,7 @@ export const ExerciseFeedbackModal = ({
           >
             {existingFeedback ? 'Update Feedback' : 'Submit Feedback'}
           </Text>
-        </Pressable>
+        </HapticPressable>
       </View>
     </BottomSheetModal>
   );

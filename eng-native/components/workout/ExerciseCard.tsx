@@ -1,5 +1,6 @@
-import { View, Text, TextInput, Pressable } from 'react-native';
+import { View, Text, TextInput, ActivityIndicator } from 'react-native';
 import { CheckCircle, Play, Star, AlertTriangle, Zap, Dumbbell } from 'lucide-react-native';
+import { HapticPressable } from '../HapticPressable';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ExerciseInstanceData, SetType, cleanExerciseName } from '../../types/workout';
 import { SetInputState, getSetTypeLabel, FeedbackRecommendation } from '../../types/workoutSession';
@@ -10,6 +11,7 @@ interface ExerciseCardProps {
   exerciseInputs: SetInputState[];
   isWorkoutStarted: boolean;
   isSetCompleted: (setIndex: number) => boolean;
+  isSetSaving?: (setIndex: number) => boolean;
   onSetComplete: (setIndex: number, restSeconds: number | null) => void;
   onInputChange: (setIndex: number, field: 'weight' | 'reps', value: string) => void;
   onViewDemo?: (exerciseDbId: string | number, exerciseName: string) => void;
@@ -31,6 +33,7 @@ export const ExerciseCard = ({
   exerciseInputs,
   isWorkoutStarted,
   isSetCompleted,
+  isSetSaving,
   onSetComplete,
   onInputChange,
   onViewDemo,
@@ -141,7 +144,7 @@ export const ExerciseCard = ({
           )}
           {/* View Demo Button */}
           {exercise.exercise_db_id && onViewDemo && (
-            <Pressable
+            <HapticPressable
               onPress={handleViewDemo}
               style={{
                 flexDirection: 'row',
@@ -163,7 +166,7 @@ export const ExerciseCard = ({
               >
                 Demo
               </Text>
-            </Pressable>
+            </HapticPressable>
           )}
         </View>
       </View>
@@ -353,6 +356,7 @@ export const ExerciseCard = ({
           const setData = setsData[setIndex];
           const input = exerciseInputs[setIndex] || { weight: '', reps: '' };
           const completed = isSetCompleted(setIndex);
+          const saving = isSetSaving?.(setIndex) || false;
           const setType = setData?.type || exercise.set_type;
           const restSeconds = exercise.rest_period_seconds;
 
@@ -438,7 +442,7 @@ export const ExerciseCard = ({
 
               {/* Reps Input */}
               <View style={{ width: 55, alignItems: 'center' }}>
-                <Pressable
+                <HapticPressable
                   onPress={() => {
                     if (onRepsPress) {
                       const currentReps = parseInt(input.reps, 10) || 10;
@@ -468,7 +472,7 @@ export const ExerciseCard = ({
                   >
                     {input.reps || '0'}
                   </Text>
-                </Pressable>
+                </HapticPressable>
               </View>
 
               {/* Rest */}
@@ -484,7 +488,7 @@ export const ExerciseCard = ({
               </View>
 
               {/* Done Checkbox */}
-              <Pressable
+              <HapticPressable
                 onPress={() => onSetComplete(setIndex, restSeconds)}
                 disabled={!isWorkoutStarted ? false : (!completed && !canComplete)}
                 style={{
@@ -501,17 +505,23 @@ export const ExerciseCard = ({
                     borderWidth: 2,
                     borderColor: completed
                       ? '#22C55E'
-                      : !canComplete
-                        ? isDark ? '#374151' : '#E5E7EB'
-                        : isDark ? '#4B5563' : '#D1D5DB',
+                      : saving
+                        ? '#22C55E'
+                        : !canComplete
+                          ? isDark ? '#374151' : '#E5E7EB'
+                          : isDark ? '#4B5563' : '#D1D5DB',
                     backgroundColor: completed ? '#22C55E' : 'transparent',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  {completed && <CheckCircle size={18} color="#FFFFFF" />}
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#22C55E" />
+                  ) : completed ? (
+                    <CheckCircle size={18} color="#FFFFFF" />
+                  ) : null}
                 </View>
-              </Pressable>
+              </HapticPressable>
             </View>
           );
         })}
@@ -519,7 +529,7 @@ export const ExerciseCard = ({
 
       {/* Feedback Button - at the bottom */}
       {isWorkoutStarted && onFeedbackPress && (
-        <Pressable
+        <HapticPressable
           onPress={() => onFeedbackPress(exercise.id, exercise.exercise_name)}
           style={{
             flexDirection: 'row',
@@ -553,7 +563,7 @@ export const ExerciseCard = ({
           >
             {hasFeedback ? 'Feedback Added' : 'Add Feedback'}
           </Text>
-        </Pressable>
+        </HapticPressable>
       )}
     </View>
   );

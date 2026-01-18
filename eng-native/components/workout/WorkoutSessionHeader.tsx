@@ -1,6 +1,7 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { ChevronLeft, Clock, Timer } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 import { formatTime } from '../../utils/formatters';
 
 interface WorkoutSessionHeaderProps {
@@ -69,9 +70,9 @@ export const WorkoutSessionHeader = ({
     >
       {/* Top row with back button and title */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-        <Pressable onPress={onBackPress} style={{ padding: 4, marginRight: 8 }}>
+        <HapticPressable onPress={onBackPress} style={{ padding: 4, marginRight: 8 }}>
           <ChevronLeft size={24} color={isDark ? '#F3F4F6' : '#1F2937'} />
-        </Pressable>
+        </HapticPressable>
         <Text
           style={{
             flex: 1,
@@ -88,7 +89,7 @@ export const WorkoutSessionHeader = ({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {/* Countdown Button */}
           {onCountdownPress && (
-            <Pressable
+            <HapticPressable
               onPress={onCountdownPress}
               style={{
                 flexDirection: 'row',
@@ -112,12 +113,12 @@ export const WorkoutSessionHeader = ({
               >
                 Countdown
               </Text>
-            </Pressable>
+            </HapticPressable>
           )}
 
           {/* Timer Settings Button */}
           {onTimerSettingsPress && (
-            <Pressable
+            <HapticPressable
               onPress={onTimerSettingsPress}
               style={{
                 flexDirection: 'row',
@@ -150,7 +151,7 @@ export const WorkoutSessionHeader = ({
               >
                 {typeof customRestTime === 'number' ? formatRestTime(customRestTime) : 'Rest'}
               </Text>
-            </Pressable>
+            </HapticPressable>
           )}
         </View>
       </View>

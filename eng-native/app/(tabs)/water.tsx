@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl, TextInput, Modal } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TextInput, Modal } from 'react-native';
+import { HapticPressable } from '../../components/HapticPressable';
 import { Droplets, Plus, Minus, Target, AlertCircle, Award, X, WifiOff } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -759,7 +760,7 @@ export default function WaterScreen() {
               </Text>
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <Pressable
+                <HapticPressable
                   onPress={() => setShowSetGoalModal(false)}
                   style={{
                     flex: 1,
@@ -772,8 +773,8 @@ export default function WaterScreen() {
                   <Text style={{ color: isDark ? '#D1D5DB' : '#4B5563', fontWeight: '600' }}>
                     Cancel
                   </Text>
-                </Pressable>
-                <Pressable
+                </HapticPressable>
+                <HapticPressable
                   onPress={handleSetWaterGoal}
                   style={{
                     flex: 1,
@@ -784,7 +785,7 @@ export default function WaterScreen() {
                   }}
                 >
                   <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Save Goal</Text>
-                </Pressable>
+                </HapticPressable>
               </View>
             </View>
           </View>
@@ -876,7 +877,7 @@ export default function WaterScreen() {
             </Text>
 
             {/* Goal Info */}
-            <Pressable
+            <HapticPressable
               onPress={() => {
                 setNewGoalValue(String(waterGoal));
                 setShowSetGoalModal(true);
@@ -897,7 +898,7 @@ export default function WaterScreen() {
                 Daily Goal: {(progress.goal / 1000).toFixed(1)}L
               </Text>
               <Text style={{ marginLeft: 4, fontSize: 11, color: '#6366F1' }}>Edit</Text>
-            </Pressable>
+            </HapticPressable>
 
         {/* Goal achieved badge */}
         {progress.percentage >= 100 && (
@@ -959,7 +960,7 @@ export default function WaterScreen() {
             gap: 16,
           }}
         >
-          <Pressable
+          <HapticPressable
             onPress={handleRemoveWater}
             disabled={isUpdating || !todayEntry?.amount_ml}
             style={{
@@ -973,7 +974,7 @@ export default function WaterScreen() {
             }}
           >
             <Minus size={24} color={isDark ? '#9CA3AF' : '#6B7280'} />
-          </Pressable>
+          </HapticPressable>
 
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
@@ -981,7 +982,7 @@ export default function WaterScreen() {
             </Text>
           </View>
 
-          <Pressable
+          <HapticPressable
             onPress={() => handleAddWater(DEFAULT_GLASS_SIZE)}
             disabled={isUpdating}
             style={{
@@ -995,7 +996,7 @@ export default function WaterScreen() {
             }}
           >
             <Plus size={24} color="#FFFFFF" />
-          </Pressable>
+          </HapticPressable>
         </View>
 
         {/* Quick Add Section */}
@@ -1003,7 +1004,7 @@ export default function WaterScreen() {
           {/* Quick Add Buttons */}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
             {QUICK_ADD_AMOUNTS.map((item) => (
-              <Pressable
+              <HapticPressable
                 key={item.amount}
                 onPress={() => handleAddWater(item.amount)}
                 disabled={isUpdating}
@@ -1029,7 +1030,7 @@ export default function WaterScreen() {
                 >
                   +{item.label}
                 </Text>
-              </Pressable>
+              </HapticPressable>
             ))}
           </View>
 
@@ -1053,7 +1054,7 @@ export default function WaterScreen() {
                     color: isDark ? '#F3F4F6' : '#1F2937',
                   }}
                 />
-                <Pressable
+                <HapticPressable
                   onPress={handleCustomWaterEntry}
                   disabled={isUpdating}
                   style={{
@@ -1068,8 +1069,8 @@ export default function WaterScreen() {
                   <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>
                     {isUpdating ? '...' : 'Add'}
                   </Text>
-                </Pressable>
-                <Pressable
+                </HapticPressable>
+                <HapticPressable
                   onPress={() => setShowCustomEntry(false)}
                   style={{
                     backgroundColor: isDark ? '#374151' : '#E5E7EB',
@@ -1080,7 +1081,7 @@ export default function WaterScreen() {
                   }}
                 >
                   <X size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                </Pressable>
+                </HapticPressable>
               </View>
               <Text
                 style={{
@@ -1093,7 +1094,7 @@ export default function WaterScreen() {
               </Text>
             </View>
           ) : (
-            <Pressable
+            <HapticPressable
               onPress={() => setShowCustomEntry(true)}
               style={{
                 flexDirection: 'row',
@@ -1110,7 +1111,7 @@ export default function WaterScreen() {
               >
                 Add Custom Amount
               </Text>
-            </Pressable>
+            </HapticPressable>
           )}
         </View>
         </>
@@ -1279,7 +1280,7 @@ export default function WaterScreen() {
             </Text>
 
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              <Pressable
+              <HapticPressable
                 onPress={() => setShowSetGoalModal(false)}
                 style={{
                   flex: 1,
@@ -1292,8 +1293,8 @@ export default function WaterScreen() {
                 <Text style={{ color: isDark ? '#D1D5DB' : '#4B5563', fontWeight: '600' }}>
                   Cancel
                 </Text>
-              </Pressable>
-              <Pressable
+              </HapticPressable>
+              <HapticPressable
                 onPress={handleSetWaterGoal}
                 disabled={isSettingGoal}
                 style={{
@@ -1308,7 +1309,7 @@ export default function WaterScreen() {
                 <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
                   {isSettingGoal ? 'Saving...' : 'Save'}
                 </Text>
-              </Pressable>
+              </HapticPressable>
             </View>
           </View>
         </View>

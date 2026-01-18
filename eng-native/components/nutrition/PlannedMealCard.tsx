@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { ChevronDown, ChevronUp, Clock, Plus, Check, Info } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 import { MealWithFoodItems } from '../../types/nutrition';
 
 interface PlannedMealCardProps {
@@ -45,7 +46,7 @@ export const PlannedMealCard = ({
       }}
     >
       {/* Header - Always visible */}
-      <Pressable
+      <HapticPressable
         onPress={() => setIsExpanded(!isExpanded)}
         style={{
           flexDirection: 'row',
@@ -103,7 +104,7 @@ export const PlannedMealCard = ({
         </View>
 
         {/* Log/Unlog button */}
-        <Pressable
+        <HapticPressable
           onPress={() => {
             if (isLogged && onUnlogMeal) {
               onUnlogMeal(meal.id);
@@ -132,8 +133,8 @@ export const PlannedMealCard = ({
           ) : (
             <Plus size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
           )}
-        </Pressable>
-      </Pressable>
+        </HapticPressable>
+      </HapticPressable>
 
       {/* Expanded content */}
       {isExpanded && (

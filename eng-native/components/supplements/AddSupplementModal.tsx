@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, ActivityIndicator } from 'react-native';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { HapticPressable } from '../HapticPressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Pill, Plus } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -161,7 +162,7 @@ export default function AddSupplementModal({
             Add Supplement
           </Text>
         </View>
-        <Pressable
+        <HapticPressable
           onPress={handleClose}
           style={{
             width: 36,
@@ -173,7 +174,7 @@ export default function AddSupplementModal({
           }}
         >
           <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-        </Pressable>
+        </HapticPressable>
       </View>
 
       <BottomSheetScrollView
@@ -232,7 +233,7 @@ export default function AddSupplementModal({
         >
           Category
         </Text>
-        <Pressable
+        <HapticPressable
           onPress={() => setShowCategoryPicker(!showCategoryPicker)}
           style={{
             backgroundColor: isDark ? '#374151' : '#F3F4F6',
@@ -261,7 +262,7 @@ export default function AddSupplementModal({
           <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280' }}>
             {showCategoryPicker ? '▲' : '▼'}
           </Text>
-        </Pressable>
+        </HapticPressable>
 
         {/* Category Picker */}
         {showCategoryPicker && (
@@ -275,7 +276,7 @@ export default function AddSupplementModal({
             }}
           >
             {SUPPLEMENT_CATEGORIES.map((cat) => (
-              <Pressable
+              <HapticPressable
                 key={cat}
                 onPress={() => {
                   setCategory(cat);
@@ -303,7 +304,7 @@ export default function AddSupplementModal({
                   }}
                 />
                 <Text style={{ color: isDark ? '#F3F4F6' : '#1F2937' }}>{cat}</Text>
-              </Pressable>
+              </HapticPressable>
             ))}
           </View>
         )}
@@ -354,7 +355,7 @@ export default function AddSupplementModal({
           }}
         >
           {COMMON_SCHEDULES.map((sched) => (
-            <Pressable
+            <HapticPressable
               key={sched}
               onPress={() => setSchedule(sched)}
               style={{
@@ -390,7 +391,7 @@ export default function AddSupplementModal({
               >
                 {sched}
               </Text>
-            </Pressable>
+            </HapticPressable>
           ))}
         </View>
 
@@ -425,7 +426,7 @@ export default function AddSupplementModal({
         />
 
         {/* Submit Button */}
-        <Pressable
+        <HapticPressable
           onPress={handleSubmit}
           disabled={isLoading}
           style={{
@@ -455,7 +456,7 @@ export default function AddSupplementModal({
               </Text>
             </>
           )}
-        </Pressable>
+        </HapticPressable>
       </BottomSheetScrollView>
     </BottomSheetModal>
   );

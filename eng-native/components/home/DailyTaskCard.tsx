@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { Link } from 'expo-router';
 import { Check, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 
 interface DailyTaskCardProps {
   title: string;
@@ -43,7 +44,7 @@ export default function DailyTaskCard({
 
   return (
     <Link href={href as any} asChild>
-      <Pressable
+      <HapticPressable
         style={{
           backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
           borderRadius: 16,
@@ -187,7 +188,7 @@ export default function DailyTaskCard({
             style={{ marginLeft: 8 }}
           />
         </View>
-      </Pressable>
+      </HapticPressable>
     </Link>
   );
 }

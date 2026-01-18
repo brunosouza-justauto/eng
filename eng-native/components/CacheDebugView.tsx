@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, Modal } from 'react-native';
 import { Database, Trash2, RefreshCw, X, WifiOff, Wifi, Clock, Download, AlertTriangle, XCircle } from 'lucide-react-native';
+import { HapticPressable } from './HapticPressable';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -293,9 +294,9 @@ export default function CacheDebugView({
               Cache Debug
             </Text>
           </View>
-          <Pressable onPress={onClose}>
+          <HapticPressable onPress={onClose}>
             <X size={24} color={isDark ? '#9CA3AF' : '#6B7280'} />
-          </Pressable>
+          </HapticPressable>
         </View>
 
         {/* Network Status */}
@@ -389,7 +390,7 @@ export default function CacheDebugView({
                   {failedOperations.length} Failed Operation{failedOperations.length !== 1 ? 's' : ''}
                 </Text>
               </View>
-              <Pressable
+              <HapticPressable
                 onPress={clearFailedOps}
                 style={{
                   backgroundColor: isDark ? '#991B1B' : '#DC2626',
@@ -399,7 +400,7 @@ export default function CacheDebugView({
                 }}
               >
                 <Text style={{ fontSize: 12, fontWeight: '600', color: '#FFFFFF' }}>Clear</Text>
-              </Pressable>
+              </HapticPressable>
             </View>
             <View style={{ padding: 12 }}>
               {failedOperations.slice(0, 5).map((failed, index) => (
@@ -458,7 +459,7 @@ export default function CacheDebugView({
             gap: 12,
           }}
         >
-          <Pressable
+          <HapticPressable
             onPress={loadCacheData}
             disabled={isLoading}
             style={{
@@ -476,9 +477,9 @@ export default function CacheDebugView({
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600' }}>
               Refresh
             </Text>
-          </Pressable>
+          </HapticPressable>
 
-          <Pressable
+          <HapticPressable
             onPress={handlePrecache}
             disabled={!isOnline || isPrecaching}
             style={{
@@ -496,7 +497,7 @@ export default function CacheDebugView({
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600' }}>
               {isPrecaching ? 'Caching...' : 'Precache'}
             </Text>
-          </Pressable>
+          </HapticPressable>
         </View>
 
         {/* Precache Status */}
@@ -523,7 +524,7 @@ export default function CacheDebugView({
             gap: 12,
           }}
         >
-          <Pressable
+          <HapticPressable
             onPress={handleSync}
             disabled={!isOnline || isSyncing}
             style={{
@@ -541,9 +542,9 @@ export default function CacheDebugView({
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600' }}>
               {isSyncing ? 'Syncing...' : 'Sync Now'}
             </Text>
-          </Pressable>
+          </HapticPressable>
 
-          <Pressable
+          <HapticPressable
             onPress={handleClearCache}
             disabled={isClearing}
             style={{
@@ -561,7 +562,7 @@ export default function CacheDebugView({
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600' }}>
               Clear All
             </Text>
-          </Pressable>
+          </HapticPressable>
         </View>
 
         {/* Tab Switcher */}
@@ -575,7 +576,7 @@ export default function CacheDebugView({
             padding: 4,
           }}
         >
-          <Pressable
+          <HapticPressable
             onPress={() => setActiveTab('cache')}
             style={{
               flex: 1,
@@ -596,8 +597,8 @@ export default function CacheDebugView({
             >
               Cache ({entries.length})
             </Text>
-          </Pressable>
-          <Pressable
+          </HapticPressable>
+          <HapticPressable
             onPress={() => setActiveTab('pending')}
             style={{
               flex: 1,
@@ -618,7 +619,7 @@ export default function CacheDebugView({
             >
               Pending ({pendingQueue.length})
             </Text>
-          </Pressable>
+          </HapticPressable>
         </View>
 
         {/* Summary for active tab */}
@@ -646,7 +647,7 @@ export default function CacheDebugView({
                 {pendingQueue.length} operations pending sync
               </Text>
               {pendingQueue.length > 0 && (
-                <Pressable
+                <HapticPressable
                   onPress={handleClearQueue}
                   style={{
                     backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2',
@@ -658,7 +659,7 @@ export default function CacheDebugView({
                   <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#FCA5A5' : '#991B1B' }}>
                     Clear Queue
                   </Text>
-                </Pressable>
+                </HapticPressable>
               )}
             </>
           )}
@@ -696,7 +697,7 @@ export default function CacheDebugView({
               entries.map((entry) => {
               const isExpanded = expandedCacheKeys.has(entry.key);
               return (
-                <Pressable
+                <HapticPressable
                   key={entry.key}
                   onPress={() => toggleCacheExpanded(entry.key)}
                   style={{
@@ -752,7 +753,7 @@ export default function CacheDebugView({
                         : entry.preview}
                     </Text>
                   </ScrollView>
-                </Pressable>
+                </HapticPressable>
               );
             })
             )
@@ -779,7 +780,7 @@ export default function CacheDebugView({
               pendingQueue.map((op) => {
                 const isExpanded = expandedPendingIds.has(op.id);
                 return (
-                  <Pressable
+                  <HapticPressable
                     key={op.id}
                     onPress={() => togglePendingExpanded(op.id)}
                     style={{
@@ -865,7 +866,7 @@ export default function CacheDebugView({
                         </Text>
                       </ScrollView>
                     </View>
-                  </Pressable>
+                  </HapticPressable>
                 );
               })
             )

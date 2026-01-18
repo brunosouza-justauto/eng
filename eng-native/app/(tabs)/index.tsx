@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, RefreshControl, Pressable } from 'react-native';
+import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import { HapticPressable } from '../../components/HapticPressable';
 import { useFocusEffect, Link } from 'expo-router';
 import { Dumbbell, Utensils, Pill, Footprints, Droplets, ClipboardCheck, Zap, AlertTriangle, WifiOff } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
@@ -29,6 +31,7 @@ const isNetworkError = (error: any): boolean => {
 };
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { refreshReminders } = useNotifications();
@@ -683,14 +686,14 @@ export default function HomeScreen() {
   // Task data
   const tasks = [
     {
-      title: 'Workout',
+      title: t('tabs.workout'),
       subtitle: hasWorkoutProgram
-        ? (hasWorkoutToday ? 'Training day - Hit the gym!' : 'Rest day - Recover well!')
-        : 'No program assigned',
+        ? (hasWorkoutToday ? t('home.startWorkout') : t('home.restDay'))
+        : t('workout.noProgram'),
       icon: Dumbbell,
       color: '#6366F1',
       progress: hasWorkoutProgram ? (hasWorkoutToday ? (workoutsCompleted > 0 ? 100 : 0) : 100) : 0,
-      current: hasWorkoutProgram ? (hasWorkoutToday ? workoutsCompleted.toString() : 'Rest') : '—',
+      current: hasWorkoutProgram ? (hasWorkoutToday ? workoutsCompleted.toString() : t('home.restDay')) : '—',
       goal: hasWorkoutProgram ? (hasWorkoutToday ? '1' : '') : '',
       isComplete: hasWorkoutProgram && workoutGoalMet,
       isOverdue: hasWorkoutProgram && workoutReminderStatus === 'overdue',
@@ -698,8 +701,8 @@ export default function HomeScreen() {
       show: hasWorkoutProgram,
     },
     {
-      title: 'Nutrition',
-      subtitle: `Log your meals to hit your macros`,
+      title: t('tabs.nutrition'),
+      subtitle: t('nutrition.logMeal'),
       icon: Utensils,
       color: '#22C55E',
       progress: mealsPlanned > 0 ? Math.min((mealsLogged / mealsPlanned) * 100, 100) : 0,
@@ -711,8 +714,8 @@ export default function HomeScreen() {
       show: mealsPlanned > 0,
     },
     {
-      title: 'Supplements',
-      subtitle: 'Track your daily supplements',
+      title: t('tabs.supplements'),
+      subtitle: t('supplements.title'),
       icon: Pill,
       color: '#8B5CF6',
       progress: supplementsTotal > 0 ? Math.round((supplementsTaken / supplementsTotal) * 100) : 0,
@@ -724,8 +727,8 @@ export default function HomeScreen() {
       show: supplementsTotal > 0,
     },
     {
-      title: 'Steps',
-      subtitle: 'Keep moving throughout the day',
+      title: t('steps.title'),
+      subtitle: t('steps.stepsTracking'),
       icon: Footprints,
       color: '#3B82F6',
       progress: stepsGoal > 0 ? Math.min((stepsCount / stepsGoal) * 100, 100) : 0,
@@ -737,8 +740,8 @@ export default function HomeScreen() {
       show: stepsGoal > 0,
     },
     {
-      title: 'Water',
-      subtitle: 'Stay hydrated for peak performance',
+      title: t('water.title'),
+      subtitle: t('water.waterTracking'),
       icon: Droplets,
       color: '#06B6D4',
       progress: waterGoal > 0 ? Math.min((waterIntake / waterGoal) * 100, 100) : 0,
@@ -788,7 +791,7 @@ export default function HomeScreen() {
                   color: isDark ? '#FDBA74' : '#92400E',
                 }}
               >
-                You're offline. Showing cached goals.
+                {t('common.youreOffline')}
               </Text>
               {cacheDate && cacheDate !== getLocalDateString() && (
                 <Text
@@ -798,7 +801,7 @@ export default function HomeScreen() {
                     marginTop: 2,
                   }}
                 >
-                  Progress reset - cached data was from {cacheDate}
+                  {t('common.viewingCachedData')}
                 </Text>
               )}
             </View>
@@ -808,7 +811,7 @@ export default function HomeScreen() {
         {/* Workout Overdue Reminder Banner */}
         {workoutReminderStatus === 'overdue' && (
           <Link href="/(tabs)/workout" asChild>
-            <Pressable
+            <HapticPressable
               style={{
                 backgroundColor: '#FEE2E2',
                 borderRadius: 12,
@@ -830,7 +833,7 @@ export default function HomeScreen() {
                 </Text>
               </View>
               <Dumbbell size={20} color="#DC2626" />
-            </Pressable>
+            </HapticPressable>
           </Link>
         )}
 
@@ -929,7 +932,7 @@ export default function HomeScreen() {
         {/* Section Header - only show if there are goals */}
         {(isLoading || totalCount > 0) && (
           <Text className={`text-lg font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Today's Goals
+            {t('home.todaysWorkout')}
           </Text>
         )}
 
@@ -975,30 +978,30 @@ export default function HomeScreen() {
 
         {/* Quick Links */}
         <Text className={`text-lg font-semibold mt-4 mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          More
+          {t('common.all')}
         </Text>
 
         {isLoading ? (
           <SkeletonCard variant="task" />
         ) : (
           <DailyTaskCard
-              title="Weekly Check-in"
+              title={t('checkIn.title')}
               subtitle={
                 checkInStatus === 'complete'
-                  ? `Completed ${daysSinceCheckIn === 0 ? 'today' : daysSinceCheckIn === 1 ? 'yesterday' : `${daysSinceCheckIn} days ago`}`
+                  ? daysSinceCheckIn === 0 ? t('common.today') : daysSinceCheckIn === 1 ? t('common.yesterday') : t('checkIn.daysAgo', { count: daysSinceCheckIn ?? 0 })
                   : checkInStatus === 'overdue'
-                  ? `Last check-in was ${daysSinceCheckIn} days ago`
-                  : "Log your progress and photos"
+                  ? t('checkIn.daysAgo', { count: daysSinceCheckIn ?? 0 })
+                  : t('checkIn.notes')
               }
               icon={ClipboardCheck}
               color={checkInStatus === 'overdue' ? '#EF4444' : '#F59E0B'}
               progress={checkInStatus === 'complete' ? 100 : 0}
               current={
                 checkInStatus === 'complete'
-                  ? 'Complete'
+                  ? t('workout.completed')
                   : checkInStatus === 'overdue'
-                  ? 'Overdue'
-                  : 'To do'
+                  ? t('checkIn.checkInDue')
+                  : t('common.pending', { count: 1 })
               }
               goal=""
               isComplete={checkInStatus === 'complete'}

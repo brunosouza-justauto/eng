@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Utensils, Clock, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getNutritionPlanById } from '../../services/nutritionService';
 import { NutritionPlanWithMeals, MealWithFoodItems } from '../../types/nutrition';
+import { HapticPressable } from '../../components/HapticPressable';
 
 export default function NutritionPlanScreen() {
   const { isDark } = useTheme();
@@ -100,7 +101,7 @@ export default function NutritionPlanScreen() {
         }}
       >
         {/* Meal Header */}
-        <Pressable
+        <HapticPressable
           onPress={() => toggleMealExpanded(meal.id)}
           style={{
             flexDirection: 'row',
@@ -164,7 +165,7 @@ export default function NutritionPlanScreen() {
           ) : (
             <ChevronDown size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
           )}
-        </Pressable>
+        </HapticPressable>
 
         {/* Expanded food items */}
         {isExpanded && (
@@ -274,12 +275,12 @@ export default function NutritionPlanScreen() {
           <Text className={`${isDark ? 'text-red-400' : 'text-red-600'}`}>
             {error || 'Unable to load nutrition plan data'}
           </Text>
-          <Pressable
+          <HapticPressable
             onPress={() => router.back()}
             className="mt-4 bg-indigo-600 rounded-lg py-3 items-center"
           >
             <Text className="text-white font-semibold">Go Back</Text>
-          </Pressable>
+          </HapticPressable>
         </View>
       </View>
     );

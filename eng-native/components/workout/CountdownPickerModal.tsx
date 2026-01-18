@@ -1,8 +1,9 @@
 import { useRef, useEffect, useState } from 'react';
-import { Modal, View, Text, Pressable, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { Modal, View, Text, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Timer, Play } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 
 interface CountdownPickerModalProps {
   visible: boolean;
@@ -125,7 +126,7 @@ export const CountdownPickerModal = ({
                 Set Countdown
               </Text>
             </View>
-            <Pressable
+            <HapticPressable
               onPress={onClose}
               style={{
                 width: 36,
@@ -137,7 +138,7 @@ export const CountdownPickerModal = ({
               }}
             >
               <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-            </Pressable>
+            </HapticPressable>
           </View>
 
           {/* Picker */}
@@ -171,7 +172,7 @@ export const CountdownPickerModal = ({
               }}
             >
               {COUNTDOWN_OPTIONS.map((option, index) => (
-                <Pressable
+                <HapticPressable
                   key={option.value}
                   onPress={() => {
                     setSelectedIndex(index);
@@ -197,14 +198,14 @@ export const CountdownPickerModal = ({
                   >
                     {option.label}
                   </Text>
-                </Pressable>
+                </HapticPressable>
               ))}
             </ScrollView>
           </View>
 
           {/* Start Button */}
           <View style={{ paddingHorizontal: 20 }}>
-            <Pressable
+            <HapticPressable
               onPress={handleStart}
               style={{
                 flexDirection: 'row',
@@ -226,7 +227,7 @@ export const CountdownPickerModal = ({
               >
                 Start Countdown
               </Text>
-            </Pressable>
+            </HapticPressable>
           </View>
         </View>
       </View>

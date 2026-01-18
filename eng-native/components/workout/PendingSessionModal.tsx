@@ -1,6 +1,7 @@
-import { Modal, View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { Modal, View, Text, ActivityIndicator } from 'react-native';
 import { AlertTriangle, Play, Trash2, CheckCircle } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HapticPressable } from '../HapticPressable';
 
 interface PendingSessionModalProps {
   visible: boolean;
@@ -139,7 +140,7 @@ export const PendingSessionModal = ({
               {isFromToday ? (
                 <>
                   {/* Resume Button */}
-                  <Pressable
+                  <HapticPressable
                     onPress={onResume}
                     disabled={isLoading}
                     style={{
@@ -169,10 +170,10 @@ export const PendingSessionModal = ({
                         </Text>
                       </>
                     )}
-                  </Pressable>
+                  </HapticPressable>
 
                   {/* Start Fresh Button */}
-                  <Pressable
+                  <HapticPressable
                     onPress={onDiscard}
                     disabled={isLoading}
                     style={{
@@ -195,12 +196,12 @@ export const PendingSessionModal = ({
                     >
                       Start Fresh
                     </Text>
-                  </Pressable>
+                  </HapticPressable>
                 </>
               ) : (
                 <>
                   {/* Complete Session Button */}
-                  <Pressable
+                  <HapticPressable
                     onPress={onComplete}
                     disabled={isLoading}
                     style={{
@@ -230,10 +231,10 @@ export const PendingSessionModal = ({
                         </Text>
                       </>
                     )}
-                  </Pressable>
+                  </HapticPressable>
 
                   {/* Discard Button */}
-                  <Pressable
+                  <HapticPressable
                     onPress={onDiscard}
                     disabled={isLoading}
                     style={{
@@ -256,7 +257,7 @@ export const PendingSessionModal = ({
                     >
                       Discard Session
                     </Text>
-                  </Pressable>
+                  </HapticPressable>
                 </>
               )}
             </View>

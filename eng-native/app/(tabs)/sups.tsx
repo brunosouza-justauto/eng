@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, RefreshControl, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
+import { HapticPressable } from '../../components/HapticPressable';
 import { Pill, Clock, AlertCircle, Check, Flame, CheckCheck, Plus, Trash2, User, WifiOff } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
@@ -151,7 +153,7 @@ function TodaySupplementItem({
       }}
     >
       {/* Checkbox */}
-      <Pressable
+      <HapticPressable
         onPress={() => !isToggling && !isDeleting && onToggle(supplement)}
         style={{
           width: 24,
@@ -170,10 +172,10 @@ function TodaySupplementItem({
         ) : supplement.isLogged ? (
           <Check size={16} color="#FFFFFF" strokeWidth={3} />
         ) : null}
-      </Pressable>
+      </HapticPressable>
 
       {/* Supplement Info */}
-      <Pressable
+      <HapticPressable
         onPress={() => !isToggling && !isDeleting && onToggle(supplement)}
         style={{ flex: 1 }}
       >
@@ -210,11 +212,11 @@ function TodaySupplementItem({
           <Text style={{ fontSize: 13, color: isDark ? '#6B7280' : '#9CA3AF', marginHorizontal: 6 }}>•</Text>
           <Text style={{ fontSize: 13, color: categoryColor }}>{supplement.supplement_category}</Text>
         </View>
-      </Pressable>
+      </HapticPressable>
 
       {/* Delete Button (only for personal supplements) */}
       {isPersonal && onDelete && (
-        <Pressable
+        <HapticPressable
           onPress={() => !isDeleting && onDelete(supplement)}
           style={{
             width: 32,
@@ -231,7 +233,7 @@ function TodaySupplementItem({
           ) : (
             <Trash2 size={16} color="#EF4444" />
           )}
-        </Pressable>
+        </HapticPressable>
       )}
     </View>
   );
@@ -372,7 +374,7 @@ function ScheduleGroupCard({
 
       {/* Mark All Button */}
       {hasUnloggedSupplements && (
-        <Pressable
+        <HapticPressable
           onPress={() => onMarkAllTaken(group)}
           disabled={isMarkingAll}
           style={{
@@ -396,7 +398,7 @@ function ScheduleGroupCard({
               </Text>
             </>
           )}
-        </Pressable>
+        </HapticPressable>
       )}
 
       {/* All Complete Message */}
@@ -490,6 +492,7 @@ function WeeklyDayBar({
 }
 
 export default function SupsScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { refreshReminders } = useNotifications();
@@ -999,7 +1002,7 @@ export default function SupsScreen() {
           >
             Add your own supplements to track, or wait for your coach to assign them
           </Text>
-          <Pressable
+          <HapticPressable
             onPress={() => setShowAddModal(true)}
             style={{
               flexDirection: 'row',
@@ -1014,7 +1017,7 @@ export default function SupsScreen() {
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>
               Add My Supplements
             </Text>
-          </Pressable>
+          </HapticPressable>
         </ScrollView>
 
         {/* Add Supplement Modal */}
@@ -1063,7 +1066,7 @@ export default function SupsScreen() {
               flex: 1,
             }}
           >
-            You're offline. Showing cached data.
+            {t('common.youreOffline')}
           </Text>
         </View>
       )}
@@ -1125,7 +1128,7 @@ export default function SupsScreen() {
       ))}
 
       {/* Add More Button */}
-      <Pressable
+      <HapticPressable
         onPress={() => setShowAddModal(true)}
         style={{
           flexDirection: 'row',
@@ -1151,7 +1154,7 @@ export default function SupsScreen() {
         >
           Add Supplement
         </Text>
-      </Pressable>
+      </HapticPressable>
 
       {/* This Week Section (like water) */}
       {history.length > 0 && (

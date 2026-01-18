@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   ActivityIndicator,
-  Pressable,
   RefreshControl,
 } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,6 +12,7 @@ import { supabase } from '../lib/supabase';
 import { Calendar, Clock, CheckCircle, ChevronDown, ChevronUp, Trash2, Dumbbell } from 'lucide-react-native';
 import { cleanExerciseName } from '../types/workout';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { HapticPressable } from '../components/HapticPressable';
 
 const PAGE_SIZE = 5;
 
@@ -474,7 +474,7 @@ export default function WorkoutHistoryScreen() {
         }}
       >
         {/* Header */}
-        <Pressable
+        <HapticPressable
           onPress={() => toggleSessionExpansion(session.id)}
           style={({ pressed }) => ({
             opacity: pressed ? 0.9 : 1
@@ -555,11 +555,11 @@ export default function WorkoutHistoryScreen() {
             </View>
 
           </View>
-        </Pressable>
+        </HapticPressable>
 
         {/* Delete button - outside main pressable */}
         <View style={{ paddingLeft: 20, paddingRight: 20, paddingBottom: 20 }}>
-          <Pressable
+          <HapticPressable
             onPress={() => showDeleteConfirmation(session)}
           >
             <View
@@ -581,7 +581,7 @@ export default function WorkoutHistoryScreen() {
                 </Text>
               </View>
             </View>
-          </Pressable>
+          </HapticPressable>
         </View>
 
         {/* Expanded details */}
@@ -691,7 +691,7 @@ export default function WorkoutHistoryScreen() {
         <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center' }}>
           {error}
         </Text>
-        <Pressable
+        <HapticPressable
           onPress={() => fetchWorkoutHistory(true)}
           style={{
             marginTop: 16,
@@ -702,7 +702,7 @@ export default function WorkoutHistoryScreen() {
           }}
         >
           <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Retry</Text>
-        </Pressable>
+        </HapticPressable>
       </View>
     );
   }
