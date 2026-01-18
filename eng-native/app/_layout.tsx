@@ -192,22 +192,22 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <BottomSheetModalProvider>
-          <ThemeProvider>
-            <LocaleProvider>
-              <AuthProvider>
-                <OfflineProvider>
-                  <NotificationsProvider>
+        <ThemeProvider>
+          <LocaleProvider>
+            <AuthProvider>
+              <OfflineProvider>
+                <NotificationsProvider>
+                  <BottomSheetModalProvider>
                     <AppContent />
                     <NotificationsModal />
                     <UpdatePrompt />
                     <IncompleteProfilePrompt />
-                  </NotificationsProvider>
-                </OfflineProvider>
-              </AuthProvider>
-            </LocaleProvider>
-          </ThemeProvider>
-        </BottomSheetModalProvider>
+                  </BottomSheetModalProvider>
+                </NotificationsProvider>
+              </OfflineProvider>
+            </AuthProvider>
+          </LocaleProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
