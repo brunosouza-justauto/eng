@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, RefreshControl, TextInput, Modal } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { HapticPressable } from '../../components/HapticPressable';
 import { Droplets, Plus, Minus, Target, AlertCircle, Award, X, WifiOff } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -40,6 +41,7 @@ function WaterProgressCircle({
   progress: WaterProgress;
   isDark: boolean;
 }) {
+  const { t } = useTranslation();
   const size = 160;
   const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
@@ -110,7 +112,7 @@ function WaterProgressCircle({
               color: isDark ? '#9CA3AF' : '#6B7280',
             }}
           >
-            liters
+            {t('water.liters')}
           </Text>
         </View>
       </View>
@@ -134,8 +136,10 @@ function WeeklyDayBar({
   isToday: boolean;
   isDark: boolean;
 }) {
+  const { t } = useTranslation();
   const dayDate = new Date(date + 'T00:00:00');
-  const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayDate.getDay()];
+  const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const dayName = t(`days.${dayKeys[dayDate.getDay()]}Short`);
   // Handle rounding: 2490ml and 2500ml both display as "2.5L", so compare displayed values
   const displayedAmount = (amountMl / 1000).toFixed(1);
   const displayedGoal = (goalMl / 1000).toFixed(1);
@@ -191,6 +195,7 @@ function WeeklyDayBar({
 }
 
 export default function WaterScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { refreshReminders } = useNotifications();
@@ -661,7 +666,7 @@ export default function WaterScreen() {
           backgroundColor: isDark ? '#111827' : '#F9FAFB',
         }}
       >
-        <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280' }}>Loading water data...</Text>
+        <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('common.loadingWater')}</Text>
       </View>
     );
   }
@@ -844,7 +849,7 @@ export default function WaterScreen() {
             color: isDark ? '#F3F4F6' : '#1F2937',
           }}
         >
-          Water Intake
+          {t('water.waterIntake')}
         </Text>
       </View>
 
@@ -895,7 +900,7 @@ export default function WaterScreen() {
             >
               <Target size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
               <Text style={{ marginLeft: 4, fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-                Daily Goal: {(progress.goal / 1000).toFixed(1)}L
+                {t('water.dailyGoal')}: {(progress.goal / 1000).toFixed(1)}L
               </Text>
               <Text style={{ marginLeft: 4, fontSize: 11, color: '#6366F1' }}>Edit</Text>
             </HapticPressable>
@@ -978,7 +983,7 @@ export default function WaterScreen() {
 
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-              {DEFAULT_GLASS_SIZE}ml per glass
+              {t('water.perGlass', { amount: DEFAULT_GLASS_SIZE })}
             </Text>
           </View>
 
@@ -1109,7 +1114,7 @@ export default function WaterScreen() {
               <Text
                 style={{ marginLeft: 6, color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}
               >
-                Add Custom Amount
+                {t('water.addCustomAmount')}
               </Text>
             </HapticPressable>
           )}
@@ -1127,7 +1132,7 @@ export default function WaterScreen() {
           marginBottom: 12,
         }}
       >
-        This Week
+        {t('water.thisWeek')}
       </Text>
 
       <View
@@ -1178,7 +1183,7 @@ export default function WaterScreen() {
               {historyEntries.filter((e) => e.amount_ml >= waterGoal).length}
             </Text>
             <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
-              Goals Hit
+              {t('water.goalsHit')}
             </Text>
           </View>
           <View style={{ alignItems: 'center' }}>
@@ -1197,7 +1202,7 @@ export default function WaterScreen() {
               )}
             </Text>
             <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
-              Daily Avg
+              {t('water.dailyAvg')}
             </Text>
           </View>
         </View>

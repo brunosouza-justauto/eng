@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { LocalReminder } from '../types/notifications';
@@ -19,6 +20,7 @@ import { SupplementSchedule, TodaysSupplement } from '../types/supplements';
  * These are client-side generated and shown in the notifications panel
  */
 export function useLocalReminders() {
+  const { t } = useTranslation();
   const { user, profile } = useAuth();
   const [reminders, setReminders] = useState<LocalReminder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,8 +81,8 @@ export function useLocalReminders() {
           newReminders.push({
             id: 'reminder-workout-overdue',
             type: 'workout_overdue',
-            title: 'Workout Overdue',
-            message: `Your training was scheduled for ${trainingTime}. Time to hit the gym!`,
+            title: t('notifications.reminders.workoutOverdue'),
+            message: t('notifications.reminders.workoutOverdueMessage', { time: trainingTime }),
             priority: 'high',
             iconColor: '#DC2626',
             href: '/(tabs)/workout',
@@ -90,8 +92,8 @@ export function useLocalReminders() {
           newReminders.push({
             id: 'reminder-workout-due',
             type: 'workout_due',
-            title: 'Workout Time',
-            message: `Your training is scheduled for ${trainingTime}. Ready to crush it?`,
+            title: t('notifications.reminders.workoutTime'),
+            message: t('notifications.reminders.workoutTimeMessage', { time: trainingTime }),
             priority: 'medium',
             iconColor: '#F97316',
             href: '/(tabs)/workout',
@@ -127,8 +129,10 @@ export function useLocalReminders() {
           newReminders.push({
             id: 'reminder-supplements-overdue',
             type: 'supplements_overdue',
-            title: `${overdueSupplements.length} Supplement${overdueSupplements.length > 1 ? 's' : ''} Overdue`,
-            message: `${schedules.join(', ')} supplements need to be taken`,
+            title: overdueSupplements.length > 1
+              ? t('notifications.reminders.supplementsOverdue', { count: overdueSupplements.length })
+              : t('notifications.reminders.supplementOverdue', { count: overdueSupplements.length }),
+            message: t('notifications.reminders.supplementOverdueMessage', { schedules: schedules.join(', ') }),
             priority: 'high',
             iconColor: '#DC2626',
             href: '/(tabs)/sups',
@@ -139,8 +143,10 @@ export function useLocalReminders() {
           newReminders.push({
             id: 'reminder-supplements-due',
             type: 'supplements_due',
-            title: `${dueSupplements.length} Supplement${dueSupplements.length > 1 ? 's' : ''} Due`,
-            message: `Time to take your ${schedules.join(', ').toLowerCase()} supplements`,
+            title: dueSupplements.length > 1
+              ? t('notifications.reminders.supplementsDue', { count: dueSupplements.length })
+              : t('notifications.reminders.supplementDue', { count: dueSupplements.length }),
+            message: t('notifications.reminders.supplementDueMessage', { schedules: schedules.join(', ').toLowerCase() }),
             priority: 'medium',
             iconColor: '#8B5CF6',
             href: '/(tabs)/sups',
@@ -212,10 +218,12 @@ export function useLocalReminders() {
             newReminders.push({
               id: 'reminder-meals-overdue',
               type: 'meals_overdue',
-              title: missedMeals.length === 1 ? 'Meal Overdue' : `${missedMeals.length} Meals Overdue`,
+              title: missedMeals.length === 1
+                ? t('notifications.reminders.mealOverdue')
+                : t('notifications.reminders.mealsOverdue', { count: missedMeals.length }),
               message: missedMeals.length === 1
-                ? `${firstMissed.name} was scheduled for ${firstMissed.time_suggestion}`
-                : `${firstMissed.name} and ${missedMeals.length - 1} other${missedMeals.length > 2 ? 's' : ''} need logging`,
+                ? t('notifications.reminders.mealOverdueMessage', { meal: firstMissed.name, time: firstMissed.time_suggestion })
+                : t('notifications.reminders.mealsOverdueMessage', { meal: firstMissed.name, count: missedMeals.length - 1 }),
               priority: 'high',
               iconColor: '#DC2626',
               href: '/(tabs)/nutrition',
@@ -258,8 +266,8 @@ export function useLocalReminders() {
           newReminders.push({
             id: 'reminder-water-behind',
             type: 'water_behind',
-            title: 'Stay Hydrated',
-            message: `You're at ${waterIntake}ml of ${waterGoal}ml. Drink some water!`,
+            title: t('notifications.reminders.stayHydrated'),
+            message: t('notifications.reminders.stayHydratedMessage', { current: waterIntake, goal: waterGoal }),
             priority: 'low',
             iconColor: '#06B6D4',
             href: '/(tabs)/water',
@@ -313,8 +321,8 @@ export function useLocalReminders() {
           newReminders.push({
             id: 'reminder-steps-behind',
             type: 'steps_behind',
-            title: 'Stay Active',
-            message: `You're at ${stepsFormatted} of ${goalFormatted} steps. Time for a walk!`,
+            title: t('notifications.reminders.stayActive'),
+            message: t('notifications.reminders.stayActiveMessage', { current: stepsFormatted, goal: goalFormatted }),
             priority: 'low',
             iconColor: '#3B82F6',
             href: '/(tabs)/steps',
@@ -330,10 +338,10 @@ export function useLocalReminders() {
         newReminders.push({
           id: 'reminder-checkin-overdue',
           type: 'checkin_overdue',
-          title: 'Weekly Check-in Overdue',
+          title: t('notifications.reminders.checkInOverdue'),
           message: daysSinceCheckIn === null
-            ? "You haven't done a check-in yet. Submit your progress!"
-            : `It's been ${daysSinceCheckIn} days since your last check-in`,
+            ? t('notifications.reminders.checkInOverdueFirstMessage')
+            : t('notifications.reminders.checkInOverdueMessage', { days: daysSinceCheckIn }),
           priority: 'high',
           iconColor: '#DC2626',
           href: '/(tabs)/checkin',
@@ -352,7 +360,7 @@ export function useLocalReminders() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, profile?.id, profile]);
+  }, [user?.id, profile?.id, profile, t]);
 
   // Generate reminders on mount and when dependencies change
   useEffect(() => {

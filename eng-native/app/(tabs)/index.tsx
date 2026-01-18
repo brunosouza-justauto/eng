@@ -11,7 +11,7 @@ import { useOffline } from '../../contexts/OfflineContext';
 import { supabase } from '../../lib/supabase';
 import { getCache, setCache, CacheKeys, getLastUserId } from '../../lib/storage';
 import { getLocalDateString, getCurrentDayOfWeek, getLocalDateRangeInUTC } from '../../utils/date';
-import { getGreeting, getMotivationalMessage, getStreakMessage } from '../../utils/motivationalMessages';
+import { getGreeting, getTranslatedMotivationalMessage, getTranslatedStreakMessage } from '../../utils/motivationalMessages';
 import { getTodaysSupplements } from '../../services/supplementService';
 import { SupplementSchedule } from '../../types/supplements';
 import { getDaysSinceLastCheckIn } from '../../services/checkinService';
@@ -826,10 +826,10 @@ export default function HomeScreen() {
               <AlertTriangle size={20} color="#DC2626" />
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: '#991B1B' }}>
-                  Workout overdue!
+                  {t('home.workoutOverdue')}
                 </Text>
                 <Text style={{ fontSize: 12, color: '#B91C1C', marginTop: 2 }}>
-                  Your training was scheduled for {trainingTime}. Tap to start!
+                  {t('home.workoutScheduledFor', { time: trainingTime })}
                 </Text>
               </View>
               <Dumbbell size={20} color="#DC2626" />
@@ -841,10 +841,10 @@ export default function HomeScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <View style={{ flex: 1, marginRight: 12 }}>
             <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Hey, {displayName}!
+              {t('home.hey', { name: displayName })}
             </Text>
             <Text className={`text-base mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              {getMotivationalMessage(overallProgress)}
+              {getTranslatedMotivationalMessage(t, overallProgress)}
             </Text>
           </View>
           <StreakCounter streak={streak} />
@@ -884,7 +884,7 @@ export default function HomeScreen() {
                       marginTop: -2,
                     }}
                   >
-                    complete
+                    {t('home.complete')}
                   </Text>
                 </View>
               </CircularProgress>
@@ -901,7 +901,7 @@ export default function HomeScreen() {
                     marginLeft: 8,
                   }}
                 >
-                  Daily Score
+                  {t('home.dailyScore')}
                 </Text>
               </View>
 
@@ -912,7 +912,7 @@ export default function HomeScreen() {
                   marginBottom: 12,
                 }}
               >
-                {completedCount}/{totalCount} goals completed
+                {t('home.goalsCompleted', { completed: completedCount, total: totalCount })}
               </Text>
 
               <Text
@@ -922,7 +922,7 @@ export default function HomeScreen() {
                   fontStyle: 'italic',
                 }}
               >
-                {getStreakMessage(streak, 'secondary')}
+                {getTranslatedStreakMessage(t, streak, 'secondary')}
               </Text>
             </View>
             </View>
@@ -932,7 +932,7 @@ export default function HomeScreen() {
         {/* Section Header - only show if there are goals */}
         {(isLoading || totalCount > 0) && (
           <Text className={`text-lg font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {t('home.todaysWorkout')}
+            {t('home.todaysGoals')}
           </Text>
         )}
 
@@ -955,7 +955,7 @@ export default function HomeScreen() {
             }}
           >
             <Text style={{ fontSize: 16, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center' }}>
-              No goals assigned yet.{'\n'}Ask your coach to set up your program!
+              {t('home.noGoalsAssigned')}
             </Text>
           </View>
         ) : (

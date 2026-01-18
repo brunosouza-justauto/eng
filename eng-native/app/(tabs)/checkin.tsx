@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { HapticPressable } from '../../components/HapticPressable';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import {
   ClipboardCheck,
@@ -43,6 +44,7 @@ import {
 import { CheckInWithMetrics } from '../../types/checkin';
 
 export default function CheckinScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { user } = useAuth();
   const { isOnline } = useOffline();
@@ -144,15 +146,15 @@ export default function CheckinScreen() {
   // Check-in status badge
   const getStatusBadge = () => {
     if (daysSinceLastCheckIn === null) {
-      return { text: 'First Check-in', color: 'blue' };
+      return { text: t('checkIn.firstCheckIn'), color: 'blue' };
     }
     if (daysSinceLastCheckIn === 0) {
-      return { text: 'Completed Today', color: 'green' };
+      return { text: t('checkIn.completedToday'), color: 'green' };
     }
     if (daysSinceLastCheckIn <= 7) {
-      return { text: `${daysSinceLastCheckIn} days ago`, color: 'yellow' };
+      return { text: t('checkIn.statusDaysAgo', { count: daysSinceLastCheckIn }), color: 'yellow' };
     }
-    return { text: 'Overdue', color: 'red' };
+    return { text: t('checkIn.overdue'), color: 'red' };
   };
 
   const statusBadge = getStatusBadge();
@@ -205,7 +207,7 @@ export default function CheckinScreen() {
             color: isDark ? '#F3F4F6' : '#1F2937',
           }}
         >
-          Sign in to submit check-ins
+          {t('checkIn.signInToSubmit')}
         </Text>
       </View>
     );
@@ -260,7 +262,7 @@ export default function CheckinScreen() {
                 color: isDark ? '#FDBA74' : '#92400E',
               }}
             >
-              You're offline. Check-ins require internet.
+              {t('checkIn.offlineBanner')}
             </Text>
           </View>
         </View>
@@ -286,7 +288,7 @@ export default function CheckinScreen() {
           }}
         >
           <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#F3F4F6' : '#1F2937' }}>
-            Weekly Check-in
+            {t('checkIn.weeklyCheckIn')}
           </Text>
           <View
             style={{
@@ -323,7 +325,7 @@ export default function CheckinScreen() {
         </View>
 
         <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 16 }}>
-          Submit your weekly check-in to keep your coach updated on your progress.
+          {t('checkIn.submitWeeklyMessage')}
         </Text>
 
         <HapticPressable
@@ -338,7 +340,7 @@ export default function CheckinScreen() {
           }}
         >
           <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
-            {isOnline ? 'Start Check-in' : 'Offline - Check-in Unavailable'}
+            {isOnline ? t('checkIn.startCheckIn') : t('checkIn.offlineCheckInUnavailable')}
           </Text>
         </HapticPressable>
       </View>
@@ -363,7 +365,7 @@ export default function CheckinScreen() {
                 color: isDark ? '#F3F4F6' : '#1F2937',
               }}
             >
-              Last Check-in
+              {t('checkIn.lastCheckIn')}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Calendar size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
@@ -403,7 +405,7 @@ export default function CheckinScreen() {
               <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#F3F4F6' : '#1F2937', marginTop: 4 }}>
                 {latestCheckIn.body_metrics?.body_fat_percentage ?? '--'}
               </Text>
-              <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>% fat</Text>
+              <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>% {t('checkIn.fat')}</Text>
             </View>
             <View
               style={{
@@ -418,7 +420,7 @@ export default function CheckinScreen() {
               <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#F3F4F6' : '#1F2937', marginTop: 4 }}>
                 {latestCheckIn.wellness_metrics?.sleep_hours ?? '--'}
               </Text>
-              <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>hrs sleep</Text>
+              <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('checkIn.hrsSleep')}</Text>
             </View>
           </View>
 
@@ -433,14 +435,14 @@ export default function CheckinScreen() {
               }}
             >
               <Text style={{ fontSize: 12, fontWeight: '500', color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 8 }}>
-                Adherence
+                {t('checkIn.adherence')}
               </Text>
               <View style={{ gap: 6 }}>
                 {latestCheckIn.diet_adherence && (
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Utensils size={14} color={getAdherenceColor(latestCheckIn.diet_adherence)} />
                     <Text style={{ marginLeft: 8, color: isDark ? '#F3F4F6' : '#1F2937', fontSize: 14, flex: 1 }}>
-                      Diet
+                      {t('checkIn.diet')}
                     </Text>
                     <Text style={{ color: getAdherenceColor(latestCheckIn.diet_adherence), fontSize: 13, fontWeight: '500' }}>
                       {latestCheckIn.diet_adherence}
@@ -451,7 +453,7 @@ export default function CheckinScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Dumbbell size={14} color={getAdherenceColor(latestCheckIn.training_adherence)} />
                     <Text style={{ marginLeft: 8, color: isDark ? '#F3F4F6' : '#1F2937', fontSize: 14, flex: 1 }}>
-                      Training
+                      {t('checkIn.training')}
                     </Text>
                     <Text style={{ color: getAdherenceColor(latestCheckIn.training_adherence), fontSize: 13, fontWeight: '500' }}>
                       {latestCheckIn.training_adherence}
@@ -462,7 +464,7 @@ export default function CheckinScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Footprints size={14} color={getAdherenceColor(latestCheckIn.steps_adherence)} />
                     <Text style={{ marginLeft: 8, color: isDark ? '#F3F4F6' : '#1F2937', fontSize: 14, flex: 1 }}>
-                      Steps
+                      {t('checkIn.steps')}
                     </Text>
                     <Text style={{ color: getAdherenceColor(latestCheckIn.steps_adherence), fontSize: 13, fontWeight: '500' }}>
                       {latestCheckIn.steps_adherence}
@@ -483,25 +485,25 @@ export default function CheckinScreen() {
             }}
           >
             <Text style={{ fontSize: 12, fontWeight: '500', color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 8 }}>
-              Wellness
+              {t('checkIn.wellness')}
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Brain size={14} color="#F59E0B" />
                 <Text style={{ marginLeft: 6, color: isDark ? '#F3F4F6' : '#1F2937', fontSize: 13 }}>
-                  Stress: {latestCheckIn.wellness_metrics?.stress_level ?? '--'}/5
+                  {t('checkIn.stress')}: {latestCheckIn.wellness_metrics?.stress_level ?? '--'}/5
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Battery size={14} color="#EF4444" />
                 <Text style={{ marginLeft: 6, color: isDark ? '#F3F4F6' : '#1F2937', fontSize: 13 }}>
-                  Fatigue: {latestCheckIn.wellness_metrics?.fatigue_level ?? '--'}/5
+                  {t('checkIn.fatigue')}: {latestCheckIn.wellness_metrics?.fatigue_level ?? '--'}/5
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Zap size={14} color="#22C55E" />
                 <Text style={{ marginLeft: 6, color: isDark ? '#F3F4F6' : '#1F2937', fontSize: 13 }}>
-                  Motivation: {latestCheckIn.wellness_metrics?.motivation_level ?? '--'}/5
+                  {t('checkIn.motivation')}: {latestCheckIn.wellness_metrics?.motivation_level ?? '--'}/5
                 </Text>
               </View>
             </View>
@@ -517,7 +519,7 @@ export default function CheckinScreen() {
               }}
             >
               <Text style={{ fontSize: 12, fontWeight: '500', color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 6 }}>
-                Notes
+                {t('checkIn.notes')}
               </Text>
               <Text
                 style={{
@@ -543,7 +545,7 @@ export default function CheckinScreen() {
           marginBottom: 12,
         }}
       >
-        Previous Check-ins
+        {t('checkIn.previousCheckIns')}
       </Text>
 
       {previousCheckIns.length === 0 ? (
@@ -563,7 +565,7 @@ export default function CheckinScreen() {
               <Text
                 style={{ marginTop: 12, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center' }}
               >
-                Offline - Can't load check-ins
+                {t('checkIn.offlineNoCheckIns')}
               </Text>
               <Text
                 style={{
@@ -573,7 +575,7 @@ export default function CheckinScreen() {
                   textAlign: 'center',
                 }}
               >
-                Connect to the internet to view your history
+                {t('checkIn.offlineConnectToView')}
               </Text>
             </>
           ) : (
@@ -582,7 +584,7 @@ export default function CheckinScreen() {
               <Text
                 style={{ marginTop: 12, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center' }}
               >
-                No previous check-ins
+                {t('checkIn.noPreviousCheckIns')}
               </Text>
               <Text
                 style={{
@@ -592,7 +594,7 @@ export default function CheckinScreen() {
                   textAlign: 'center',
                 }}
               >
-                Your check-in history will appear here
+                {t('checkIn.historyWillAppear')}
               </Text>
             </>
           )}
@@ -622,7 +624,7 @@ export default function CheckinScreen() {
               >
                 {checkIn.body_metrics?.weight_kg
                   ? `${checkIn.body_metrics.weight_kg} kg`
-                  : 'No weight recorded'}
+                  : t('checkIn.noWeightRecorded')}
               </Text>
             </View>
             <ChevronRight size={20} color={isDark ? '#6B7280' : '#9CA3AF'} />
@@ -665,7 +667,7 @@ export default function CheckinScreen() {
         }}
       >
         <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#F3F4F6' : '#1F2937' }}>
-          Check-in Details
+          {t('checkIn.details')}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {selectedCheckIn && (
@@ -705,7 +707,7 @@ export default function CheckinScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
             <Calendar size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
             <Text style={{ marginLeft: 8, fontSize: 16, color: isDark ? '#F3F4F6' : '#1F2937', fontWeight: '500' }}>
-              {new Date(selectedCheckIn.check_in_date).toLocaleDateString('en-US', {
+              {new Date(selectedCheckIn.check_in_date).toLocaleDateString(t('common.locale') || undefined, {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -720,7 +722,7 @@ export default function CheckinScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                 <Camera size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
                 <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: '600', color: isDark ? '#F3F4F6' : '#1F2937' }}>
-                  Progress Photos
+                  {t('checkIn.progressPhotos')}
                 </Text>
               </View>
               <ScrollView
@@ -780,7 +782,7 @@ export default function CheckinScreen() {
               <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#F3F4F6' : '#1F2937', marginTop: 4 }}>
                 {selectedCheckIn.body_metrics?.body_fat_percentage ?? '--'}
               </Text>
-              <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>% fat</Text>
+              <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>% {t('checkIn.fat')}</Text>
             </View>
             <View
               style={{
@@ -795,7 +797,7 @@ export default function CheckinScreen() {
               <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#F3F4F6' : '#1F2937', marginTop: 4 }}>
                 {selectedCheckIn.wellness_metrics?.sleep_hours ?? '--'}
               </Text>
-              <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>hrs sleep</Text>
+              <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('checkIn.hrsSleep')}</Text>
             </View>
           </View>
 
@@ -810,12 +812,12 @@ export default function CheckinScreen() {
               }}
             >
               <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F3F4F6' : '#1F2937', marginBottom: 12 }}>
-                Body Measurements
+                {t('checkIn.bodyMeasurements')}
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {selectedCheckIn.body_metrics.waist_cm && (
                   <View style={{ width: '48%' }}>
-                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>Waist</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('checkIn.waist')}</Text>
                     <Text style={{ fontSize: 16, fontWeight: '500', color: isDark ? '#F3F4F6' : '#1F2937' }}>
                       {selectedCheckIn.body_metrics.waist_cm} cm
                     </Text>
@@ -823,7 +825,7 @@ export default function CheckinScreen() {
                 )}
                 {selectedCheckIn.body_metrics.hip_cm && (
                   <View style={{ width: '48%' }}>
-                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>Hips</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('checkIn.hips')}</Text>
                     <Text style={{ fontSize: 16, fontWeight: '500', color: isDark ? '#F3F4F6' : '#1F2937' }}>
                       {selectedCheckIn.body_metrics.hip_cm} cm
                     </Text>
@@ -831,7 +833,7 @@ export default function CheckinScreen() {
                 )}
                 {selectedCheckIn.body_metrics.chest_cm && (
                   <View style={{ width: '48%' }}>
-                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>Chest</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('checkIn.chest')}</Text>
                     <Text style={{ fontSize: 16, fontWeight: '500', color: isDark ? '#F3F4F6' : '#1F2937' }}>
                       {selectedCheckIn.body_metrics.chest_cm} cm
                     </Text>
@@ -839,7 +841,7 @@ export default function CheckinScreen() {
                 )}
                 {selectedCheckIn.body_metrics.left_arm_cm && selectedCheckIn.body_metrics.right_arm_cm && (
                   <View style={{ width: '48%' }}>
-                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>Arm</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('checkIn.arm')}</Text>
                     <Text style={{ fontSize: 16, fontWeight: '500', color: isDark ? '#F3F4F6' : '#1F2937' }}>
                       {selectedCheckIn.body_metrics.left_arm_cm} cm / {selectedCheckIn.body_metrics.right_arm_cm} cm
                     </Text>
@@ -847,7 +849,7 @@ export default function CheckinScreen() {
                 )}
                 {selectedCheckIn.body_metrics.left_thigh_cm && selectedCheckIn.body_metrics.right_thigh_cm && (
                   <View style={{ width: '48%' }}>
-                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>Thigh</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('checkIn.thigh')}</Text>
                     <Text style={{ fontSize: 16, fontWeight: '500', color: isDark ? '#F3F4F6' : '#1F2937' }}>
                       {selectedCheckIn.body_metrics.left_thigh_cm} cm / {selectedCheckIn.body_metrics.right_thigh_cm} cm
                     </Text>
@@ -868,14 +870,14 @@ export default function CheckinScreen() {
               }}
             >
               <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F3F4F6' : '#1F2937', marginBottom: 12 }}>
-                Adherence
+                {t('checkIn.adherence')}
               </Text>
               <View style={{ gap: 8 }}>
                 {selectedCheckIn.diet_adherence && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Utensils size={16} color={getAdherenceColor(selectedCheckIn.diet_adherence)} />
-                      <Text style={{ marginLeft: 8, color: isDark ? '#F3F4F6' : '#1F2937' }}>Diet</Text>
+                      <Text style={{ marginLeft: 8, color: isDark ? '#F3F4F6' : '#1F2937' }}>{t('checkIn.diet')}</Text>
                     </View>
                     <Text style={{ color: getAdherenceColor(selectedCheckIn.diet_adherence), fontWeight: '500' }}>
                       {selectedCheckIn.diet_adherence}
@@ -886,7 +888,7 @@ export default function CheckinScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Dumbbell size={16} color={getAdherenceColor(selectedCheckIn.training_adherence)} />
-                      <Text style={{ marginLeft: 8, color: isDark ? '#F3F4F6' : '#1F2937' }}>Training</Text>
+                      <Text style={{ marginLeft: 8, color: isDark ? '#F3F4F6' : '#1F2937' }}>{t('checkIn.training')}</Text>
                     </View>
                     <Text style={{ color: getAdherenceColor(selectedCheckIn.training_adherence), fontWeight: '500' }}>
                       {selectedCheckIn.training_adherence}
@@ -897,7 +899,7 @@ export default function CheckinScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Footprints size={16} color={getAdherenceColor(selectedCheckIn.steps_adherence)} />
-                      <Text style={{ marginLeft: 8, color: isDark ? '#F3F4F6' : '#1F2937' }}>Steps</Text>
+                      <Text style={{ marginLeft: 8, color: isDark ? '#F3F4F6' : '#1F2937' }}>{t('checkIn.steps')}</Text>
                     </View>
                     <Text style={{ color: getAdherenceColor(selectedCheckIn.steps_adherence), fontWeight: '500' }}>
                       {selectedCheckIn.steps_adherence}
@@ -919,25 +921,25 @@ export default function CheckinScreen() {
               }}
             >
               <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F3F4F6' : '#1F2937', marginBottom: 12 }}>
-                Wellness
+                {t('checkIn.wellness')}
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Brain size={16} color="#F59E0B" />
                   <Text style={{ marginLeft: 6, color: isDark ? '#F3F4F6' : '#1F2937' }}>
-                    Stress: {selectedCheckIn.wellness_metrics.stress_level ?? '--'}/5
+                    {t('checkIn.stress')}: {selectedCheckIn.wellness_metrics.stress_level ?? '--'}/5
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Battery size={16} color="#EF4444" />
                   <Text style={{ marginLeft: 6, color: isDark ? '#F3F4F6' : '#1F2937' }}>
-                    Fatigue: {selectedCheckIn.wellness_metrics.fatigue_level ?? '--'}/5
+                    {t('checkIn.fatigue')}: {selectedCheckIn.wellness_metrics.fatigue_level ?? '--'}/5
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Zap size={16} color="#22C55E" />
                   <Text style={{ marginLeft: 6, color: isDark ? '#F3F4F6' : '#1F2937' }}>
-                    Motivation: {selectedCheckIn.wellness_metrics.motivation_level ?? '--'}/5
+                    {t('checkIn.motivation')}: {selectedCheckIn.wellness_metrics.motivation_level ?? '--'}/5
                   </Text>
                 </View>
               </View>
@@ -955,7 +957,7 @@ export default function CheckinScreen() {
               }}
             >
               <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F3F4F6' : '#1F2937', marginBottom: 8 }}>
-                Notes
+                {t('checkIn.notes')}
               </Text>
               <Text style={{ fontSize: 14, color: isDark ? '#D1D5DB' : '#4B5563', lineHeight: 20 }}>
                 {selectedCheckIn.notes}
@@ -976,7 +978,7 @@ export default function CheckinScreen() {
               }}
             >
               <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#93C5FD' : '#1D4ED8', marginBottom: 8 }}>
-                Coach Feedback
+                {t('checkIn.coachFeedback')}
               </Text>
               <Text style={{ fontSize: 14, color: isDark ? '#BFDBFE' : '#1E40AF', lineHeight: 20 }}>
                 {selectedCheckIn.coach_feedback}

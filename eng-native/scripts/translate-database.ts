@@ -770,6 +770,93 @@ async function translateMealNotes(): Promise<{ translated: number; errors: numbe
 }
 
 /**
+ * Translate workouts table (name and description)
+ */
+async function translateWorkouts(): Promise<{ translated: number; errors: number }> {
+  console.log('\n🏋️ Translating workouts...');
+
+  const { data: workouts, error } = await supabase
+    .from('workouts')
+    .select('id, name_en, description_en')
+    .is('name_pt', null)
+    .not('name_en', 'is', null);
+
+  if (error) {
+    console.error('Error fetching workouts:', error);
+    return { translated: 0, errors: 1 };
+  }
+
+  if (!workouts || workouts.length === 0) {
+    console.log('  No workouts to translate');
+    return { translated: 0, errors: 0 };
+  }
+
+  console.log(`  Found ${workouts.length} workouts to translate`);
+
+  let translated = 0;
+  let errors = 0;
+
+  for (let i = 0; i < workouts.length; i += BATCH_SIZE) {
+    const batch = workouts.slice(i, i + BATCH_SIZE);
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(workouts.length / BATCH_SIZE);
+
+    console.log(`  Processing batch ${batchNum}/${totalBatches}...`);
+
+    try {
+      // Translate names
+      const names = batch.map((w) => w.name_en).filter(Boolean) as string[];
+      const translatedNames = names.length > 0 ? await translateTexts(names, 'fitness/workout') : [];
+
+      // Translate descriptions
+      const descriptions = batch.map((w) => w.description_en).filter(Boolean) as string[];
+      const translatedDescriptions = descriptions.length > 0
+        ? await translateTexts(descriptions, 'fitness/workout instructions')
+        : [];
+
+      let nameIdx = 0;
+      let descIdx = 0;
+
+      for (const workout of batch) {
+        const updates: Record<string, string> = {};
+
+        if (workout.name_en && translatedNames[nameIdx]) {
+          updates.name_pt = translatedNames[nameIdx];
+          nameIdx++;
+        }
+
+        if (workout.description_en && translatedDescriptions[descIdx]) {
+          updates.description_pt = translatedDescriptions[descIdx];
+          descIdx++;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          const { error: updateError } = await supabase
+            .from('workouts')
+            .update(updates)
+            .eq('id', workout.id);
+
+          if (updateError) {
+            console.error(`    Error updating workout ${workout.id}:`, updateError);
+            errors++;
+          } else {
+            translated++;
+          }
+        }
+      }
+
+      await sleep(RATE_LIMIT_DELAY_MS);
+    } catch (error) {
+      console.error(`    Error processing batch:`, error);
+      errors += batch.length;
+    }
+  }
+
+  console.log(`  ✅ Translated ${translated} workouts, ${errors} errors`);
+  return { translated, errors };
+}
+
+/**
  * Main function
  */
 async function main() {
@@ -792,6 +879,7 @@ async function main() {
     programTemplateDescriptions: { translated: 0, errors: 0 },
     nutritionPlanDescriptions: { translated: 0, errors: 0 },
     mealNotes: { translated: 0, errors: 0 },
+    workouts: { translated: 0, errors: 0 },
   };
 
   results.exercises = await translateExercises();
@@ -801,6 +889,7 @@ async function main() {
   results.programTemplateDescriptions = await translateProgramTemplateDescriptions();
   results.nutritionPlanDescriptions = await translateNutritionPlanDescriptions();
   results.mealNotes = await translateMealNotes();
+  results.workouts = await translateWorkouts();
 
   // Summary
   console.log('\n' + '='.repeat(50));
@@ -822,6 +911,7 @@ async function main() {
     `  Nutrition Plan Descriptions: ${results.nutritionPlanDescriptions.translated} translated, ${results.nutritionPlanDescriptions.errors} errors`
   );
   console.log(`  Meal Notes: ${results.mealNotes.translated} translated, ${results.mealNotes.errors} errors`);
+  console.log(`  Workouts: ${results.workouts.translated} translated, ${results.workouts.errors} errors`);
 
   console.log('\n' + '-'.repeat(50));
   console.log(`  TOTAL: ${totalTranslated} translated, ${totalErrors} errors`);

@@ -1,5 +1,6 @@
 import { View, Text } from 'react-native';
 import { Play, Pause, Square, CheckCircle } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { HapticPressable } from '../HapticPressable';
 
@@ -25,6 +26,7 @@ export const WorkoutActionButtons = ({
   onCancel,
   onComplete,
 }: WorkoutActionButtonsProps) => {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
 
   return (
@@ -59,7 +61,7 @@ export const WorkoutActionButtons = ({
         >
           <Play size={20} color="#FFFFFF" fill="#FFFFFF" />
           <Text style={{ marginLeft: 8, color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>
-            Start Workout
+            {t('workout.startWorkout')}
           </Text>
         </HapticPressable>
       ) : (
@@ -82,7 +84,7 @@ export const WorkoutActionButtons = ({
               <Pause size={20} color="#FFFFFF" />
             )}
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>
-              {isPaused ? 'Resume' : 'Pause'}
+              {isPaused ? t('workout.resume') : t('workout.pause')}
             </Text>
           </HapticPressable>
 
@@ -100,7 +102,7 @@ export const WorkoutActionButtons = ({
           >
             <Square size={20} color="#FFFFFF" />
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>
-              Cancel
+              {t('workout.cancel')}
             </Text>
           </HapticPressable>
 
@@ -118,7 +120,7 @@ export const WorkoutActionButtons = ({
           >
             <CheckCircle size={20} color="#FFFFFF" />
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>
-              Finish
+              {t('workout.finish')}
             </Text>
           </HapticPressable>
         </>

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { View, Text, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Timer, X } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { formatTime } from '../../utils/formatters';
 import { HapticPressable } from '../HapticPressable';
 
@@ -17,6 +18,7 @@ const COUNTDOWN_THRESHOLD = 5;
  * Flashes red and provides haptic feedback in the last 5 seconds
  */
 export const RestTimerBanner = ({ timeRemaining, onSkip }: RestTimerBannerProps) => {
+  const { t } = useTranslation();
   const flashAnim = useRef(new Animated.Value(0)).current;
   const lastTickTimeRef = useRef<number | null>(null);
 
@@ -85,7 +87,7 @@ export const RestTimerBanner = ({ timeRemaining, onSkip }: RestTimerBannerProps)
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Timer size={20} color="#FFFFFF" />
         <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600' }}>
-          {isCountdown ? 'Get Ready!' : 'Rest Time'}
+          {isCountdown ? t('workout.getReady') : t('workout.restTime')}
         </Text>
       </View>
 

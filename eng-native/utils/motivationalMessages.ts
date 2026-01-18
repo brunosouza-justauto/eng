@@ -1,6 +1,9 @@
 /**
  * Dynamic motivational messages based on time of day and progress
+ * Supports i18n via translation function
  */
+
+import { TFunction } from 'i18next';
 
 type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
 
@@ -41,6 +44,25 @@ const greetings: Record<TimeOfDay, string[]> = {
     "Great work today!",
     "Sleep tight, grow right!",
   ],
+};
+
+// Translation key mappings for progress messages
+const progressMessageKeys = {
+  notStarted: ['home.motivational.notStarted.1', 'home.motivational.notStarted.2', 'home.motivational.notStarted.3', 'home.motivational.notStarted.4', 'home.motivational.notStarted.5'],
+  started: ['home.motivational.started.1', 'home.motivational.started.2', 'home.motivational.started.3', 'home.motivational.started.4', 'home.motivational.started.5'],
+  halfway: ['home.motivational.halfway.1', 'home.motivational.halfway.2', 'home.motivational.halfway.3', 'home.motivational.halfway.4', 'home.motivational.halfway.5'],
+  almostThere: ['home.motivational.almostThere.1', 'home.motivational.almostThere.2', 'home.motivational.almostThere.3', 'home.motivational.almostThere.4', 'home.motivational.almostThere.5'],
+  complete: ['home.motivational.complete.1', 'home.motivational.complete.2', 'home.motivational.complete.3', 'home.motivational.complete.4', 'home.motivational.complete.5'],
+};
+
+// Translation key mappings for streak messages
+const streakMessageKeys: Record<string, string[]> = {
+  '0': ['home.streak.startToday', 'home.streak.day1', 'home.streak.buildHabit'],
+  '1-3': ['home.streak.buildingMomentum', 'home.streak.keepGoing', 'home.streak.consistencyKey'],
+  '4-6': ['home.streak.almostWeek', 'home.streak.gettingStronger', 'home.streak.habitsForming'],
+  '7-13': ['home.streak.oneWeekStrong', 'home.streak.weeklyWarrior', 'home.streak.dedicationPayingOff'],
+  '14-29': ['home.streak.twoWeeksPower', 'home.streak.unstoppableForce', 'home.streak.trueCommitment'],
+  '30+': ['home.streak.monthlyMaster', 'home.streak.eliteDedication', 'home.streak.livingLifestyle'],
 };
 
 const progressMessages = {
@@ -218,4 +240,64 @@ export const getTaskEncouragement = (taskName: string, isComplete: boolean, prog
   } else {
     return `Almost done with ${taskName.toLowerCase()}!`;
   }
+};
+
+/**
+ * Get a translated motivational message based on progress
+ * @param t Translation function from i18next
+ * @param progressPercent Current progress percentage
+ * @param variant Use 'primary' for header, 'secondary' for Daily Score section
+ */
+export const getTranslatedMotivationalMessage = (t: TFunction, progressPercent: number, variant: 'primary' | 'secondary' = 'primary'): string => {
+  let keys: string[];
+
+  if (progressPercent >= 100) {
+    keys = progressMessageKeys.complete;
+  } else if (progressPercent >= 75) {
+    keys = progressMessageKeys.almostThere;
+  } else if (progressPercent >= 50) {
+    keys = progressMessageKeys.halfway;
+  } else if (progressPercent > 0) {
+    keys = progressMessageKeys.started;
+  } else {
+    keys = progressMessageKeys.notStarted;
+  }
+
+  // Use different seeds for primary and secondary to ensure different messages
+  const baseSeed = getDailySeed() + Math.floor(progressPercent / 25);
+  const variantOffset = variant === 'primary' ? 0 : 3;
+
+  const key = getSeededItem(keys, baseSeed + variantOffset);
+  return t(key);
+};
+
+/**
+ * Get a translated streak message
+ * @param t Translation function from i18next
+ * @param streak Current streak count
+ * @param variant Use different variant to avoid collision with other messages
+ */
+export const getTranslatedStreakMessage = (t: TFunction, streak: number, variant: 'primary' | 'secondary' = 'primary'): string => {
+  let rangeKey: string;
+
+  if (streak === 0) {
+    rangeKey = '0';
+  } else if (streak <= 3) {
+    rangeKey = '1-3';
+  } else if (streak <= 6) {
+    rangeKey = '4-6';
+  } else if (streak <= 13) {
+    rangeKey = '7-13';
+  } else if (streak <= 29) {
+    rangeKey = '14-29';
+  } else {
+    rangeKey = '30+';
+  }
+
+  const keys = streakMessageKeys[rangeKey];
+  const baseSeed = getDailySeed() + streak;
+  const variantOffset = variant === 'primary' ? 0 : 2;
+
+  const key = getSeededItem(keys, baseSeed + variantOffset);
+  return t(key);
 };

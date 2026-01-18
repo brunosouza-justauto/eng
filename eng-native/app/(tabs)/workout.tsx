@@ -513,7 +513,7 @@ export default function WorkoutScreen() {
         {totalCount > PREVIEW_COUNT && (
           <HapticPressable onPress={() => setShowAllExercises(!showAllExercises)} className="py-2">
             <Text className="text-center text-sm text-indigo-500">
-              {showAllExercises ? 'Show Less' : `Show All (${totalCount})`}
+              {showAllExercises ? t('workout.showLess') : `${t('workout.showAll')} (${totalCount})`}
             </Text>
           </HapticPressable>
         )}
@@ -527,7 +527,7 @@ export default function WorkoutScreen() {
     const month = currentMonth.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const firstDay = new Date(year, month, 1).getDay();
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayNames = [t('days.sun'), t('days.mon'), t('days.tue'), t('days.wed'), t('days.thu'), t('days.fri'), t('days.sat')];
 
     const hasCompletedWorkout = (day: number) => {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -611,7 +611,7 @@ export default function WorkoutScreen() {
           <View className="flex-row items-center">
             <Calendar color="#6366F1" size={18} />
             <Text className={`ml-2 font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Workout Activity
+              {t('workout.workoutActivity')}
             </Text>
           </View>
           <View className="flex-row items-center">
@@ -654,7 +654,7 @@ export default function WorkoutScreen() {
               }}
             />
             <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Workout completed
+              {t('workout.completed')}
             </Text>
           </View>
           <View className="flex-row items-center">
@@ -667,7 +667,7 @@ export default function WorkoutScreen() {
                 marginRight: 6,
               }}
             />
-            <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Today</Text>
+            <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('common.today')}</Text>
           </View>
         </View>
 
@@ -763,9 +763,9 @@ export default function WorkoutScreen() {
           <EmptyState
             icon={Dumbbell}
             iconColor="#6366F1"
-            title="No Active Program"
-            subtitle="Your coach hasn't assigned a training program yet, or browse public programs."
-            buttonText="Browse Public Programs"
+            title={t('workout.noActiveProgram')}
+            subtitle={t('workout.noActiveProgramSubtitle')}
+            buttonText={t('workout.browsePublicPrograms')}
             buttonIcon={Search}
             onButtonPress={() => setShowBrowseModal(true)}
           />
@@ -779,9 +779,9 @@ export default function WorkoutScreen() {
 
         <ConfirmationModal
           visible={showConfirmModal}
-          title="Assign this program?"
-          message={`You're about to assign "${selectedProgram?.name}" to yourself. You can always switch to a different program later.`}
-          confirmText="Assign Program"
+          title={t('workout.assignProgramTitle')}
+          message={t('workout.assignProgramMessage', { name: selectedProgram?.name })}
+          confirmText={t('workout.assignProgram')}
           confirmColor="indigo"
           onConfirm={handleConfirmAssign}
           onCancel={() => {
@@ -874,7 +874,7 @@ export default function WorkoutScreen() {
                   fontWeight: '500',
                 }}
               >
-                Switch
+                {t('workout.switch')}
               </Text>
             </HapticPressable>
             <HapticPressable
@@ -891,7 +891,7 @@ export default function WorkoutScreen() {
                   fontWeight: '500',
                 }}
               >
-                View Plan
+                {t('workout.viewPlan')}
               </Text>
               <ExternalLink size={14} color="#6366F1" style={{ marginLeft: 4 }} />
             </HapticPressable>
@@ -978,7 +978,7 @@ export default function WorkoutScreen() {
                 </Text>
                 {completionTime && (
                   <Text className={`mt-1 text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    Completed at{' '}
+                    {t('workout.completedAt')}{' '}
                     {new Date(completionTime).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -993,14 +993,14 @@ export default function WorkoutScreen() {
                     }`}
                   >
                     <Text className={isDark ? 'text-indigo-400' : 'text-indigo-700'}>
-                      View History
+                      {t('workout.viewHistory')}
                     </Text>
                   </HapticPressable>
                   <HapticPressable
                     onPress={() => router.push(`/workout-session/${todaysWorkout.id}`)}
                     className={`px-4 py-2 rounded-lg ${isDark ? 'bg-green-900/30' : 'bg-green-100'}`}
                   >
-                    <Text className={isDark ? 'text-green-400' : 'text-green-700'}>Start Again</Text>
+                    <Text className={isDark ? 'text-green-400' : 'text-green-700'}>{t('workout.startAgain')}</Text>
                   </HapticPressable>
                 </View>
               </View>
@@ -1029,7 +1029,7 @@ export default function WorkoutScreen() {
                               color: isDark ? '#A5B4FC' : '#4338CA',
                             }}
                           >
-                            ↓ Click to start workout ↓
+                            ↓ {t('workout.clickToStartWorkout')} ↓
                           </Text>
                         </Animated.View>
                       </View>
@@ -1071,9 +1071,9 @@ export default function WorkoutScreen() {
       {/* Confirm Program Switch Modal */}
       <ConfirmationModal
         visible={showConfirmModal}
-        title="Switch to this program?"
-        message={`You're about to switch to "${selectedProgram?.name}". This will replace your current program.`}
-        confirmText="Switch Program"
+        title={t('workout.switchProgramTitle')}
+        message={t('workout.switchProgramMessage', { name: selectedProgram?.name })}
+        confirmText={t('workout.switchProgram')}
         confirmColor="indigo"
         onConfirm={handleConfirmAssign}
         onCancel={() => {

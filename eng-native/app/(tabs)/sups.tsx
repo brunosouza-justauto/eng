@@ -55,6 +55,8 @@ function ReminderBanner({
   profile: ProfileData | null;
   isDark: boolean;
 }) {
+  const { t } = useTranslation();
+
   // Find groups that are due or overdue with untaken supplements
   const urgentGroups = groups.filter((group) => {
     if (group.taken === group.total) return false; // All taken
@@ -102,8 +104,8 @@ function ReminderBanner({
           }}
         >
           {isOverdue
-            ? `${urgentCount} supplement${urgentCount > 1 ? 's' : ''} overdue!`
-            : `${urgentCount} supplement${urgentCount > 1 ? 's' : ''} to take now`}
+            ? (urgentCount > 1 ? t('supplements.supplementsOverdue', { count: urgentCount }) : t('supplements.supplementOverdue', { count: urgentCount }))
+            : (urgentCount > 1 ? t('supplements.supplementsToTake', { count: urgentCount }) : t('supplements.supplementToTake', { count: urgentCount }))}
         </Text>
         <Text
           style={{
@@ -112,7 +114,7 @@ function ReminderBanner({
             marginTop: 2,
           }}
         >
-          {mostUrgent.schedule} supplements were due at {timeLabel}
+          {t('supplements.supplementsDueAt', { schedule: mostUrgent.schedule, time: timeLabel })}
         </Text>
       </View>
     </View>
@@ -135,6 +137,7 @@ function TodaySupplementItem({
   isToggling: boolean;
   isDeleting?: boolean;
 }) {
+  const { t } = useTranslation();
   const categoryColor = CATEGORY_COLORS[supplement.supplement_category] || '#6B7280';
   const isPersonal = isPersonalSupplement(supplement);
 
@@ -201,7 +204,7 @@ function TodaySupplementItem({
                 borderRadius: 4,
               }}
             >
-              <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280' }}>Personal</Text>
+              <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('supplements.personal')}</Text>
             </View>
           )}
         </View>
@@ -261,6 +264,7 @@ function ScheduleGroupCard({
   deletingIds: Set<string>;
   isMarkingAll: boolean;
 }) {
+  const { t } = useTranslation();
   const allTaken = group.taken === group.total;
   const hasUnloggedSupplements = group.supplements.some(s => !s.isLogged);
 
@@ -328,11 +332,11 @@ function ScheduleGroupCard({
               }}
             >
               {reminderStatus === 'taken'
-                ? 'Done'
+                ? t('supplements.done')
                 : reminderStatus === 'overdue'
-                ? `Overdue (${expectedTime})`
+                ? t('supplements.overdueAt', { time: expectedTime })
                 : reminderStatus === 'due'
-                ? `Due now`
+                ? t('supplements.dueNow')
                 : expectedTime}
             </Text>
           </View>
@@ -394,7 +398,7 @@ function ScheduleGroupCard({
             <>
               <CheckCheck size={18} color="#FFFFFF" />
               <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>
-                Mark All as Taken
+                {t('supplements.markAllAsTaken')}
               </Text>
             </>
           )}
@@ -413,7 +417,7 @@ function ScheduleGroupCard({
         >
           <Check size={16} color="#22C55E" />
           <Text style={{ marginLeft: 6, color: '#22C55E', fontWeight: '500', fontSize: 13 }}>
-            All done!
+            {t('supplements.allDone')}
           </Text>
         </View>
       )}
@@ -437,8 +441,10 @@ function WeeklyDayBar({
   isToday: boolean;
   isDark: boolean;
 }) {
+  const { t } = useTranslation();
   const dayDate = new Date(date + 'T00:00:00');
-  const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayDate.getDay()];
+  const dayKeys = ['days.sun', 'days.mon', 'days.tue', 'days.wed', 'days.thu', 'days.fri', 'days.sat'] as const;
+  const dayName = t(dayKeys[dayDate.getDay()]);
   const percentage = total > 0 ? (taken / total) * 100 : 0;
   const heightPercentage = maxTotal > 0 ? (taken / maxTotal) * 100 : 0;
   const goalMet = taken === total && total > 0;
@@ -942,7 +948,7 @@ export default function SupsScreen() {
         }}
       >
         <ActivityIndicator size="large" color="#6366F1" />
-        <Text style={{ marginTop: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>Loading supplements...</Text>
+        <Text style={{ marginTop: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('common.loadingSupplements')}</Text>
       </View>
     );
   }
@@ -989,7 +995,7 @@ export default function SupsScreen() {
               color: isDark ? '#F3F4F6' : '#1F2937',
             }}
           >
-            No Supplements Yet
+            {t('supplements.noSupplementsYet')}
           </Text>
           <Text
             style={{
@@ -1000,7 +1006,7 @@ export default function SupsScreen() {
               paddingHorizontal: 20,
             }}
           >
-            Add your own supplements to track, or wait for your coach to assign them
+            {t('supplements.addYourOwnMessage')}
           </Text>
           <HapticPressable
             onPress={() => setShowAddModal(true)}
@@ -1015,7 +1021,7 @@ export default function SupsScreen() {
           >
             <Plus size={20} color="#FFFFFF" />
             <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>
-              Add My Supplements
+              {t('supplements.addMySupplements')}
             </Text>
           </HapticPressable>
         </ScrollView>
@@ -1086,7 +1092,7 @@ export default function SupsScreen() {
               color: isDark ? '#F3F4F6' : '#1F2937',
             }}
           >
-            Today's Supplements
+            {t('supplements.todaysSupplements')}
           </Text>
         </View>
 
@@ -1152,7 +1158,7 @@ export default function SupsScreen() {
             fontSize: 14,
           }}
         >
-          Add Supplement
+          {t('supplements.addSupplement')}
         </Text>
       </HapticPressable>
 
@@ -1168,7 +1174,7 @@ export default function SupsScreen() {
               marginBottom: 12,
             }}
           >
-            This Week
+            {t('supplements.thisWeek')}
           </Text>
 
           <View
@@ -1219,7 +1225,7 @@ export default function SupsScreen() {
                   {history.filter((d) => d.percentage === 100).length}
                 </Text>
                 <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
-                  Perfect Days
+                  {t('supplements.perfectDays')}
                 </Text>
               </View>
               <View style={{ alignItems: 'center' }}>
@@ -1233,7 +1239,7 @@ export default function SupsScreen() {
                   {adherence?.percentage || 0}%
                 </Text>
                 <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
-                  Adherence
+                  {t('supplements.adherence')}
                 </Text>
               </View>
               {adherence && adherence.streak > 0 && (
@@ -1252,7 +1258,7 @@ export default function SupsScreen() {
                     </Text>
                   </View>
                   <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
-                    Day Streak
+                    {t('supplements.dayStreak')}
                   </Text>
                 </View>
               )}

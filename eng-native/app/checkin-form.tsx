@@ -24,6 +24,7 @@ import {
   X,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -39,17 +40,26 @@ import {
   CheckInFormData,
   PhotoPosition,
   PhotoCapture,
-  ADHERENCE_OPTIONS,
 } from '../types/checkin';
 import { getLocalDateString } from '../utils/date';
 
 type FormStep = 'body' | 'wellness' | 'adherence' | 'photos';
 
 const FORM_STEPS: FormStep[] = ['body', 'wellness', 'adherence', 'photos'];
-const STEP_TITLES = ['Body Metrics', 'Wellness', 'Adherence', 'Photos'];
+const STEP_TITLE_KEYS = ['checkIn.stepTitles.bodyMetrics', 'checkIn.stepTitles.wellness', 'checkIn.stepTitles.adherence', 'checkIn.stepTitles.photos'];
 const STEP_ICONS = [Scale, Heart, Utensils, Camera];
 
+// Adherence options with translation keys
+const ADHERENCE_OPTIONS = [
+  { value: 'perfect', labelKey: 'checkIn.adherenceOptions.perfect' },
+  { value: 'good', labelKey: 'checkIn.adherenceOptions.good' },
+  { value: 'okay', labelKey: 'checkIn.adherenceOptions.okay' },
+  { value: 'poor', labelKey: 'checkIn.adherenceOptions.poor' },
+  { value: 'missed', labelKey: 'checkIn.adherenceOptions.missed' },
+];
+
 export default function CheckinFormScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const insets = useSafeAreaInsets();
@@ -238,16 +248,16 @@ export default function CheckinFormScreen() {
 
     switch (stepName) {
       case 'body':
-        if (!formData.weight_kg) newErrors.weight_kg = 'Weight is required';
+        if (!formData.weight_kg) newErrors.weight_kg = t('checkIn.validation.weightRequired');
         break;
       case 'wellness':
-        if (!formData.sleep_hours) newErrors.sleep_hours = 'Sleep hours is required';
+        if (!formData.sleep_hours) newErrors.sleep_hours = t('checkIn.validation.sleepRequired');
         break;
       case 'adherence':
-        if (!formData.diet_adherence) newErrors.diet_adherence = 'Diet adherence is required';
-        if (!formData.training_adherence) newErrors.training_adherence = 'Training adherence is required';
-        if (!formData.steps_adherence) newErrors.steps_adherence = 'Steps adherence is required';
-        if (!formData.notes?.trim()) newErrors.notes = 'Notes are required';
+        if (!formData.diet_adherence) newErrors.diet_adherence = t('checkIn.validation.dietRequired');
+        if (!formData.training_adherence) newErrors.training_adherence = t('checkIn.validation.trainingRequired');
+        if (!formData.steps_adherence) newErrors.steps_adherence = t('checkIn.validation.stepsRequired');
+        if (!formData.notes?.trim()) newErrors.notes = t('checkIn.validation.notesRequired');
         break;
     }
 
@@ -334,7 +344,7 @@ export default function CheckinFormScreen() {
       >
         <ActivityIndicator size="large" color="#6366F1" />
         <Text style={{ marginTop: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-          Loading check-in...
+          {t('checkIn.loadingCheckIn')}
         </Text>
       </View>
     );
@@ -376,10 +386,10 @@ export default function CheckinFormScreen() {
           </View>
           <View>
             <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-              {isEditMode ? 'Edit Check-in - ' : ''}Step {currentStepIndex + 1} of {FORM_STEPS.length}
+              {isEditMode ? `${t('checkIn.editCheckIn')} - ` : ''}{t('checkIn.stepOf', { current: currentStepIndex + 1, total: FORM_STEPS.length })}
             </Text>
             <Text style={{ fontSize: 20, fontWeight: '700', color: isDark ? '#FFFFFF' : '#111827' }}>
-              {STEP_TITLES[currentStepIndex]}
+              {t(STEP_TITLE_KEYS[currentStepIndex])}
             </Text>
           </View>
         </View>
@@ -399,12 +409,12 @@ export default function CheckinFormScreen() {
             {/* Weight and Body Fat */}
             <View style={{ flexDirection: 'row', marginHorizontal: -8, marginBottom: 16 }}>
               <View style={{ width: '50%', paddingHorizontal: 8 }}>
-                <Text style={labelStyle}>Weight (kg) *</Text>
+                <Text style={labelStyle}>{t('checkIn.fields.weightKg')} *</Text>
                 <View style={[inputContainerStyle, errors.weight_kg && { borderColor: '#EF4444' }]}>
                   <Scale color={errors.weight_kg ? '#EF4444' : isDark ? '#9CA3AF' : '#6B7280'} size={20} />
                   <TextInput
                     style={inputStyle}
-                    placeholder="e.g., 75.0"
+                    placeholder={t('checkIn.placeholders.weightExample')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     keyboardType="decimal-pad"
                     value={getNumericTextValue('weight_kg', formData.weight_kg)}
@@ -414,11 +424,11 @@ export default function CheckinFormScreen() {
                 {renderFieldError('weight_kg')}
               </View>
               <View style={{ width: '50%', paddingHorizontal: 8 }}>
-                <Text style={labelStyle}>Body Fat (%)</Text>
+                <Text style={labelStyle}>{t('checkIn.fields.bodyFatPercent')}</Text>
                 <View style={inputContainerStyle}>
                   <TextInput
                     style={inputStyle}
-                    placeholder="Optional"
+                    placeholder={t('checkIn.placeholders.optional')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     keyboardType="decimal-pad"
                     value={getNumericTextValue('body_fat_percentage', formData.body_fat_percentage)}
@@ -431,11 +441,11 @@ export default function CheckinFormScreen() {
             {/* Waist and Hips */}
             <View style={{ flexDirection: 'row', marginHorizontal: -8, marginBottom: 16 }}>
               <View style={{ width: '50%', paddingHorizontal: 8 }}>
-                <Text style={labelStyle}>Waist (cm)</Text>
+                <Text style={labelStyle}>{t('checkIn.fields.waistCm')}</Text>
                 <View style={inputContainerStyle}>
                   <TextInput
                     style={inputStyle}
-                    placeholder="Optional"
+                    placeholder={t('checkIn.placeholders.optional')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     keyboardType="decimal-pad"
                     value={getNumericTextValue('waist_cm', formData.waist_cm)}
@@ -444,11 +454,11 @@ export default function CheckinFormScreen() {
                 </View>
               </View>
               <View style={{ width: '50%', paddingHorizontal: 8 }}>
-                <Text style={labelStyle}>Hips (cm)</Text>
+                <Text style={labelStyle}>{t('checkIn.fields.hipsCm')}</Text>
                 <View style={inputContainerStyle}>
                   <TextInput
                     style={inputStyle}
-                    placeholder="Optional"
+                    placeholder={t('checkIn.placeholders.optional')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     keyboardType="decimal-pad"
                     value={getNumericTextValue('hip_cm', formData.hip_cm)}
@@ -461,11 +471,11 @@ export default function CheckinFormScreen() {
             {/* Left Arm and Right Arm */}
             <View style={{ flexDirection: 'row', marginHorizontal: -8, marginBottom: 16 }}>
               <View style={{ width: '50%', paddingHorizontal: 8 }}>
-                <Text style={labelStyle}>Left Arm (cm)</Text>
+                <Text style={labelStyle}>{t('checkIn.fields.leftArmCm')}</Text>
                 <View style={inputContainerStyle}>
                   <TextInput
                     style={inputStyle}
-                    placeholder="Optional"
+                    placeholder={t('checkIn.placeholders.optional')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     keyboardType="decimal-pad"
                     value={getNumericTextValue('left_arm_cm', formData.left_arm_cm)}
@@ -474,11 +484,11 @@ export default function CheckinFormScreen() {
                 </View>
               </View>
               <View style={{ width: '50%', paddingHorizontal: 8 }}>
-                <Text style={labelStyle}>Right Arm (cm)</Text>
+                <Text style={labelStyle}>{t('checkIn.fields.rightArmCm')}</Text>
                 <View style={inputContainerStyle}>
                   <TextInput
                     style={inputStyle}
-                    placeholder="Optional"
+                    placeholder={t('checkIn.placeholders.optional')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     keyboardType="decimal-pad"
                     value={getNumericTextValue('right_arm_cm', formData.right_arm_cm)}
@@ -491,11 +501,11 @@ export default function CheckinFormScreen() {
             {/* Left Thigh and Right Thigh */}
             <View style={{ flexDirection: 'row', marginHorizontal: -8, marginBottom: 16 }}>
               <View style={{ width: '50%', paddingHorizontal: 8 }}>
-                <Text style={labelStyle}>Left Thigh (cm)</Text>
+                <Text style={labelStyle}>{t('checkIn.fields.leftThighCm')}</Text>
                 <View style={inputContainerStyle}>
                   <TextInput
                     style={inputStyle}
-                    placeholder="Optional"
+                    placeholder={t('checkIn.placeholders.optional')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     keyboardType="decimal-pad"
                     value={getNumericTextValue('left_thigh_cm', formData.left_thigh_cm)}
@@ -504,11 +514,11 @@ export default function CheckinFormScreen() {
                 </View>
               </View>
               <View style={{ width: '50%', paddingHorizontal: 8 }}>
-                <Text style={labelStyle}>Right Thigh (cm)</Text>
+                <Text style={labelStyle}>{t('checkIn.fields.rightThighCm')}</Text>
                 <View style={inputContainerStyle}>
                   <TextInput
                     style={inputStyle}
-                    placeholder="Optional"
+                    placeholder={t('checkIn.placeholders.optional')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     keyboardType="decimal-pad"
                     value={getNumericTextValue('right_thigh_cm', formData.right_thigh_cm)}
@@ -520,11 +530,11 @@ export default function CheckinFormScreen() {
 
             {/* Chest */}
             <View style={{ marginBottom: 16 }}>
-              <Text style={labelStyle}>Chest (cm)</Text>
+              <Text style={labelStyle}>{t('checkIn.fields.chestCm')}</Text>
               <View style={inputContainerStyle}>
                 <TextInput
                   style={inputStyle}
-                  placeholder="Optional"
+                  placeholder={t('checkIn.placeholders.optional')}
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   keyboardType="decimal-pad"
                   value={getNumericTextValue('chest_cm', formData.chest_cm)}
@@ -539,12 +549,12 @@ export default function CheckinFormScreen() {
         {currentStep === 'wellness' && (
           <View style={{ flex: 1 }}>
             <View style={{ marginBottom: 16 }}>
-              <Text style={labelStyle}>Average Sleep (hours) *</Text>
+              <Text style={labelStyle}>{t('checkIn.fields.avgSleepHours')} *</Text>
               <View style={[inputContainerStyle, errors.sleep_hours && { borderColor: '#EF4444' }]}>
                 <Moon color={errors.sleep_hours ? '#EF4444' : isDark ? '#9CA3AF' : '#6B7280'} size={20} />
                 <TextInput
                   style={inputStyle}
-                  placeholder="e.g., 7.5"
+                  placeholder={t('checkIn.placeholders.sleepExample')}
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   keyboardType="decimal-pad"
                   value={getNumericTextValue('sleep_hours', formData.sleep_hours)}
@@ -555,13 +565,13 @@ export default function CheckinFormScreen() {
             </View>
 
             {[
-              { key: 'sleep_quality', label: 'Sleep Quality' },
-              { key: 'stress_level', label: 'Stress Level' },
-              { key: 'fatigue_level', label: 'Fatigue Level' },
-              { key: 'motivation_level', label: 'Motivation Level' },
+              { key: 'sleep_quality', labelKey: 'checkIn.fields.sleepQuality' },
+              { key: 'stress_level', labelKey: 'checkIn.fields.stressLevel' },
+              { key: 'fatigue_level', labelKey: 'checkIn.fields.fatigueLevel' },
+              { key: 'motivation_level', labelKey: 'checkIn.fields.motivationLevel' },
             ].map((field) => (
               <View key={field.key} style={{ marginBottom: 16 }}>
-                <Text style={labelStyle}>{field.label} *</Text>
+                <Text style={labelStyle}>{t(field.labelKey)} *</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {[1, 2, 3, 4, 5].map((value) => (
                     <HapticPressable
@@ -612,9 +622,9 @@ export default function CheckinFormScreen() {
         {currentStep === 'adherence' && (
           <View style={{ flex: 1 }}>
             {[
-              { key: 'diet_adherence', label: 'Diet Adherence', icon: Utensils },
-              { key: 'training_adherence', label: 'Training Adherence', icon: Dumbbell },
-              { key: 'steps_adherence', label: 'Steps Adherence', icon: Footprints },
+              { key: 'diet_adherence', labelKey: 'checkIn.fields.dietAdherence', icon: Utensils },
+              { key: 'training_adherence', labelKey: 'checkIn.fields.trainingAdherence', icon: Dumbbell },
+              { key: 'steps_adherence', labelKey: 'checkIn.fields.stepsAdherence', icon: Footprints },
             ].map((field) => (
               <View key={field.key} style={{ marginBottom: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -629,7 +639,7 @@ export default function CheckinFormScreen() {
                       errors[field.key] && { color: '#EF4444' },
                     ]}
                   >
-                    {field.label} *
+                    {t(field.labelKey)} *
                   </Text>
                 </View>
                 {ADHERENCE_OPTIONS.map((option) => (
@@ -686,7 +696,7 @@ export default function CheckinFormScreen() {
                       )}
                     </View>
                     <Text style={{ flex: 1, color: isDark ? '#F3F4F6' : '#1F2937' }}>
-                      {option.label}
+                      {t(option.labelKey)}
                     </Text>
                   </HapticPressable>
                 ))}
@@ -695,7 +705,7 @@ export default function CheckinFormScreen() {
             ))}
 
             <View style={{ marginBottom: 16 }}>
-              <Text style={[labelStyle, errors.notes && { color: '#EF4444' }]}>General Notes *</Text>
+              <Text style={[labelStyle, errors.notes && { color: '#EF4444' }]}>{t('checkIn.fields.generalNotes')} *</Text>
               <View
                 style={[
                   inputContainerStyle,
@@ -705,7 +715,7 @@ export default function CheckinFormScreen() {
               >
                 <TextInput
                   style={[inputStyle, { minHeight: 80, textAlignVertical: 'top' }]}
-                  placeholder="How was your week? Any challenges or wins?"
+                  placeholder={t('checkIn.placeholders.notesHint')}
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   multiline
                   numberOfLines={4}
@@ -730,7 +740,7 @@ export default function CheckinFormScreen() {
               }}
             >
               <Text style={{ fontSize: 14, color: isDark ? '#93C5FD' : '#1D4ED8' }}>
-                Optional but recommended for tracking visual progress
+                {t('checkIn.photoInfo')}
               </Text>
             </View>
 
@@ -752,10 +762,9 @@ export default function CheckinFormScreen() {
                     fontWeight: '600',
                     color: isDark ? '#F3F4F6' : '#1F2937',
                     marginBottom: 8,
-                    textTransform: 'capitalize',
                   }}
                 >
-                  {position} View
+                  {t(`checkIn.photoPositions.${position}`)}
                 </Text>
 
                 {photos[position].uri ? (
@@ -794,7 +803,7 @@ export default function CheckinFormScreen() {
                       }}
                     >
                       <Text style={{ color: isDark ? '#F3F4F6' : '#1F2937', fontWeight: '500' }}>
-                        Gallery
+                        {t('checkIn.gallery')}
                       </Text>
                     </HapticPressable>
                     <HapticPressable
@@ -810,7 +819,7 @@ export default function CheckinFormScreen() {
                       }}
                     >
                       <Camera size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
-                      <Text style={{ color: '#FFFFFF', fontWeight: '500' }}>Camera</Text>
+                      <Text style={{ color: '#FFFFFF', fontWeight: '500' }}>{t('checkIn.camera')}</Text>
                     </HapticPressable>
                   </View>
                 )}
@@ -852,7 +861,7 @@ export default function CheckinFormScreen() {
           >
             <ChevronLeft color={isDark ? '#FFFFFF' : '#111827'} size={20} />
             <Text style={{ fontWeight: '600', marginLeft: 4, color: isDark ? '#FFFFFF' : '#111827' }}>
-              {currentStepIndex > 0 ? 'Back' : 'Cancel'}
+              {currentStepIndex > 0 ? t('checkIn.back') : t('checkIn.cancel')}
             </Text>
           </HapticPressable>
 
@@ -873,7 +882,7 @@ export default function CheckinFormScreen() {
                 backgroundColor: '#6366F1',
               }}
             >
-              <Text style={{ color: '#FFFFFF', fontWeight: '600', marginRight: 4 }}>Next</Text>
+              <Text style={{ color: '#FFFFFF', fontWeight: '600', marginRight: 4 }}>{t('checkIn.next')}</Text>
               <ChevronRight color="#FFFFFF" size={20} />
             </HapticPressable>
           ) : (
@@ -896,7 +905,7 @@ export default function CheckinFormScreen() {
               ) : (
                 <>
                   <Check color="#FFFFFF" size={20} />
-                  <Text style={{ color: '#FFFFFF', fontWeight: '600', marginLeft: 4 }}>Submit</Text>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '600', marginLeft: 4 }}>{t('checkIn.submit')}</Text>
                 </>
               )}
             </HapticPressable>
@@ -907,8 +916,8 @@ export default function CheckinFormScreen() {
       {/* Success Modal */}
       <ConfirmationModal
         visible={showSuccessModal}
-        title={isEditMode ? "Check-in Updated!" : "Check-in Submitted!"}
-        message={isEditMode ? "Your changes have been saved." : "Your coach will review your update shortly."}
+        title={isEditMode ? t('checkIn.checkInUpdated') : t('checkIn.checkInSubmitted')}
+        message={isEditMode ? t('checkIn.changesSaved') : t('checkIn.coachWillReview')}
         confirmText="OK"
         confirmColor="green"
         onConfirm={handleSuccessClose}

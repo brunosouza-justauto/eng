@@ -1,61 +1,67 @@
 import { supabase } from '../lib/supabase';
+import { getExerciseName, getExerciseDescription, LocalizedExercise } from '../lib/localizedData';
 
 export interface ExerciseDetails {
   id: string;
   name: string;
+  name_en: string | null;
+  name_pt: string | null;
   description: string | null;
+  description_en: string | null;
+  description_pt: string | null;
   gifUrl: string | null;
   instructions: string[] | null;
+  instructions_pt: string[] | null;
   tips: string[] | null;
+  tips_pt: string[] | null;
   youtubeLink: string | null;
   primaryMuscle: string | null;
   equipment: string[] | null;
 }
 
 /**
+ * Parse array field - could be array, string, or null
+ */
+const parseArrayField = (data: any): string[] | null => {
+  if (!data) return null;
+  if (Array.isArray(data)) {
+    return data.filter((i: any) => typeof i === 'string' && i.trim());
+  }
+  if (typeof data === 'string') {
+    return [data];
+  }
+  return null;
+};
+
+/**
  * Format database exercise to ExerciseDetails
  */
 const formatExercise = (data: any): ExerciseDetails => {
-  // Handle instructions - could be array, string, or null
-  let instructions: string[] | null = null;
-  if (data.instructions) {
-    if (Array.isArray(data.instructions)) {
-      instructions = data.instructions.filter((i: any) => typeof i === 'string' && i.trim());
-    } else if (typeof data.instructions === 'string') {
-      instructions = [data.instructions];
-    }
-  }
-
-  // Handle tips - could be array, string, or null
-  let tips: string[] | null = null;
-  if (data.tips) {
-    if (Array.isArray(data.tips)) {
-      tips = data.tips.filter((t: any) => typeof t === 'string' && t.trim());
-    } else if (typeof data.tips === 'string') {
-      tips = [data.tips];
-    }
-  }
-
-  // Handle equipment - could be array, string, or null
-  let equipment: string[] | null = null;
-  if (data.equipment) {
-    if (Array.isArray(data.equipment)) {
-      equipment = data.equipment.filter((e: any) => typeof e === 'string' && e.trim());
-    } else if (typeof data.equipment === 'string') {
-      equipment = [data.equipment];
-    }
-  }
+  // Get localized name using the helper
+  const localizedData: LocalizedExercise = {
+    name: data.name,
+    name_en: data.name_en,
+    name_pt: data.name_pt,
+    description_en: data.description_en,
+    description_pt: data.description_pt,
+  };
 
   return {
     id: String(data.id),
-    name: data.name || 'Unknown Exercise',
-    description: data.description || null,
+    name: getExerciseName(localizedData) || data.name || 'Unknown Exercise',
+    name_en: data.name_en || null,
+    name_pt: data.name_pt || null,
+    description: getExerciseDescription(localizedData) || data.description || null,
+    description_en: data.description_en || null,
+    description_pt: data.description_pt || null,
     gifUrl: data.gif_url || null,
-    instructions,
-    tips,
+    instructions: parseArrayField(data.instructions),
+    instructions_pt: parseArrayField(data.instructions_pt),
+    tips: parseArrayField(data.tips),
+    tips_pt: parseArrayField(data.tips_pt),
     youtubeLink: data.youtube_link || null,
     primaryMuscle: data.primary_muscle_group || data.body_part || null,
-    equipment,
+    equipment: parseArrayField(data.equipment),
   };
 };
 

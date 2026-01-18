@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { Flame } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface StreakCounterProps {
@@ -9,6 +10,7 @@ interface StreakCounterProps {
 }
 
 export default function StreakCounter({ streak, size = 'large' }: StreakCounterProps) {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
 
   const isLarge = size === 'large';
@@ -58,7 +60,7 @@ export default function StreakCounter({ streak, size = 'large' }: StreakCounterP
             marginLeft: 4,
           }}
         >
-          day streak
+          {streak === 1 ? t('home.streak.dayStreakLabel') : t('home.streak.daysStreakLabel')}
         </Text>
       )}
     </View>

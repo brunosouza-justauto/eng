@@ -99,6 +99,22 @@ SET description_en = description
 WHERE description_en IS NULL AND description IS NOT NULL;
 
 -- =====================================================
+-- WORKOUTS TABLE (Workout names and descriptions)
+-- =====================================================
+ALTER TABLE workouts
+  ADD COLUMN IF NOT EXISTS name_en TEXT,
+  ADD COLUMN IF NOT EXISTS name_pt TEXT,
+  ADD COLUMN IF NOT EXISTS description_en TEXT,
+  ADD COLUMN IF NOT EXISTS description_pt TEXT;
+
+-- Copy existing values to English columns
+UPDATE workouts
+SET
+  name_en = name,
+  description_en = description
+WHERE name_en IS NULL;
+
+-- =====================================================
 -- INDEXES for faster lookups
 -- =====================================================
 CREATE INDEX IF NOT EXISTS idx_exercises_name_en ON exercises(name_en);
@@ -107,11 +123,14 @@ CREATE INDEX IF NOT EXISTS idx_food_items_name_en ON food_items(food_name_en);
 CREATE INDEX IF NOT EXISTS idx_food_items_name_pt ON food_items(food_name_pt);
 CREATE INDEX IF NOT EXISTS idx_supplements_name_en ON supplements(name_en);
 CREATE INDEX IF NOT EXISTS idx_supplements_name_pt ON supplements(name_pt);
+CREATE INDEX IF NOT EXISTS idx_workouts_name_en ON workouts(name_en);
+CREATE INDEX IF NOT EXISTS idx_workouts_name_pt ON workouts(name_pt);
 
 -- =====================================================
 -- VERIFY MIGRATION
 -- =====================================================
 -- Run these queries to verify the migration was successful:
--- SELECT column_name FROM information_schema.columns WHERE table_name = 'exercises' AND column_name LIKE '%_en' OR column_name LIKE '%_pt';
--- SELECT column_name FROM information_schema.columns WHERE table_name = 'food_items' AND column_name LIKE '%_en' OR column_name LIKE '%_pt';
--- SELECT column_name FROM information_schema.columns WHERE table_name = 'meals' AND column_name LIKE '%_en' OR column_name LIKE '%_pt';
+-- SELECT column_name FROM information_schema.columns WHERE table_name = 'exercises' AND (column_name LIKE '%_en' OR column_name LIKE '%_pt');
+-- SELECT column_name FROM information_schema.columns WHERE table_name = 'food_items' AND (column_name LIKE '%_en' OR column_name LIKE '%_pt');
+-- SELECT column_name FROM information_schema.columns WHERE table_name = 'meals' AND (column_name LIKE '%_en' OR column_name LIKE '%_pt');
+-- SELECT column_name FROM information_schema.columns WHERE table_name = 'workouts' AND (column_name LIKE '%_en' OR column_name LIKE '%_pt');

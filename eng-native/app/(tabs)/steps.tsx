@@ -9,6 +9,7 @@ import {
   Platform,
   Modal,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { HapticPressable } from '../../components/HapticPressable';
 import {
   Footprints,
@@ -61,6 +62,7 @@ function ProgressCircle({
   goalSteps: number;
   isDark: boolean;
 }) {
+  const { t } = useTranslation();
   const size = 160;
   const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
@@ -127,7 +129,7 @@ function ProgressCircle({
               color: isDark ? '#9CA3AF' : '#6B7280',
             }}
           >
-            steps
+            {t('steps.stepsLabel')}
           </Text>
         </View>
       </View>
@@ -145,7 +147,15 @@ function WeeklyDayBar({
   maxSteps: number;
   isDark: boolean;
 }) {
+  const { t } = useTranslation();
   const heightPercentage = maxSteps > 0 ? (data.steps / maxSteps) * 100 : 0;
+
+  // Translate day name from English to current locale
+  const dayKeyMap: Record<string, string> = {
+    'Sun': 'sun', 'Mon': 'mon', 'Tue': 'tue', 'Wed': 'wed', 'Thu': 'thu', 'Fri': 'fri', 'Sat': 'sat'
+  };
+  const dayKey = dayKeyMap[data.dayName] || data.dayName.toLowerCase();
+  const translatedDayName = t(`days.${dayKey}Short`, { defaultValue: data.dayName });
 
   return (
     <View style={{ alignItems: 'center', flex: 1 }}>
@@ -181,7 +191,7 @@ function WeeklyDayBar({
           marginTop: 6,
         }}
       >
-        {data.dayName}
+        {translatedDayName}
       </Text>
       <Text
         style={{
@@ -196,6 +206,7 @@ function WeeklyDayBar({
 }
 
 export default function StepsScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { user, profile } = useAuth();
   const { refreshReminders } = useNotifications();
@@ -643,7 +654,7 @@ export default function StepsScreen() {
           backgroundColor: isDark ? '#111827' : '#F9FAFB',
         }}
       >
-        <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280' }}>Loading steps data...</Text>
+        <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('common.loadingSteps')}</Text>
       </View>
     );
   }
@@ -832,7 +843,7 @@ export default function StepsScreen() {
               color: isDark ? '#F3F4F6' : '#1F2937',
             }}
           >
-            Daily Steps
+            {t('steps.dailySteps')}
           </Text>
         </View>
 
@@ -889,7 +900,7 @@ export default function StepsScreen() {
               >
                 <Target size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
                 <Text style={{ marginLeft: 4, fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-                  Daily Goal: {dailyGoal.toLocaleString()} steps
+                  {t('steps.dailyGoal')}: {dailyGoal.toLocaleString()} {t('steps.steps')}
                 </Text>
                 <Text style={{ marginLeft: 4, fontSize: 11, color: '#6366F1' }}>Edit</Text>
               </HapticPressable>
@@ -1071,7 +1082,7 @@ export default function StepsScreen() {
                       <Text
                         style={{ marginLeft: 6, color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}
                       >
-                        Add Steps
+                        {t('steps.addSteps')}
                       </Text>
                     </HapticPressable>
                     <HapticPressable
@@ -1097,7 +1108,7 @@ export default function StepsScreen() {
                           fontSize: 13,
                         }}
                       >
-                        Connect Device
+                        {t('steps.connectDevice')}
                       </Text>
                     </HapticPressable>
                   </View>
@@ -1110,7 +1121,7 @@ export default function StepsScreen() {
                     marginTop: 8,
                   }}
                 >
-                  Fitbit, Garmin, Apple Health coming soon
+                  Fitbit, Garmin, Apple Health {t('steps.comingSoon')}
                 </Text>
               </View>
             </>
@@ -1126,7 +1137,7 @@ export default function StepsScreen() {
                 marginBottom: 12,
               }}
             >
-              This Week
+              {t('steps.thisWeek')}
             </Text>
 
             <View
@@ -1171,7 +1182,7 @@ export default function StepsScreen() {
                     {weeklyStats?.averageSteps.toLocaleString() || '0'}
                   </Text>
                   <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
-                    Avg Steps
+                    {t('steps.avgSteps')}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'center', flex: 1 }}>
@@ -1185,7 +1196,7 @@ export default function StepsScreen() {
                     {weeklyStats?.goalsHit || 0}
                   </Text>
                   <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
-                    Goals Hit
+                    {t('steps.goalsHit')}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'center', flex: 1 }}>
@@ -1199,7 +1210,7 @@ export default function StepsScreen() {
                     {((weeklyStats?.totalSteps || 0) / 1000).toFixed(1)}k
                   </Text>
                   <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
-                    Total Steps
+                    {t('steps.totalSteps')}
                   </Text>
                 </View>
               </View>

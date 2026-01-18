@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { X, Utensils, User, Flame } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { HapticPressable } from '../HapticPressable';
 import { getPublicNutritionPlans, PublicNutritionPlan } from '../../services/nutritionService';
@@ -26,6 +27,7 @@ export default function BrowseNutritionPlansModal({
   onClose,
   onSelect,
 }: BrowseNutritionPlansModalProps) {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['85%'], []);
@@ -257,7 +259,7 @@ export default function BrowseNutritionPlansModal({
               marginLeft: 8,
             }}
           >
-            Browse Nutrition Plans
+            {t('nutrition.browsePlans')}
           </Text>
         </View>
         <HapticPressable onPress={handleClose} hitSlop={8}>
@@ -282,7 +284,7 @@ export default function BrowseNutritionPlansModal({
                 color: isDark ? '#9CA3AF' : '#6B7280',
               }}
             >
-              Loading plans...
+              {t('nutrition.loadingPlans')}
             </Text>
           </View>
         ) : error ? (
@@ -298,7 +300,7 @@ export default function BrowseNutritionPlansModal({
                 borderRadius: 8,
               }}
             >
-              <Text style={{ color: '#FFFFFF', fontWeight: '500' }}>Retry</Text>
+              <Text style={{ color: '#FFFFFF', fontWeight: '500' }}>{t('common.retry')}</Text>
             </HapticPressable>
           </View>
         ) : plans.length === 0 ? (
@@ -313,7 +315,7 @@ export default function BrowseNutritionPlansModal({
                 textAlign: 'center',
               }}
             >
-              No Public Plans Available
+              {t('nutrition.noPublicPlans')}
             </Text>
             <Text
               style={{
@@ -323,7 +325,7 @@ export default function BrowseNutritionPlansModal({
                 textAlign: 'center',
               }}
             >
-              Ask your coach to create a public nutrition plan
+              {t('nutrition.askCoachForPlan')}
             </Text>
           </View>
         ) : (

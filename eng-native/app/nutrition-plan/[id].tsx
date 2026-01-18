@@ -1,16 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { Utensils, Clock, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getNutritionPlanById } from '../../services/nutritionService';
 import { NutritionPlanWithMeals, MealWithFoodItems } from '../../types/nutrition';
 import { HapticPressable } from '../../components/HapticPressable';
 
 export default function NutritionPlanScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const navigation = useNavigation();
+
+  // Set translated header title
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: t('nutrition.nutritionPlan'),
+    });
+  }, [navigation, t]);
 
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlanWithMeals | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,7 +50,7 @@ export default function NutritionPlanScreen() {
       setNutritionPlan(plan);
     } catch (err: any) {
       console.error('Error loading nutrition plan:', err);
-      setError('Failed to load nutrition plan details');
+      setError(t('nutrition.unableToLoadNutritionPlan'));
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +75,7 @@ export default function NutritionPlanScreen() {
     const mealsByDay = new Map<string, MealWithFoodItems[]>();
 
     nutritionPlan.meals.forEach((meal) => {
-      const dayType = meal.day_type || 'All Days';
+      const dayType = meal.day_type || t('nutrition.allDays');
       const currentMeals = mealsByDay.get(dayType) || [];
       mealsByDay.set(dayType, [...currentMeals, meal]);
     });
@@ -178,7 +188,7 @@ export default function NutritionPlanScreen() {
           >
             {meal.food_items.length === 0 ? (
               <Text style={{ color: isDark ? '#6B7280' : '#9CA3AF', fontStyle: 'italic' }}>
-                No food items added
+                {t('nutrition.noFoodItems')}
               </Text>
             ) : (
               meal.food_items.map((foodItem, index) => (
@@ -197,7 +207,7 @@ export default function NutritionPlanScreen() {
                       color: isDark ? '#F3F4F6' : '#1F2937',
                     }}
                   >
-                    {foodItem.food_item?.food_name || 'Unknown food'}
+                    {foodItem.food_item?.food_name || t('nutrition.unknownFood')}
                   </Text>
                   <View
                     style={{
@@ -255,7 +265,7 @@ export default function NutritionPlanScreen() {
       <View className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <ActivityIndicator size="large" color="#6366F1" />
         <Text className={`mt-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          Loading nutrition plan...
+          {t('nutrition.loadingNutritionPlan')}
         </Text>
       </View>
     );
@@ -270,16 +280,16 @@ export default function NutritionPlanScreen() {
           style={{ backgroundColor: isDark ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.1)' }}
         >
           <Text className="text-red-500 text-lg font-semibold mb-2">
-            Error Loading Nutrition Plan
+            {t('nutrition.errorLoadingNutritionPlan')}
           </Text>
           <Text className={`${isDark ? 'text-red-400' : 'text-red-600'}`}>
-            {error || 'Unable to load nutrition plan data'}
+            {error || t('nutrition.unableToLoadNutritionPlan')}
           </Text>
           <HapticPressable
             onPress={() => router.back()}
             className="mt-4 bg-indigo-600 rounded-lg py-3 items-center"
           >
-            <Text className="text-white font-semibold">Go Back</Text>
+            <Text className="text-white font-semibold">{t('common.back')}</Text>
           </HapticPressable>
         </View>
       </View>
@@ -335,7 +345,7 @@ export default function NutritionPlanScreen() {
                 marginBottom: 12,
               }}
             >
-              Daily Targets
+              {t('nutrition.dailyTargets')}
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {nutritionPlan.total_calories && (
@@ -362,7 +372,7 @@ export default function NutritionPlanScreen() {
                   }}
                 >
                   <Text style={{ fontSize: 13, color: '#A78BFA', fontWeight: '500' }}>
-                    {nutritionPlan.protein_grams}g protein
+                    {t('nutrition.proteinGrams', { amount: nutritionPlan.protein_grams })}
                   </Text>
                 </View>
               )}
@@ -376,7 +386,7 @@ export default function NutritionPlanScreen() {
                   }}
                 >
                   <Text style={{ fontSize: 13, color: '#FBBF24', fontWeight: '500' }}>
-                    {nutritionPlan.carbohydrate_grams}g carbs
+                    {t('nutrition.carbsGrams', { amount: nutritionPlan.carbohydrate_grams })}
                   </Text>
                 </View>
               )}
@@ -390,7 +400,7 @@ export default function NutritionPlanScreen() {
                   }}
                 >
                   <Text style={{ fontSize: 13, color: '#60A5FA', fontWeight: '500' }}>
-                    {nutritionPlan.fat_grams}g fat
+                    {t('nutrition.fatGrams', { amount: nutritionPlan.fat_grams })}
                   </Text>
                 </View>
               )}
@@ -429,7 +439,7 @@ export default function NutritionPlanScreen() {
                     color: isDark ? '#9CA3AF' : '#6B7280',
                   }}
                 >
-                  ({meals.length} {meals.length === 1 ? 'meal' : 'meals'})
+                  ({meals.length === 1 ? t('nutrition.mealCount', { count: meals.length }) : t('nutrition.mealsCount', { count: meals.length })})
                 </Text>
               </View>
 
@@ -447,10 +457,10 @@ export default function NutritionPlanScreen() {
             className={`mt-4 font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
             style={{ fontSize: 16 }}
           >
-            No Meals Found
+            {t('nutrition.noMealsFound')}
           </Text>
           <Text className={`mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            There are no meals defined for this nutrition plan.
+            {t('nutrition.noMealsMessage')}
           </Text>
         </View>
       )}

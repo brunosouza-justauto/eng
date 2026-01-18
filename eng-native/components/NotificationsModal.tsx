@@ -138,7 +138,7 @@ export default function NotificationsModal() {
     try {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
     } catch {
-      return 'some time ago';
+      return t('notifications.someTimeAgo');
     }
   };
 
@@ -153,6 +153,18 @@ export default function NotificationsModal() {
       system: '#6B7280',
     };
     return iconColors[type] || '#6B7280';
+  };
+
+  // Get translated notification text based on type
+  const getTranslatedNotification = (notification: Notification) => {
+    const typeKey = `notifications.types.${notification.type}`;
+    const translatedTitle = t(`${typeKey}.title`, { defaultValue: '' });
+    const translatedMessage = t(`${typeKey}.message`, { defaultValue: '' });
+
+    return {
+      title: translatedTitle || notification.title,
+      message: translatedMessage || notification.message,
+    };
   };
 
   return (
@@ -248,7 +260,7 @@ export default function NotificationsModal() {
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
             <ActivityIndicator size="large" color="#6366F1" />
             <Text style={{ marginTop: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-              Loading notifications...
+              {t('notifications.loading')}
             </Text>
           </View>
         ) : localReminders.length === 0 && notifications.length === 0 ? (
@@ -289,7 +301,7 @@ export default function NotificationsModal() {
                     letterSpacing: 0.5,
                   }}
                 >
-                  Action Required
+                  {t('notifications.actionRequired')}
                 </Text>
                 <View style={{ gap: 8 }}>
                   {localReminders.map((reminder) => {
@@ -383,89 +395,92 @@ export default function NotificationsModal() {
                       letterSpacing: 0.5,
                     }}
                   >
-                    Notifications
+                    {t('notifications.notifications')}
                   </Text>
                 )}
                 <View style={{ gap: 8 }}>
-                  {notifications.map((notification) => (
-                    <HapticPressable
-                      key={notification.id}
-                      onPress={() => handleNotificationPress(notification)}
-                      style={{
-                        flexDirection: 'row',
-                        padding: 16,
-                        borderRadius: 12,
-                        backgroundColor: notification.is_read
-                          ? (isDark ? '#1F2937' : '#FFFFFF')
-                          : (isDark ? '#312E81' : '#EEF2FF'),
-                        borderWidth: 1,
-                        borderColor: notification.is_read
-                          ? (isDark ? '#374151' : '#E5E7EB')
-                          : (isDark ? '#4338CA' : '#C7D2FE'),
-                      }}
-                    >
-                      {/* Icon */}
-                      <View
+                  {notifications.map((notification) => {
+                    const translatedNotification = getTranslatedNotification(notification);
+                    return (
+                      <HapticPressable
+                        key={notification.id}
+                        onPress={() => handleNotificationPress(notification)}
                         style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          backgroundColor: getNotificationIcon(notification.type),
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          marginRight: 12,
+                          flexDirection: 'row',
+                          padding: 16,
+                          borderRadius: 12,
+                          backgroundColor: notification.is_read
+                            ? (isDark ? '#1F2937' : '#FFFFFF')
+                            : (isDark ? '#312E81' : '#EEF2FF'),
+                          borderWidth: 1,
+                          borderColor: notification.is_read
+                            ? (isDark ? '#374151' : '#E5E7EB')
+                            : (isDark ? '#4338CA' : '#C7D2FE'),
                         }}
                       >
-                        <Bell size={18} color="#FFFFFF" />
-                      </View>
-
-                      {/* Content */}
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            fontSize: 15,
-                            fontWeight: notification.is_read ? '400' : '600',
-                            color: isDark ? '#FFFFFF' : '#111827',
-                          }}
-                        >
-                          {notification.title}
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            color: isDark ? '#9CA3AF' : '#6B7280',
-                            marginTop: 2,
-                          }}
-                          numberOfLines={2}
-                        >
-                          {notification.message}
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            color: isDark ? '#6B7280' : '#9CA3AF',
-                            marginTop: 4,
-                          }}
-                        >
-                          {formatTime(notification.created_at)}
-                        </Text>
-                      </View>
-
-                      {/* Unread indicator */}
-                      {!notification.is_read && (
+                        {/* Icon */}
                         <View
                           style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: '#6366F1',
-                            marginLeft: 8,
-                            alignSelf: 'center',
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: getNotificationIcon(notification.type),
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginRight: 12,
                           }}
-                        />
-                      )}
-                    </HapticPressable>
-                  ))}
+                        >
+                          <Bell size={18} color="#FFFFFF" />
+                        </View>
+
+                        {/* Content */}
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{
+                              fontSize: 15,
+                              fontWeight: notification.is_read ? '400' : '600',
+                              color: isDark ? '#FFFFFF' : '#111827',
+                            }}
+                          >
+                            {translatedNotification.title}
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              color: isDark ? '#9CA3AF' : '#6B7280',
+                              marginTop: 2,
+                            }}
+                            numberOfLines={2}
+                          >
+                            {translatedNotification.message}
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: isDark ? '#6B7280' : '#9CA3AF',
+                              marginTop: 4,
+                            }}
+                          >
+                            {formatTime(notification.created_at)}
+                          </Text>
+                        </View>
+
+                        {/* Unread indicator */}
+                        {!notification.is_read && (
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: '#6366F1',
+                              marginLeft: 8,
+                              alignSelf: 'center',
+                            }}
+                          />
+                        )}
+                      </HapticPressable>
+                    );
+                  })}
                 </View>
               </View>
             )}

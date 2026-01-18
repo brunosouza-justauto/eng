@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, BackHandler } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { HapticPressable } from '../../components/HapticPressable';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -53,6 +54,7 @@ import PendingSessionModal from '../../components/workout/PendingSessionModal';
 import ExerciseFeedbackModal from '../../components/workout/ExerciseFeedbackModal';
 
 export default function WorkoutSessionScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { user } = useAuth();
   const { refreshReminders } = useNotifications();
@@ -929,7 +931,7 @@ export default function WorkoutSessionScreen() {
       >
         <ActivityIndicator size="large" color="#6366F1" />
         <Text style={{ marginTop: 16, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-          Loading workout...
+          {t('workout.loadingWorkout')}
         </Text>
       </View>
     );
@@ -948,7 +950,7 @@ export default function WorkoutSessionScreen() {
         }}
       >
         <Text style={{ color: '#EF4444', fontSize: 16, fontWeight: '600' }}>
-          {error || 'Workout not found'}
+          {error || t('workout.workoutNotFound')}
         </Text>
         <HapticPressable
           onPress={() => router.back()}
@@ -960,7 +962,7 @@ export default function WorkoutSessionScreen() {
             borderRadius: 8,
           }}
         >
-          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Go Back</Text>
+          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>{t('workout.goBack')}</Text>
         </HapticPressable>
       </View>
     );
@@ -987,7 +989,7 @@ export default function WorkoutSessionScreen() {
             color: isDark ? '#F3F4F6' : '#1F2937',
           }}
         >
-          Rest Day
+          {t('home.restDay')}
         </Text>
         <Text
           style={{
@@ -999,8 +1001,8 @@ export default function WorkoutSessionScreen() {
           }}
         >
           {workout.name.toLowerCase().includes('rest')
-            ? 'Take it easy today and let your muscles recover.'
-            : 'This workout has no exercises. Time to rest and recover!'}
+            ? t('workout.takeItEasy')
+            : t('workout.noExercisesRestDay')}
         </Text>
         <HapticPressable
           onPress={() => router.back()}
@@ -1012,7 +1014,7 @@ export default function WorkoutSessionScreen() {
             borderRadius: 8,
           }}
         >
-          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Go Back</Text>
+          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>{t('workout.goBack')}</Text>
         </HapticPressable>
       </View>
     );
@@ -1074,7 +1076,7 @@ export default function WorkoutSessionScreen() {
           >
             <WifiOff size={16} color={isDark ? '#FBBF24' : '#D97706'} />
             <Text style={{ fontSize: 13, color: isDark ? '#FBBF24' : '#D97706', flex: 1 }}>
-              Offline mode - workout will sync when connected
+              {t('workout.offlineModeSync')}
             </Text>
           </View>
         )}
@@ -1111,7 +1113,7 @@ export default function WorkoutSessionScreen() {
                 color: '#6366F1',
               }}
             >
-              View notes →
+              {t('workout.viewNotes')} →
             </Text>
           </HapticPressable>
         )}
@@ -1198,10 +1200,10 @@ export default function WorkoutSessionScreen() {
       {/* Cancel Confirmation Modal */}
       <ConfirmationModal
         visible={showCancelModal}
-        title="Cancel Workout?"
-        message="Your progress will be lost. Are you sure you want to cancel this workout?"
-        confirmText="Cancel Workout"
-        cancelText="Keep Going"
+        title={t('workout.cancelWorkoutTitle')}
+        message={t('workout.cancelWorkoutMessage')}
+        confirmText={t('workout.cancelWorkout')}
+        cancelText={t('workout.keepGoing')}
         confirmColor="red"
         onConfirm={handleCancelWorkout}
         onCancel={() => setShowCancelModal(false)}
@@ -1211,10 +1213,10 @@ export default function WorkoutSessionScreen() {
       {/* Complete Confirmation Modal */}
       <ConfirmationModal
         visible={showCompleteModal}
-        title="Complete Workout?"
-        message="Great job! You completed:"
-        confirmText="Finish Workout"
-        cancelText="Keep Going"
+        title={t('workout.completeWorkoutTitle')}
+        message={t('workout.completeWorkoutMessage')}
+        confirmText={t('workout.finishWorkout')}
+        cancelText={t('workout.keepGoing')}
         confirmColor="green"
         onConfirm={handleCompleteWorkout}
         onCancel={() => setShowCompleteModal(false)}
@@ -1224,7 +1226,7 @@ export default function WorkoutSessionScreen() {
             • {getCompletedSetsCount()} of {getTotalSetsCount()} sets
           </Text>
           <Text style={{ fontSize: 14, color: isDark ? '#D1D5DB' : '#374151' }}>
-            • Duration: {formatTime(workoutTimer.elapsedTime)}
+            • {t('workout.duration')}: {formatTime(workoutTimer.elapsedTime)}
           </Text>
         </View>
       </ConfirmationModal>
@@ -1232,10 +1234,10 @@ export default function WorkoutSessionScreen() {
       {/* Start Workout Prompt Modal */}
       <ConfirmationModal
         visible={showStartPromptModal}
-        title="Start Workout?"
-        message="You need to start the workout before you can log sets. Would you like to start now?"
-        confirmText="Start Workout"
-        cancelText="Not Yet"
+        title={t('workout.startWorkoutTitle')}
+        message={t('workout.startWorkoutMessage')}
+        confirmText={t('workout.startWorkout')}
+        cancelText={t('workout.notYet')}
         confirmColor="indigo"
         onConfirm={async () => {
           setShowStartPromptModal(false);
@@ -1337,7 +1339,7 @@ export default function WorkoutSessionScreen() {
               color: isDark ? '#F3F4F6' : '#1F2937',
             }}
           >
-            Workout Notes
+            {t('workout.workoutNotes')}
           </Text>
           <HapticPressable
             onPress={() => setShowNotesModal(false)}

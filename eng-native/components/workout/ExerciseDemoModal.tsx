@@ -10,9 +10,11 @@ import { HapticPressable } from '../HapticPressable';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Youtube, Dumbbell, Info, Lightbulb } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getExerciseById, ExerciseDetails } from '../../services/exerciseService';
 import { cleanExerciseName } from '../../types/workout';
+import i18n from '../../lib/i18n';
 
 interface ExerciseDemoModalProps {
   visible: boolean;
@@ -30,6 +32,7 @@ export const ExerciseDemoModal = ({
   exerciseName,
   onClose,
 }: ExerciseDemoModalProps) => {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
@@ -192,7 +195,7 @@ export const ExerciseDemoModal = ({
                 color: isDark ? '#9CA3AF' : '#6B7280',
               }}
             >
-              Loading exercise details...
+              {t('workout.loadingExerciseDetails')}
             </Text>
           </View>
         ) : exercise ? (
@@ -257,7 +260,7 @@ export const ExerciseDemoModal = ({
                       textAlign: 'center',
                     }}
                   >
-                    No demo available
+                    {t('workout.noDemoAvailable')}
                   </Text>
                 </View>
               )}
@@ -286,7 +289,7 @@ export const ExerciseDemoModal = ({
                     fontWeight: '600',
                   }}
                 >
-                  Watch on YouTube
+                  {t('workout.watchOnYoutube')}
                 </Text>
               </HapticPressable>
             )}
@@ -349,57 +352,169 @@ export const ExerciseDemoModal = ({
               </View>
             )}
 
-            {/* Instructions */}
-            {exercise.instructions && exercise.instructions.length > 0 && (
-              <View
-                style={{
-                  backgroundColor: isDark
-                    ? 'rgba(55, 65, 81, 0.5)'
-                    : '#F9FAFB',
-                  borderRadius: 12,
-                  padding: 16,
-                  marginBottom: 16,
-                }}
-              >
+            {/* Instructions - use Portuguese if available, fallback to description_pt */}
+            {(() => {
+              // For Portuguese: prefer instructions_pt, then fallback to description_pt/description
+              // For English: use instructions array
+              const isPt = i18n.language === 'pt';
+              const hasLocalizedInstructions = isPt && exercise.instructions_pt?.length;
+              const hasDescription = isPt && exercise.description;
+
+              // Use localized instructions if available
+              if (hasLocalizedInstructions) {
+                const instructions = exercise.instructions_pt!;
+                return (
+                  <View
+                    style={{
+                      backgroundColor: isDark
+                        ? 'rgba(55, 65, 81, 0.5)'
+                        : '#F9FAFB',
+                      borderRadius: 12,
+                      padding: 16,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Info size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                      <Text
+                        style={{
+                          marginLeft: 8,
+                          fontSize: 12,
+                          fontWeight: '600',
+                          color: isDark ? '#9CA3AF' : '#6B7280',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {t('workout.instructions')}
+                      </Text>
+                    </View>
+                    {instructions.map((instruction, index) => (
+                      <Text
+                        key={index}
+                        style={{
+                          fontSize: 14,
+                          color: isDark ? '#D1D5DB' : '#374151',
+                          lineHeight: 22,
+                          marginBottom:
+                            index < instructions.length - 1 ? 8 : 0,
+                        }}
+                      >
+                        {instruction}
+                      </Text>
+                    ))}
+                  </View>
+                );
+              }
+
+              // For Portuguese without instructions_pt, use description (which is already localized)
+              if (isPt && hasDescription) {
+                return (
+                  <View
+                    style={{
+                      backgroundColor: isDark
+                        ? 'rgba(55, 65, 81, 0.5)'
+                        : '#F9FAFB',
+                      borderRadius: 12,
+                      padding: 16,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Info size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                      <Text
+                        style={{
+                          marginLeft: 8,
+                          fontSize: 12,
+                          fontWeight: '600',
+                          color: isDark ? '#9CA3AF' : '#6B7280',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {t('workout.instructions')}
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        color: isDark ? '#D1D5DB' : '#374151',
+                        lineHeight: 22,
+                      }}
+                    >
+                      {exercise.description}
+                    </Text>
+                  </View>
+                );
+              }
+
+              // For English or no localization available, use original instructions
+              const instructions = exercise.instructions;
+              return instructions && instructions.length > 0 && (
                 <View
                   style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    marginBottom: 12,
+                    backgroundColor: isDark
+                      ? 'rgba(55, 65, 81, 0.5)'
+                      : '#F9FAFB',
+                    borderRadius: 12,
+                    padding: 16,
+                    marginBottom: 16,
                   }}
                 >
-                  <Info size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                  <Text
+                  <View
                     style={{
-                      marginLeft: 8,
-                      fontSize: 12,
-                      fontWeight: '600',
-                      color: isDark ? '#9CA3AF' : '#6B7280',
-                      textTransform: 'uppercase',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      marginBottom: 12,
                     }}
                   >
-                    Instructions
-                  </Text>
+                    <Info size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                    <Text
+                      style={{
+                        marginLeft: 8,
+                        fontSize: 12,
+                        fontWeight: '600',
+                        color: isDark ? '#9CA3AF' : '#6B7280',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {t('workout.instructions')}
+                    </Text>
+                  </View>
+                  {instructions.map((instruction, index) => (
+                    <Text
+                      key={index}
+                      style={{
+                        fontSize: 14,
+                        color: isDark ? '#D1D5DB' : '#374151',
+                        lineHeight: 22,
+                        marginBottom:
+                          index < instructions.length - 1 ? 8 : 0,
+                      }}
+                    >
+                      {instruction}
+                    </Text>
+                  ))}
                 </View>
-                {exercise.instructions.map((instruction, index) => (
-                  <Text
-                    key={index}
-                    style={{
-                      fontSize: 14,
-                      color: isDark ? '#D1D5DB' : '#374151',
-                      lineHeight: 22,
-                      marginBottom:
-                        index < exercise.instructions!.length - 1 ? 8 : 0,
-                    }}
-                  >
-                    {instruction}
-                  </Text>
-                ))}
-              </View>
-            )}
+              );
+            })()}
 
-            {/* Tips */}
-            {exercise.tips && exercise.tips.length > 0 && (
+            {/* Tips - use Portuguese if available */}
+            {(() => {
+              const tips = i18n.language === 'pt' && exercise.tips_pt?.length
+                ? exercise.tips_pt
+                : exercise.tips;
+              return tips && tips.length > 0 && (
               <View
                 style={{
                   backgroundColor: isDark
@@ -427,10 +542,10 @@ export const ExerciseDemoModal = ({
                       textTransform: 'uppercase',
                     }}
                   >
-                    Tips
+                    {t('workout.tips')}
                   </Text>
                 </View>
-                {exercise.tips.map((tip, index) => (
+                {tips.map((tip, index) => (
                   <Text
                     key={index}
                     style={{
@@ -438,14 +553,15 @@ export const ExerciseDemoModal = ({
                       color: isDark ? '#D1D5DB' : '#374151',
                       lineHeight: 22,
                       marginBottom:
-                        index < exercise.tips!.length - 1 ? 8 : 0,
+                        index < tips.length - 1 ? 8 : 0,
                     }}
                   >
                     {tip}
                   </Text>
                 ))}
               </View>
-            )}
+            );
+            })()}
 
             {/* Bottom spacer */}
             <View style={{ height: 20 }} />
@@ -461,7 +577,7 @@ export const ExerciseDemoModal = ({
                 color: isDark ? '#D1D5DB' : '#374151',
               }}
             >
-              Exercise Not Found
+              {t('workout.exerciseNotFound')}
             </Text>
             <Text
               style={{
@@ -470,7 +586,7 @@ export const ExerciseDemoModal = ({
                 textAlign: 'center',
               }}
             >
-              Unable to load exercise details
+              {t('workout.unableToLoadExercise')}
             </Text>
           </View>
         )}

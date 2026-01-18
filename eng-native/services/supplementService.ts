@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import i18n from '../lib/i18n';
 import {
   AthleteSupplementWithDetails,
   SupplementCategory,
@@ -37,6 +38,8 @@ export const getAthleteSupplements = async (
         supplement:supplement_id (
           id,
           name,
+          name_en,
+          name_pt,
           category,
           default_dosage,
           default_timing,
@@ -56,12 +59,25 @@ export const getAthleteSupplements = async (
       return { supplements: [], error: error.message };
     }
 
+    // Get current language for localization
+    const currentLang = i18n.language;
+
     // Transform the data to match the expected interface
-    const supplements: AthleteSupplementWithDetails[] = (data || []).map((item) => ({
-      ...item,
-      supplement_name: item.supplement?.name || 'Unknown Supplement',
-      supplement_category: (item.supplement?.category as SupplementCategory) || 'Other',
-    }));
+    const supplements: AthleteSupplementWithDetails[] = (data || []).map((item) => {
+      // Apply localization for supplement name
+      let supplementName = item.supplement?.name || 'Unknown Supplement';
+      if (currentLang === 'pt' && item.supplement?.name_pt) {
+        supplementName = item.supplement.name_pt;
+      } else if (item.supplement?.name_en) {
+        supplementName = item.supplement.name_en;
+      }
+
+      return {
+        ...item,
+        supplement_name: supplementName,
+        supplement_category: (item.supplement?.category as SupplementCategory) || 'Other',
+      };
+    });
 
     return { supplements };
   } catch (err) {
@@ -681,6 +697,8 @@ export const addPersonalSupplement = async (
         supplement:supplement_id (
           id,
           name,
+          name_en,
+          name_pt,
           category,
           default_dosage,
           default_timing,
@@ -696,9 +714,18 @@ export const addPersonalSupplement = async (
       return { supplement: null, error: assignError.message };
     }
 
+    // Get current language for localization
+    const currentLang = i18n.language;
+    let localizedName = athleteSupplement.supplement?.name || supplementName;
+    if (currentLang === 'pt' && athleteSupplement.supplement?.name_pt) {
+      localizedName = athleteSupplement.supplement.name_pt;
+    } else if (athleteSupplement.supplement?.name_en) {
+      localizedName = athleteSupplement.supplement.name_en;
+    }
+
     const result: AthleteSupplementWithDetails = {
       ...athleteSupplement,
-      supplement_name: athleteSupplement.supplement?.name || supplementName,
+      supplement_name: localizedName,
       supplement_category: (athleteSupplement.supplement?.category as SupplementCategory) || category,
     };
 

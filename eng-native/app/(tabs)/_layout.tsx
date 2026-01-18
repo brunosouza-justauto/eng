@@ -107,7 +107,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="steps"
         options={{
-          title: t('steps.title'),
+          title: t('tabs.steps'),
           tabBarIcon: ({ color }) => <Footprints color={color} size={20} />,
           headerTitle: t('steps.stepsTracking'),
         }}
@@ -115,7 +115,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="water"
         options={{
-          title: t('water.title'),
+          title: t('tabs.water'),
           tabBarIcon: ({ color }) => <Droplets color={color} size={20} />,
           headerTitle: t('water.waterTracking'),
         }}
@@ -123,7 +123,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="checkin"
         options={{
-          title: t('checkIn.checkIn'),
+          title: t('tabs.checkin'),
           tabBarIcon: ({ color }) => <ClipboardCheck color={color} size={20} />,
           headerTitle: t('checkIn.title'),
         }}

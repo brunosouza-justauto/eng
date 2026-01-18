@@ -10,6 +10,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { User, Scale, Ruler, Calendar, ChevronRight, ChevronLeft, Check, Target, Dumbbell, Utensils, Heart } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -22,6 +23,7 @@ type GoalType = 'fat_loss' | 'muscle_gain' | 'both' | 'maintenance' | null;
 type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | null;
 
 export default function OnboardingScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { profile, refreshProfile } = useAuth();
   const insets = useSafeAreaInsets();
@@ -99,42 +101,42 @@ export default function OnboardingScreen() {
 
     switch (stepNum) {
       case 1:
-        if (!firstName.trim()) newErrors.firstName = 'First name is required';
-        if (!lastName.trim()) newErrors.lastName = 'Last name is required';
-        if (!gender) newErrors.gender = 'Please select your gender';
-        if (!age || parseInt(age) <= 0) newErrors.age = 'Please enter a valid age';
-        if (!weight || parseFloat(weight) <= 0) newErrors.weight = 'Please enter a valid weight';
-        if (!height || parseFloat(height) <= 0) newErrors.height = 'Please enter a valid height';
-        if (!bodyFat || parseFloat(bodyFat) <= 0 || parseFloat(bodyFat) > 100) newErrors.bodyFat = 'Please enter a valid body fat % (1-100)';
+        if (!firstName.trim()) newErrors.firstName = t('onboarding.validation.firstNameRequired');
+        if (!lastName.trim()) newErrors.lastName = t('onboarding.validation.lastNameRequired');
+        if (!gender) newErrors.gender = t('onboarding.validation.selectGender');
+        if (!age || parseInt(age) <= 0) newErrors.age = t('onboarding.validation.validAge');
+        if (!weight || parseFloat(weight) <= 0) newErrors.weight = t('onboarding.validation.validWeight');
+        if (!height || parseFloat(height) <= 0) newErrors.height = t('onboarding.validation.validHeight');
+        if (!bodyFat || parseFloat(bodyFat) <= 0 || parseFloat(bodyFat) > 100) newErrors.bodyFat = t('onboarding.validation.validBodyFat');
         break;
 
       case 2:
-        if (!goalType) newErrors.goalType = 'Please select your primary goal';
-        if ((goalType === 'fat_loss' || goalType === 'both') && !targetFatLoss) newErrors.targetFatLoss = 'Please enter target fat loss';
-        if ((goalType === 'muscle_gain' || goalType === 'both') && !targetMuscleGain) newErrors.targetMuscleGain = 'Please enter target muscle gain';
-        if (!timeframeWeeks || parseInt(timeframeWeeks) <= 0) newErrors.timeframeWeeks = 'Please enter a valid timeframe';
-        if (!physiqueDetails.trim()) newErrors.physiqueDetails = 'Please describe your physique goals';
+        if (!goalType) newErrors.goalType = t('onboarding.validation.selectGoal');
+        if ((goalType === 'fat_loss' || goalType === 'both') && !targetFatLoss) newErrors.targetFatLoss = t('onboarding.validation.enterFatLoss');
+        if ((goalType === 'muscle_gain' || goalType === 'both') && !targetMuscleGain) newErrors.targetMuscleGain = t('onboarding.validation.enterMuscleGain');
+        if (!timeframeWeeks || parseInt(timeframeWeeks) <= 0) newErrors.timeframeWeeks = t('onboarding.validation.validTimeframe');
+        if (!physiqueDetails.trim()) newErrors.physiqueDetails = t('onboarding.validation.describePhysique');
         break;
 
       case 3:
-        if (!experienceLevel) newErrors.experienceLevel = 'Please select your experience level';
-        if (!trainingEquipment) newErrors.trainingEquipment = 'Please select your equipment';
-        if (!trainingTime) newErrors.trainingTime = 'Please select training time';
-        if (!trainingDays || parseInt(trainingDays) < 3 || parseInt(trainingDays) > 7) newErrors.trainingDays = 'Training days must be between 3-7';
+        if (!experienceLevel) newErrors.experienceLevel = t('onboarding.validation.selectExperience');
+        if (!trainingEquipment) newErrors.trainingEquipment = t('onboarding.validation.selectEquipment');
+        if (!trainingTime) newErrors.trainingTime = t('onboarding.validation.selectTrainingTime');
+        if (!trainingDays || parseInt(trainingDays) < 3 || parseInt(trainingDays) > 7) newErrors.trainingDays = t('onboarding.validation.validTrainingDays');
         break;
 
       case 4:
-        if (!trackingMethod) newErrors.trackingMethod = 'Please select tracking method';
-        if (!wakeupTime) newErrors.wakeupTime = 'Please select wakeup time';
-        if (!bedTime) newErrors.bedTime = 'Please select bed time';
-        if (!mealPatterns.trim()) newErrors.mealPatterns = 'Please describe your meal patterns';
+        if (!trackingMethod) newErrors.trackingMethod = t('onboarding.validation.selectTracking');
+        if (!wakeupTime) newErrors.wakeupTime = t('onboarding.validation.selectWakeup');
+        if (!bedTime) newErrors.bedTime = t('onboarding.validation.selectBed');
+        if (!mealPatterns.trim()) newErrors.mealPatterns = t('onboarding.validation.describeMeals');
         break;
 
       case 5:
-        if (!sleepHours || parseFloat(sleepHours) <= 0) newErrors.sleepHours = 'Please enter sleep hours';
-        if (!stressLevel || parseInt(stressLevel) < 1 || parseInt(stressLevel) > 10) newErrors.stressLevel = 'Please enter stress level (1-10)';
-        if (!waterIntake || parseFloat(waterIntake) <= 0) newErrors.waterIntake = 'Please enter water intake';
-        if (!motivation.trim()) newErrors.motivation = 'Please describe your motivation';
+        if (!sleepHours || parseFloat(sleepHours) <= 0) newErrors.sleepHours = t('onboarding.validation.enterSleep');
+        if (!stressLevel || parseInt(stressLevel) < 1 || parseInt(stressLevel) > 10) newErrors.stressLevel = t('onboarding.validation.enterStress');
+        if (!waterIntake || parseFloat(waterIntake) <= 0) newErrors.waterIntake = t('onboarding.validation.enterWater');
+        if (!motivation.trim()) newErrors.motivation = t('onboarding.validation.describeMotivation');
         break;
     }
 
@@ -255,7 +257,7 @@ export default function OnboardingScreen() {
     return <Icon color="#6366F1" size={24} />;
   };
 
-  const stepTitles = ['Demographics', 'Goals', 'Training', 'Nutrition', 'Lifestyle'];
+  const stepTitleKeys = ['onboarding.steps.demographics', 'onboarding.steps.goals', 'onboarding.steps.training', 'onboarding.steps.nutrition', 'onboarding.steps.lifestyle'];
 
   // Render Step 1: Demographics
   const renderStep1 = () => (
@@ -636,8 +638,8 @@ export default function OnboardingScreen() {
             {renderStepIcon()}
           </View>
           <View>
-            <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Step {step} of {totalSteps}</Text>
-            <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stepTitles[step - 1]}</Text>
+            <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('onboarding.stepOf', { current: step, total: totalSteps })}</Text>
+            <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{t(stepTitleKeys[step - 1])}</Text>
           </View>
         </View>
       </View>
@@ -677,13 +679,13 @@ export default function OnboardingScreen() {
           {step > 1 && (
             <HapticPressable onPress={handleBack} className={`flex-1 rounded-xl py-4 items-center flex-row justify-center border ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
               <ChevronLeft color={isDark ? '#FFFFFF' : '#111827'} size={20} />
-              <Text className={`font-semibold ml-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>Back</Text>
+              <Text className={`font-semibold ml-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('onboarding.back')}</Text>
             </HapticPressable>
           )}
 
           {step < totalSteps ? (
             <HapticPressable onPress={handleNext} className="flex-1 rounded-xl py-4 items-center flex-row justify-center" style={{ backgroundColor: '#6366F1' }}>
-              <Text className="text-white font-semibold mr-1">Next</Text>
+              <Text className="text-white font-semibold mr-1">{t('onboarding.next')}</Text>
               <ChevronRight color="#FFFFFF" size={20} />
             </HapticPressable>
           ) : (
@@ -691,7 +693,7 @@ export default function OnboardingScreen() {
               {loading ? <ActivityIndicator color="#FFFFFF" /> : (
                 <>
                   <Check color="#FFFFFF" size={20} />
-                  <Text className="text-white font-semibold ml-1">Complete</Text>
+                  <Text className="text-white font-semibold ml-1">{t('onboarding.complete')}</Text>
                 </>
               )}
             </HapticPressable>

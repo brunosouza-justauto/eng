@@ -1,5 +1,6 @@
 import { View, Text } from 'react-native';
 import { AlertCircle } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MissedMeal } from '../../types/nutrition';
 
@@ -11,6 +12,7 @@ interface MissedMealsAlertProps {
  * Alert banner showing missed meals for the day
  */
 export const MissedMealsAlert = ({ missedMeals }: MissedMealsAlertProps) => {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
 
   if (missedMeals.length === 0) return null;
@@ -37,7 +39,7 @@ export const MissedMealsAlert = ({ missedMeals }: MissedMealsAlertProps) => {
             color: '#F59E0B',
           }}
         >
-          Missed Meals
+          {t('nutrition.missedMeals')}
         </Text>
       </View>
 
@@ -58,7 +60,7 @@ export const MissedMealsAlert = ({ missedMeals }: MissedMealsAlertProps) => {
               color: isDark ? '#FCD34D' : '#D97706',
             }}
           >
-            {meal.name} - Suggested time: {meal.suggestedTime} has passed
+            {t('nutrition.suggestedTimePassed', { meal: meal.name, time: meal.suggestedTime })}
           </Text>
         </View>
       ))}

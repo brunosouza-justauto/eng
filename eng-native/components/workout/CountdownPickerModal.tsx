@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import { Modal, View, Text, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Timer, Play } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { HapticPressable } from '../HapticPressable';
 
@@ -36,6 +37,7 @@ export const CountdownPickerModal = ({
   onSelect,
   onClose,
 }: CountdownPickerModalProps) => {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -123,7 +125,7 @@ export const CountdownPickerModal = ({
                   color: isDark ? '#F3F4F6' : '#1F2937',
                 }}
               >
-                Set Countdown
+                {t('workout.setCountdown')}
               </Text>
             </View>
             <HapticPressable
@@ -225,7 +227,7 @@ export const CountdownPickerModal = ({
                   fontWeight: '600',
                 }}
               >
-                Start Countdown
+                {t('workout.startCountdown')}
               </Text>
             </HapticPressable>
           </View>

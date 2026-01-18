@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { View, Text, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Timer, X, Pause, Play } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { formatTime } from '../../utils/formatters';
 import { HapticPressable } from '../HapticPressable';
 
@@ -28,6 +29,7 @@ export const CountdownTimerBanner = ({
   onPause,
   onResume,
 }: CountdownTimerBannerProps) => {
+  const { t } = useTranslation();
   const flashAnim = useRef(new Animated.Value(0)).current;
   const lastTickTimeRef = useRef<number | null>(null);
 
@@ -114,7 +116,7 @@ export const CountdownTimerBanner = ({
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Timer size={20} color="#FFFFFF" />
           <Text style={{ marginLeft: 8, color: '#FFFFFF', fontWeight: '600' }}>
-            {isCountdown ? 'Almost Done!' : isPaused ? 'Paused' : 'Countdown'}
+            {isCountdown ? t('workout.almostDone') : isPaused ? t('workout.paused') : t('workout.countdown')}
           </Text>
         </View>
 

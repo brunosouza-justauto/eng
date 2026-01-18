@@ -1,5 +1,6 @@
 import { View, Text } from 'react-native';
 import { ChevronLeft, Clock, Timer } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { HapticPressable } from '../HapticPressable';
 import { formatTime } from '../../utils/formatters';
@@ -36,6 +37,7 @@ export const WorkoutSessionHeader = ({
   onCountdownPress,
   estimatedDuration,
 }: WorkoutSessionHeaderProps) => {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
 
   const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0;
@@ -111,7 +113,7 @@ export const WorkoutSessionHeader = ({
                   color: '#3B82F6',
                 }}
               >
-                Countdown
+                {t('workout.countdown')}
               </Text>
             </HapticPressable>
           )}
@@ -149,7 +151,7 @@ export const WorkoutSessionHeader = ({
                   color: '#F59E0B',
                 }}
               >
-                {typeof customRestTime === 'number' ? formatRestTime(customRestTime) : 'Rest'}
+                {typeof customRestTime === 'number' ? formatRestTime(customRestTime) : t('workout.restLabel')}
               </Text>
             </HapticPressable>
           )}
@@ -178,7 +180,7 @@ export const WorkoutSessionHeader = ({
             {formatTime(elapsedTime)}
           </Text>
           {isPaused && (
-            <Text style={{ marginLeft: 8, fontSize: 12, color: '#F59E0B' }}>PAUSED</Text>
+            <Text style={{ marginLeft: 8, fontSize: 12, color: '#F59E0B' }}>{t('workout.paused')}</Text>
           )}
           {/* Estimated duration - show when not started or as comparison */}
           {estimatedDuration && estimatedDuration > 0 && (
@@ -196,7 +198,7 @@ export const WorkoutSessionHeader = ({
 
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-            {completedSets} / {totalSets} sets
+            {completedSets} / {totalSets} {t('workout.setsLabel')}
           </Text>
           <View
             style={{

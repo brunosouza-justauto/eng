@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { Calendar, Dumbbell, WifiOff } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOffline } from '../../contexts/OfflineContext';
@@ -12,12 +13,12 @@ import {
   WorkoutData,
   ExerciseInstanceData,
   ExerciseGroupType,
-  getDayName,
   cleanExerciseName,
   isEffectiveRestDay,
   ProgramAssignment
 } from '../../types/workout';
 import { Moon } from 'lucide-react-native';
+import i18n from '../../lib/i18n';
 
 interface ProgramData {
   id: string;
@@ -28,17 +29,111 @@ interface ProgramData {
   workouts: WorkoutData[];
 }
 
+/**
+ * Apply localization to workouts and exercise instances
+ */
+const applyLocalization = async (
+  workouts: any[],
+  exerciseDbIds: string[]
+): Promise<WorkoutData[]> => {
+  const currentLang = i18n.language;
+
+  // Fetch localized exercise names from exercises table
+  let exerciseNameMap = new Map<string, { name: string; name_pt: string | null }>();
+
+  if (exerciseDbIds.length > 0) {
+    const { data: exercises } = await supabase
+      .from('exercises')
+      .select('id, name, name_en, name_pt')
+      .in('id', [...new Set(exerciseDbIds)]);
+
+    if (exercises && exercises.length > 0) {
+      exercises.forEach((ex) => {
+        exerciseNameMap.set(String(ex.id), {
+          name: ex.name || ex.name_en || '',
+          name_pt: ex.name_pt,
+        });
+      });
+    }
+  }
+
+  // Apply localization to workouts
+  return workouts.map((workout) => {
+    let localizedWorkout = { ...workout };
+
+    // Localize workout name
+    if (currentLang === 'pt' && workout.name_pt) {
+      localizedWorkout.name = workout.name_pt;
+    } else if (workout.name_en) {
+      localizedWorkout.name = workout.name_en;
+    }
+
+    // Localize workout description
+    if (currentLang === 'pt' && workout.description_pt) {
+      localizedWorkout.description = workout.description_pt;
+    } else if (workout.description_en) {
+      localizedWorkout.description = workout.description_en;
+    }
+
+    if (!workout.exercise_instances) return localizedWorkout;
+
+    // Localize exercise instances
+    const localizedInstances = workout.exercise_instances.map((instance: any) => {
+      let localizedInstance = { ...instance };
+
+      // Localize exercise name from exercises table
+      if (instance.exercise_db_id) {
+        const exerciseData = exerciseNameMap.get(String(instance.exercise_db_id));
+        if (exerciseData) {
+          if (currentLang === 'pt' && exerciseData.name_pt) {
+            localizedInstance.exercise_name = exerciseData.name_pt;
+          } else if (exerciseData.name) {
+            localizedInstance.exercise_name = exerciseData.name;
+          }
+        }
+      }
+
+      // Localize exercise instance notes
+      if (currentLang === 'pt' && instance.notes_pt) {
+        localizedInstance.notes = instance.notes_pt;
+      } else if (instance.notes_en) {
+        localizedInstance.notes = instance.notes_en;
+      }
+
+      return localizedInstance;
+    });
+
+    return { ...localizedWorkout, exercise_instances: localizedInstances };
+  });
+};
+
 export default function WorkoutPlanScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const { user } = useAuth();
   const { isOnline } = useOffline();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const navigation = useNavigation();
 
   const [programData, setProgramData] = useState<ProgramData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFromCache, setIsFromCache] = useState(false);
+
+  // Set translated header title
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: t('workout.workoutPlan'),
+    });
+  }, [navigation, t]);
+
+  // Helper to get translated day name
+  const getTranslatedDayName = (dayOfWeek: number | null): string => {
+    if (dayOfWeek === null) return '';
+    const dayKeys = ['days.monday', 'days.tuesday', 'days.wednesday', 'days.thursday', 'days.friday', 'days.saturday', 'days.sunday'];
+    return t(dayKeys[(dayOfWeek - 1) % 7]);
+  };
 
   useEffect(() => {
     if (id) {
@@ -93,33 +188,47 @@ export default function WorkoutPlanScreen() {
         setIsLoading(false);
         return;
       } else {
-        setError('No cached data available. Please connect to the internet.');
+        setError(t('workout.noCachedData'));
         setIsLoading(false);
         return;
       }
     }
 
     try {
-      // Fetch basic program info
+      const currentLang = i18n.language;
+
+      // Fetch basic program info with localized columns
       const { data: programInfo, error: programError } = await supabase
         .from('program_templates')
-        .select('id, name, description, phase, weeks')
+        .select('id, name, description, description_en, description_pt, phase, weeks')
         .eq('id', id)
         .single();
 
       if (programError) throw programError;
       if (!programInfo) throw new Error('Program not found');
 
-      // Fetch all workouts for this program
+      // Apply localization to program description
+      let localizedDescription = programInfo.description;
+      if (currentLang === 'pt' && programInfo.description_pt) {
+        localizedDescription = programInfo.description_pt;
+      } else if (programInfo.description_en) {
+        localizedDescription = programInfo.description_en;
+      }
+
+      // Fetch all workouts for this program with localized columns
       const { data: workoutsData, error: workoutsError } = await supabase
         .from('workouts')
         .select(`
           id,
           name,
+          name_en,
+          name_pt,
           day_of_week,
           week_number,
           order_in_program,
           description,
+          description_en,
+          description_pt,
           exercise_instances (
             id,
             exercise_db_id,
@@ -129,6 +238,8 @@ export default function WorkoutPlanScreen() {
             rest_period_seconds,
             tempo,
             notes,
+            notes_en,
+            notes_pt,
             order_in_workout,
             set_type,
             sets_data,
@@ -145,16 +256,32 @@ export default function WorkoutPlanScreen() {
 
       if (workoutsError) throw workoutsError;
 
+      // Collect all exercise_db_ids for fetching localized names
+      const exerciseDbIds: string[] = [];
+      (workoutsData || []).forEach((workout: any) => {
+        if (workout.exercise_instances) {
+          workout.exercise_instances.forEach((instance: any) => {
+            if (instance.exercise_db_id) {
+              exerciseDbIds.push(String(instance.exercise_db_id));
+            }
+          });
+        }
+      });
+
+      // Apply localization to workouts
+      const localizedWorkouts = await applyLocalization(workoutsData || [], exerciseDbIds);
+
       setProgramData({
         ...programInfo,
-        workouts: workoutsData || []
+        description: localizedDescription,
+        workouts: localizedWorkouts
       });
     } catch (err: any) {
       console.error('Error loading workout plan:', err);
       // On network error, try cache as fallback
       const loadedFromCache = await loadFromCache();
       if (!loadedFromCache) {
-        setError('Failed to load workout plan details');
+        setError(t('workout.unableToLoad'));
       }
     } finally {
       setIsLoading(false);
@@ -214,15 +341,15 @@ export default function WorkoutPlanScreen() {
   const getGroupTypeLabel = (groupType: ExerciseGroupType | null): string => {
     switch (groupType) {
       case ExerciseGroupType.SUPERSET:
-        return 'Superset';
+        return t('workout.groupTypes.superset');
       case ExerciseGroupType.BI_SET:
-        return 'Bi-Set';
+        return t('workout.groupTypes.biSet');
       case ExerciseGroupType.TRI_SET:
-        return 'Tri-Set';
+        return t('workout.groupTypes.triSet');
       case ExerciseGroupType.GIANT_SET:
-        return 'Giant Set';
+        return t('workout.groupTypes.giantSet');
       default:
-        return 'Superset';
+        return t('workout.groupTypes.superset');
     }
   };
 
@@ -277,10 +404,10 @@ export default function WorkoutPlanScreen() {
           }}
         >
           {exercise.sets && exercise.reps
-            ? `${exercise.sets} sets × ${exercise.reps} reps`
+            ? t('workout.setsReps', { sets: exercise.sets, reps: exercise.reps })
             : exercise.sets
-              ? `${exercise.sets} sets`
-              : `${exercise.reps} reps`
+              ? t('workout.setsOnly', { sets: exercise.sets })
+              : t('workout.repsOnly', { reps: exercise.reps })
           }
         </Text>
       )}
@@ -393,7 +520,7 @@ export default function WorkoutPlanScreen() {
                 className="ml-2 font-semibold"
                 style={{ fontSize: 14, color: isDark ? '#60A5FA' : '#3B82F6' }}
               >
-                Rest Day
+                {t('workout.restDay')}
               </Text>
             </View>
           ) : (
@@ -405,7 +532,7 @@ export default function WorkoutPlanScreen() {
               })}
             >
               <Text className="text-white font-semibold" style={{ fontSize: 14 }}>
-                Start Workout
+                {t('workout.startWorkout')}
               </Text>
             </HapticPressable>
           )}
@@ -420,7 +547,7 @@ export default function WorkoutPlanScreen() {
       <View className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <ActivityIndicator size="large" color="#6366F1" />
         <Text className={`mt-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          Loading workout plan...
+          {t('workout.loadingWorkoutPlan')}
         </Text>
       </View>
     );
@@ -435,16 +562,16 @@ export default function WorkoutPlanScreen() {
           style={{ backgroundColor: isDark ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.1)' }}
         >
           <Text className="text-red-500 text-lg font-semibold mb-2">
-            Error Loading Workout Plan
+            {t('workout.errorLoadingWorkoutPlan')}
           </Text>
           <Text className={`${isDark ? 'text-red-400' : 'text-red-600'}`}>
-            {error || 'Unable to load workout plan data'}
+            {error || t('workout.unableToLoad')}
           </Text>
           <HapticPressable
             onPress={() => router.back()}
             className="mt-4 bg-indigo-600 rounded-lg py-3 items-center"
           >
-            <Text className="text-white font-semibold">Go Back</Text>
+            <Text className="text-white font-semibold">{t('workout.goBack')}</Text>
           </HapticPressable>
         </View>
       </View>
@@ -475,7 +602,7 @@ export default function WorkoutPlanScreen() {
         >
           <WifiOff size={16} color={isDark ? '#FBBF24' : '#D97706'} />
           <Text style={{ fontSize: 13, color: isDark ? '#FBBF24' : '#D97706' }}>
-            Viewing cached data - some details may be limited
+            {t('workout.viewingCachedData')}
           </Text>
         </View>
       )}
@@ -542,7 +669,7 @@ export default function WorkoutPlanScreen() {
                 color: isDark ? '#A5B4FC' : '#4F46E5'
               }}
             >
-              {programData.weeks} {programData.weeks === 1 ? 'week' : 'weeks'}
+              {programData.weeks} {programData.weeks === 1 ? t('workout.weekSingular') : t('workout.weeks')}
             </Text>
           </View>
         </View>
@@ -573,7 +700,7 @@ export default function WorkoutPlanScreen() {
                     className={`ml-2 font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}
                     style={{ fontSize: 16 }}
                   >
-                    {getDayName(day)}
+                    {getTranslatedDayName(day)}
                   </Text>
                 </View>
 
@@ -583,7 +710,7 @@ export default function WorkoutPlanScreen() {
                     className={`rounded-xl p-4 items-center ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
                   >
                     <Text className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                      Rest Day
+                      {t('workout.restDay')}
                     </Text>
                   </View>
                 ) : (
@@ -602,10 +729,10 @@ export default function WorkoutPlanScreen() {
             className={`mt-4 font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
             style={{ fontSize: 16 }}
           >
-            No Workouts Found
+            {t('workout.noWorkoutsFound')}
           </Text>
           <Text className={`mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            There are no workouts defined for this program.
+            {t('workout.noWorkoutsMessage')}
           </Text>
         </View>
       )}

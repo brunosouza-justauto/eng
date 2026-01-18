@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
 import { HapticPressable } from '../HapticPressable';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { X, Dumbbell, User, Calendar, Target, Filter } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getPublicWorkoutPrograms, PublicWorkoutProgram } from '../../services/workoutService';
 
@@ -17,6 +18,7 @@ export default function BrowseWorkoutProgramsModal({
   onClose,
   onSelect,
 }: BrowseWorkoutProgramsModalProps) {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['85%'], []);
@@ -246,7 +248,7 @@ export default function BrowseWorkoutProgramsModal({
               marginLeft: 8,
             }}
           >
-            Browse Workout Programs
+            {t('workout.browsePrograms')}
           </Text>
         </View>
         <HapticPressable onPress={handleClose} hitSlop={8}>
@@ -271,7 +273,7 @@ export default function BrowseWorkoutProgramsModal({
                 color: isDark ? '#9CA3AF' : '#6B7280',
               }}
             >
-              Loading programs...
+              {t('workout.loadingPrograms')}
             </Text>
           </View>
         ) : error ? (
@@ -287,7 +289,7 @@ export default function BrowseWorkoutProgramsModal({
                 borderRadius: 8,
               }}
             >
-              <Text style={{ color: '#FFFFFF', fontWeight: '500' }}>Retry</Text>
+              <Text style={{ color: '#FFFFFF', fontWeight: '500' }}>{t('common.retry')}</Text>
             </HapticPressable>
           </View>
         ) : programs.length === 0 ? (
@@ -302,7 +304,7 @@ export default function BrowseWorkoutProgramsModal({
                 textAlign: 'center',
               }}
             >
-              No Public Programs Available
+              {t('workout.noPublicPrograms')}
             </Text>
             <Text
               style={{
@@ -312,7 +314,7 @@ export default function BrowseWorkoutProgramsModal({
                 textAlign: 'center',
               }}
             >
-              Ask your coach to create a public program
+              {t('workout.askCoachForProgram')}
             </Text>
           </View>
         ) : (

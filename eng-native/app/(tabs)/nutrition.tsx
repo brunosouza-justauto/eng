@@ -660,7 +660,7 @@ export default function NutritionScreen() {
           backgroundColor: isDark ? '#111827' : '#F9FAFB',
         }}
       >
-        <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280' }}>Loading nutrition plan...</Text>
+        <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('common.loadingNutrition')}</Text>
       </View>
     );
   }
@@ -772,7 +772,7 @@ export default function NutritionScreen() {
               color: isDark ? '#F3F4F6' : '#1F2937',
             }}
           >
-            Today's Meals
+            {t('nutrition.todaysMeals')}
           </Text>
         </View>
 
@@ -794,7 +794,7 @@ export default function NutritionScreen() {
                   fontWeight: '500',
                 }}
               >
-                Switch
+                {t('nutrition.switch')}
               </Text>
             </HapticPressable>
             <HapticPressable
@@ -811,7 +811,7 @@ export default function NutritionScreen() {
                   fontWeight: '500',
                 }}
               >
-                View Plan
+                {t('nutrition.viewPlan')}
               </Text>
               <ExternalLink size={14} color="#6366F1" style={{ marginLeft: 4 }} />
             </HapticPressable>
@@ -834,7 +834,7 @@ export default function NutritionScreen() {
           marginBottom: 20,
         }}
       >
-        <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#6B7280' }}>Meals Completed</Text>
+        <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#6B7280' }}>{t('nutrition.mealsCompleted')}</Text>
         <Text
           style={{
             fontSize: 14,
@@ -865,20 +865,20 @@ export default function NutritionScreen() {
             marginBottom: 20,
           }}
         >
-          Daily Nutrition ({selectedDayType?.toLowerCase() || 'loading'})
+          {t('nutrition.dailyNutrition')} ({selectedDayType?.toLowerCase() || t('common.loading').toLowerCase()})
         </Text>
 
         {/* Macro Circles - 2x2 Grid */}
         <View style={{ flexDirection: 'row', marginBottom: 16 }}>
           <MacroCircle
-            label="Calories"
+            label={t('nutrition.calories')}
             current={consumedMacros.calories}
             target={dailyTargets.calories}
             color="#F87171"
             size={75}
           />
           <MacroCircle
-            label="Protein"
+            label={t('nutrition.protein')}
             current={Math.round(consumedMacros.protein)}
             target={Math.round(dailyTargets.protein)}
             color="#A78BFA"
@@ -887,14 +887,14 @@ export default function NutritionScreen() {
         </View>
         <View style={{ flexDirection: 'row' }}>
           <MacroCircle
-            label="Carbs"
+            label={t('nutrition.carbs')}
             current={Math.round(consumedMacros.carbs)}
             target={Math.round(dailyTargets.carbs)}
             color="#FBBF24"
             size={75}
           />
           <MacroCircle
-            label="Fat"
+            label={t('nutrition.fat')}
             current={Math.round(consumedMacros.fat)}
             target={Math.round(dailyTargets.fat)}
             color="#60A5FA"
@@ -912,7 +912,7 @@ export default function NutritionScreen() {
           marginBottom: 12,
         }}
       >
-        Planned Meals
+        {t('nutrition.plannedMeals')}
       </Text>
 
       {mealsForDayType.length === 0 ? (

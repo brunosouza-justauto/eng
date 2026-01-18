@@ -3,6 +3,7 @@ import { View, Text } from 'react-native';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Timer, Check } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { HapticPressable } from '../HapticPressable';
 
@@ -13,17 +14,18 @@ interface RestTimePickerModalProps {
   onClose: () => void;
 }
 
+// Translation keys for rest time options
 const REST_TIME_OPTIONS = [
-  { label: 'Use Default', value: null, description: 'Use each exercise\'s default rest time' },
-  { label: '30 seconds', value: 30, description: 'Quick rest' },
-  { label: '45 seconds', value: 45, description: 'Short rest' },
-  { label: '60 seconds', value: 60, description: '1 minute' },
-  { label: '90 seconds', value: 90, description: '1.5 minutes' },
-  { label: '2 minutes', value: 120, description: 'Standard rest' },
-  { label: '2.5 minutes', value: 150, description: 'Moderate rest' },
-  { label: '3 minutes', value: 180, description: 'Longer rest' },
-  { label: '4 minutes', value: 240, description: 'Extended rest' },
-  { label: '5 minutes', value: 300, description: 'Heavy lifting rest' },
+  { labelKey: 'workout.restOptions.useDefault', value: null, descKey: 'workout.restOptions.useDefaultDesc' },
+  { labelKey: 'workout.restOptions.30sec', value: 30, descKey: 'workout.restOptions.quickRest' },
+  { labelKey: 'workout.restOptions.45sec', value: 45, descKey: 'workout.restOptions.shortRest' },
+  { labelKey: 'workout.restOptions.60sec', value: 60, descKey: 'workout.restOptions.1min' },
+  { labelKey: 'workout.restOptions.90sec', value: 90, descKey: 'workout.restOptions.1min30' },
+  { labelKey: 'workout.restOptions.2min', value: 120, descKey: 'workout.restOptions.standardRest' },
+  { labelKey: 'workout.restOptions.2min30', value: 150, descKey: 'workout.restOptions.moderateRest' },
+  { labelKey: 'workout.restOptions.3min', value: 180, descKey: 'workout.restOptions.longerRest' },
+  { labelKey: 'workout.restOptions.4min', value: 240, descKey: 'workout.restOptions.extendedRest' },
+  { labelKey: 'workout.restOptions.5min', value: 300, descKey: 'workout.restOptions.heavyLiftingRest' },
 ];
 
 /**
@@ -35,6 +37,7 @@ export const RestTimePickerModal = ({
   onSelect,
   onClose,
 }: RestTimePickerModalProps) => {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
@@ -113,7 +116,7 @@ export const RestTimePickerModal = ({
               color: isDark ? '#F3F4F6' : '#1F2937',
             }}
           >
-            Set Rest Timer
+            {t('workout.setRestTimer')}
           </Text>
         </View>
         <HapticPressable
@@ -139,7 +142,7 @@ export const RestTimePickerModal = ({
             color: isDark ? '#9CA3AF' : '#6B7280',
           }}
         >
-          Choose a rest time that will apply to all exercises in this session
+          {t('workout.restTimeDescription')}
         </Text>
       </View>
 
@@ -154,7 +157,7 @@ export const RestTimePickerModal = ({
 
           return (
             <HapticPressable
-              key={option.label}
+              key={option.labelKey}
               onPress={() => handleSelect(option.value)}
               style={{
                 flexDirection: 'row',
@@ -189,7 +192,7 @@ export const RestTimePickerModal = ({
                         : '#1F2937',
                   }}
                 >
-                  {option.label}
+                  {t(option.labelKey)}
                 </Text>
                 <Text
                   style={{
@@ -198,7 +201,7 @@ export const RestTimePickerModal = ({
                     marginTop: 2,
                   }}
                 >
-                  {option.description}
+                  {t(option.descKey)}
                 </Text>
               </View>
               {isSelected && (

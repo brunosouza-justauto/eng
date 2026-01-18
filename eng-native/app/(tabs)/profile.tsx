@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { User, Moon, Bell, LogOut, ChevronRight, Mail, AlertCircle, Lock, X, Eye, EyeOff, UserCog, RefreshCw, Info, Database, Globe } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
@@ -16,6 +17,7 @@ import { LanguageSelector } from '../../components/LanguageSelector';
 import { useLocale } from '../../contexts/LocaleContext';
 
 export default function ProfileScreen() {
+  const { t } = useTranslation();
   const { isDark, toggleTheme } = useTheme();
   const { user, profile, signOut, refreshProfile } = useAuth();
   const { openNotifications } = useNotifications();
@@ -40,7 +42,7 @@ export default function ProfileScreen() {
 
   // Language bottom sheet
   const languageBottomSheetRef = useRef<BottomSheetModal>(null);
-  const languageSnapPoints = useMemo(() => ['50%'], []);
+  const languageSnapPoints = useMemo(() => ['35%'], []);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -229,13 +231,13 @@ export default function ProfileScreen() {
 
   const menuItems = [
     {
-      title: 'Edit Profile',
+      title: t('profile.editProfile'),
       icon: UserCog,
       type: 'link' as const,
       onPress: () => router.push('/edit-profile'),
     },
     {
-      title: 'Change Password',
+      title: t('profile.changePassword'),
       icon: Lock,
       type: 'link' as const,
       onPress: () => {
@@ -244,20 +246,20 @@ export default function ProfileScreen() {
       },
     },
     {
-      title: 'Notifications',
+      title: t('profile.notifications'),
       icon: Bell,
       type: 'link' as const,
       onPress: openNotifications,
     },
     {
-      title: 'Dark Mode',
+      title: t('profile.darkMode'),
       icon: Moon,
       type: 'toggle' as const,
       value: isDark,
       onToggle: toggleTheme,
     },
     {
-      title: 'Language',
+      title: t('profile.language'),
       icon: Globe,
       type: 'link' as const,
       subtitle: supportedLocales.find(l => l.code === locale)?.nativeLabel,
@@ -331,10 +333,10 @@ export default function ProfileScreen() {
               ) : (
                 <>
                   <Text className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    Not signed in
+                    {t('profile.notSignedIn')}
                   </Text>
                   <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Sign in to access all features
+                    {t('profile.signInToAccess')}
                   </Text>
                 </>
               )}
@@ -345,7 +347,7 @@ export default function ProfileScreen() {
 
         {/* Settings Menu */}
         <Text className={`text-lg font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Settings
+          {t('profile.settings')}
         </Text>
 
         <View
@@ -398,7 +400,7 @@ export default function ProfileScreen() {
 
         {/* App Section */}
         <Text className={`text-lg font-semibold mb-3 mt-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          App
+          {t('profile.app')}
         </Text>
 
         <View
@@ -422,7 +424,7 @@ export default function ProfileScreen() {
               <Info color={isDark ? '#9CA3AF' : '#6B7280'} size={20} />
             </View>
             <View className="flex-1">
-              <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Version</Text>
+              <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('profile.version')}</Text>
               <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{appVersion}</Text>
             </View>
           </View>
@@ -440,10 +442,10 @@ export default function ProfileScreen() {
             </View>
             <View className="flex-1">
               <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Cache & Offline Debug
+                {t('profile.cacheDebug')}
               </Text>
               <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                View cached data and sync status
+                {t('profile.cacheDebugDesc')}
               </Text>
             </View>
             <ChevronRight color={isDark ? '#6B7280' : '#9CA3AF'} size={20} />
@@ -467,10 +469,10 @@ export default function ProfileScreen() {
             </View>
             <View className="flex-1">
               <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Check for Updates
+                {t('profile.checkForUpdates')}
               </Text>
               <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                {isChecking ? 'Checking...' : isDownloading ? 'Downloading...' : 'Tap to check for new version'}
+                {isChecking ? t('profile.checking') : isDownloading ? t('profile.downloading') : t('profile.tapToCheck')}
               </Text>
             </View>
             <ChevronRight color={isDark ? '#6B7280' : '#9CA3AF'} size={20} />
@@ -486,7 +488,7 @@ export default function ProfileScreen() {
             }`}
           >
             <LogOut color="#EF4444" size={20} />
-            <Text className="ml-2 font-semibold text-red-500">Sign Out</Text>
+            <Text className="ml-2 font-semibold text-red-500">{t('profile.logOut')}</Text>
           </HapticPressable>
         )}
 
@@ -537,7 +539,7 @@ export default function ProfileScreen() {
               color: isDark ? '#F3F4F6' : '#1F2937',
             }}
           >
-            Change Password
+            {t('profile.changePassword')}
           </Text>
           <HapticPressable
             onPress={() => setShowPasswordModal(false)}
@@ -598,7 +600,7 @@ export default function ProfileScreen() {
                 color: isDark ? '#D1D5DB' : '#374151',
               }}
             >
-              Current Password
+              {t('profile.currentPassword')}
             </Text>
             <View
               style={{
@@ -620,7 +622,7 @@ export default function ProfileScreen() {
                   fontSize: 16,
                   color: isDark ? '#F3F4F6' : '#1F2937',
                 }}
-                placeholder="Enter current password"
+                placeholder={t('profile.enterCurrentPassword')}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
@@ -648,7 +650,7 @@ export default function ProfileScreen() {
                 color: isDark ? '#D1D5DB' : '#374151',
               }}
             >
-              New Password
+              {t('profile.newPassword')}
             </Text>
             <View
               style={{
@@ -670,7 +672,7 @@ export default function ProfileScreen() {
                   fontSize: 16,
                   color: isDark ? '#F3F4F6' : '#1F2937',
                 }}
-                placeholder="Enter new password"
+                placeholder={t('profile.enterNewPassword')}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 value={newPassword}
                 onChangeText={setNewPassword}
@@ -698,7 +700,7 @@ export default function ProfileScreen() {
                 color: isDark ? '#D1D5DB' : '#374151',
               }}
             >
-              Confirm New Password
+              {t('profile.confirmNewPassword')}
             </Text>
             <View
               style={{
@@ -720,7 +722,7 @@ export default function ProfileScreen() {
                   fontSize: 16,
                   color: isDark ? '#F3F4F6' : '#1F2937',
                 }}
-                placeholder="Confirm new password"
+                placeholder={t('profile.confirmNewPasswordPlaceholder')}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -747,7 +749,7 @@ export default function ProfileScreen() {
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>
-                Update Password
+                {t('profile.updatePassword')}
               </Text>
             )}
           </HapticPressable>
@@ -794,22 +796,22 @@ export default function ProfileScreen() {
 
             {/* Title */}
             <Text className={`text-xl font-semibold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {updateModalType === 'checking' && 'Checking for Updates'}
-              {updateModalType === 'available' && 'Update Available'}
-              {updateModalType === 'downloading' && 'Downloading Update'}
-              {updateModalType === 'ready' && 'Update Ready'}
-              {updateModalType === 'upToDate' && 'Up to Date'}
-              {updateModalType === 'devMode' && 'Development Mode'}
+              {updateModalType === 'checking' && t('profile.updates.checkingTitle')}
+              {updateModalType === 'available' && t('profile.updates.availableTitle')}
+              {updateModalType === 'downloading' && t('profile.updates.downloadingTitle')}
+              {updateModalType === 'ready' && t('profile.updates.readyTitle')}
+              {updateModalType === 'upToDate' && t('profile.updates.upToDateTitle')}
+              {updateModalType === 'devMode' && t('profile.updates.devModeTitle')}
             </Text>
 
             {/* Message */}
             <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              {updateModalType === 'checking' && 'Please wait while we check for updates...'}
-              {updateModalType === 'available' && 'A new version is available. Would you like to download it now?'}
-              {updateModalType === 'downloading' && 'Downloading the latest version...'}
-              {updateModalType === 'ready' && 'The update has been downloaded. Restart the app to apply changes.'}
-              {updateModalType === 'upToDate' && 'You have the latest version of the app.'}
-              {updateModalType === 'devMode' && 'OTA updates are not available in development mode. Build a preview or production version to test updates.'}
+              {updateModalType === 'checking' && t('profile.updates.checkingMessage')}
+              {updateModalType === 'available' && t('profile.updates.availableMessage')}
+              {updateModalType === 'downloading' && t('profile.updates.downloadingMessage')}
+              {updateModalType === 'ready' && t('profile.updates.readyMessage')}
+              {updateModalType === 'upToDate' && t('profile.updates.upToDateMessage')}
+              {updateModalType === 'devMode' && t('profile.updates.devModeMessage')}
             </Text>
 
             {/* Buttons */}
@@ -819,14 +821,14 @@ export default function ProfileScreen() {
                   onPress={() => setShowUpdateModal(false)}
                   className={`flex-1 py-3 rounded-xl items-center mr-2 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}
                 >
-                  <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>Later</Text>
+                  <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>{t('profile.updates.later')}</Text>
                 </HapticPressable>
                 <HapticPressable
                   onPress={handleDownloadUpdate}
                   className="flex-1 py-3 rounded-xl items-center ml-2"
                   style={{ backgroundColor: '#6366F1' }}
                 >
-                  <Text className="text-white font-semibold">Download</Text>
+                  <Text className="text-white font-semibold">{t('profile.updates.download')}</Text>
                 </HapticPressable>
               </View>
             )}
@@ -837,14 +839,14 @@ export default function ProfileScreen() {
                   onPress={() => setShowUpdateModal(false)}
                   className={`flex-1 py-3 rounded-xl items-center mr-2 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}
                 >
-                  <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>Later</Text>
+                  <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>{t('profile.updates.later')}</Text>
                 </HapticPressable>
                 <HapticPressable
                   onPress={handleRestartApp}
                   className="flex-1 py-3 rounded-xl items-center ml-2"
                   style={{ backgroundColor: '#22C55E' }}
                 >
-                  <Text className="text-white font-semibold">Restart Now</Text>
+                  <Text className="text-white font-semibold">{t('profile.updates.restartNow')}</Text>
                 </HapticPressable>
               </View>
             )}
@@ -901,7 +903,7 @@ export default function ProfileScreen() {
               color: isDark ? '#F3F4F6' : '#1F2937',
             }}
           >
-            Language
+            {t('profile.language')}
           </Text>
           <HapticPressable
             onPress={() => setShowLanguageModal(false)}
@@ -921,7 +923,7 @@ export default function ProfileScreen() {
         {/* Content */}
         <BottomSheetScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 20 }}
+          contentContainerStyle={{ padding: 20, flexGrow: 1 }}
         >
           <LanguageSelector showHeader={false} />
         </BottomSheetScrollView>

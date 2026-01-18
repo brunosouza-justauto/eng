@@ -1,6 +1,7 @@
 import { View, Text, TextInput, ActivityIndicator } from 'react-native';
 import { CheckCircle, Play, Star, AlertTriangle, Zap, Dumbbell } from 'lucide-react-native';
 import { HapticPressable } from '../HapticPressable';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ExerciseInstanceData, SetType, cleanExerciseName } from '../../types/workout';
 import { SetInputState, getSetTypeLabel, FeedbackRecommendation } from '../../types/workoutSession';
@@ -45,7 +46,34 @@ export const ExerciseCard = ({
   isInGroup = false,
   isLastInGroup = false,
 }: ExerciseCardProps) => {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
+
+  // Translate set type labels
+  const getTranslatedSetType = (type: SetType | string | null | undefined): string => {
+    switch (type) {
+      case SetType.WARMUP:
+      case 'WARMUP':
+        return t('workout.setTypes.warmup');
+      case SetType.WORKING:
+      case 'WORKING':
+        return t('workout.setTypes.working');
+      case SetType.DROPSET:
+      case 'DROPSET':
+        return t('workout.setTypes.dropset');
+      case SetType.FAILURE:
+      case 'FAILURE':
+        return t('workout.setTypes.failure');
+      case SetType.AMRAP:
+      case 'AMRAP':
+        return t('workout.setTypes.amrap');
+      case SetType.REST_PAUSE:
+      case 'REST_PAUSE':
+        return t('workout.setTypes.restPause');
+      default:
+        return t('workout.setTypes.regular');
+    }
+  };
 
   const setsData = exercise.sets_data || [];
   const numSets = setsData.length > 0 ? setsData.length : parseInt(exercise.sets || '0', 10);
@@ -139,7 +167,7 @@ export const ExerciseCard = ({
                 backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.1)',
               }}
             >
-              <Text style={{ fontSize: 10, color: '#F59E0B', fontWeight: '600' }}>Each Side</Text>
+              <Text style={{ fontSize: 10, color: '#F59E0B', fontWeight: '600' }}>{t('workout.eachSide')}</Text>
             </View>
           )}
           {/* View Demo Button */}
@@ -164,7 +192,7 @@ export const ExerciseCard = ({
                   color: isDark ? '#A5B4FC' : '#6366F1',
                 }}
               >
-                Demo
+                {t('workout.demo')}
               </Text>
             </HapticPressable>
           )}
@@ -188,7 +216,7 @@ export const ExerciseCard = ({
               marginBottom: 6,
             }}
           >
-            PREVIOUS SESSION FEEDBACK
+            {t('workout.previousSessionFeedback')}
           </Text>
           {recommendations.map((rec, idx) => {
             const getRecommendationStyle = () => {
@@ -241,7 +269,7 @@ export const ExerciseCard = ({
                     flex: 1,
                   }}
                 >
-                  {rec.message}
+                  {t(rec.message)}
                 </Text>
               </View>
             );
@@ -264,7 +292,7 @@ export const ExerciseCard = ({
                   marginBottom: 4,
                 }}
               >
-                Notes:
+                {t('workout.notesLabel')}:
               </Text>
               <Text
                 style={{
@@ -302,7 +330,7 @@ export const ExerciseCard = ({
                 color: isDark ? '#9CA3AF' : '#6B7280',
               }}
             >
-              TYPE
+              {t('workout.type')}
             </Text>
           </View>
           <View style={{ width: 70, alignItems: 'center' }}>
@@ -313,7 +341,7 @@ export const ExerciseCard = ({
                 color: isDark ? '#9CA3AF' : '#6B7280',
               }}
             >
-              WEIGHT
+              {t('workout.weight')}
             </Text>
           </View>
           <View style={{ width: 55, alignItems: 'center' }}>
@@ -324,7 +352,7 @@ export const ExerciseCard = ({
                 color: isDark ? '#9CA3AF' : '#6B7280',
               }}
             >
-              REPS
+              {t('workout.reps')}
             </Text>
           </View>
           <View style={{ width: 50, alignItems: 'center' }}>
@@ -335,7 +363,7 @@ export const ExerciseCard = ({
                 color: isDark ? '#9CA3AF' : '#6B7280',
               }}
             >
-              REST
+              {t('workout.rest')}
             </Text>
           </View>
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -346,7 +374,7 @@ export const ExerciseCard = ({
                 color: isDark ? '#9CA3AF' : '#6B7280',
               }}
             >
-              DONE
+              {t('workout.done')}
             </Text>
           </View>
         </View>
@@ -394,7 +422,7 @@ export const ExerciseCard = ({
                   }}
                   numberOfLines={1}
                 >
-                  {getSetTypeLabel(setType)}
+                  {getTranslatedSetType(setType)}
                 </Text>
               </View>
 
@@ -561,7 +589,7 @@ export const ExerciseCard = ({
               color: hasFeedback ? '#22C55E' : '#3B82F6',
             }}
           >
-            {hasFeedback ? 'Feedback Added' : 'Add Feedback'}
+            {hasFeedback ? t('workout.feedbackAdded') : t('workout.addFeedback')}
           </Text>
         </HapticPressable>
       )}

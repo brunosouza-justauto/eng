@@ -5,8 +5,197 @@ import {
   ProgramTemplate,
   CompletedWorkoutDate,
   getCurrentDayOfWeek,
+  ExerciseInstanceData,
 } from '../types/workout';
 import { getLocalDateString, getLocalDateRangeInUTC } from '../utils/date';
+import i18n from '../lib/i18n';
+
+/**
+ * Enrich exercise instances with localized names from the exercises table
+ * @param exerciseInstances The exercise instances to enrich
+ * @returns Exercise instances with localized names
+ */
+const enrichExercisesWithLocalizedNames = async (
+  exerciseInstances: ExerciseInstanceData[]
+): Promise<ExerciseInstanceData[]> => {
+  // Get all exercise_db_ids that exist
+  const exerciseDbIds = exerciseInstances
+    .filter((e) => e.exercise_db_id)
+    .map((e) => e.exercise_db_id as string);
+
+  if (exerciseDbIds.length === 0) {
+    return exerciseInstances;
+  }
+
+  // Fetch localized names from exercises table
+  const { data: exercises } = await supabase
+    .from('exercises')
+    .select('id, name, name_en, name_pt')
+    .in('id', exerciseDbIds);
+
+  if (!exercises || exercises.length === 0) {
+    return exerciseInstances;
+  }
+
+  // Create a map of exercise_db_id to localized name
+  const exerciseNameMap = new Map<string, { name: string; name_pt: string | null }>();
+  exercises.forEach((ex) => {
+    exerciseNameMap.set(String(ex.id), {
+      name: ex.name || ex.name_en || '',
+      name_pt: ex.name_pt,
+    });
+  });
+
+  // Enrich exercise instances with localized names
+  const currentLang = i18n.language;
+  return exerciseInstances.map((instance) => {
+    if (instance.exercise_db_id) {
+      const localizedData = exerciseNameMap.get(String(instance.exercise_db_id));
+      if (localizedData) {
+        // Use Portuguese name if available and language is Portuguese
+        if (currentLang === 'pt' && localizedData.name_pt) {
+          return { ...instance, exercise_name: localizedData.name_pt };
+        }
+        // Otherwise use the default name
+        return { ...instance, exercise_name: localizedData.name || instance.exercise_name };
+      }
+    }
+    return instance;
+  });
+};
+
+/**
+ * Enrich workout data with localized exercise names, notes, and descriptions
+ */
+const enrichWorkoutWithLocalizedNames = async (
+  workout: WorkoutData
+): Promise<WorkoutData> => {
+  const currentLang = i18n.language;
+  let enrichedWorkout = { ...workout };
+
+  // Localize workout name
+  if (currentLang === 'pt' && (workout as any).name_pt) {
+    enrichedWorkout.name = (workout as any).name_pt;
+  } else if ((workout as any).name_en) {
+    enrichedWorkout.name = (workout as any).name_en;
+  }
+
+  // Localize workout description
+  if (currentLang === 'pt' && (workout as any).description_pt) {
+    enrichedWorkout.description = (workout as any).description_pt;
+  } else if ((workout as any).description_en) {
+    enrichedWorkout.description = (workout as any).description_en;
+  }
+
+  if (!workout.exercise_instances || workout.exercise_instances.length === 0) {
+    return enrichedWorkout;
+  }
+
+  const enrichedInstances = await enrichExercisesWithLocalizedNames(
+    workout.exercise_instances as ExerciseInstanceData[]
+  );
+
+  // Localize exercise instance notes
+  const localizedInstances = enrichedInstances.map((instance: any) => {
+    if (currentLang === 'pt' && instance.notes_pt) {
+      return { ...instance, notes: instance.notes_pt };
+    } else if (instance.notes_en) {
+      return { ...instance, notes: instance.notes_en };
+    }
+    return instance;
+  });
+
+  return { ...enrichedWorkout, exercise_instances: localizedInstances };
+};
+
+/**
+ * Enrich multiple workouts with localized exercise names, notes, and descriptions
+ */
+const enrichWorkoutsWithLocalizedNames = async (
+  workouts: WorkoutData[]
+): Promise<WorkoutData[]> => {
+  const currentLang = i18n.language;
+
+  // Collect all exercise instances from all workouts
+  const allInstances: ExerciseInstanceData[] = [];
+  workouts.forEach((w) => {
+    if (w.exercise_instances) {
+      allInstances.push(...(w.exercise_instances as ExerciseInstanceData[]));
+    }
+  });
+
+  // Get all exercise_db_ids
+  const exerciseDbIds = allInstances
+    .filter((e) => e.exercise_db_id)
+    .map((e) => e.exercise_db_id as string);
+
+  // Fetch localized names from exercises table if we have exercise_db_ids
+  let exerciseNameMap = new Map<string, { name: string; name_pt: string | null }>();
+
+  if (exerciseDbIds.length > 0) {
+    const { data: exercises } = await supabase
+      .from('exercises')
+      .select('id, name, name_en, name_pt')
+      .in('id', [...new Set(exerciseDbIds)]);
+
+    if (exercises && exercises.length > 0) {
+      exercises.forEach((ex) => {
+        exerciseNameMap.set(String(ex.id), {
+          name: ex.name || ex.name_en || '',
+          name_pt: ex.name_pt,
+        });
+      });
+    }
+  }
+
+  // Enrich workouts with localized names, descriptions, exercise names, and notes
+  return workouts.map((workout) => {
+    let enrichedWorkout = { ...workout };
+
+    // Localize workout name
+    if (currentLang === 'pt' && (workout as any).name_pt) {
+      enrichedWorkout.name = (workout as any).name_pt;
+    } else if ((workout as any).name_en) {
+      enrichedWorkout.name = (workout as any).name_en;
+    }
+
+    // Localize workout description
+    if (currentLang === 'pt' && (workout as any).description_pt) {
+      enrichedWorkout.description = (workout as any).description_pt;
+    } else if ((workout as any).description_en) {
+      enrichedWorkout.description = (workout as any).description_en;
+    }
+
+    if (!workout.exercise_instances) return enrichedWorkout;
+
+    const enrichedInstances = workout.exercise_instances.map((instance: any) => {
+      let enrichedInstance = { ...instance };
+
+      // Localize exercise name from exercises table
+      if (instance.exercise_db_id) {
+        const localizedData = exerciseNameMap.get(String(instance.exercise_db_id));
+        if (localizedData) {
+          if (currentLang === 'pt' && localizedData.name_pt) {
+            enrichedInstance.exercise_name = localizedData.name_pt;
+          } else if (localizedData.name) {
+            enrichedInstance.exercise_name = localizedData.name;
+          }
+        }
+      }
+
+      // Localize exercise instance notes
+      if (currentLang === 'pt' && instance.notes_pt) {
+        enrichedInstance.notes = instance.notes_pt;
+      } else if (instance.notes_en) {
+        enrichedInstance.notes = instance.notes_en;
+      }
+
+      return enrichedInstance;
+    });
+
+    return { ...enrichedWorkout, exercise_instances: enrichedInstances };
+  });
+};
 
 /**
  * Get the athlete's assigned workout program
@@ -66,10 +255,14 @@ export const getProgramWorkouts = async (
         workouts (
           id,
           name,
+          name_en,
+          name_pt,
           day_of_week,
           week_number,
           order_in_program,
           description,
+          description_en,
+          description_pt,
           exercise_instances (
             id,
             exercise_db_id,
@@ -79,6 +272,8 @@ export const getProgramWorkouts = async (
             rest_period_seconds,
             tempo,
             notes,
+            notes_en,
+            notes_pt,
             order_in_workout,
             set_type,
             sets_data,
@@ -98,7 +293,10 @@ export const getProgramWorkouts = async (
       return { workouts: [], error: error.message };
     }
 
-    return { workouts: (data?.workouts as WorkoutData[]) || [] };
+    // Enrich workouts with localized exercise names
+    const workouts = (data?.workouts as WorkoutData[]) || [];
+    const enrichedWorkouts = await enrichWorkoutsWithLocalizedNames(workouts);
+    return { workouts: enrichedWorkouts };
   } catch (err: any) {
     console.error('Error in getProgramWorkouts:', err);
     return { workouts: [], error: err.message };
@@ -230,14 +428,20 @@ export const getFullProgram = async (
         id,
         name,
         description,
+        description_en,
+        description_pt,
         version,
         workouts (
           id,
           name,
+          name_en,
+          name_pt,
           day_of_week,
           week_number,
           order_in_program,
           description,
+          description_en,
+          description_pt,
           exercise_instances (
             id,
             exercise_db_id,
@@ -247,6 +451,8 @@ export const getFullProgram = async (
             rest_period_seconds,
             tempo,
             notes,
+            notes_en,
+            notes_pt,
             order_in_workout,
             set_type,
             sets_data,
@@ -266,7 +472,16 @@ export const getFullProgram = async (
       return { program: null, error: error.message };
     }
 
-    return { program: data as ProgramTemplate };
+    // Enrich workouts with localized exercise names
+    const program = data as ProgramTemplate;
+    if (program?.workouts) {
+      const enrichedWorkouts = await enrichWorkoutsWithLocalizedNames(
+        program.workouts as WorkoutData[]
+      );
+      return { program: { ...program, workouts: enrichedWorkouts } };
+    }
+
+    return { program };
   } catch (err: any) {
     console.error('Error in getFullProgram:', err);
     return { program: null, error: err.message };
@@ -394,10 +609,14 @@ export const getWorkoutById = async (
       .select(`
         id,
         name,
+        name_en,
+        name_pt,
         day_of_week,
         week_number,
         order_in_program,
         description,
+        description_en,
+        description_pt,
         exercise_instances (
           id,
           exercise_db_id,
@@ -407,6 +626,8 @@ export const getWorkoutById = async (
           rest_period_seconds,
           tempo,
           notes,
+          notes_en,
+          notes_pt,
           order_in_workout,
           set_type,
           sets_data,
@@ -432,7 +653,10 @@ export const getWorkoutById = async (
       );
     }
 
-    return { workout: data as WorkoutData };
+    // Enrich with localized exercise names
+    const workout = data as WorkoutData;
+    const enrichedWorkout = await enrichWorkoutWithLocalizedNames(workout);
+    return { workout: enrichedWorkout };
   } catch (err: any) {
     console.error('Error in getWorkoutById:', err);
     return { workout: null, error: err.message };
@@ -1008,6 +1232,7 @@ export const getPreviousFeedback = async (
 
 /**
  * Generate recommendations based on feedback
+ * Returns translation keys for messages - translate in component using t(message)
  */
 export const generateRecommendations = (
   feedback: ExerciseFeedback
@@ -1018,13 +1243,13 @@ export const generateRecommendations = (
   if (feedback.pain_level && feedback.pain_level >= 4) {
     recommendations.push({
       type: 'pain',
-      message: 'High pain reported last session. Consider modifying or replacing this exercise.',
+      message: 'workout.feedback.highPain',
       action: 'change_exercise',
     });
   } else if (feedback.pain_level && feedback.pain_level === 3) {
     recommendations.push({
       type: 'pain',
-      message: 'Moderate discomfort reported. Monitor form and reduce weight if needed.',
+      message: 'workout.feedback.moderatePain',
       action: 'decrease_weight',
     });
   }
@@ -1033,13 +1258,13 @@ export const generateRecommendations = (
   if (feedback.workload_level && feedback.workload_level <= 2) {
     recommendations.push({
       type: 'workload',
-      message: 'Last session felt too easy. Consider increasing weight.',
+      message: 'workout.feedback.tooEasy',
       action: 'increase_weight',
     });
   } else if (feedback.workload_level && feedback.workload_level >= 5) {
     recommendations.push({
       type: 'workload',
-      message: 'Last session was very heavy. Consider reducing weight for better form.',
+      message: 'workout.feedback.tooHeavy',
       action: 'decrease_weight',
     });
   }
@@ -1048,7 +1273,7 @@ export const generateRecommendations = (
   if (feedback.pump_level && feedback.pump_level <= 2) {
     recommendations.push({
       type: 'pump',
-      message: 'Low muscle pump reported. Try increasing reps or slowing tempo.',
+      message: 'workout.feedback.lowPump',
       action: 'adjust_reps',
     });
   }
